@@ -12,7 +12,7 @@ function validDay(s){s=String(s||"").trim();if(!/^\d{4}-\d{2}-\d{2}$/.test(s))re
 function healthRows(x){if(!x||typeof x!=="object")return [];const day=validDay(x.date||x.day);if(!day)return [];const rows=[];for(const [k,[low,high]]of Object.entries(METRICS)){const v=x[k];if(v===null||v===undefined||v==="")continue;const n=Number(v);if(Number.isFinite(n)&&n>=low&&n<=high)rows.push({day,metric:k,value:n});}return rows;}
 function eventRow(x){if(!x||typeof x!=="object")return null;const start=new Date(x.start||x.start_time),end=new Date(x.end||x.end_time);if(!Number.isFinite(start.getTime())||!Number.isFinite(end.getTime())||end<=start||end-start>172800000)return null;return {start:start.toISOString(),end:end.toISOString(),title:String(x.title||"Calendar event").trim().slice(0,100)||"Calendar event",category:CATS.includes(x.category)?x.category:"Other"};}
 async function api(request,env,path){
- if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:"Rage Tracker",version:"1.0.1",sync:"available"});
+ if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:"Rage Tracker",version:"1.2.0",sync:"available"});
  if(path==="/api/pair"){if(request.method!=="POST")return error("Method not allowed",405);
   let p;try{p=await payload(request);}catch(e){return error("Invalid request");}
   if(!p||typeof p.pairCode!=="string"||p.pairCode.length>150||!/^[a-f0-9]{64}$/i.test(String(p.token||"")))return error("Invalid pairing request");
