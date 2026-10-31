@@ -1,13 +1,13 @@
 (function () {
 "use strict";
-var VERSION = "1.0.1";
+var VERSION = "1.2.0";
 var STORAGE_KEY = "rage-tracker:v1";
 var MOOD_NAMES = ["","Rough","Low","Okay","Good","Great"];
 var MOOD_EMOJI = ["","😣","😕","😐","🙂","😄"];
 var ENERGY_NAMES = ["","Very low","Low","Medium","High","Very high"];
 var CATEGORIES = ["Meeting","Work","Exercise","Social","Family","Rest","Commute","Other"];
 var ACTIVITY_LABELS = ["Work","Meeting","Exercise","Social","Family","Rest","Outdoors","Commute","Food"];
-var selectedMood = 0, selectedTags = new Set(), insightDays = 30, toastTimer = null;
+var selectedMood = 0, selectedTags = new Set(), insightDays = 30, insightScope = "personal", toastTimer = null;
 var state = readState();
 function $(id){ return document.getElementById(id); }
 function emptyState(){ return {moods:[],health:[],events:[],token:"",pairedAt:null,lastSync:null}; }
@@ -44,8 +44,9 @@ function render(){
 }
 function getRecent(days){var cutoff=Date.now()-days*86400000;return state.moods.filter(function(m){return m.ts&&new Date(m.ts).getTime()>=cutoff&&m.score>=1&&m.score<=5;});}
 function renderStats(){
- var today=dateKey(now()), counts=getRecent(7), days=new Set(state.moods.map(function(m){return dateKey(m.ts);}));
- $("stat-today").textContent=state.moods.filter(function(m){return dateKey(m.ts)===today;}).length;
+ var personal=state.moods.filter(function(m){return !m.demo;}), today=dateKey(now()), cutoff=Date.now()-7*86400000;
+ var counts=personal.filter(function(m){return new Date(m.ts).getTime()>=cutoff;}), days=new Set(personal.map(function(m){return dateKey(m.ts);}));
+ $("stat-today").textContent=personal.filter(function(m){return dateKey(m.ts)===today;}).length;
  $("stat-average").textContent=score(average(counts.map(function(m){return m.score;})));
  var d=new Date();d.setHours(12,0,0,0);
  if(!days.has(dateKey(d)))d.setDate(d.getDate()-1);
@@ -53,8 +54,8 @@ function renderStats(){
  $("stat-streak").textContent=streak;
 }
 function renderRecent(){
- var moods=state.moods.slice().sort(function(a,b){return new Date(b.ts)-new Date(a.ts);});
- $("entries-count").textContent=state.moods.length+" entries";
+ var moods=state.moods.filter(function(m){return !m.demo;}).sort(function(a,b){return new Date(b.ts)-new Date(a.ts);});
+ $("entries-count").textContent=moods.length+" personal entries";
  $("recent-list").innerHTML=moods.length?moods.slice(0,12).map(function(m){
  var tags=(m.tags||[]).join(" · "),sub=formatDate(m.ts)+" at "+formatTime(m.ts)+(tags?" · "+tags:"")+(m.demo?" · DEMO":"");
  return '<div class="entry"><span class="entry-emoji">'+MOOD_EMOJI[m.score]+'</span><div class="entry-main"><strong>'+MOOD_NAMES[m.score]+(m.note?" · "+esc(m.note):"")+'</strong><small>'+esc(sub)+'</small></div><div class="entry-side">'+m.score+'/5</div><button class="entry-delete" aria-label="Delete check-in" data-delete-mood="'+esc(m.id)+'">×</button></div>';
@@ -85,15 +86,27 @@ function renderSync(){
  $("last-sync").textContent=state.lastSync?"Last fetched "+formatDate(state.lastSync)+" at "+formatTime(state.lastSync):"No Shortcuts data fetched yet";
 }
 function renderSettings(){
+ $("demo-button").textContent=hasDemoData()?"Refresh the calendar demo":"Load 28-day calendar demo";
  $("storage-summary").textContent=state.moods.length+" mood check-ins · "+state.health.length+" health days · "+state.events.length+" calendar events";
  $("version").textContent=VERSION;
 }
+function hasDemoData(){return state.moods.some(function(m){return !!m.demo;});}
 function renderInsights(){
- var moods=getRecent(insightDays).sort(function(a,b){return new Date(a.ts)-new Date(b.ts);});
+ var demoAvailable=hasDemoData();
+ if(!demoAvailable)insightScope="personal";
+ $("insight-scope-controls").hidden=!demoAvailable;
+ document.querySelectorAll("[data-scope]").forEach(function(b){
+  var selected=b.dataset.scope===insightScope;
+  b.classList.toggle("selected",selected);b.setAttribute("aria-pressed",String(selected));
+ });
+ $("demo-insight-note").hidden=insightScope!=="demo";
+ var isDemo=insightScope==="demo";
+ var moods=getRecent(insightDays).filter(function(m){return !!m.demo===isDemo;}).sort(function(a,b){return new Date(a.ts)-new Date(b.ts);});
+ var events=state.events.filter(function(e){return !!e.demo===isDemo;});
+ var health=state.health.filter(function(h){return !!h.demo===isDemo;});
  $("insight-average").textContent=score(average(moods.map(function(m){return m.score;})))+"/5";
- var demo=moods.some(function(m){return m.demo;});
- $("insight-samples").textContent=moods.length+" check-ins over "+insightDays+" days"+(demo?" · INCLUDES DEMO DATA":"");
- drawTrend(moods);drawTimes(moods);drawActivity(moods);drawCalendar(moods);drawHealth(moods);
+ $("insight-samples").textContent=moods.length+" "+(isDemo?"fictional":"personal")+" check-ins over "+insightDays+" days";
+ drawTrend(moods);drawTimes(moods);drawActivity(moods);drawCalendar(moods,events);drawHealth(moods,health);
 }
 function drawTrend(moods){
  var byDay={};moods.forEach(function(m){var k=dateKey(m.ts);(byDay[k]||(byDay[k]=[])).push(m.score);});
@@ -121,19 +134,68 @@ function drawActivity(moods){
  rows.sort(function(a,b){return Math.abs(b.d)-Math.abs(a.d);});
  $("activity-insights").innerHTML=rows.length?rows.slice(0,6).map(function(r){return diffHtml(r.tag,r.yes,r.no);}).join(""):blank("Add activity tags to at least 3 check-ins, with at least 3 others for comparison.");
 }
-function hasEvent(m,cat){
- var t=new Date(m.ts).getTime();
- return state.events.some(function(e){var st=new Date(e.start).getTime(),en=new Date(e.end).getTime();return e.category===cat && Number.isFinite(st)&&Number.isFinite(en)&&t>=st&&t<=en+3600000;});
+function calendarPatternSummary(moods,events){
+ var windowMs=90*60000;
+ var samples=moods.map(function(m){return {time:new Date(m.ts).getTime(),ts:m.ts,score:m.score};})
+  .filter(function(m){return Number.isFinite(m.time)&&m.score>=1&&m.score<=5;});
+ var valid=events.map(function(e){
+  return {category:e.category,start:new Date(e.start).getTime(),end:new Date(e.end).getTime()};
+ }).filter(function(e){return CATEGORIES.includes(e.category)&&Number.isFinite(e.start)&&Number.isFinite(e.end)&&e.end>e.start;});
+ var unaffected=samples.filter(function(m){return !valid.some(function(e){return m.time>=e.start&&m.time<=e.end+windowMs;});});
+ var paired=[],compared=[];
+ CATEGORIES.forEach(function(category){
+  var relevant=valid.filter(function(e){return e.category===category;});
+  if(!relevant.length)return;
+  var before=[],after=[];
+  relevant.forEach(function(e){
+   var pre=null,post=null;
+   samples.forEach(function(m){
+    if(m.time>=e.start-windowMs&&m.time<e.start&&(!pre||m.time>pre.time))pre=m;
+    if(m.time>=e.end&&m.time<=e.end+windowMs&&(!post||m.time<post.time))post=m;
+   });
+   if(pre&&post){before.push(pre.score);after.push(post.score);}
+  });
+  if(before.length>=3){
+   paired.push({category:category,count:before.length,before:average(before),after:average(after),delta:average(after)-average(before)});
+  }
+  var exposed=samples.filter(function(m){return relevant.some(function(e){return m.time>=e.start&&m.time<=e.end+windowMs;});});
+  if(exposed.length>=3){
+   var buckets=new Set(exposed.map(function(m){return timeGroup(m.ts);}));
+   var controls=unaffected.filter(function(m){return buckets.has(timeGroup(m.ts));});
+   if(controls.length>=3)compared.push({category:category,withCount:exposed.length,withoutCount:controls.length,withMood:average(exposed.map(function(m){return m.score;})),withoutMood:average(controls.map(function(m){return m.score;})),delta:average(exposed.map(function(m){return m.score;}))-average(controls.map(function(m){return m.score;}))});
+  }
+ });
+ paired.sort(function(a,b){return Math.abs(b.delta)-Math.abs(a.delta);});
+ compared.sort(function(a,b){return Math.abs(b.delta)-Math.abs(a.delta);});
+ return {paired:paired,compared:compared,eventCount:valid.length};
 }
-function drawCalendar(moods){
- var rows=[];
- CATEGORIES.forEach(function(cat){var yes=[],no=[];moods.forEach(function(m){(hasEvent(m,cat)?yes:no).push(m.score);});if(yes.length>=3&&no.length>=3)rows.push({cat:cat,yes:yes,no:no,d:average(yes)-average(no)});});
- rows.sort(function(a,b){return Math.abs(b.d)-Math.abs(a.d);});
- $("calendar-insights").innerHTML=rows.length?rows.map(function(r){return diffHtml(r.cat+" events",r.yes,r.no);}).join(""):blank("Add Calendar events and check in during or within an hour afterward to compare context.");
+function signedScore(delta){return (delta>0?"+":"")+delta.toFixed(1);}
+function drawCalendar(moods,events){
+ if(!moods.length||!events.length){
+  $("calendar-insights").innerHTML=blank("Log mood before and after calendar events, or load the fictional calendar scenario in Settings.");
+  return;
+ }
+ var patterns=calendarPatternSummary(moods,events);
+ var html='<div class="calendar-analysis-header"><span class="mini-heading">MOOD BEFORE → AFTER AN EVENT</span><span class="muted">90-minute windows</span></div>';
+ if(patterns.paired.length){
+  html+=patterns.paired.map(function(r){
+   var cls=r.delta>0.05?"positive":r.delta<-0.05?"negative":"";
+   return '<div class="calendar-pair"><div class="calendar-pair-label"><strong>'+esc(r.category)+'</strong><small>'+r.count+' paired event'+(r.count===1?"":"s")+'</small></div><div class="calendar-pair-scores">'+score(r.before)+' <span aria-hidden="true">→</span> '+score(r.after)+'</div><span class="calendar-delta '+cls+'">'+signedScore(r.delta)+'</span></div>';
+  }).join("");
+ }else html+='<p class="muted calendar-empty">Need at least 3 events of the same type with a check-in within 90 minutes before the start and within 90 minutes after the end.</p>';
+ html+='<div class="calendar-subsection"><div class="calendar-analysis-header"><span class="mini-heading">NEAR EVENTS VS OTHER CHECK-INS</span><span class="muted">5-point mood scale</span></div>';
+ if(patterns.compared.length){
+  html+=patterns.compared.map(function(r){
+   var cls=r.delta>0.05?"positive":r.delta<-0.05?"negative":"";
+   return '<div class="diff-row"><div><strong>'+esc(r.category)+'</strong><p>'+r.withCount+' near events · '+r.withoutCount+' other check-ins in similar parts of the day</p></div><span class="diff '+cls+'">'+signedScore(r.delta)+' / 5</span></div>';
+  }).join("");
+ }else html+='<p class="muted calendar-empty">More check-ins outside calendar events are needed for a same-time-of-day comparison.</p>';
+ html+='</div><p class="calendar-explainer">Paired changes compare the closest check-ins before and after an event. “Near” includes the event itself and up to 90 minutes afterward. These are associations, not proof of cause; overlapping events can share check-ins.</p>';
+ $("calendar-insights").innerHTML=html;
 }
-function drawHealth(moods){
+function drawHealth(moods,health){
  var d={};moods.forEach(function(m){(d[dateKey(m.ts)]||(d[dateKey(m.ts)]=[])).push(m.score);});
- var joined=state.health.filter(function(h){return d[h.date]&&d[h.date].length;}).map(function(h){return {h:h,mood:average(d[h.date])};});
+ var joined=health.filter(function(h){return d[h.date]&&d[h.date].length;}).map(function(h){return {h:h,mood:average(d[h.date])};});
  var comps=[{name:"Sleep 7h or more",key:"sleepHours",test:function(v){return v>=7;}},{name:"6,000+ steps",key:"steps",test:function(v){return v>=6000;}},{name:"Any workout",key:"workoutMin",test:function(v){return v>0;}}];
  var rows=[];
  comps.forEach(function(c){var valid=joined.filter(function(x){return x.h[c.key]!=null&&Number.isFinite(number(x.h[c.key]));}),yes=valid.filter(function(x){return c.test(number(x.h[c.key]));}).map(function(x){return x.mood;}),no=valid.filter(function(x){return !c.test(number(x.h[c.key]));}).map(function(x){return x.mood;});if(yes.length>=3&&no.length>=3)rows.push({name:c.name,yes:yes,no:no});});
@@ -228,22 +290,57 @@ async function restoreBackup(file){
  persist();render();toast("Backup restored.");
  }catch(e){toast("This file is not a valid Rage Tracker backup.");}
 }
-function demo(){
- if(state.moods.some(function(x){return x.demo;})){toast("Demo data is already loaded.");return;}
- var base=new Date();base.setHours(0,0,0,0);
- for(var i=24;i>=0;i--){
- var d=new Date(base);d.setDate(d.getDate()-i);
- var sleep=i%5===0?5.8:i%3===0?6.5:7.7,steps=i%4===0?3400:7900,workout=i%4===0?0:35,scoreDay=sleep<7?2:4;
- if(!state.health.some(function(h){return h.date===dateKey(d);}))upsertHealth({date:dateKey(d),sleepHours:sleep,steps:steps,hrv:37+(i%6)*4,workoutMin:workout,demo:true,source:"demo"});
- [10,17].forEach(function(hour,j){var at=new Date(d);at.setHours(hour,30,0,0);var m=Math.max(1,Math.min(5,scoreDay+(j===1&&i%3===0?1:0)));
- var tags=i%4===0?["Work","Meeting"]:i%3===0?["Family","Rest"]:["Exercise","Outdoors"];
- state.moods.push({id:"demo:"+i+":"+hour,ts:at.toISOString(),score:m,energy:m,tags:tags,note:"",demo:true});});
- if(i%4===0){var st=new Date(d);st.setHours(9,0,0,0);var en=new Date(st);en.setHours(11,0,0,0);upsertEvent({id:"demo:event:"+i,start:st.toISOString(),end:en.toISOString(),title:"Example meeting",category:"Meeting",source:"demo",demo:true});}
+function buildDemoCalendarScenario(base){
+ var result={moods:[],events:[],health:[]};
+ function localAt(day,hour,minute){var d=new Date(day);d.setHours(hour,minute,0,0);return d.toISOString();}
+ function checkin(day,index,slot,hour,minute,mood,tags){
+  result.moods.push({id:"demo:v2:"+index+":"+slot,ts:localAt(day,hour,minute),score:mood,energy:mood,tags:tags,note:"",demo:true});
  }
- persist();render();toast("Fictional demo data added. Remove it in Settings.");
+ function event(day,index,slot,category,title,hour,startMinute,endHour,endMinute){
+  result.events.push({id:"demo:v2:event:"+index+":"+slot,start:localAt(day,hour,startMinute),end:localAt(day,endHour,endMinute),title:title,category:category,source:"demo",demo:true});
+ }
+ var anchor=new Date(base);anchor.setHours(12,0,0,0);
+ for(var i=28;i>=1;i--){
+  var day=new Date(anchor);day.setDate(day.getDate()-i);
+  var date=dateKey(day);
+  var sleep=i%5===0?5.9:i%3===0?7.1:7.8,steps=i%4===0?9200:i%4===2?3700:6800;
+  result.health.push({date:date,sleepHours:sleep,steps:steps,hrv:33+(i%7)*4,workoutMin:i%4===0?40:0,source:"demo",demo:true});
+  var morningBase=sleep<7?2:3,afternoonBase=sleep<7?2:3;
+  checkin(day,i,"morning-before",8,15,morningBase,["Work"]);
+  if(i%3===0){
+   event(day,i,"morning","Meeting","Project stand-up",9,30,10,15);
+   checkin(day,i,"morning-after",11,10,Math.max(1,morningBase-1),["Meeting","Work"]);
+  }else if(i%3===1){
+   event(day,i,"morning","Work","Quiet focus block",9,30,10,15);
+   checkin(day,i,"morning-after",11,10,Math.min(5,morningBase+1),["Work"]);
+  }else{
+   checkin(day,i,"morning-after",11,10,morningBase,["Work"]);
+  }
+  checkin(day,i,"afternoon-before",15,15,afternoonBase,["Work"]);
+  var afternoon=i%4,category=["Exercise","Social","Commute","Rest"][afternoon];
+  var title=["Walk or workout","Coffee with a friend","Evening commute","Unstructured rest"][afternoon];
+  var shift=[2,1,-1,1][afternoon];
+  event(day,i,"afternoon",category,title,16,30,17,15);
+  checkin(day,i,"afternoon-after",18,5,Math.max(1,Math.min(5,afternoonBase+shift)),
+   afternoon===0?["Exercise","Outdoors"]:afternoon===1?["Social"]:afternoon===2?["Commute"]:["Rest"]);
+ }
+ return result;
+}
+function demo(){
+ var scenario=buildDemoCalendarScenario(new Date());
+ state.moods=state.moods.filter(function(m){return !m.demo;}).concat(scenario.moods);
+ state.events=state.events.filter(function(e){return !e.demo;});
+ state.health=state.health.filter(function(h){return !h.demo;});
+ scenario.health.forEach(function(h){if(!state.health.some(function(existing){return existing.date===h.date;}))upsertHealth(h);});
+ scenario.events.forEach(upsertEvent);
+ insightScope="demo";
+ if(!persist())return;
+ navigate("insights");
+ toast("28 fictional days loaded. Compare mood before and after calendar events.");
 }
 function clearDemo(){
  var a=state.moods.length,b=state.events.length,c=state.health.length;
+ insightScope="personal";
  state.moods=state.moods.filter(function(x){return !x.demo;});state.events=state.events.filter(function(x){return !x.demo;});state.health=state.health.filter(function(x){return !x.demo;});
  persist();render();toast("Removed "+(a-state.moods.length+b-state.events.length+c-state.health.length)+" demo records.");
 }
@@ -293,6 +390,7 @@ function init(){
  $("context-list").addEventListener("click",function(ev){var b=ev.target.closest("[data-delete-health]");if(b&&confirm("Delete this health day?")){state.health=state.health.filter(function(x){return x.date!==b.dataset.deleteHealth;});persist();render();}
  b=ev.target.closest("[data-delete-event]");if(b&&confirm("Delete this event?")){state.events=state.events.filter(function(x){return x.id!==b.dataset.deleteEvent;});persist();render();}});
  document.querySelectorAll("[data-days]").forEach(function(b){b.addEventListener("click",function(){insightDays=Number(b.dataset.days);document.querySelectorAll("[data-days]").forEach(function(x){x.classList.toggle("selected",x===b);});renderInsights();});});
+ document.querySelectorAll("[data-scope]").forEach(function(b){b.addEventListener("click",function(){insightScope=b.dataset.scope;renderInsights();});});
  $("pair-button").addEventListener("click",pair);$("pair-code").addEventListener("keydown",function(e){if(e.key==="Enter")pair();});
  $("pull-button").addEventListener("click",function(){pull(false);});
  $("unpair-button").addEventListener("click",function(){if(confirm("Forget this device's pairing key? Existing cloud data remains, and you will need the private pairing code to reconnect.")){state.token="";state.lastSync=null;persist();render();toast("Pairing key forgotten.");}});
