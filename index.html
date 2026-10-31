@@ -65,6 +65,17 @@
    <section id="view-insights" class="view" aria-labelledby="insights-title">
     <div class="eyebrow">A LITTLE MORE CLARITY</div>
     <div class="intro"><h1 id="insights-title">Your <em>patterns.</em></h1><p>Associations worth exploring, never judgments or diagnoses.</p></div>
+    <div class="insight-scope" id="insight-scope-controls" hidden>
+     <span class="mini-heading">DATA SOURCE</span>
+     <div class="scope-buttons" role="group" aria-label="Data source for insights">
+      <button type="button" class="selected" data-scope="personal" aria-pressed="true">My data</button>
+      <button type="button" data-scope="demo" aria-pressed="false">Demo scenario</button>
+     </div>
+    </div>
+    <div id="demo-insight-note" class="demo-insight-note" role="note" hidden>
+     <strong>✦ Example data only</strong>
+     <span>All values here are fictional. Compare moods before and after calendar events, then switch to My data for your real patterns.</span>
+    </div>
     <div class="range-switch" role="group" aria-label="Time range"><button data-days="7">7 days</button><button data-days="30" class="selected">30 days</button><button data-days="90">90 days</button></div>
     <div class="card insight-hero">
      <div class="mini-heading">MOOD OVER TIME</div>
@@ -76,7 +87,7 @@
     <div class="card" id="time-insights"></div>
     <div class="section-heading"><h2>Activities</h2><span class="muted">With vs without</span></div>
     <div class="card" id="activity-insights"></div>
-    <div class="section-heading"><h2>Calendar context</h2><span class="muted">During & 60m after</span></div>
+    <div class="section-heading"><h2>Calendar context</h2><span class="muted">Before · after · near events</span></div>
     <div class="card" id="calendar-insights"></div>
     <div class="section-heading"><h2>Health context</h2><span class="muted">Day-level comparisons</span></div>
     <div class="card" id="health-insights"></div>
@@ -161,8 +172,8 @@
    <section id="view-settings" class="view" aria-labelledby="settings-title">
     <div class="eyebrow">YOU OWN YOUR STORY</div><div class="intro"><h1 id="settings-title">Settings & <em>privacy.</em></h1><p>Keep control of your records, backups and connections.</p></div>
     <div class="card"><h2>Your local data</h2><p class="muted">Mood check-ins, notes and locally imported health/calendar data stay in this app's storage on this device. Clearing site data or deleting the Home Screen app may erase them.</p><div class="settings-meta" id="storage-summary"></div><button class="btn secondary full" id="backup-button">↓ Download JSON backup</button><label class="file-label">Restore from backup <input type="file" id="restore-input" accept="application/json,.json"></label><button class="btn danger full" id="erase-local">Erase all data on this device</button></div>
-    <div class="card"><h2>About the insights</h2><p class="muted">Comparisons require at least 3 observations in each group. Mood data is subjective and missing check-ins can bias findings. Nothing here diagnoses health conditions or establishes causality.</p><p class="muted">Version <span id="version">1.0.0</span> · Privacy-first prototype · No advertising or analytics scripts</p></div>
-    <div class="card"><h2>Try it with demo data</h2><p class="muted">Explore the charts with clearly marked fictional check-ins, calendar events and health values. Demo records never get uploaded.</p><button class="btn secondary full" id="demo-button">Load demo data</button><button class="btn subtle full" id="clear-demo-button">Remove demo data</button></div>
+    <div class="card"><h2>About the insights</h2><p class="muted">Comparisons require at least 3 observations in each group. Mood data is subjective and missing check-ins can bias findings. Nothing here diagnoses health conditions or establishes causality.</p><p class="muted">Version <span id="version">1.2.0</span> · Privacy-first prototype · No advertising or analytics scripts</p></div>
+    <div class="card"><h2>Try a calendar correlation demo</h2><p class="muted">Explore 28 fictional days with meetings, focus time, workouts, social plans, commutes, and rest. There are mood check-ins before and after events to reveal illustrative patterns. Your personal statistics remain separate; no demo records are uploaded.</p><button class="btn secondary full" id="demo-button">Load 28-day calendar demo</button><button class="btn subtle full" id="clear-demo-button">Remove demo data</button></div>
    </section>
   </main>
 
