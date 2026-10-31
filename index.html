@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#f5f6f2">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Rage Tracker">
+  <meta name="description" content="Notice what shapes your mood. Track check-ins and explore patterns in your days.">
+  <meta name="referrer" content="no-referrer">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="apple-touch-icon" href="/icon-192.png">
+  <link rel="icon" type="image/svg+xml" href="/icon.svg">
+  <link rel="stylesheet" href="/styles.css">
+  <title>Rage Tracker · Find your patterns</title>
+  <script src="/app.js" defer></script>
+</head>
+<body>
+ <div class="app">
+  <header class="topbar">
+   <a href="#checkin" class="brand" data-go="checkin" aria-label="Rage Tracker home">
+    <span class="brand-icon" aria-hidden="true"><svg viewBox="0 0 40 40" fill="none"><path d="M9 28C11 14 19 11 23 19c4 9 9 6 9-5" stroke="currentColor" stroke-width="4.8" stroke-linecap="round"/><circle cx="29" cy="29" r="3.7" fill="currentColor"/></svg></span>
+    <span class="brand-type"><strong>rage<span>tracker</span></strong><small>FEEL THE PATTERN</small></span>
+   </a>
+   <button class="sync-light" id="sync-light" data-go="sync"><span class="light-dot"></span><span id="sync-light-text">Local only</span></button>
+  </header>
+
+  <main id="main">
+   <section id="view-checkin" class="view active" aria-labelledby="checkin-title">
+    <div class="eyebrow" id="date-label">YOUR DAY, YOUR DATA</div>
+    <div class="intro">
+     <h1 id="checkin-title">How are you <em>feeling?</em></h1>
+     <p>A small check-in now can reveal a bigger pattern later.</p>
+    </div>
+    <div class="card mood-card">
+     <div class="card-top"><span class="mini-heading">RIGHT NOW</span><span class="muted" id="current-time">—</span></div>
+     <div class="mood-grid" role="group" aria-label="Choose your mood">
+      <button class="mood-choice" type="button" data-mood="1" aria-pressed="false"><span class="mood-emoji">😣</span><span>Rough</span></button>
+      <button class="mood-choice" type="button" data-mood="2" aria-pressed="false"><span class="mood-emoji">😕</span><span>Low</span></button>
+      <button class="mood-choice" type="button" data-mood="3" aria-pressed="false"><span class="mood-emoji">😐</span><span>Okay</span></button>
+      <button class="mood-choice" type="button" data-mood="4" aria-pressed="false"><span class="mood-emoji">🙂</span><span>Good</span></button>
+      <button class="mood-choice" type="button" data-mood="5" aria-pressed="false"><span class="mood-emoji">😄</span><span>Great</span></button>
+     </div>
+     <div class="field-row"><label for="energy">Energy level <span class="hint">optional</span></label><span id="energy-label" class="field-value">3 · Medium</span></div>
+     <input type="range" id="energy" min="1" max="5" step="1" value="3" aria-label="Energy from one to five">
+     <div class="field-row tag-heading"><span>What have you been doing? <span class="hint">optional</span></span></div>
+     <div class="tags" id="activity-tags">
+      <button class="tag" data-tag="Work">💼 Work</button><button class="tag" data-tag="Meeting">🗣 Meeting</button><button class="tag" data-tag="Exercise">🏃 Exercise</button><button class="tag" data-tag="Social">💬 Social</button><button class="tag" data-tag="Family">🏠 Family</button><button class="tag" data-tag="Rest">☁️ Rest</button><button class="tag" data-tag="Outdoors">🌿 Outdoors</button><button class="tag" data-tag="Commute">🚗 Commute</button><button class="tag" data-tag="Food">🍽 Food</button>
+     </div>
+     <label class="note-label" for="mood-note">Add a note <span class="hint">optional</span></label>
+     <textarea id="mood-note" rows="2" maxlength="400" placeholder="What’s on your mind?"></textarea>
+     <button class="btn primary full" id="save-mood" disabled>Save check-in <span aria-hidden="true">↗</span></button>
+     <p class="privacy-micro">🔒 Mood notes stay on this device.</p>
+    </div>
+    <div class="quick-stats">
+     <div><small>TODAY</small><strong id="stat-today">0</strong><span>check-ins</span></div>
+     <div><small>LAST 7 DAYS</small><strong id="stat-average">—</strong><span>average mood</span></div>
+     <div><small>CURRENT STREAK</small><strong id="stat-streak">0</strong><span>days</span></div>
+    </div>
+    <div class="section-heading"><h2>Recent check-ins</h2><span class="muted" id="entries-count">0 entries</span></div>
+    <div id="recent-list" class="entry-list"></div>
+   </section>
+
+   <section id="view-insights" class="view" aria-labelledby="insights-title">
+    <div class="eyebrow">A LITTLE MORE CLARITY</div>
+    <div class="intro"><h1 id="insights-title">Your <em>patterns.</em></h1><p>Associations worth exploring, never judgments or diagnoses.</p></div>
+    <div class="range-switch" role="group" aria-label="Time range"><button data-days="7">7 days</button><button data-days="30" class="selected">30 days</button><button data-days="90">90 days</button></div>
+    <div class="card insight-hero">
+     <div class="mini-heading">MOOD OVER TIME</div>
+     <div class="insight-score"><strong id="insight-average">—</strong><span id="insight-samples">No check-ins yet</span></div>
+     <div class="graph" id="trend-chart" role="img" aria-label="Daily mood trend"></div>
+     <p class="muted note-tight" id="trend-note">Start checking in to see a trend.</p>
+    </div>
+    <div class="section-heading"><h2>Time of day</h2><span class="muted">Average mood</span></div>
+    <div class="card" id="time-insights"></div>
+    <div class="section-heading"><h2>Activities</h2><span class="muted">With vs without</span></div>
+    <div class="card" id="activity-insights"></div>
+    <div class="section-heading"><h2>Calendar context</h2><span class="muted">During & 60m after</span></div>
+    <div class="card" id="calendar-insights"></div>
+    <div class="section-heading"><h2>Health context</h2><span class="muted">Day-level comparisons</span></div>
+    <div class="card" id="health-insights"></div>
+    <div class="help-note"><strong>How to interpret these</strong><p>These are observational comparisons. They do not establish that an activity, event or health metric caused a mood change. Differences may reflect time, context, sleep, and many other factors. At least 3 observations per group are required.</p></div>
+   </section>
+
+   <section id="view-sources" class="view" aria-labelledby="sources-title">
+    <div class="eyebrow">THE CONTEXT AROUND YOUR DAY</div>
+    <div class="intro"><h1 id="sources-title">Your <em>sources.</em></h1><p>Health and calendar context help illuminate what happens around your check-ins.</p></div>
+    <div class="source-banner"><div class="source-symbol">⌁</div><div><strong id="health-count">No health records</strong><small>Sleep, movement and recovery</small></div><span class="source-flag">HEALTH</span></div>
+    <div class="card">
+     <div class="section-heading compact"><h2>Add a health day</h2><span class="muted">Manual entry</span></div>
+     <form id="health-form">
+      <label for="health-date">Date</label><input type="date" id="health-date" required>
+      <div class="form-grid">
+       <div><label for="health-sleep">Sleep (hours)</label><input id="health-sleep" type="number" min="0" max="24" step=".1" placeholder="7.5"></div>
+       <div><label for="health-steps">Steps</label><input id="health-steps" type="number" min="0" max="100000" step="1" placeholder="8200"></div>
+       <div><label for="health-hrv">HRV (ms)</label><input id="health-hrv" type="number" min="0" max="500" step=".1" placeholder="48"></div>
+       <div><label for="health-workout">Workout (min)</label><input id="health-workout" type="number" min="0" max="1440" step="1" placeholder="30"></div>
+      </div>
+      <button class="btn secondary full" type="submit">Save health day</button>
+     </form>
+     <div class="inline-import"><label for="health-import">Or import a health CSV</label><input type="file" id="health-import" accept=".csv,text/csv"><small>Columns: date, sleepHours, steps, hrv, workoutMin</small></div>
+    </div>
+    <div class="source-banner calendar"><div class="source-symbol">▦</div><div><strong id="calendar-count">No calendar events</strong><small>Meetings, plans and activities</small></div><span class="source-flag">CALENDAR</span></div>
+    <div class="card">
+     <div class="section-heading compact"><h2>Add a calendar event</h2><span class="muted">Manual entry</span></div>
+     <form id="calendar-form">
+      <label for="cal-title">Event title</label><input id="cal-title" maxlength="100" placeholder="Team meeting" required>
+      <div class="form-grid"><div><label for="cal-start">Starts</label><input id="cal-start" type="datetime-local" required></div><div><label for="cal-end">Ends</label><input id="cal-end" type="datetime-local" required></div></div>
+      <label for="cal-category">Type</label><select id="cal-category"><option>Meeting</option><option>Work</option><option>Exercise</option><option>Social</option><option>Family</option><option>Rest</option><option>Commute</option><option>Other</option></select>
+      <button class="btn secondary full" type="submit">Save calendar event</button>
+     </form>
+     <div class="inline-import"><label for="calendar-import">Or import an .ics / .csv calendar</label><input type="file" id="calendar-import" accept=".ics,.csv,text/calendar,text/csv"><small>Calendar CSV: start, end, title, category</small></div>
+    </div>
+    <div class="section-heading"><h2>Recent context</h2><span class="muted" id="context-count">0 items</span></div>
+    <div id="context-list" class="entry-list"></div>
+    <div class="help-note">To get data automatically without imports, visit <button class="text-action" data-go="sync">Sync setup →</button></div>
+   </section>
+
+   <section id="view-sync" class="view" aria-labelledby="sync-title">
+    <div class="eyebrow">YOUR DATA, ON YOUR TERMS</div>
+    <div class="intro"><h1 id="sync-title">Connect <em>the dots.</em></h1><p>Apple Shortcuts can send selected Health and Calendar details over HTTPS. No developer account required.</p></div>
+    <div class="card sync-card">
+     <div class="connection-head"><span class="connection-icon">↗</span><div><div class="mini-heading">CLOUDFLARE SYNC</div><strong id="pair-status">Not connected</strong></div><span id="pair-badge" class="status-badge">OFF</span></div>
+     <div id="pair-form-wrap">
+      <p class="muted">First, add Rage Tracker to your Home Screen in Safari. Open it from the new icon, then enter your private pairing code.</p>
+      <label for="pair-code">Private pairing code</label><input type="password" id="pair-code" autocomplete="off" placeholder="Paste code from setup">
+      <button class="btn primary full" id="pair-button">Pair this iPhone</button>
+     </div>
+     <div id="pair-connected" hidden>
+      <p class="muted">This device can securely receive your Shortcut updates.</p>
+      <div class="button-row"><button class="btn secondary" id="pull-button">↻ Sync now</button><button class="btn subtle" id="unpair-button">Forget device key</button></div>
+      <p class="sync-timestamp" id="last-sync">Never synced</p>
+     </div>
+    </div>
+    <div class="card">
+     <div class="section-heading compact"><h2>Shortcut connection</h2><span class="muted">Copy into Shortcuts</span></div>
+     <label>Request URL</label><div class="copy-field"><code id="sync-url"></code><button data-copy="url">Copy</button></div>
+     <label>Authorization header</label><div class="copy-field"><code id="sync-token">Pair your device first</code><button data-copy="token">Copy</button></div>
+     <p class="muted" style="margin-top:12px">Keep the authorization value private. Anyone with it can access your synced data.</p>
+    </div>
+    <div class="section-heading"><h2>Set up Apple Shortcuts</h2></div>
+    <div class="steps">
+     <details open><summary><span class="step-no">1</span> Install the Home Screen app</summary><div class="step-body"><p>Open this site in Safari → Share → <strong>Add to Home Screen</strong>. Launch Rage Tracker from its new icon, then pair it using the code provided with your setup.</p></div></details>
+     <details><summary><span class="step-no">2</span> Start with Health steps</summary><div class="step-body">
+      <p>In Apple's <strong>Shortcuts</strong> app, create a shortcut named <em>Rage Tracker · Steps</em>.</p>
+      <ol><li>Add <strong>Find Health Samples</strong>. Filter to <strong>Step Count</strong> dated <strong>today</strong>.</li><li>Add <strong>Calculate Statistics</strong>; choose <strong>Sum</strong> for the sample values. Some iOS versions may require extracting sample values first.</li><li>Add <strong>Current Date</strong> and <strong>Format Date</strong> with custom format <code>yyyy-MM-dd</code>.</li><li>Add <strong>Get Contents of URL</strong> using the request URL above. Choose <strong>POST</strong> and request body <strong>Form</strong>. Add fields <code>kind</code>=<code>health</code>, <code>date</code>=formatted date, <code>steps</code>=calculated sum.</li><li>In Headers, add <code>Authorization</code> with the exact copied header value. Run it and accept Health permissions.</li></ol>
+      <p>When this works, you can make similar shortcuts for <code>sleepHours</code>, <code>hrv</code>, or <code>workoutMin</code>. Each updates only the metric you send for that day.</p>
+     </div></details>
+     <details><summary><span class="step-no">3</span> Add calendar events</summary><div class="step-body">
+      <p>Create another Shortcut, <em>Rage Tracker · Calendar</em>.</p>
+      <ol><li>Use <strong>Find Calendar Events</strong> for today.</li><li>Add <strong>Repeat with Each</strong> event.</li><li>Inside the repeat, use <strong>Get Details of Calendar Events</strong> for its title, start, and end. Format dates to ISO 8601 if your iOS version offers it.</li><li>Inside the repeat, add <strong>Get Contents of URL</strong> → <strong>POST</strong> → <strong>Form</strong>, with <code>kind</code>=<code>calendar</code>, <code>title</code>=event title, <code>start</code>=start date, <code>end</code>=end date, <code>category</code>=<code>Meeting</code>. Add the copied Authorization header.</li></ol>
+      <p>For better privacy, omit <code>title</code> and send a category instead; the server will label it “Calendar event”. Test a single event before enabling repetition.</p>
+     </div></details>
+     <details><summary><span class="step-no">4</span> Automate it</summary><div class="step-body"><p>In Shortcuts → <strong>Automation</strong>, add a <strong>Time of Day</strong> trigger and select the shortcut. Choose <strong>Run Immediately</strong> where offered. Start with once per day; add more triggers if useful. Automatic execution and Health permission prompts vary by iOS version. Open Rage Tracker and tap <strong>Sync now</strong> to fetch updates.</p></div></details>
+    </div>
+    <div class="help-note"><strong>What goes to Cloudflare?</strong><p>Only the fields your Shortcuts send, such as step totals and event times/titles. Mood entries and notes remain on your iPhone. The synced information is stored in your Bishvili Cloudflare account and can be erased below. This is not end-to-end encrypted.</p></div>
+    <button class="btn subtle full" id="erase-remote">Erase cloud-synced Health & Calendar data</button>
+   </section>
+
+   <section id="view-settings" class="view" aria-labelledby="settings-title">
+    <div class="eyebrow">YOU OWN YOUR STORY</div><div class="intro"><h1 id="settings-title">Settings & <em>privacy.</em></h1><p>Keep control of your records, backups and connections.</p></div>
+    <div class="card"><h2>Your local data</h2><p class="muted">Mood check-ins, notes and locally imported health/calendar data stay in this app's storage on this device. Clearing site data or deleting the Home Screen app may erase them.</p><div class="settings-meta" id="storage-summary"></div><button class="btn secondary full" id="backup-button">↓ Download JSON backup</button><label class="file-label">Restore from backup <input type="file" id="restore-input" accept="application/json,.json"></label><button class="btn danger full" id="erase-local">Erase all data on this device</button></div>
+    <div class="card"><h2>About the insights</h2><p class="muted">Comparisons require at least 3 observations in each group. Mood data is subjective and missing check-ins can bias findings. Nothing here diagnoses health conditions or establishes causality.</p><p class="muted">Version <span id="version">1.0.0</span> · Privacy-first prototype · No advertising or analytics scripts</p></div>
+    <div class="card"><h2>Try it with demo data</h2><p class="muted">Explore the charts with clearly marked fictional check-ins, calendar events and health values. Demo records never get uploaded.</p><button class="btn secondary full" id="demo-button">Load demo data</button><button class="btn subtle full" id="clear-demo-button">Remove demo data</button></div>
+   </section>
+  </main>
+
+  <nav class="bottom-nav" aria-label="Main navigation">
+   <button class="nav-item active" data-go="checkin"><span class="nav-glyph">◉</span><span>Check in</span></button>
+   <button class="nav-item" data-go="insights"><span class="nav-glyph">⌁</span><span>Insights</span></button>
+   <button class="nav-item" data-go="sources"><span class="nav-glyph">▦</span><span>Sources</span></button>
+   <button class="nav-item" data-go="sync"><span class="nav-glyph">↗</span><span>Sync</span></button>
+   <button class="nav-item" data-go="settings"><span class="nav-glyph">⚙</span><span>Settings</span></button>
+  </nav>
+  <div role="status" class="toast" id="toast" aria-live="polite"></div>
+ </div>
+</body>
+</html>
