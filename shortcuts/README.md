@@ -16,7 +16,7 @@ A missing key file must not cause an error or file-picker prompt. An invalid tok
 
 ## Subsequent runs
 
-The Shortcut lists its own folder, reads the previously saved `device-key.txt`, and verifies that the key remains authorized. It sends today's Calendar events and Health step total, checks the `ok` field of every API response, and notifies the user of the number of accepted updates. When no records exist, it explicitly says that there is nothing to synchronize.
+The Shortcut lists its own folder, reads the previously saved `device-key.txt`, and verifies that the key remains authorized. It sends Calendar events and a daily Health step total, checks the `ok` field of every API response, and notifies the user of the number of accepted updates (including 0 when there is nothing to send).
 
 It sends `shortcutVersion=2.0.0` with accepted uploads. The app uses the reported version to show update availability.
 
