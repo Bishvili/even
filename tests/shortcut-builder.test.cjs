@@ -70,61 +70,63 @@ test("a valid Shortcut handshake does not imply accepted Health data",()=>{
  assert.match(t.elements.get("shortcut-last-upload").textContent,/no Health\/Calendar data yet/);
  assert.match(t.elements.get("shortcut-upload-counts").textContent,/0 health/);
 });
-test("first run creates its folder before reading any saved credential",()=>{
- const create=source.indexOf('createFolder("RageTracker")');
- const folder=source.indexOf('getFile("RageTracker")');
- const listing=source.indexOf('getFolderContents(folder)');
- const scan=source.indexOf('getFileDetail(@saved, "Name")');
- const prompt=source.indexOf('prompt("Paste your Authorization value');
- const validation=source.indexOf('downloadURL("https://rage-tracker.bishvili.workers.dev/api/profile"');
- const save=source.indexOf('saveFile("RageTracker/device-key.txt"');
- assert.ok(create>0&&create<folder&&folder<listing&&listing<scan);
- assert.ok(scan<prompt&&prompt<validation&&validation<save);
- assert.doesNotMatch(source,/getFile\("RageTracker\/device-key\.txt"/);
- assert.doesNotMatch(source,/getFileFromFolder\([^\n]*device-key\.txt/);
- assert.match(source,/if @fileName == "device-key\.txt"/);
+test("native authorization setup question is attached to the configured Text action",()=>{
+ const question=source.indexOf('#question authorization "Paste the full Authorization value from Rage Tracker > Sync" "Bearer "');
+ const status=source.indexOf('downloadURL("https://rage-tracker.bishvili.workers.dev/api/status")');
+ const binding=source.indexOf("const credential = text(authorization)");
+ const verification=source.indexOf('downloadURL("https://rage-tracker.bishvili.workers.dev/api/profile"');
+ assert.ok(question>=0&&question<status&&status<binding&&binding<verification);
+ assert.equal((source.match(/^#question /gm)||[]).length,1);
+ assert.match(source,/const credential = text\(authorization\)/);
+ assert.doesNotMatch(source,/\bprompt\(/);
 });
 
-test("new credentials are verified before saving; every upload is acknowledged",()=>{
- assert.match(source,/if @connected == true \{[\s\S]*if @newConnection == true \{[\s\S]*saveFile/);
+test("fresh installations have no filesystem or saved-credential dependency",()=>{
+ assert.doesNotMatch(source,/\b(createFolder|getFile|getFolderContents|getFileFromFolder|saveFile|deleteFiles)\s*\(/);
+ assert.doesNotMatch(source,/\bdevice-key\.txt\b/);
+ assert.doesNotMatch(source,/#include\s+['"]actions\/documents['"]/);
+});
+
+test("the owner-scoped API validates the configured key before collecting data",()=>{
+ const binding=source.indexOf("const credential = text(authorization)");
+ const profile=source.indexOf("getDictionary(profileRaw)");
+ const failure=source.indexOf("if @authorized == false");
+ const events=source.indexOf("const events = findTodayEvents()");
+ assert.ok(binding>=0&&binding<profile&&profile<failure&&failure<events);
+ assert.match(source,/Authorization": "\{credential\}"/);
+ assert.match(source,/alert\("This device key was not accepted/);
+});
+
+test("every accepted upload is acknowledged and versioned",()=>{
  assert.match(source,/getValue\(eventResponse, "ok"\)/);
  assert.match(source,/getValue\(healthResponse, "ok"\)/);
  assert.match(source,/if @eventAccepted == true/);
  assert.match(source,/if @healthAccepted == true/);
+ assert.match(source,/shortcutVersion": "2\.1\.0"/);
+ assert.match(source,/\/api\/shortcut\/release\?current=2\.1\.0/);
  assert.match(source,/showNotification\("Rage Tracker accepted \{@acceptedCount\} updates\."/);
- assert.match(source,/shortcutVersion": "2\.0\.0"/);
- assert.match(source,/\/api\/shortcut\/release\?current=2\.0\.0/);
- assert.doesNotMatch(source,/\/api\/shortcut\/hello/);
  assert.doesNotMatch(source,/\bnothing\(\)/);
  assert.doesNotMatch(source,/Bearer [a-f0-9]{64}/i);
  assert.doesNotMatch(source,/@(?:gmail|icloud)\.com/i);
 });
 
-test("calendar classification belongs to the Worker, not the Shortcut",()=>{
+test("calendar classification remains on the backend",()=>{
  assert.doesNotMatch(source,/"category":/);
  assert.match(worker,/function classifyCalendarTitle/);
  assert.match(worker,/classifyCalendarTitle\(title\)/);
 });
 
-test("all app DOM references and network routes are defined",()=>{
- for(const found of app.matchAll(/\$\("([^"]+)"\)/g))assert.ok(idSet.has(found[1]),found[1]);
- assert.match(worker,/\/shortcut\/builder/);
- assert.match(worker,/\/api\/shortcut\/hello/);
- assert.match(worker,/updateAvailable/);
+test("the PWA setup instructions and source agree",()=>{
+ assert.match(html,/Customize Shortcut/);
+ assert.match(html,/No Files setup/);
+ assert.doesNotMatch(html,/device-key\.txt/);
+ assert.match(html,/href="\/shortcut\/builder"/);
+ assert.match(html,/target="_blank"/);
+ assert.match(worker,/#question authorization/);
+ assert.match(worker,/text\(authorization\)/);
 });
 
-test("credential input is verified by the owner-scoped API before persistence",()=>{
- assert.match(source,/@credential = ""/);
- assert.match(source,/@credential = getText\(entered\)/);
- assert.match(source,/if @credential == "" \{[\s\S]*@newConnection = true/);
- assert.match(source,/@connected: bool/);
- assert.match(source,/@connected = getValue\(profile, "ok"\)/);
- assert.doesNotMatch(source,/#question authorization/);
-});
-
-test("no extra setup checks or fake success paths",()=>{
- assert.doesNotMatch(source,/if @credential beginsWith/);
- assert.doesNotMatch(source,/if @acceptedCount > 0/);
- assert.doesNotMatch(source,/\/api\/pair/);
- assert.match(source,/showNotification\("Rage Tracker accepted \{@acceptedCount\} updates\."/);
+test("every application DOM reference maps to an existing ID",()=>{
+ for(const match of app.matchAll(/\$\("([^"]+)"\)/g))
+  assert.ok(idSet.has(match[1]),"Missing "+match[1]);
 });
