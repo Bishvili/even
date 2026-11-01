@@ -61,11 +61,11 @@
 .shortcut-step-number{display:grid;place-items:center;flex:none;width:27px;height:27px;border-radius:50%;background:#eaf3ec;color:#3f7a63;font-size:12px;font-weight:830}
 .shortcut-setup-row strong{display:block;color:#355d4d;font-size:13px;line-height:1.5}
 .shortcut-setup-row small{display:block;font-size:11px;color:#84958a;line-height:1.55;margin-top:3px}
-.shortcut-builder-card #open-shortcut-builder{min-height:49px;margin-top:0}
+
 .shortcut-builder-help{font-size:11px;color:#809287;line-height:1.5;text-align:center;margin:10px 0 0}
-.shortcut-preview-note{border-radius:12px;background:#f8f5e9;border:1px solid #ebe3c9;padding:13px 14px;margin-top:18px}
-.shortcut-preview-note strong{font-size:12px;color:#83673d}
-.shortcut-preview-note p{font-size:11px;line-height:1.6;color:#7c806e;margin:5px 0 0}
+
+
+
 .shortcut-upload-status{display:flex;gap:12px;align-items:center;justify-content:space-between;border-top:1px solid #e5ede6;padding-top:17px;margin-top:20px}
 .shortcut-upload-status>div{flex:1;min-width:0}
 .shortcut-upload-status small{font-size:9px;letter-spacing:1.1px;font-weight:800;color:#849e8d}
@@ -78,3 +78,17 @@
 .shortcut-advanced a{color:#256f55;text-decoration:underline;text-underline-offset:3px}
 .shortcut-credentials-note{font-size:11px;line-height:1.55;margin:13px 0 0}
 @media(prefers-reduced-motion:reduce){.view{animation:none}.toast{transition:none}.btn,.mood-choice{transition:none}}
+
+/* Shortcut installation and diagnostics */
+.shortcut-release-row{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:11px 13px;border-radius:12px;background:#f0f5ee;border:1px solid #e1eadf;margin:2px 0 17px}
+.shortcut-version{font-size:12px;font-weight:750;color:#3a6956}
+.shortcut-update-label{font-size:10px;font-weight:850;color:#94622f;background:#faeccf;padding:6px 9px;border-radius:8px}
+#install-shortcut{min-height:50px;margin-top:0;text-decoration:none}
+#install-shortcut[aria-disabled="true"]{opacity:.5;cursor:not-allowed;pointer-events:none}
+#shortcut-install-help{line-height:1.55;margin-bottom:17px}
+.shortcut-upload-counts{display:block!important;font-size:11px!important;font-weight:520!important;letter-spacing:normal!important;color:#81968b!important;margin-top:6px}
+.shortcut-sync-diagnostic{margin:14px 0 4px;padding:13px 15px;border:1px solid #d7e5db;border-radius:12px;background:#eef6f0;color:#32634c;font-size:12px;line-height:1.65}
+.shortcut-sync-diagnostic.sync-error{color:#845c39;background:#fff6e8;border-color:#ead9bc}
+.shortcut-sync-diagnostic.sync-success{color:#2a6d52;background:#eaf5eb;border-color:#cfe6d2}
+.shortcut-builder-card details a{color:#296e59;text-decoration:underline;text-underline-offset:3px}
+@media(max-width:360px){.shortcut-release-row{align-items:flex-start;flex-direction:column}.shortcut-upload-status button{min-width:96px}}
