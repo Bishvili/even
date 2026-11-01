@@ -126,6 +126,14 @@ test("the PWA setup instructions and source agree",()=>{
  assert.match(worker,/text\(authorization\)/);
 });
 
+test("signed test Shortcut is offered without an iCloud release claim",()=>{
+ assert.match(html,/id="shortcut-preview"[^>]*target="_blank"[^>]*href="\/rage-tracker-sync-v2\.1\.shortcut"/);
+ assert.match(worker,/"rage-tracker-sync-v2\.1\.shortcut":"application\/octet-stream"/);
+ assert.match(worker,/key\.endsWith\("\.shortcut"\)/);
+ assert.match(worker,/Rage Tracker Sync v2\.1\.shortcut/);
+ assert.match(html,/v2\.1 signed test build/);
+});
+
 test("every application DOM reference maps to an existing ID",()=>{
  for(const match of app.matchAll(/\$\("([^"]+)"\)/g))
   assert.ok(idSet.has(match[1]),"Missing "+match[1]);
