@@ -141,12 +141,12 @@ test("the PWA setup instructions and source agree",()=>{
  assert.match(worker,/text\(authorization\)/);
 });
 
-test("signed test Shortcut is offered without an iCloud release claim",()=>{
- assert.match(html,/id="shortcut-preview"[^>]*target="_blank"[^>]*href="\/rage-tracker-sync-v2\.2\.shortcut"/);
- assert.match(worker,/"rage-tracker-sync-v2\.2\.shortcut":"application\/octet-stream"/);
- assert.match(worker,/key\.endsWith\("\.shortcut"\)/);
- assert.match(worker,/Rage Tracker Sync v2\.2\.shortcut/);
- assert.match(html,/v2\.2 · signed test build/);
+test("corrected v2.3 builder replaces the malformed signed download",()=>{
+ assert.match(html,/id="shortcut-preview"[^>]*target="_blank"[^>]*href="\/shortcut\/builder"/);
+ assert.match(worker,/\/shortcut\/builder/);
+ assert.doesNotMatch(worker,/rage-tracker-sync-v2\.2\.shortcut/);
+ assert.doesNotMatch(html,/rage-tracker-sync-v2\.2\.shortcut/);
+ assert.match(html,/v2\.3 · corrected source/);
 });
 
 test("Run Shortcut uses the Apple-supported URL scheme without a device key",()=>{
