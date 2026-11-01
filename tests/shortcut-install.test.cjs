@@ -82,7 +82,7 @@ test("unverified release stays hidden while the public builder remains available
  t.app.renderSync();
  assert.equal(t.element("install-shortcut").hidden,true);
  assert.equal(t.element("shortcut-preview").hidden,false);
- assert.equal(t.element("run-shortcut").hidden,false);
+ assert.equal(t.element("run-shortcut").hidden,true);
 });
 test("a valid credential is not mistaken for a successful Health upload",async()=>{
  const t=setup();
@@ -96,14 +96,22 @@ test("a valid credential is not mistaken for a successful Health upload",async()
 });
 
 test("server-reported Shortcut handshake replaces manual installation confirmation",async()=>{
- const t=setup({reportedVersion:"2.2.0"});
+ const t=setup({reportedVersion:"2.3.0"});
  t.app.setAuth(t.email,[]);
  await t.app.loadShortcutRelease();
  await t.app.checkShortcutUpload(false);
- assert.match(t.element("shortcut-release-version").textContent,/Connected Shortcut v2\.2\.0/);
+ assert.match(t.element("shortcut-release-version").textContent,/Connected Shortcut v2\.3\.0/);
+ assert.equal(t.element("run-shortcut").hidden,false);
  assert.match(t.element("shortcut-last-upload").textContent,/Shortcut connected/);
  assert.match(t.element("shortcut-sync-diagnostic").textContent,/authenticated Shortcut handshake/);
  assert.equal(t.storageWrites.length,0);
+});
+
+test("a connected but outdated Shortcut cannot be launched from the PWA",async()=>{
+ const t=setup({reportedVersion:"2.2.0"});
+ t.app.setAuth(t.email,[]);
+ await t.app.checkShortcutUpload(false);
+ assert.equal(t.element("run-shortcut").hidden,true);
 });
 
 test("all application DOM references resolve to real elements",()=>{
