@@ -4,7 +4,7 @@
 // unauthenticated sync operations unless a valid, unrevoked device token is supplied.
 const ACCESS_AUD="b15746656eee885f25c4f4b0605491289c01776b8710cc8339fb507f4574f745";
 function approved(env,email){try{return JSON.parse(env.APPROVED_SYNC_EMAILS||"[]").includes(email);}catch(e){return false;}}
-const MIME={"index.html":"text/html; charset=utf-8","styles.css":"text/css; charset=utf-8","app.js":"text/javascript; charset=utf-8","sw.js":"text/javascript; charset=utf-8","manifest.webmanifest":"application/manifest+json","icon.svg":"image/svg+xml","icon-192.png":"image/png","icon-512.png":"image/png","source.zip":"application/zip","rage-tracker-sync-v2.2.shortcut":"application/octet-stream"};
+const MIME={"index.html":"text/html; charset=utf-8","styles.css":"text/css; charset=utf-8","app.js":"text/javascript; charset=utf-8","sw.js":"text/javascript; charset=utf-8","manifest.webmanifest":"application/manifest+json","icon.svg":"image/svg+xml","icon-192.png":"image/png","icon-512.png":"image/png","rage-tracker-sync-v2.2.shortcut":"application/octet-stream"};
 const SECURITY={"X-Content-Type-Options":"nosniff","Referrer-Policy":"no-referrer","X-Frame-Options":"DENY","Permissions-Policy":"camera=(), microphone=(), geolocation=()","Content-Security-Policy":"default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'"};
 const METRICS={sleepHours:[0,24],steps:[0,100000],hrv:[0,500],restingHR:[20,250],workoutMin:[0,1440]};
 const CATS=["Meeting","Work","Exercise","Social","Family","Rest","Commute","Other"];
@@ -132,7 +132,6 @@ function semverNewer(latest,installed){
  return false;
 }
 async function syncApi(request,env,path){
- if(path==="/api/pair")return error("The old shared pairing code was retired. Sign in through Email login.",410);
  const dev=await validDevice(request,env);
  if(!dev)return error("A valid non-revoked device key is required",401);
  const owner=dev.owner;
@@ -235,10 +234,9 @@ async function asset(path,env){
  const key=path==="/"?"index.html":path.slice(1);
  if(!Object.prototype.hasOwnProperty.call(MIME,key))return new Response("Not found",{status:404,headers:SECURITY});
  const val=await env.ASSETS.get("asset:"+key);if(val===null)return new Response("Asset unavailable",{status:503,headers:SECURITY});
- const data=(key.endsWith(".png")||key.endsWith(".zip")||key.endsWith(".shortcut"))?Uint8Array.from(atob(val),x=>x.charCodeAt(0)):val;
+ const data=(key.endsWith(".png")||key.endsWith(".shortcut"))?Uint8Array.from(atob(val),x=>x.charCodeAt(0)):val;
  const headers={...SECURITY,"Content-Type":MIME[key],"Cache-Control":"no-cache, max-age=0, must-revalidate"};
  if(key==="sw.js")headers["Service-Worker-Allowed"]="/";
- if(key==="source.zip")headers["Content-Disposition"]="attachment; filename=\"rage-tracker-source.zip\"";
  if(key.endsWith(".shortcut"))headers["Content-Disposition"]="attachment; filename=\"Rage Tracker Sync v2.2.shortcut\"";
  return new Response(data,{headers});
 }
