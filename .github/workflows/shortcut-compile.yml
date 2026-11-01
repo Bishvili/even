@@ -57,5 +57,8 @@ jobs:
           /tmp/cherri-compiler shortcuts/rage-tracker-sync.cherri --debug --skip-sign --output=/tmp/rage-tracker-compiled.shortcut
       - name: Verify generated Shortcut plist and conditional values
         run: |
-          test -s "Rage Tracker Sync.plist"
-          python3 scripts/check-shortcut-conditions.py "Rage Tracker Sync.plist"
+          find . -type f -name '*.plist' -print
+          PLIST="$(find . -type f -name 'Rage Tracker Sync.plist' -print -quit)"
+          test -n "$PLIST"
+          test -s "$PLIST"
+          python3 scripts/check-shortcut-conditions.py "$PLIST"
