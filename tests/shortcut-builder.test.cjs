@@ -83,3 +83,11 @@ test("all app DOM references and network routes are defined",()=>{
  assert.match(worker,/\/api\/shortcut\/hello/);
  assert.match(worker,/updateAvailable/);
 });
+
+test("first-run input is explicitly typed for Cherri text comparisons",()=>{
+ assert.match(source,/const rawInput = prompt\("Paste the complete Authorization value from Rage Tracker"\)/);
+ assert.match(source,/@entered: text\s+@entered = getText\(rawInput\)\s+if @entered beginsWith "Bearer "/);
+ assert.match(source,/@profileAuthorized: bool\s+@profileAuthorized = getValue\(profileData, "ok"\)/);
+ assert.doesNotMatch(source,/prompt\("Paste the complete Authorization value from Rage Tracker",\s*"Text"\)/);
+ assert.doesNotMatch(source,/\bconst verified\b[\s\S]*@verified\s*=/);
+});
