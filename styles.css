@@ -92,3 +92,8 @@
 .shortcut-sync-diagnostic.sync-success{color:#2a6d52;background:#eaf5eb;border-color:#cfe6d2}
 .shortcut-builder-card details a{color:#296e59;text-decoration:underline;text-underline-offset:3px}
 @media(max-width:360px){.shortcut-release-row{align-items:flex-start;flex-direction:column}.shortcut-upload-status button{min-width:96px}}
+
+.shortcut-installed-confirm{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:9px 0 10px;padding:0 3px;color:#798e80;font-size:11px}
+.shortcut-installed-confirm button{flex:none;min-height:44px}
+.shortcut-installed-confirm button:disabled{opacity:.6}
+@media(max-width:370px){.shortcut-installed-confirm{flex-wrap:wrap}.shortcut-installed-confirm button{margin-left:auto}}
