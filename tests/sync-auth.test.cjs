@@ -66,7 +66,7 @@ test("untrusted identity headers and non-allowlisted Access sessions fail closed
  assert.equal((await call("/api/auth/me",{context:ctx("owner-a@example.com","wrong")})).status,401);
  assert.equal((await call("/api/auth/me",{context:ctx("random@example.com")})).status,401);
  assert.equal((await call("/api/auth/me",{context:ctx("owner-a@example.com")})).status,200);
- assert.equal((await call("/api/pair",{method:"POST",body:{pairCode:"old",token:"test"}})).status,410);
+ assert.equal((await call("/api/pair",{method:"POST",body:{pairCode:"old",token:"test"}})).status,401);
 });
 test("owner A data cannot be read or erased by owner B",async()=>{
  const{call,ctx}=harness();
