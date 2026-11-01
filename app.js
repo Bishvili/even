@@ -1,6 +1,6 @@
 (function () {
 "use strict";
-var VERSION = "1.8.1";
+var VERSION = "1.8.2";
 var STORAGE_KEY = "rage-tracker:v1";
 var MOOD_NAMES = ["","Rough","Low","Okay","Good","Great"];
 var MOOD_EMOJI = ["","😣","😕","😐","🙂","😄"];
@@ -112,7 +112,7 @@ function renderSync(){
  $("shortcut-install-help").textContent=canInstall
   ?"Opens the current shared Shortcut in a new Safari tab. Your device key is not included in the link."
   :mismatch?"Sign in with this device's account before installing."
-  :paired&&release&&!release.verified?"The previous iCloud Shortcut is not verified. Prepare v2.1 below; the verified installation link will appear here once an iPhone sync test succeeds."
+  :paired&&release&&!release.verified?"The previous iCloud Shortcut is not verified. Download the signed v2.1 test build below; a verified iCloud link will appear after its iPhone sync test."
   :paired?"The latest Shortcut link could not be loaded. Check your connection."
   :"Sign in and generate a device key to install the Shortcut.";
  $("check-shortcut-upload").disabled=!paired||mismatch||shortcutStatusLoading;
