@@ -19,9 +19,37 @@ The **Insights** screen separates **My data** from **Demo scenario**. Switching 
 
 These are exploratory **associations, not causal effects**. Overlapping events may share check-ins and missing check-ins can bias results. The demo illustrates analysis behavior rather than predicting anyone's actual mood. Keep personal calendar data and health records private.
 
-## iOS integration
+## Passwordless login and owner-scoped sync (v1.3.0)
 
-Safari PWAs cannot access HealthKit or EventKit directly. An Apple Shortcut can send selected metrics or calendar event fields to POST /api/ingest with Authorization: Bearer <per-device-token>. Enter the separately supplied private pairing code in the app first. The server stores SHA-256 hashes of bearer tokens, aggregated health metrics and calendar events in D1. Mood records are never sent to the server. Transport is HTTPS; Cloudflare data is not end-to-end encrypted.
+Cloudflare Zero Trust Access protects **rage-tracker.bishvili.workers.dev/api/auth/** (including child paths), using Email One-time PIN login. An exact-address Cloudflare Access policy controls eligibility. In the Worker, identities are accepted only from validated Access runtime context and the matching Access audience, then checked against a server-side **APPROVED_SYNC_EMAILS** secret (JSON array). Do not commit this allowlist to the public GitHub repository.
+
+The PWA itself remains public and keeps anonymous/offline mood tracking. To sync, an approved email signs in, then clicks **Generate my device key**. This issues a random 256-bit bearer token, stored only as its SHA-256 hash in D1, associated with the verified email, and returned once to the device. The user can copy its Authorization header into Apple Shortcuts and revoke it in the Sync tab.
+
+- Health and calendar data is owned by an email identity. Read/write/erase endpoints derive the owner from the authenticated device token, never from request body fields.
+- Device management requires an Access-authenticated session. Revocation is restricted to the authenticated owner.
+- The old shared pairing code and endpoint are retired (HTTP 410). The old shared database tables are preserved but unused by the new sync endpoints.
+- Existing local mood entries are not uploaded. The PWA requires explicit consent before assigning existing local records to a verified account, and rejects a different account using the same local profile.
+- This is a prototype rather than an audited clinical records system. HTTPS is used, but D1 records and downloaded JSON backups are not end-to-end encrypted. Device bearer tokens are sensitive.
+
+## Apple Shortcuts sync
+
+Safari PWAs cannot directly use HealthKit/EventKit; Apple Shortcuts is the bridge. The Sync screen has two copy buttons for the endpoint URL and Authorization header.
+
+The **POST /api/ingest** endpoint accepts Shortcuts Form fields:
+
+- Health: kind = health; date = YYYY-MM-DD; optional steps, sleepHours, hrv, restingHR, workoutMin.
+- Calendar: kind = calendar; title, start, end, category. ISO 8601 dates with time zones are recommended. Title can be omitted.
+- Combined JSON: kind = batch; health is an array of daily metric objects; events is an array of calendar events. This enables one HTTP request from a future shared Shortcut.
+
+A downloadable, one-tap installable iCloud Shortcut requires sharing a completed Shortcut from Apple's Shortcuts app. Such a link has **not** been published. The app instead currently offers a guided setup. Automations must also be enabled by the user on-device.
+
+## Deployment configuration
+
+- Access application name: Rage Tracker – Authorized Sync, with email One-time PIN provider and exact-address Allow policy.
+- Cloudflare Worker secret APPROVED_SYNC_EMAILS: JSON array of the two allowed email addresses; manage in Cloudflare, not in GitHub.
+- Worker bindings: ASSETS (Workers KV), DB (D1).
+- Database migration: db/schema.sql.
+- GitHub pushes do not yet automatically deploy to Cloudflare. Asset changes must be published to the KV namespace and Worker changes uploaded with its existing bindings and secret preserved.
 
 ## Structure
 
