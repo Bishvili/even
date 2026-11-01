@@ -122,7 +122,7 @@ test("conditional comparisons use explicit typed text instead of Boolean values"
  ]);
  assert.doesNotMatch(source,/if\s+@\w+\s*(==|!=)\s*(true|false)/);
  for(const name of ["connectionStatus","eventStatus","healthStatus","updateStatus"])
-  assert.match(source,new RegExp("const "+name+" = getText\\(getValue\\("));
+  assert.match(source,new RegExp("const "+name+" = getText\\("+name+"Value\\)"));
 });
 
 test("calendar classification remains on the backend",()=>{
