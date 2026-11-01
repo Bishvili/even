@@ -29,7 +29,7 @@ test("the Shortcut identifies itself on the handshake, uploads, and update query
  assert.equal((source.match(/"shortcutVersion": "2\.3\.0"/g)||[]).length,3);
  assert.match(source,/\/api\/shortcut\/release\?current=2\.3\.0/);
  assert.match(source,/getValue\(handshake, "state"\)/);
- assert.match(source,/if @connected == false/);
+ assert.match(source,/if connectionStatus != "connected"/);
 });
 
 test("server offers upgrades only for verified releases",()=>{
