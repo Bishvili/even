@@ -8,10 +8,57 @@
 #include 'actions/text'
 #include 'actions/web'
 
-#question authorization "Paste your private Authorization value from Rage Tracker > Sync (it starts with Bearer)." "Bearer "
+#include 'actions/documents'
 
-// This value is supplied during Apple Shortcuts installation, never in a shared link.
-const credential = text(authorization)
+// Configuration lives outside the Shortcut so installing an update preserves it.
+// Apple Shortcuts stores this under iCloud Drive/Shortcuts/RageTracker.
+const currentShortcutVersion = "1.1.0"
+@savedCredential = getFile("RageTracker/device-key.txt", nil, false)
+@credential = ""
+if !@savedCredential {
+    alert("Open Rage Tracker > Sync and copy your Authorization header value. Return here to enter it once. It starts with Bearer.", "Connect Rage Tracker")
+    @entered = prompt("Paste the complete Authorization value from Rage Tracker", "Text")
+    if !@entered beginsWith "Bearer " {
+        alert("The value must begin with Bearer followed by your private device key. Nothing has been saved.", "Invalid connection")
+        stop()
+    }
+    @credential = "{@entered}"
+    const verifyRaw = downloadURL("https://rage-tracker.bishvili.workers.dev/api/profile", {"Authorization": "{@credential}"})
+    const verified = getDictionary(verifyRaw)
+    @verified = verified['ok']
+    if !@verified {
+        alert("Rage Tracker did not accept that device key. Copy the latest value from Sync and try again.", "Connection failed")
+        stop()
+    }
+    createFolder("RageTracker")
+    saveFile("RageTracker/device-key.txt", @credential, true)
+} else {
+    @credential = getText(@savedCredential)
+}
+
+// Confirm connectivity independently from the Health and Calendar uploads.
+const helloRaw = jsonRequest("https://rage-tracker.bishvili.workers.dev/api/shortcut/hello", "POST", {"shortcutVersion": "1.1.0"}, {"Authorization": "{@credential}"})
+const helloData = getDictionary(helloRaw)
+@helloAccepted = helloData['connected']
+if !@helloAccepted {
+    alert("Rage Tracker could not confirm your device key. Your Health and Calendar data were not sent.", "Connection failed")
+    stop()
+}
+
+// A version check can open a replacement Shortcut; Apple always requires confirmation.
+const latestRaw = downloadURL("https://rage-tracker.bishvili.workers.dev/api/shortcut/release?current=1.1.0", {"Authorization": "{@credential}"})
+const latest = getDictionary(latestRaw)
+@updateAvailable = latest['updateAvailable']
+if @updateAvailable {
+    @release = latest['release']
+    @newURL = @release['url']
+    const updateOptions = list("Install update", "Continue syncing")
+    @choice = chooseFromList(updateOptions, "A new Rage Tracker Sync version is available.")
+    if @choice == "Install update" {
+        openURL("{@newURL}")
+        stop()
+    }
+}
 
 // Read samples for one day. The Health picker label is "Steps".
 action 'is.workflow.actions.filter.health.quantity' findTodaySteps(): array {
@@ -121,4 +168,4 @@ if sampleCount > 0 {
     }, {"Authorization": "{credential}"})
 }
 
-show("Rage Tracker sync finished. Open Rage Tracker and tap Sync now to see your data.")
+show("Rage Tracker connection verified. Data actions completed. Open Rage Tracker > Sync > Test connection to confirm accepted Health and Calendar uploads.")
