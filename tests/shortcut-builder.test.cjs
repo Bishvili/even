@@ -74,7 +74,7 @@ test("native authorization setup question is attached to the configured Text act
  const question=source.indexOf('#question authorization "Paste the full Authorization value from Rage Tracker > Sync" "Bearer "');
  const status=source.indexOf('downloadURL("https://rage-tracker.bishvili.workers.dev/api/status")');
  const binding=source.indexOf("const credential = text(authorization)");
- const verification=source.indexOf('downloadURL("https://rage-tracker.bishvili.workers.dev/api/profile"');
+ const verification=source.indexOf('jsonRequest("https://rage-tracker.bishvili.workers.dev/api/shortcut/hello"');
  assert.ok(question>=0&&question<status&&status<binding&&binding<verification);
  assert.equal((source.match(/^#question /gm)||[]).length,1);
  assert.match(source,/const credential = text\(authorization\)/);
@@ -89,12 +89,12 @@ test("fresh installations have no filesystem or saved-credential dependency",()=
 
 test("the owner-scoped API validates the configured key before collecting data",()=>{
  const binding=source.indexOf("const credential = text(authorization)");
- const profile=source.indexOf("getDictionary(profileRaw)");
- const failure=source.indexOf("if @authorized == false");
+ const profile=source.indexOf("getDictionary(handshakeRaw)");
+ const failure=source.indexOf("if @connected == false");
  const events=source.indexOf("const events = findTodayEvents()");
  assert.ok(binding>=0&&binding<profile&&profile<failure&&failure<events);
  assert.match(source,/Authorization": "\{credential\}"/);
- assert.match(source,/alert\("This device key was not accepted/);
+ assert.match(source,/alert\("The private device key was not accepted/);
 });
 
 test("every accepted upload is acknowledged and versioned",()=>{
@@ -102,9 +102,9 @@ test("every accepted upload is acknowledged and versioned",()=>{
  assert.match(source,/getValue\(healthResponse, "ok"\)/);
  assert.match(source,/if @eventAccepted == true/);
  assert.match(source,/if @healthAccepted == true/);
- assert.match(source,/shortcutVersion": "2\.1\.0"/);
- assert.match(source,/\/api\/shortcut\/release\?current=2\.1\.0/);
- assert.match(source,/showNotification\("Rage Tracker accepted \{@acceptedCount\} updates\."/);
+ assert.match(source,/shortcutVersion": "2\.2\.0"/);
+ assert.match(source,/\/api\/shortcut\/release\?current=2\.2\.0/);
+ assert.match(source,/showNotification\("Rage Tracker connected\. Accepted \{@acceptedCount\} data uploads\."/);
  assert.doesNotMatch(source,/\bnothing\(\)/);
  assert.doesNotMatch(source,/Bearer [a-f0-9]{64}/i);
  assert.doesNotMatch(source,/@(?:gmail|icloud)\.com/i);
@@ -127,11 +127,16 @@ test("the PWA setup instructions and source agree",()=>{
 });
 
 test("signed test Shortcut is offered without an iCloud release claim",()=>{
- assert.match(html,/id="shortcut-preview"[^>]*target="_blank"[^>]*href="\/rage-tracker-sync-v2\.1\.shortcut"/);
- assert.match(worker,/"rage-tracker-sync-v2\.1\.shortcut":"application\/octet-stream"/);
+ assert.match(html,/id="shortcut-preview"[^>]*target="_blank"[^>]*href="\/rage-tracker-sync-v2\.2\.shortcut"/);
+ assert.match(worker,/"rage-tracker-sync-v2\.2\.shortcut":"application\/octet-stream"/);
  assert.match(worker,/key\.endsWith\("\.shortcut"\)/);
- assert.match(worker,/Rage Tracker Sync v2\.1\.shortcut/);
- assert.match(html,/v2\.1 signed test build/);
+ assert.match(worker,/Rage Tracker Sync v2\.2\.shortcut/);
+ assert.match(html,/v2\.2 signed test build/);
+});
+
+test("Run Shortcut uses the Apple-supported URL scheme without a device key",()=>{
+ assert.match(html,/id="run-shortcut"[^>]*href="shortcuts:\/\/run-shortcut\?name=Rage%20Tracker%20Sync"/);
+ assert.doesNotMatch(html,/Bearer [a-f0-9]{64}/i);
 });
 
 test("every application DOM reference maps to an existing ID",()=>{
