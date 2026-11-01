@@ -4,44 +4,24 @@
 #define mac false
 
 #include 'actions/calendar'
-#include 'actions/documents'
 #include 'actions/math'
 #include 'actions/text'
 #include 'actions/web'
 
-// Create the app folder before inspecting its contents.
-// A fresh installation never attempts to open a missing credential file.
-createFolder("RageTracker")
-const folder = getFile("RageTracker")
-const savedFiles = getFolderContents(folder)
-@credential = ""
-for saved in savedFiles {
-    const itemName = getFileDetail(@saved, "Name")
-    @fileName = getText(itemName)
-    if @fileName == "device-key.txt" {
-        const savedKey = getText(@saved)
-        @credential = "{savedKey}"
-    }
-}
+// The credential is configured by Apple Shortcuts when the user installs the workflow.
+#question authorization "Paste the full Authorization value from Rage Tracker > Sync" "Bearer "
 
-@newConnection = false
-if @credential == "" {
-    const entered = prompt("Paste your Authorization value from Rage Tracker > Sync")
-    @credential = getText(entered)
-    @newConnection = true
-}
+// A public connectivity check keeps the import question attached to the next Text action.
+downloadURL("https://rage-tracker.bishvili.workers.dev/api/status")
+const credential = text(authorization)
 
-// Validate every run. Only store a newly entered credential after verification.
-const profileBody = downloadURL("https://rage-tracker.bishvili.workers.dev/api/profile", {"Authorization": "{@credential}"})
-const profile = getDictionary(profileBody)
-@connected: bool
-@connected = getValue(profile, "ok")
-if @connected == true {
-    if @newConnection == true {
-        saveFile("RageTracker/device-key.txt", @credential, true)
-    }
-} else {
-    alert("Rage Tracker rejected the device key. Reconnect from the app's Sync tab.", "Connection failed")
+// Every run verifies the credential before requesting Health or Calendar information.
+const profileRaw = downloadURL("https://rage-tracker.bishvili.workers.dev/api/profile", {"Authorization": "{credential}"})
+const profile = getDictionary(profileRaw)
+@authorized: bool
+@authorized = getValue(profile, "ok")
+if @authorized == false {
+    alert("This device key was not accepted. Copy a new Authorization value from Rage Tracker and customize this Shortcut.", "Connection failed")
     stop()
 }
 
@@ -64,11 +44,11 @@ for event in events {
 
     const eventBody = formRequest("https://rage-tracker.bishvili.workers.dev/api/ingest", "POST", {
         "kind": "calendar",
-        "shortcutVersion": "2.0.0",
+        "shortcutVersion": "2.1.0",
         "title": "{title}",
         "start": "{startISO}",
         "end": "{endISO}"
-    }, {"Authorization": "{@credential}"})
+    }, {"Authorization": "{credential}"})
     const eventResponse = getDictionary(eventBody)
     @eventAccepted: bool
     @eventAccepted = getValue(eventResponse, "ok")
@@ -89,10 +69,10 @@ if sampleCount > 0 {
     const day = formatDate(today, "Custom", "yyyy-MM-dd")
     const healthBody = formRequest("https://rage-tracker.bishvili.workers.dev/api/ingest", "POST", {
         "kind": "health",
-        "shortcutVersion": "2.0.0",
+        "shortcutVersion": "2.1.0",
         "date": "{day}",
         "steps": "{totalSteps}"
-    }, {"Authorization": "{@credential}"})
+    }, {"Authorization": "{credential}"})
     const healthResponse = getDictionary(healthBody)
     @healthAccepted: bool
     @healthAccepted = getValue(healthResponse, "ok")
@@ -107,7 +87,7 @@ if sampleCount > 0 {
 showNotification("Rage Tracker accepted {@acceptedCount} updates.", "Rage Tracker")
 
 // Offer an update after syncing; the user approves installation in Apple Shortcuts.
-const releaseBody = downloadURL("https://rage-tracker.bishvili.workers.dev/api/shortcut/release?current=2.0.0", {"Authorization": "{@credential}"})
+const releaseBody = downloadURL("https://rage-tracker.bishvili.workers.dev/api/shortcut/release?current=2.1.0", {"Authorization": "{credential}"})
 const releaseInfo = getDictionary(releaseBody)
 @updateAvailable: bool
 @updateAvailable = getValue(releaseInfo, "updateAvailable")
