@@ -17,7 +17,9 @@ const currentShortcutVersion = "1.1.0"
 @credential = ""
 if !@savedCredential {
     alert("Open Rage Tracker > Sync and copy your Authorization header value. Return here to enter it once. It starts with Bearer.", "Connect Rage Tracker")
-    @entered = prompt("Paste the complete Authorization value from Rage Tracker", "Text")
+    const rawInput = prompt("Paste the complete Authorization value from Rage Tracker")
+    @entered: text
+    @entered = getText(rawInput)
     if @entered beginsWith "Bearer " {
         @credential = "{@entered}"
     } else {
@@ -41,7 +43,9 @@ if !@savedCredential {
 jsonRequest("https://rage-tracker.bishvili.workers.dev/api/shortcut/hello", "POST", {"shortcutVersion": "1.1.0"}, {"Authorization": "{@credential}"})
 const helloRaw = downloadURL("https://rage-tracker.bishvili.workers.dev/api/sync/status", {"Authorization": "{@credential}"})
 const helloData = getDictionary(helloRaw)
-@confirmedVersion = getValue(helloData, "installedShortcutVersion")
+const versionValue = getValue(helloData, "installedShortcutVersion")
+@confirmedVersion: text
+@confirmedVersion = getText(versionValue)
 if @confirmedVersion != "1.1.0" {
     alert("Rage Tracker did not confirm the Shortcut handshake. Your Health and Calendar data were not sent.", "Connection failed")
     stop()
@@ -55,7 +59,9 @@ if @updateAvailable {
     @release = getValue(latest, "release")
     @newURL = @release['url']
     const updateOptions = list("Install update", "Continue syncing")
-    @choice = chooseFromList(updateOptions, "A new Rage Tracker Sync version is available.")
+    const selectedOption = chooseFromList(updateOptions, "A new Rage Tracker Sync version is available.")
+    @choice: text
+    @choice = getText(selectedOption)
     if @choice == "Install update" {
         openURL("{@newURL}")
         stop()
