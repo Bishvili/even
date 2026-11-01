@@ -51,7 +51,7 @@ test("unverified iCloud release is not presented as a working installation",()=>
  const install=t.elements.get("install-shortcut");
  assert.equal(install.getAttribute("aria-disabled"),"true");
  assert.equal(install.getAttribute("href"),null);
- assert.match(t.elements.get("shortcut-install-help").textContent,/unverified/);
+ assert.match(t.elements.get("shortcut-install-help").textContent,/incomplete If conditions/);
 });
 test("verified iCloud release enables new-tab installation",()=>{
  const t=harness();
@@ -133,7 +133,7 @@ test("calendar classification remains on the backend",()=>{
 
 test("the PWA setup instructions and source agree",()=>{
  assert.match(html,/Customize Shortcut/);
- assert.match(html,/contains no credentials or file operations/);
+ assert.match(html,/credential-free v2\.3 source/);
  assert.doesNotMatch(html,/device-key\.txt/);
  assert.match(html,/href="\/shortcut\/builder"/);
  assert.match(html,/target="_blank"/);
