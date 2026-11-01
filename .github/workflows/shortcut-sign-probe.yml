@@ -5,6 +5,9 @@ on:
     branches:
       - test/mac-shortcut-signing
   workflow_dispatch:
+  pull_request:
+    branches:
+      - main
 
 permissions:
   contents: read
