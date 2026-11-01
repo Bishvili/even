@@ -33,15 +33,15 @@ The PWA itself remains public and keeps anonymous/offline mood tracking. To sync
 
 ## Apple Shortcuts sync
 
-Rage Tracker uses an Apple Shortcut to transmit selected Calendar and Health information from the iPhone to the owner's Cloudflare database. PWAs cannot directly access HealthKit or EventKit.
+**Rage Tracker Sync v2.2.0** uses a native **Customize Shortcut** installation question for its private Authorization value. There are no credential files or folder permissions. The signed unconfigured build is available directly at `/rage-tracker-sync-v2.2.shortcut`.
 
-**Shortcut source v2.1.0** uses an Apple **Customize Shortcut** import question for its private Authorization value. It contains no filesystem operations or credential file. The signed unconfigured Shortcut asks for a token when added; the configured copy then verifies that token through `GET /api/profile` on each run.
+When run, the Shortcut checks public server connectivity and sends `POST /api/shortcut/hello` with its configured device key and version. This records a successful connection even if no Calendar events or Health samples are available. It then sends today's Calendar events and Health step totals to `POST /api/ingest`, checking every response before counting an upload as accepted. Calendar activities are categorized by the backend, not inside the Shortcut.
 
-The Cherri 2.3.0 compiler was checked to ensure the native import question is actually present in the generated Shortcut's Setup tab. The first public `GET /api/status` action is required to work around Cherri's import-question action-index mapping; it transmits no private information. The compiled Shortcut has no Create Folder, Get File or Save File actions.
+The Sync screen distinguishes **connected** from **data uploaded**. It shows the device's reported Shortcut version, last handshake, accepted data timestamp, and record counts. **Run installed Shortcut** opens Apple's Shortcuts app using its standard URL scheme, with no credential in the link.
 
-The Shortcut syncs today's Calendar events and Health step samples through authenticated `POST /api/ingest` requests, checking the server's `ok` response before reporting accepted data. Calendar activities are categorized on the backend. It can offer a newer verified Shortcut iCloud link when published, but Apple requires user approval of replacement and the new copy's setup question must be answered again.
+Version updates use `GET /api/shortcut/release?current=2.2.0`. Only newer **verified** releases are offered; Apple always requires explicit approval before replacing an installed Shortcut. The old v1.0 iCloud link remains unverified and is not presented as the current installer.
 
-The older iCloud v1.0.0 link is unverified. A signed, unconfigured v2.1.0 preview is downloadable at `/rage-tracker-sync-v2.1.shortcut`, so no manual compilation is required. It still needs an iPhone import and successful live sync before its iCloud share link can be marked verified.
+The v2.2 source compiles and its signed file has been created, but a complete iPhone import and actual Health/Calendar sync still require on-device acceptance testing before a new iCloud share link can be marked verified.
 
 See [Shortcut source](shortcuts/rage-tracker-sync.cherri) and [installation, privacy, and diagnostic instructions](shortcuts/README.md).
 
