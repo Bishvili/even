@@ -4,7 +4,7 @@
 // unauthenticated sync operations unless a valid, unrevoked device token is supplied.
 const ACCESS_AUD="b15746656eee885f25c4f4b0605491289c01776b8710cc8339fb507f4574f745";
 function approved(env,email){try{return JSON.parse(env.APPROVED_SYNC_EMAILS||"[]").includes(email);}catch(e){return false;}}
-const MIME={"index.html":"text/html; charset=utf-8","styles.css":"text/css; charset=utf-8","app.js":"text/javascript; charset=utf-8","sw.js":"text/javascript; charset=utf-8","manifest.webmanifest":"application/manifest+json","icon.svg":"image/svg+xml","icon-192.png":"image/png","icon-512.png":"image/png","source.zip":"application/zip","shortcut.cherri":"text/plain; charset=utf-8"};
+const MIME={"index.html":"text/html; charset=utf-8","styles.css":"text/css; charset=utf-8","app.js":"text/javascript; charset=utf-8","sw.js":"text/javascript; charset=utf-8","manifest.webmanifest":"application/manifest+json","icon.svg":"image/svg+xml","icon-192.png":"image/png","icon-512.png":"image/png","source.zip":"application/zip"};
 const SECURITY={"X-Content-Type-Options":"nosniff","Referrer-Policy":"no-referrer","X-Frame-Options":"DENY","Permissions-Policy":"camera=(), microphone=(), geolocation=()","Content-Security-Policy":"default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'"};
 const METRICS={sleepHours:[0,24],steps:[0,100000],hrv:[0,500],restingHR:[20,250],workoutMin:[0,1440]};
 const CATS=["Meeting","Work","Exercise","Social","Family","Rest","Commute","Other"];
@@ -72,8 +72,8 @@ async function authApi(request,env,ctx,path){
   return new Response(null,{status:303,headers:{...SECURITY,"Cache-Control":"no-store","Location":url.origin+"/?auth=ready#sync"}});
  }
  if(path==="/api/auth/me"&&request.method==="GET"){
-  const r=await env.DB.prepare("SELECT device_id,label,created_at,last_used_at,revoked_at FROM rt_devices WHERE owner_email=? ORDER BY created_at DESC LIMIT 30").bind(email).all();
-  return reply({ok:true,email,devices:(r.results||[]).map(d=>({id:d.device_id,label:d.label,createdAt:d.created_at,lastUsedAt:d.last_used_at,revoked:!!d.revoked_at}))});
+  const r=await env.DB.prepare("SELECT device_id,label,created_at,last_used_at,last_attempt_at,last_error_code,shortcut_version,revoked_at FROM rt_devices WHERE owner_email=? ORDER BY created_at DESC LIMIT 30").bind(email).all();
+  return reply({ok:true,email,devices:(r.results||[]).map(d=>({id:d.device_id,label:d.label,createdAt:d.created_at,lastUsedAt:d.last_used_at,lastAttemptAt:d.last_attempt_at,lastErrorCode:d.last_error_code,shortcutVersion:d.shortcut_version,revoked:!!d.revoked_at}))});
  }
  if(path==="/api/auth/device"){
   if(!browserPostAllowed(request))return error("Same-origin JSON POST required",403);
@@ -96,12 +96,50 @@ async function authApi(request,env,ctx,path){
  }
  return error("Not found",404);
 }
+function cleanShortcutRelease(value){
+ if(!value||typeof value!=="object")return null;
+ const version=String(value.version||"").trim();
+ const url=String(value.url||"").trim();
+ if(!/^\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(version))return null;
+ if(!/^https:\/\/www\.icloud\.com\/shortcuts\/[a-f0-9]{32}$/i.test(url))return null;
+ return {version,url,publishedAt:String(value.publishedAt||"").slice(0,30),notes:String(value.notes||"").slice(0,180)};
+}
+async function loadShortcutRelease(env){
+ const raw=await env.ASSETS.get("config:shortcut:latest");
+ if(!raw)return null;
+ try{return cleanShortcutRelease(JSON.parse(raw));}catch(e){return null;}
+}
+async function recordSyncFailure(env,dev,code){
+ const allowed=new Set(["invalid_body","invalid_kind","no_valid_records"]);
+ if(!allowed.has(code))return;
+ await env.DB.prepare("UPDATE rt_devices SET last_attempt_at=?,last_error_code=? WHERE device_id=? AND owner_email=? AND revoked_at IS NULL")
+  .bind(new Date().toISOString(),code,dev.id,dev.owner).run();
+}
+
 async function syncApi(request,env,path){
  if(path==="/api/pair")return error("The old shared pairing code was retired. Sign in through Email login.",410);
  const dev=await validDevice(request,env);
  if(!dev)return error("A valid non-revoked device key is required",401);
  const owner=dev.owner;
  if(path==="/api/profile"&&request.method==="GET")return reply({ok:true,email:owner,deviceId:dev.id});
+ if(path==="/api/sync/status"&&request.method==="GET"){
+  const [device,h,c]=await Promise.all([
+   env.DB.prepare("SELECT last_used_at,last_attempt_at,last_error_code,shortcut_version FROM rt_devices WHERE device_id=? AND owner_email=? AND revoked_at IS NULL").bind(dev.id,owner).first(),
+   env.DB.prepare("SELECT COUNT(*) AS count FROM rt_health_metrics WHERE owner_email=?").bind(owner).first(),
+   env.DB.prepare("SELECT COUNT(*) AS count FROM rt_calendar_events WHERE owner_email=?").bind(owner).first()
+  ]);
+  if(!device)return error("This device was revoked",401);
+  return reply({ok:true,credentialValid:true,deviceId:dev.id,lastDataUploadAt:device.last_used_at||null,
+   lastAttemptAt:device.last_attempt_at||null,lastErrorCode:device.last_error_code||null,
+   installedShortcutVersion:device.shortcut_version||null,
+   healthMetrics:Number(h?.count||0),calendarEvents:Number(c?.count||0)});
+ }
+ if(path==="/api/shortcut/release"&&request.method==="GET"){
+  const release=await loadShortcutRelease(env);
+  if(!release)return error("No Shortcut release is configured",503);
+  return reply({ok:true,release,automaticReplacement:false});
+ }
+
  if(path==="/api/pull"&&request.method==="GET"){
   const [health,events]=await Promise.all([
    env.DB.prepare("SELECT day,metric,value FROM rt_health_metrics WHERE owner_email=? ORDER BY day DESC LIMIT 3000").bind(owner).all(),
@@ -114,16 +152,24 @@ async function syncApi(request,env,path){
   return reply({ok:true,email:owner,health:Object.values(grouped),events:(events.results||[]).map(e=>({id:e.event_id,start:e.start_time,end:e.end_time,title:e.title,category:e.category,source:"shortcut"})),syncAt:new Date().toISOString()});
  }
  if(path==="/api/ingest"&&request.method==="POST"){
-  let input;try{input=await payload(request);}catch(e){return error("Invalid or oversized data");}
-  if(!input||typeof input!=="object")return error("Invalid data");
+  let input;
+  try{input=await payload(request);}
+  catch(e){await recordSyncFailure(env,dev,"invalid_body");return error("Invalid or oversized request body");}
+  if(!input||typeof input!=="object"){
+   await recordSyncFailure(env,dev,"invalid_body");return error("Expected JSON or form fields");
+  }
   const kind=String(input.kind||"").toLowerCase();
-  // A single batch allows one Shortcut to transmit both selected Health and Calendar records.
-  if(!["health","calendar","batch"].includes(kind))return error("Use kind=health, calendar or batch");
+  if(!["health","calendar","batch"].includes(kind)){
+   await recordSyncFailure(env,dev,"invalid_kind");return error("Use kind=health, calendar, or batch");
+  }
   const healthInput=kind==="batch"?(Array.isArray(input.health)?input.health.slice(0,75):[]):kind==="health"?(Array.isArray(input.days)?input.days.slice(0,75):[input]):[];
   const eventInput=kind==="batch"?(Array.isArray(input.events)?input.events.slice(0,125):[]):kind==="calendar"?(Array.isArray(input.events)?input.events.slice(0,125):[input]):[];
   const metrics=healthInput.flatMap(readHealth);
   const events=eventInput.map(readEvent).filter(Boolean);
-  if(!metrics.length&&!events.length)return error("No valid Health or Calendar records");
+  if(!metrics.length&&!events.length){
+   await recordSyncFailure(env,dev,"no_valid_records");
+   return error("No valid records. Check date, metric values, and event start/end formats");
+  }
   const at=new Date().toISOString(),statements=[];
   metrics.forEach(x=>statements.push(env.DB.prepare("INSERT INTO rt_health_metrics(owner_email,day,metric,value,updated_at) VALUES(?,?,?,?,?) ON CONFLICT(owner_email,day,metric) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at").bind(owner,x.day,x.metric,x.value,at)));
   for(const e of events){
@@ -131,8 +177,11 @@ async function syncApi(request,env,path){
    statements.push(env.DB.prepare("INSERT INTO rt_calendar_events(owner_email,event_id,start_time,end_time,title,category,updated_at) VALUES(?,?,?,?,?,?,?) ON CONFLICT(owner_email,event_id) DO UPDATE SET title=excluded.title,category=excluded.category,updated_at=excluded.updated_at").bind(owner,eventId,e.start,e.end,e.title,e.category,at));
   }
   for(let i=0;i<statements.length;i+=50)await env.DB.batch(statements.slice(i,i+50));
-  await env.DB.prepare("UPDATE rt_devices SET last_used_at=? WHERE device_id=? AND owner_email=?").bind(at,dev.id,owner).run();
-  return reply({ok:true,kind,healthMetrics:metrics.length,calendarEvents:events.length});
+  const claimedVersion=String(input.shortcutVersion||"").trim();
+  const clientVersion=/^\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(claimedVersion)?claimedVersion:null;
+  await env.DB.prepare("UPDATE rt_devices SET last_used_at=?,last_attempt_at=?,last_error_code=NULL,shortcut_version=COALESCE(?,shortcut_version) WHERE device_id=? AND owner_email=? AND revoked_at IS NULL")
+    .bind(at,at,clientVersion,dev.id,owner).run();
+  return reply({ok:true,receivedAt:at,kind,healthMetrics:metrics.length,calendarEvents:events.length,shortcutVersion:clientVersion});
  }
  if(path==="/api/erase"&&request.method==="POST"){
   await env.DB.batch([
@@ -144,7 +193,7 @@ async function syncApi(request,env,path){
  return error("Not found",404);
 }
 async function api(request,env,ctx,path){
- if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:"Rage Tracker",version:"1.4.0",sync:"email-access"});
+ if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:"Rage Tracker",version:"1.5.0",sync:"email-access"});
  if(path.startsWith("/api/auth/"))return authApi(request,env,ctx,path);
  return syncApi(request,env,path);
 }
