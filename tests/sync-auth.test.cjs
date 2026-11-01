@@ -16,10 +16,14 @@ function harness(){
  vm.runInNewContext(loaded,runtime,{timeout:2500,filename:"worker/index.js"});
  const allowed=["owner-a@example.com","owner-b@example.com"];
  const rows={users:new Map(),devices:new Map(),health:new Map(),events:new Map()};
- const env={APPROVED_SYNC_EMAILS:JSON.stringify(allowed),DB:{
+ const release=JSON.stringify({version:"1.0.0",url:"https://www.icloud.com/shortcuts/82109f53491f4d95a0a8b8437c4090f2",publishedAt:"2026-11-01",notes:"First shared release"});
+ const env={APPROVED_SYNC_EMAILS:JSON.stringify(allowed),ASSETS:{async get(key){return key==="config:shortcut:latest"?release:null;}},DB:{
   prepare(sql){return{bind(...args){return {
    async first(){
     if(sql.includes("SELECT device_id,owner_email,revoked_at"))return rows.devices.get(args[0])||null;
+    if(sql.includes("SELECT last_used_at,last_attempt_at,last_error_code,shortcut_version")){const d=[...rows.devices.values()].find(d=>d.device_id===args[0]&&d.owner_email===args[1]&&!d.revoked_at);return d||null;}
+    if(sql.includes("SELECT COUNT(*) AS count FROM rt_health_metrics"))return{count:[...rows.health.values()].filter(d=>d.owner===args[0]).length};
+    if(sql.includes("SELECT COUNT(*) AS count FROM rt_calendar_events"))return{count:[...rows.events.values()].filter(d=>d.owner===args[0]).length};
     if(sql.includes("COUNT(*)"))return {count:[...rows.devices.values()].filter(d=>d.owner_email===args[0]&&!d.revoked_at).length};
     throw new Error("Unexpected first: "+sql);
    },
@@ -31,9 +35,10 @@ function harness(){
    },
    async run(){
     if(sql.startsWith("INSERT OR IGNORE INTO rt_users")){rows.users.set(args[0],args[1]);return{meta:{changes:1}};}
-    if(sql.startsWith("INSERT INTO rt_devices")){rows.devices.set(args[0],{device_id:args[1],owner_email:args[2],label:args[3],created_at:args[4],revoked_at:null});return{meta:{changes:1}};}
+    if(sql.startsWith("INSERT INTO rt_devices")){rows.devices.set(args[0],{device_id:args[1],owner_email:args[2],label:args[3],created_at:args[4],last_used_at:null,last_attempt_at:null,last_error_code:null,shortcut_version:null,revoked_at:null});return{meta:{changes:1}};}
     if(sql.startsWith("UPDATE rt_devices SET revoked_at")){let changes=0;for(const d of rows.devices.values())if(d.device_id===args[1]&&d.owner_email===args[2]&&!d.revoked_at){d.revoked_at=args[0];changes++;}return{meta:{changes}};}
-    if(sql.startsWith("UPDATE rt_devices SET last_used_at"))return{meta:{changes:1}};
+    if(sql.startsWith("UPDATE rt_devices SET last_attempt_at")){for(const d of rows.devices.values())if(d.device_id===args[2]&&d.owner_email===args[3]&&!d.revoked_at){d.last_attempt_at=args[0];d.last_error_code=args[1];}return{meta:{changes:1}};}
+    if(sql.startsWith("UPDATE rt_devices SET last_used_at")){for(const d of rows.devices.values())if(d.device_id===args[3]&&d.owner_email===args[4]&&!d.revoked_at){d.last_used_at=args[0];d.last_attempt_at=args[1];d.last_error_code=null;d.shortcut_version=args[2]||d.shortcut_version;}return{meta:{changes:1}};}
     if(sql.startsWith("INSERT INTO rt_health_metrics")){rows.health.set(args[0]+"|"+args[1]+"|"+args[2],{owner:args[0],day:args[1],metric:args[2],value:args[3]});return{meta:{changes:1}};}
     if(sql.startsWith("INSERT INTO rt_calendar_events")){rows.events.set(args[0]+"|"+args[1],{owner:args[0],id:args[1],start_time:args[2],end_time:args[3],title:args[4],category:args[5]});return{meta:{changes:1}};}
     if(sql.startsWith("DELETE FROM rt_health_metrics")){for(const [k,d] of rows.health)if(d.owner===args[0])rows.health.delete(k);return{meta:{changes:1}};}
@@ -91,4 +96,41 @@ test("device creation requires a same-origin JSON POST",async()=>{
  const{call,ctx}=harness();
  const request=await call("/api/auth/device",{method:"POST",body:{label:"spoof"},headers:{Origin:"https://attacker.invalid"},context:ctx("owner-a@example.com")});
  assert.equal(request.status,403);
+});
+
+test("sync diagnostics distinguish a valid device with no uploads from a rejected request",async()=>{
+ const {call,ctx}=harness();
+ const d=await call("/api/auth/device",{method:"POST",body:{label:"Personal iPhone"},context:ctx("owner-a@example.com")});
+ const key={Authorization:"Bearer "+d.data.token};
+ const initial=await call("/api/sync/status",{headers:key});
+ assert.equal(initial.status,200);
+ assert.equal(initial.data.credentialValid,true);
+ assert.equal(initial.data.lastDataUploadAt,null);
+ assert.equal(initial.data.healthMetrics,0);
+ assert.equal(initial.data.calendarEvents,0);
+ const denied=await call("/api/ingest",{method:"POST",body:{kind:"health",date:"not-a-date",steps:100},headers:key});
+ assert.equal(denied.status,400);
+ const failure=await call("/api/sync/status",{headers:key});
+ assert.equal(failure.data.lastErrorCode,"no_valid_records");
+ assert.ok(failure.data.lastAttemptAt);
+ assert.equal(failure.data.lastDataUploadAt,null);
+ const accepted=await call("/api/ingest",{method:"POST",body:{kind:"health",date:"2026-11-01",steps:4500,shortcutVersion:"1.1.0"},headers:key});
+ assert.equal(accepted.status,200);
+ const success=await call("/api/sync/status",{headers:key});
+ assert.equal(success.data.lastErrorCode,null);
+ assert.ok(success.data.lastDataUploadAt);
+ assert.equal(success.data.healthMetrics,1);
+ assert.equal(success.data.installedShortcutVersion,"1.1.0");
+});
+
+test("versioned Shortcut release metadata requires an owned device and a validated iCloud URL",async()=>{
+ const {call,ctx}=harness();
+ const denied=await call("/api/shortcut/release");
+ assert.equal(denied.status,401);
+ const d=await call("/api/auth/device",{method:"POST",body:{label:"iPhone"},context:ctx("owner-a@example.com")});
+ const release=await call("/api/shortcut/release",{headers:{Authorization:"Bearer "+d.data.token}});
+ assert.equal(release.status,200);
+ assert.equal(release.data.release.version,"1.0.0");
+ assert.match(release.data.release.url,/^https:\/\/www\.icloud\.com\/shortcuts\/[a-f0-9]{32}$/);
+ assert.equal(release.data.automaticReplacement,false);
 });
