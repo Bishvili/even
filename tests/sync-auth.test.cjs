@@ -8,7 +8,7 @@ const vm=require("node:vm");
 const {webcrypto}=require("node:crypto");
 const {TextEncoder}=require("node:util");
 
-function harness(){
+function harness({verified=false}={}){
  const source=fs.readFileSync(path.join(__dirname,"..","worker","index.js"),"utf8");
  const loaded=source.replace("export default {","globalThis.__worker = {");
  assert.notEqual(source,loaded,"Worker ESM export not found");
@@ -16,7 +16,7 @@ function harness(){
  vm.runInNewContext(loaded,runtime,{timeout:2500,filename:"worker/index.js"});
  const allowed=["owner-a@example.com","owner-b@example.com"];
  const rows={users:new Map(),devices:new Map(),health:new Map(),events:new Map()};
- const release=JSON.stringify({version:"1.0.0",url:"https://www.icloud.com/shortcuts/82109f53491f4d95a0a8b8437c4090f2",publishedAt:"2026-11-01",notes:"First shared release"});
+ const release=JSON.stringify({version:"1.0.0",url:"https://www.icloud.com/shortcuts/82109f53491f4d95a0a8b8437c4090f2",publishedAt:"2026-11-01",notes:"First shared release",verified});
  const env={APPROVED_SYNC_EMAILS:JSON.stringify(allowed),ASSETS:{async get(key){return key==="config:shortcut:latest"?release:null;}},DB:{
   prepare(sql){return{bind(...args){return {
    async first(){
@@ -141,19 +141,30 @@ test("first-run Shortcut handshake validates an owned token without inventing da
  const auth={Authorization:"Bearer "+user.data.token};
  const invalid=await call("/api/shortcut/hello",{method:"POST",body:{shortcutVersion:"banana"},headers:auth});
  assert.equal(invalid.status,400);
- const accepted=await call("/api/shortcut/hello",{method:"POST",body:{shortcutVersion:"1.1.0"},headers:auth});
+ const accepted=await call("/api/shortcut/hello",{method:"POST",body:{shortcutVersion:"2.2.0"},headers:auth});
  assert.equal(accepted.status,200);
  assert.equal(accepted.data.connected,true);
  const status=await call("/api/sync/status",{headers:auth});
  assert.equal(status.status,200);
- assert.equal(status.data.installedShortcutVersion,"1.1.0");
+ assert.equal(status.data.installedShortcutVersion,"2.2.0");
  assert.ok(status.data.lastAttemptAt);
  assert.equal(status.data.lastDataUploadAt,null);
  assert.equal(status.data.healthMetrics,0);
 });
 
-test("Shortcut release comparison only offers upgrades",async()=>{
+test("unverified releases are not advertised as updates",async()=>{
  const {call,ctx}=harness();
+ const d=await call("/api/auth/device",{method:"POST",body:{label:"iPhone"},context:ctx("owner-a@example.com")});
+ const auth={Authorization:"Bearer "+d.data.token};
+ const result=await call("/api/shortcut/release?current=0.0.1",{headers:auth});
+ assert.equal(result.status,200);
+ assert.equal(result.data.release.verified,false);
+ assert.equal(result.data.updateAvailable,false);
+ assert.equal(result.data.automaticReplacement,false);
+});
+
+test("Shortcut release comparison only offers upgrades",async()=>{
+ const {call,ctx}=harness({verified:true});
  const user=await call("/api/auth/device",{method:"POST",body:{label:"iPhone"},context:ctx("owner-a@example.com")});
  const auth={Authorization:"Bearer "+user.data.token};
  const older=await call("/api/shortcut/release?current=0.9.0",{headers:auth});
