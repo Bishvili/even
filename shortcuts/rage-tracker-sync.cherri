@@ -69,16 +69,16 @@ action 'is.workflow.actions.filter.calendarevents' findTodayEvents(): array {
 }
 
 const current = currentDate()
-const today = formatDate(@current, "Custom", "yyyy-MM-dd")
-const events = findTodayEvents()
+const today = formatDate(current, "Custom", "yyyy-MM-dd")
+@events = findTodayEvents()
 
 for event in @events {
     const title = getEventDetail(@event, "Title")
     const startDate = getEventDetail(@event, "Start Date")
     const endDate = getEventDetail(@event, "End Date")
-    const startISO = formatDate(@startDate, "ISO 8601")
-    const endISO = formatDate(@endDate, "ISO 8601")
-    const name = lowercase("{title}")
+    const startISO = formatDate(startDate, "ISO 8601")
+    const endISO = formatDate(endDate, "ISO 8601")
+    @name = lowercase("{title}")
     @category = "Other"
 
     if @name contains "meeting" || @name contains "call" {
@@ -104,11 +104,11 @@ for event in @events {
 }
 
 // Skip Health uploads when no samples are available; Calendar can still sync.
-const samples = findTodaySteps()
+@samples = findTodaySteps()
 const sampleCount = count(@samples)
-if @sampleCount > 0 {
+if sampleCount > 0 {
     const values = getStepValues(@samples)
-    const steps = statistic("Sum", @values)
+    const steps = statistic("Sum", values)
     formRequest("https://rage-tracker.bishvili.workers.dev/api/ingest", "POST", {
         "kind": "health",
         "date": "{today}",
