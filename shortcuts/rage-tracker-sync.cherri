@@ -18,7 +18,9 @@ const currentShortcutVersion = "1.1.0"
 if !@savedCredential {
     alert("Open Rage Tracker > Sync and copy your Authorization header value. Return here to enter it once. It starts with Bearer.", "Connect Rage Tracker")
     @entered = prompt("Paste the complete Authorization value from Rage Tracker", "Text")
-    if !@entered beginsWith "Bearer " {
+    if @entered beginsWith "Bearer " {
+        // A device key is only stored after the profile request succeeds.
+    } else {
         alert("The value must begin with Bearer followed by your private device key. Nothing has been saved.", "Invalid connection")
         stop()
     }
