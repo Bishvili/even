@@ -41,7 +41,7 @@ The Cherri 2.3.0 compiler was checked to ensure the native import question is ac
 
 The Shortcut syncs today's Calendar events and Health step samples through authenticated `POST /api/ingest` requests, checking the server's `ok` response before reporting accepted data. Calendar activities are categorized on the backend. It can offer a newer verified Shortcut iCloud link when published, but Apple requires user approval of replacement and the new copy's setup question must be answered again.
 
-The older iCloud v1.0.0 link is unverified. Source v2.1.0 is ready to compile and still needs a signed iPhone import and successful live sync before a verified iCloud link can be published.
+The older iCloud v1.0.0 link is unverified. A signed, unconfigured v2.1.0 preview is downloadable at `/rage-tracker-sync-v2.1.shortcut`, so no manual compilation is required. It still needs an iPhone import and successful live sync before its iCloud share link can be marked verified.
 
 See [Shortcut source](shortcuts/rage-tracker-sync.cherri) and [installation, privacy, and diagnostic instructions](shortcuts/README.md).
 
