@@ -5,8 +5,8 @@ The current Shortcut source is **v2.1.0** at [rage-tracker-sync.cherri](rage-tra
 ## Install and configure
 
 1. In Rage Tracker's **Sync** tab, confirm your email login and active device, then **Copy** the complete Authorization header value. It begins with `Bearer `.
-2. Open **Prepare updated Shortcut**. The generic Cherri source opens in a new tab. Compile and export a **signed** Apple Shortcut; do not paste the credential into the builder.
-3. Add the signed Shortcut to the Apple Shortcuts app. The **Customize Shortcut** setup question asks for the Authorization value. Paste it there. If the question does not appear, inspect the Shortcut's **Details → Setup** panel before running it.
+2. Tap **Download test Shortcut**. The signed, unconfigured `.shortcut` file downloads from Rage Tracker into Safari/Files. Open the downloaded file in the Apple Shortcuts app. You do not need to compile anything yourself.
+3. During **Customize Shortcut**, enter the full Authorization value copied from Rage Tracker. If Apple does not show the question, inspect the Shortcut's **Details → Setup** panel before running it. The public Cherri editor remains available for source inspection, but it is not required for installation.
 4. Run Rage Tracker Sync. It makes a public connectivity check, verifies the configured credential through `GET /api/profile`, and stops if it cannot authenticate.
 5. Approve Apple Calendar, Health, and network permissions when prompted. In iOS Settings → Apps → Shortcuts → Advanced, enable **Allow Sharing Large Amounts of Data** if iOS requests it.
 6. Return to Rage Tracker → **Test connection**. Only an accepted-data timestamp and record counts establish that Health or Calendar data actually reached the server. Tap **Sync now** to retrieve those records locally.
@@ -17,7 +17,7 @@ The Shortcut has **no Create Folder, Get File, Save File or Get Folder Contents 
 
 Cherri 2.3.0 has an import-question action-index mapping issue. The source begins with a public, unauthenticated `GET /api/status` connectivity check, followed immediately by `const credential = text(authorization)`. This ensures the **Setup** tab in Cherri's compiled preview actually displays the Authorization question on the Text action. The request has no Authorization header and sends no personal data.
 
-The required Setup question was verified in Cherri Playground 2.3.0. Compiling successfully is not a substitute for testing an import on an actual iPhone.
+The required Setup question was verified in Cherri Playground 2.3.0. A signed unconfigured v2.1.0 build is available from `/rage-tracker-sync-v2.1.shortcut` and was signed through the Cherri Playground signing flow. Its iPhone import, setup and Health/Calendar synchronization have not yet been verified.
 
 ## Data synchronized
 
@@ -32,7 +32,7 @@ Each authenticated `POST /api/ingest` response is checked for an explicit `ok` v
 
 After synchronization, the Shortcut requests `GET /api/shortcut/release?current=2.1.0`. If a newer release is available, it can offer to open the verified iCloud installation link. Apple still requires the user to approve installing the replacement.
 
-Because the credential is intentionally **not persisted to an external file**, an updated Shortcut requires answering the setup question again. This avoids fragile filesystem permissions and prevents an update from silently assuming a shared credential. The older v1.0.0 iCloud share link is not a verified release of the rebuilt Shortcut.
+Because the credential is intentionally **not persisted to an external file**, an updated Shortcut requires answering the setup question again. This avoids fragile filesystem permissions and prevents an update from silently assuming a shared credential. The older v1.0.0 iCloud share link is not a verified release of the rebuilt Shortcut. The signed v2.1.0 preview is downloadable directly, while the iCloud release metadata remains unverified until an iPhone test succeeds.
 
 **Do not share a configured, personalized Shortcut.** Its configured Text action contains a sensitive bearer credential. Share only a fresh, unconfigured master with the setup question intact. Revoke and reissue the device credential if it is exposed.
 
