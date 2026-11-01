@@ -13,7 +13,7 @@ const version="1.0.0";
 const icloudUrl="https://www.icloud.com/shortcuts/82109f53491f4d95a0a8b8437c4090f2";
 const base="https://rage-tracker.bishvili.workers.dev";
 
-function setup(){
+function setup({verified=true}={}){
  const elementIds=new Set([...html.matchAll(/\bid="([^"]+)"/g)].map(x=>x[1]));
  const elements=new Map(),urls=[],storageWrites=[];
  const token="a".repeat(64),deviceId="3f6ab11e-37e2-4607-89df-321014f10c39",email="owner-a@example.com";
@@ -35,7 +35,7 @@ function setup(){
  const initial={moods:[],health:[],events:[],token,syncOwnerEmail:email,deviceId};
  const localStorage={getItem(){return JSON.stringify(storageWrites.at(-1)||initial);},setItem(k,v){storageWrites.push(JSON.parse(v));}};
  const fetch=async(endpoint,options)=>{
-  if(endpoint==="/api/shortcut/release")return {ok:true,async json(){return {ok:true,release:{version,url:icloudUrl},automaticReplacement:false};}};
+  if(endpoint==="/api/shortcut/release")return {ok:true,async json(){return {ok:true,release:{version,url:icloudUrl,verified},automaticReplacement:false};}};
   if(endpoint==="/api/sync/status")return {ok:true,status:200,async json(){return {ok:true,credentialValid:true,deviceId,lastDataUploadAt:null,lastAttemptAt:null,lastErrorCode:null,healthMetrics:0,calendarEvents:0,installedShortcutVersion:null};}};
   throw Error("Unexpected request "+endpoint);
  };
@@ -56,6 +56,8 @@ test("iCloud installer targets a new tab, not the current PWA window",async()=>{
  t.app.renderSync();
  const a=t.element("install-shortcut");
  assert.equal(a.href,icloudUrl);
+ assert.equal(a.hidden,false);
+ assert.equal(t.element("shortcut-preview").hidden,true);
  assert.match(html,/<a id="install-shortcut"[^>]+target="_blank"[^>]+rel="noopener noreferrer"/);
  assert.equal(a.getAttribute("aria-disabled"),null);
  assert.equal(a.href.includes(t.token),false);
@@ -68,10 +70,20 @@ test("only an active device can open the latest release",async()=>{
  t.app.setAuth("owner-b@example.com",[]);
  t.app.renderSync();
  assert.equal(t.element("install-shortcut").getAttribute("aria-disabled"),"true");
- assert.equal(t.element("install-shortcut").href,icloudUrl);
+ assert.equal(t.element("install-shortcut").hidden,true);
+ assert.equal(t.element("shortcut-preview").hidden,false);
  assert.ok(!t.element("install-shortcut").getAttribute("tabindex")||t.element("install-shortcut").getAttribute("tabindex")==="-1");
 });
 
+test("unverified release stays hidden while the public builder remains available",async()=>{
+ const t=setup({verified:false});
+ t.app.setAuth(t.email,[]);
+ await t.app.loadShortcutRelease();
+ t.app.renderSync();
+ assert.equal(t.element("install-shortcut").hidden,true);
+ assert.equal(t.element("shortcut-preview").hidden,false);
+ assert.equal(t.element("shortcut-installed-confirm").hidden,true);
+});
 test("a valid credential is not mistaken for a successful Health upload",async()=>{
  const t=setup();
  t.app.setAuth(t.email,[]);
