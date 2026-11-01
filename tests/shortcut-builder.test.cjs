@@ -90,7 +90,7 @@ test("fresh installations have no filesystem or saved-credential dependency",()=
 test("the owner-scoped API validates the configured key before collecting data",()=>{
  const binding=source.indexOf("const credential = text(authorization)");
  const profile=source.indexOf("getDictionary(handshakeRaw)");
- const failure=source.indexOf("if @connected == false");
+ const failure=source.indexOf('if connectionStatus != "connected"');
  const events=source.indexOf("const events = findTodayEvents()");
  assert.ok(binding>=0&&binding<profile&&profile<failure&&failure<events);
  assert.match(source,/Authorization": "\{credential\}"/);
@@ -98,16 +98,31 @@ test("the owner-scoped API validates the configured key before collecting data",
 });
 
 test("every accepted upload is acknowledged and versioned",()=>{
- assert.match(source,/getValue\(eventResponse, "ok"\)/);
- assert.match(source,/getValue\(healthResponse, "ok"\)/);
- assert.match(source,/if @eventAccepted == true/);
- assert.match(source,/if @healthAccepted == true/);
- assert.match(source,/shortcutVersion": "2\.2\.0"/);
- assert.match(source,/\/api\/shortcut\/release\?current=2\.2\.0/);
+ assert.match(source,/getValue\(eventResponse, "state"\)/);
+ assert.match(source,/getValue\(healthResponse, "state"\)/);
+ assert.match(source,/if eventStatus != "accepted"/);
+ assert.match(source,/if healthStatus != "accepted"/);
+ assert.match(source,/shortcutVersion": "2\.3\.0"/);
+ assert.match(source,/\/api\/shortcut\/release\?current=2\.3\.0/);
  assert.match(source,/showNotification\("Rage Tracker connected\. Accepted \{@acceptedCount\} data uploads\."/);
  assert.doesNotMatch(source,/\bnothing\(\)/);
  assert.doesNotMatch(source,/Bearer [a-f0-9]{64}/i);
  assert.doesNotMatch(source,/@(?:gmail|icloud)\.com/i);
+});
+
+test("conditional comparisons use explicit typed text instead of Boolean values",()=>{
+ const comparisons=[...source.matchAll(/^\s*if\s+([^\n]+)\{/gm)].map(x=>x[1].trim());
+ assert.deepEqual(comparisons,[
+  'connectionStatus != "connected"',
+  'eventStatus != "accepted"',
+  'sampleCount >= 1',
+  'healthStatus != "accepted"',
+  'updateStatus == "new_release"',
+  'choice == "Install update"'
+ ]);
+ assert.doesNotMatch(source,/if\s+@\w+\s*(==|!=)\s*(true|false)/);
+ for(const name of ["connectionStatus","eventStatus","healthStatus","updateStatus"])
+  assert.match(source,new RegExp("const "+name+" = getText\\(getValue\\("));
 });
 
 test("calendar classification remains on the backend",()=>{
