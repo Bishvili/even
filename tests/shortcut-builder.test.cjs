@@ -91,7 +91,7 @@ test("new credentials are verified before saving; every upload is acknowledged",
  assert.match(source,/getValue\(healthResponse, "ok"\)/);
  assert.match(source,/if @eventAccepted == true/);
  assert.match(source,/if @healthAccepted == true/);
- assert.match(source,/if @acceptedCount > 0/);
+ assert.match(source,/showNotification\("Rage Tracker accepted \{@acceptedCount\} updates\."/);
  assert.match(source,/shortcutVersion": "2\.0\.0"/);
  assert.match(source,/\/api\/shortcut\/release\?current=2\.0\.0/);
  assert.doesNotMatch(source,/\/api\/shortcut\/hello/);
@@ -113,11 +113,18 @@ test("all app DOM references and network routes are defined",()=>{
  assert.match(worker,/updateAvailable/);
 });
 
-test("credential input explicitly coerces to text before checking the prefix",()=>{
- assert.match(source,/@credential: text/);
+test("credential input is verified by the owner-scoped API before persistence",()=>{
+ assert.match(source,/@credential = ""/);
  assert.match(source,/@credential = getText\(entered\)/);
- assert.match(source,/if @credential beginsWith "Bearer "/);
+ assert.match(source,/if @credential == "" \{[\s\S]*@newConnection = true/);
  assert.match(source,/@connected: bool/);
  assert.match(source,/@connected = getValue\(profile, "ok"\)/);
  assert.doesNotMatch(source,/#question authorization/);
+});
+
+test("no extra setup checks or fake success paths",()=>{
+ assert.doesNotMatch(source,/if @credential beginsWith/);
+ assert.doesNotMatch(source,/if @acceptedCount > 0/);
+ assert.doesNotMatch(source,/\/api\/pair/);
+ assert.match(source,/showNotification\("Rage Tracker accepted \{@acceptedCount\} updates\."/);
 });
