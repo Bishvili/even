@@ -1,0 +1,50 @@
+name: Check native Shortcut signing
+
+on:
+  push:
+    branches:
+      - test/mac-shortcut-signing
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.2'
+          cache: false
+      - name: Compile unsigned Shortcut
+        run: |
+          git clone --depth 1 --branch v2.3.0 https://github.com/electrikmilk/cherri.git /tmp/cherri-source
+          (cd /tmp/cherri-source && go build -trimpath -o /tmp/cherri-compiler .)
+          /tmp/cherri-compiler shortcuts/rage-tracker-sync.cherri --skip-sign
+          test -s "shortcuts/Rage Tracker Sync_unsigned.shortcut"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: unsigned-rage-tracker
+          path: shortcuts/Rage Tracker Sync_unsigned.shortcut
+          retention-days: 1
+
+  sign:
+    needs: build
+    runs-on: macos-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: unsigned-rage-tracker
+      - name: Sign with macOS Shortcuts
+        run: |
+          shortcuts sign --mode anyone --input "Rage Tracker Sync_unsigned.shortcut" --output "Rage Tracker Sync_v2.3.shortcut"
+          test -s "Rage Tracker Sync_v2.3.shortcut"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: signed-rage-tracker
+          path: Rage Tracker Sync_v2.3.shortcut
+          retention-days: 1
