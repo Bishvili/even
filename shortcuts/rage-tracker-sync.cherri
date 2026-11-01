@@ -54,64 +54,12 @@ if @newConnection == true {
 }
 
 // Collect only events starting today.
-action 'is.workflow.actions.filter.calendarevents' findTodayEvents(): array {
-    "WFContentItemFilter": {
-        "Value": {
-            "WFActionParameterFilterPrefix": 1,
-            "WFContentPredicateBoundedDate": false,
-            "WFActionParameterFilterTemplates": [
-                {
-                    "Bounded": true,
-                    "Operator": 1002,
-                    "Property": "Start Date",
-                    "Removable": false,
-                    "Values": {"Number": "7", "Unit": 16}
-                }
-            ]
-        },
-        "WFSerializationType": "WFContentPredicateTableTemplate"
-    },
-    "WFContentItemLimitEnabled": true,
-    "WFContentItemLimitNumber": 30,
-    "WFContentItemSortProperty": "Start Date",
-    "WFContentItemSortOrder": "Ascending"
-}
+action 'is.workflow.actions.filter.calendarevents' findTodayEvents(): array {"WFContentItemFilter":{"Value":{"WFActionParameterFilterPrefix":1,"WFContentPredicateBoundedDate":false,"WFActionParameterFilterTemplates":[{"Bounded":true,"Operator":1002,"Property":"Start Date","Removable":false,"Values":{"Number":"7","Unit":16}}]},"WFSerializationType":"WFContentPredicateTableTemplate"},"WFContentItemLimitEnabled":true,"WFContentItemLimitNumber":30,"WFContentItemSortProperty":"Start Date","WFContentItemSortOrder":"Ascending"}
 
 // Use the native Health sample-type picker. This is not a free-text filter.
-action 'is.workflow.actions.filter.health.quantity' findTodaySteps(): array {
-    "WFContentItemFilter": {
-        "Value": {
-            "WFActionParameterFilterPrefix": 1,
-            "WFContentPredicateBoundedDate": false,
-            "WFActionParameterFilterTemplates": [
-                {
-                    "Bounded": true,
-                    "Operator": 4,
-                    "Property": "Type",
-                    "Removable": false,
-                    "Values": {
-                        "Enumeration": {
-                            "Value": "Steps",
-                            "WFSerializationType": "WFStringSubstitutableState"
-                        }
-                    }
-                },
-                {
-                    "Bounded": true,
-                    "Operator": 1002,
-                    "Property": "Start Date",
-                    "Removable": false,
-                    "Values": {"Number": "7", "Unit": 16}
-                }
-            ]
-        },
-        "WFSerializationType": "WFContentPredicateTableTemplate"
-    }
-}
+action 'is.workflow.actions.filter.health.quantity' findTodaySteps(): array {"WFContentItemFilter":{"Value":{"WFActionParameterFilterPrefix":1,"WFContentPredicateBoundedDate":false,"WFActionParameterFilterTemplates":[{"Bounded":true,"Operator":4,"Property":"Type","Removable":false,"Values":{"Enumeration":{"Value":"Steps","WFSerializationType":"WFStringSubstitutableState"}}},{"Bounded":true,"Operator":1002,"Property":"Start Date","Removable":false,"Values":{"Number":"7","Unit":16}}]},"WFSerializationType":"WFContentPredicateTableTemplate"}}
 
-action 'is.workflow.actions.properties.health.quantity' getStepValues(variable samples: 'WFInput'): array {
-    "WFContentItemPropertyName": "Value"
-}
+action 'is.workflow.actions.properties.health.quantity' getStepValues(variable samples: 'WFInput'): array {"WFContentItemPropertyName":"Value"}
 
 @acceptedCount: number
 @acceptedCount = 0
