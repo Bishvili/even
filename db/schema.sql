@@ -16,6 +16,9 @@ CREATE TABLE IF NOT EXISTS rt_devices (
   label TEXT NOT NULL,
   created_at TEXT NOT NULL,
   last_used_at TEXT,
+  last_attempt_at TEXT,
+  last_error_code TEXT,
+  shortcut_version TEXT,
   revoked_at TEXT
 );
 CREATE INDEX IF NOT EXISTS rt_devices_owner ON rt_devices(owner_email, revoked_at);
