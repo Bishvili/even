@@ -70,13 +70,42 @@ test("a valid Shortcut handshake does not imply accepted Health data",()=>{
  assert.match(t.elements.get("shortcut-last-upload").textContent,/no Health\/Calendar data yet/);
  assert.match(t.elements.get("shortcut-upload-counts").textContent,/0 health/);
 });
-test("Shortcut template prompts once, stores the key outside the Shortcut, and checks for updates",()=>{
- for(const fragment of ["prompt(","getFile(","saveFile(","/api/profile","/api/shortcut/hello","/api/shortcut/release?current=1.1.0","updateAvailable","openURL("])
-  assert.ok(source.includes(fragment),"Missing "+fragment);
- assert.doesNotMatch(source,/#question authorization/);
+test("first run creates its folder before reading any saved credential",()=>{
+ const create=source.indexOf('createFolder("RageTracker")');
+ const folder=source.indexOf('getFile("RageTracker")');
+ const listing=source.indexOf('getFolderContents(folder)');
+ const scan=source.indexOf('getFileDetail(@saved, "Name")');
+ const prompt=source.indexOf('prompt("Paste your Authorization value');
+ const validation=source.indexOf('downloadURL("https://rage-tracker.bishvili.workers.dev/api/profile"');
+ const save=source.indexOf('saveFile("RageTracker/device-key.txt"');
+ assert.ok(create>0&&create<folder&&folder<listing&&listing<scan);
+ assert.ok(scan<prompt&&prompt<validation&&validation<save);
+ assert.doesNotMatch(source,/getFile\("RageTracker\/device-key\.txt"/);
+ assert.doesNotMatch(source,/getFileFromFolder\([^\n]*device-key\.txt/);
+ assert.match(source,/if @fileName == "device-key\.txt"/);
+});
+
+test("new credentials are verified before saving; every upload is acknowledged",()=>{
+ assert.match(source,/if @connected == true \{[\s\S]*if @newConnection == true \{[\s\S]*saveFile/);
+ assert.match(source,/getValue\(eventResponse, "ok"\)/);
+ assert.match(source,/getValue\(healthResponse, "ok"\)/);
+ assert.match(source,/if @eventAccepted == true/);
+ assert.match(source,/if @healthAccepted == true/);
+ assert.match(source,/if @acceptedCount > 0/);
+ assert.match(source,/shortcutVersion": "2\.0\.0"/);
+ assert.match(source,/\/api\/shortcut\/release\?current=2\.0\.0/);
+ assert.doesNotMatch(source,/\/api\/shortcut\/hello/);
+ assert.doesNotMatch(source,/\bnothing\(\)/);
  assert.doesNotMatch(source,/Bearer [a-f0-9]{64}/i);
  assert.doesNotMatch(source,/@(?:gmail|icloud)\.com/i);
 });
+
+test("calendar classification belongs to the Worker, not the Shortcut",()=>{
+ assert.doesNotMatch(source,/"category":/);
+ assert.match(worker,/function classifyCalendarTitle/);
+ assert.match(worker,/classifyCalendarTitle\(title\)/);
+});
+
 test("all app DOM references and network routes are defined",()=>{
  for(const found of app.matchAll(/\$\("([^"]+)"\)/g))assert.ok(idSet.has(found[1]),found[1]);
  assert.match(worker,/\/shortcut\/builder/);
@@ -84,10 +113,11 @@ test("all app DOM references and network routes are defined",()=>{
  assert.match(worker,/updateAvailable/);
 });
 
-test("first-run input is explicitly typed for Cherri text comparisons",()=>{
- assert.match(source,/const rawInput = prompt\("Paste the complete Authorization value from Rage Tracker"\)/);
- assert.match(source,/@entered: text\s+@entered = getText\(rawInput\)\s+if @entered beginsWith "Bearer "/);
- assert.match(source,/@profileAuthorized: bool\s+@profileAuthorized = getValue\(profileData, "ok"\)/);
- assert.doesNotMatch(source,/prompt\("Paste the complete Authorization value from Rage Tracker",\s*"Text"\)/);
- assert.doesNotMatch(source,/\bconst verified\b[\s\S]*@verified\s*=/);
+test("credential input explicitly coerces to text before checking the prefix",()=>{
+ assert.match(source,/@credential: text/);
+ assert.match(source,/@credential = getText\(entered\)/);
+ assert.match(source,/if @credential beginsWith "Bearer "/);
+ assert.match(source,/@connected: bool/);
+ assert.match(source,/@connected = getValue\(profile, "ok"\)/);
+ assert.doesNotMatch(source,/#question authorization/);
 });
