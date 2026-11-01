@@ -25,11 +25,11 @@ test("the install question precedes authenticated requests",()=>{
 });
 
 test("the Shortcut identifies itself on the handshake, uploads, and update query",()=>{
- assert.match(source,/"shortcutVersion": "2\.2\.0"/);
- assert.equal((source.match(/"shortcutVersion": "2\.2\.0"/g)||[]).length,3);
- assert.match(source,/\/api\/shortcut\/release\?current=2\.2\.0/);
- assert.match(source,/getValue\(handshake, "connected"\)/);
- assert.match(source,/if @connected == false/);
+ assert.match(source,/"shortcutVersion": "2\.3\.0"/);
+ assert.equal((source.match(/"shortcutVersion": "2\.3\.0"/g)||[]).length,3);
+ assert.match(source,/\/api\/shortcut\/release\?current=2\.3\.0/);
+ assert.match(source,/getValue\(handshake, "state"\)/);
+ assert.match(source,/if connectionStatus != "connected"/);
 });
 
 test("server offers upgrades only for verified releases",()=>{

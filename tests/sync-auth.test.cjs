@@ -116,6 +116,7 @@ test("sync diagnostics distinguish a valid device with no uploads from a rejecte
  assert.equal(failure.data.lastDataUploadAt,null);
  const accepted=await call("/api/ingest",{method:"POST",body:{kind:"health",date:"2026-11-01",steps:4500,shortcutVersion:"1.1.0"},headers:key});
  assert.equal(accepted.status,200);
+ assert.equal(accepted.data.state,"accepted");
  const success=await call("/api/sync/status",{headers:key});
  assert.equal(success.data.lastErrorCode,null);
  assert.ok(success.data.lastDataUploadAt);
@@ -141,12 +142,13 @@ test("first-run Shortcut handshake validates an owned token without inventing da
  const auth={Authorization:"Bearer "+user.data.token};
  const invalid=await call("/api/shortcut/hello",{method:"POST",body:{shortcutVersion:"banana"},headers:auth});
  assert.equal(invalid.status,400);
- const accepted=await call("/api/shortcut/hello",{method:"POST",body:{shortcutVersion:"2.2.0"},headers:auth});
+ const accepted=await call("/api/shortcut/hello",{method:"POST",body:{shortcutVersion:"2.3.0"},headers:auth});
  assert.equal(accepted.status,200);
  assert.equal(accepted.data.connected,true);
+ assert.equal(accepted.data.state,"connected");
  const status=await call("/api/sync/status",{headers:auth});
  assert.equal(status.status,200);
- assert.equal(status.data.installedShortcutVersion,"2.2.0");
+ assert.equal(status.data.installedShortcutVersion,"2.3.0");
  assert.ok(status.data.lastAttemptAt);
  assert.equal(status.data.lastDataUploadAt,null);
  assert.equal(status.data.healthMetrics,0);
@@ -160,6 +162,7 @@ test("unverified releases are not advertised as updates",async()=>{
  assert.equal(result.status,200);
  assert.equal(result.data.release.verified,false);
  assert.equal(result.data.updateAvailable,false);
+ assert.equal(result.data.updateStatus,"current");
  assert.equal(result.data.automaticReplacement,false);
 });
 
@@ -170,8 +173,11 @@ test("Shortcut release comparison only offers upgrades",async()=>{
  const older=await call("/api/shortcut/release?current=0.9.0",{headers:auth});
  assert.equal(older.status,200);
  assert.equal(older.data.updateAvailable,true);
+ assert.equal(older.data.updateStatus,"new_release");
  const equal=await call("/api/shortcut/release?current=1.0.0",{headers:auth});
  assert.equal(equal.data.updateAvailable,false);
+ assert.equal(equal.data.updateStatus,"current");
  const newer=await call("/api/shortcut/release?current=1.1.0",{headers:auth});
  assert.equal(newer.data.updateAvailable,false);
+ assert.equal(newer.data.updateStatus,"current");
 });
