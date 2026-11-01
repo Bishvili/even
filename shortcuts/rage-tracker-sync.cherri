@@ -39,11 +39,12 @@ if !@savedCredential {
 }
 
 // Confirm connectivity independently from the Health and Calendar uploads.
-const helloRaw = jsonRequest("https://rage-tracker.bishvili.workers.dev/api/shortcut/hello", "POST", {"shortcutVersion": "1.1.0"}, {"Authorization": "{@credential}"})
+jsonRequest("https://rage-tracker.bishvili.workers.dev/api/shortcut/hello", "POST", {"shortcutVersion": "1.1.0"}, {"Authorization": "{@credential}"})
+const helloRaw = downloadURL("https://rage-tracker.bishvili.workers.dev/api/sync/status", {"Authorization": "{@credential}"})
 const helloData = getDictionary(helloRaw)
-@helloAccepted = helloData['connected']
-if !@helloAccepted {
-    alert("Rage Tracker could not confirm your device key. Your Health and Calendar data were not sent.", "Connection failed")
+@confirmedVersion = helloData['installedShortcutVersion']
+if @confirmedVersion != "1.1.0" {
+    alert("Rage Tracker did not confirm the Shortcut handshake. Your Health and Calendar data were not sent.", "Connection failed")
     stop()
 }
 
