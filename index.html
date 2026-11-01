@@ -168,14 +168,14 @@
      <a id="install-shortcut" class="btn primary full" target="_blank" rel="noopener noreferrer" aria-disabled="true" tabindex="-1">Get Shortcut <span aria-hidden="true">↗</span></a>
      <p id="shortcut-install-help" class="shortcut-builder-help">Connect a device to get the latest Shortcut.</p>
      <div class="shortcut-preview-release">
-      <span class="shortcut-preview-version">Rebuilt Shortcut — v2.0 preview</span>
+      <span class="shortcut-preview-version">Rage Tracker Sync — v2.1 preview</span>
       <a id="shortcut-preview" class="btn secondary full" target="_blank" rel="noopener noreferrer" href="/shortcut/builder">Prepare updated Shortcut <span aria-hidden="true">↗</span></a>
-      <p>Creates the Rage Tracker folder first and checks which files exist. If no key is saved, it asks for one, verifies it, and saves it. The rebuilt version needs an iPhone test and a new iCloud link before publication.</p>
+      <p>No Files setup. Apple Shortcuts asks for your private Authorization value when you add the signed workflow. The updated version still needs an iPhone sync test before publication.</p>
      </div>
      <div class="shortcut-installed-confirm"><span id="shortcut-installed-label">Installed version not recorded</span><button id="mark-shortcut-installed" class="small-action" type="button" disabled>Mark as installed</button></div>
      <div class="shortcut-setup-list" aria-label="Shortcut setup steps">
-      <div class="shortcut-setup-row"><span class="shortcut-step-number">1</span><div><strong>Install a verified release</strong><small>Use the iCloud link when available. The v2.0 preview is ready to compile and test before it becomes the published iCloud release.</small></div></div>
-      <div class="shortcut-setup-row"><span class="shortcut-step-number">2</span><div><strong>Run once to connect</strong><small>The Shortcut looks inside its own folder first. If no credential file exists, it asks for the full Authorization value, including “Bearer”, verifies it, then saves it for later runs.</small></div></div>
+      <div class="shortcut-setup-row"><span class="shortcut-step-number">1</span><div><strong>Install a verified release</strong><small>Use the iCloud link when available. Open the v2.1 preview, compile it and import the signed workflow. The earlier iCloud version is not the rebuilt Shortcut.</small></div></div>
+      <div class="shortcut-setup-row"><span class="shortcut-step-number">2</span><div><strong>Run once to connect</strong><small>When adding the Shortcut, Apple displays a setup question for your full Authorization value, including “Bearer”. The answer is stored in the Shortcut itself—no folder or credentials file.</small></div></div>
       <div class="shortcut-setup-row"><span class="shortcut-step-number">3</span><div><strong>Allow access on your iPhone</strong><small>In Settings → Apps → Shortcuts → Advanced, turn on <strong>Allow Sharing Large Amounts of Data</strong> if requested. Then run the Shortcut and approve its Health, Calendar and network permissions.</small></div></div>
       <div class="shortcut-setup-row"><span class="shortcut-step-number">4</span><div><strong>Verify the upload</strong><small>After running the Shortcut, tap Test connection. It distinguishes an authenticated Shortcut run from actual Health/Calendar data being accepted.</small></div></div>
      </div>
@@ -189,7 +189,7 @@
       <div>
        <p>The updated Shortcut checks the Rage Tracker version endpoint on each run. If a new verified release is available, it offers to open the replacement iCloud link. Apple still requires you to approve the installation; the Shortcut cannot silently overwrite itself.</p>
        <p>If you share a Shortcut after entering your Authorization value, anyone with its iCloud link may receive your private credential. Revoke that device key and share a fresh, unconfigured master instead.</p>
-       <p>The Shortcut shares today's step total and Calendar event times/titles. Rage Tracker classifies event categories on the server. Sleep, HRV, resting heart rate and workouts will follow only after their Apple Health values are validated on an iPhone.</p><p>The updated Shortcut stores its device credential in <code>iCloud Drive/Shortcuts/RageTracker/device-key.txt</code> so future updates do not need to request it again. Protect your iCloud account and do not share that file.</p>
+       <p>The Shortcut shares today's step total and Calendar event times/titles. Rage Tracker classifies event categories on the server. Sleep, HRV, resting heart rate and workouts will follow only after their Apple Health values are validated on an iPhone.</p><p>The installed Shortcut retains the Authorization value in its own configuration. When replacing it with a newer copy, answer the setup question again; no external credential file is used.</p>
        <p>Apple may require <strong>Settings → Apps → Shortcuts → Advanced → Allow Sharing Large Amounts of Data</strong>. Leave the deletion permissions disabled; this Shortcut should not delete your personal data.</p>
        <p><a href="https://github.com/Bishvili/rage-tracker/blob/main/shortcuts/README.md" target="_blank" rel="noopener noreferrer">Setup and troubleshooting guide</a></p>
       </div>
@@ -200,7 +200,7 @@
      <p class="muted">Each approved device receives its own revocable key. Treat it like a password.</p>
      <label>Sync endpoint</label><div class="copy-field"><code id="sync-url"></code><button type="button" data-copy="url">Copy</button></div>
      <label>Authorization header value</label><div class="copy-field"><code id="sync-token">Sign in and generate a device key</code><button type="button" data-copy="token">Copy</button></div>
-     <p class="muted shortcut-credentials-note">On the updated Shortcut’s first run, paste the full value when requested. It will verify the key and save it for subsequent runs. Never embed it in public Shortcut source.</p>
+     <p class="muted shortcut-credentials-note">Paste the full value only into Apple's <strong>Customize Shortcut</strong> setup question when installing. Do not paste it into the public Cherri editor or a shared link.</p>
     </div>
     <div class="card" id="device-manager">
      <div class="section-heading compact"><h2>My devices</h2><span class="muted">Access you control</span></div>
@@ -213,7 +213,7 @@
    <section id="view-settings" class="view" aria-labelledby="settings-title">
     <div class="eyebrow">YOU OWN YOUR STORY</div><div class="intro"><h1 id="settings-title">Settings & <em>privacy.</em></h1><p>Keep control of your records, backups and connections.</p></div>
     <div class="card"><h2>Your local data</h2><p class="muted">Mood check-ins, notes and locally imported health/calendar data stay in this app's storage on this device. Clearing site data or deleting the Home Screen app may erase them.</p><div class="settings-meta" id="storage-summary"></div><button class="btn secondary full" id="backup-button">↓ Download JSON backup</button><label class="file-label">Restore from backup <input type="file" id="restore-input" accept="application/json,.json"></label><button class="btn danger full" id="erase-local">Erase all data on this device</button></div>
-    <div class="card"><h2>About the insights</h2><p class="muted">Comparisons require at least 3 observations in each group. Mood data is subjective and missing check-ins can bias findings. Nothing here diagnoses health conditions or establishes causality.</p><p class="muted">Version <span id="version">1.7.0</span> · Privacy-first prototype · No advertising or analytics scripts</p></div>
+    <div class="card"><h2>About the insights</h2><p class="muted">Comparisons require at least 3 observations in each group. Mood data is subjective and missing check-ins can bias findings. Nothing here diagnoses health conditions or establishes causality.</p><p class="muted">Version <span id="version">1.8.0</span> · Privacy-first prototype · No advertising or analytics scripts</p></div>
     <div class="card"><h2>Try a calendar correlation demo</h2><p class="muted">Explore 28 fictional days with meetings, focus time, workouts, social plans, commutes, and rest. There are mood check-ins before and after events to reveal illustrative patterns. Your personal statistics remain separate; no demo records are uploaded.</p><button class="btn secondary full" id="demo-button">Load 28-day calendar demo</button><button class="btn subtle full" id="clear-demo-button">Remove demo data</button></div>
    </section>
   </main>
