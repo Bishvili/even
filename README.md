@@ -33,15 +33,17 @@ The PWA itself remains public and keeps anonymous/offline mood tracking. To sync
 
 ## Apple Shortcuts sync
 
-Rage Tracker bridges Apple Calendar and Health to the PWA with **Rage Tracker Sync**, a single Apple Shortcut. It uses a verified per-device bearer credential and the owner-scoped Cloudflare Worker; a web app cannot read HealthKit or EventKit directly.
+Rage Tracker uses an Apple Shortcut to transmit selected Calendar and Health information from the iPhone to the owner's Cloudflare database. PWAs cannot directly access HealthKit or EventKit.
 
-**Shortcut v2.0 preview** is rebuilt around a safe first-run flow. It creates the `RageTracker` folder, lists its contents, and only reads the credential when `device-key.txt` actually exists. Otherwise it asks for the Authorization value, validates the key through `GET /api/profile`, and saves it only after verification. This prevents missing-file errors during initial setup.
+**Shortcut source v2.1.0** uses an Apple **Customize Shortcut** import question for its private Authorization value. It contains no filesystem operations or credential file. The signed unconfigured Shortcut asks for a token when added; the configured copy then verifies that token through `GET /api/profile` on each run.
 
-It sends today's Calendar event times/titles and Health Steps aggregate to `POST /api/ingest`, checks each response's `ok` value, and only reports accepted uploads. Calendar activity categories are inferred in the Worker rather than duplicated inside Shortcuts. Each accepted upload reports `shortcutVersion=2.0.0`. A later version can be offered through the Rage Tracker release endpoint; replacement requires the user's approval.
+The Cherri 2.3.0 compiler was checked to ensure the native import question is actually present in the generated Shortcut's Setup tab. The first public `GET /api/status` action is required to work around Cherri's import-question action-index mapping; it transmits no private information. The compiled Shortcut has no Create Folder, Get File or Save File actions.
 
-The previously shared v1.0.0 iCloud link is **unverified** and remains disabled as the default installation. The v2.0 source compiles in Cherri 2.3.0; install and test the signed preview on an iPhone before publishing a verified iCloud share link.
+The Shortcut syncs today's Calendar events and Health step samples through authenticated `POST /api/ingest` requests, checking the server's `ok` response before reporting accepted data. Calendar activities are categorized on the backend. It can offer a newer verified Shortcut iCloud link when published, but Apple requires user approval of replacement and the new copy's setup question must be answered again.
 
-See [Shortcut source](shortcuts/rage-tracker-sync.cherri) and [setup / diagnostics / permissions](shortcuts/README.md).
+The older iCloud v1.0.0 link is unverified. Source v2.1.0 is ready to compile and still needs a signed iPhone import and successful live sync before a verified iCloud link can be published.
+
+See [Shortcut source](shortcuts/rage-tracker-sync.cherri) and [installation, privacy, and diagnostic instructions](shortcuts/README.md).
 
 ## Deployment configuration
 
