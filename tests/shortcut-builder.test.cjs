@@ -1,89 +1,85 @@
 "use strict";
-
 const test=require("node:test");
 const assert=require("node:assert/strict");
 const fs=require("node:fs");
 const path=require("node:path");
 const vm=require("node:vm");
 
-const repoRoot=path.join(__dirname,"..");
-const appSource=fs.readFileSync(path.join(repoRoot,"app.js"),"utf8");
-const html=fs.readFileSync(path.join(repoRoot,"index.html"),"utf8");
-const template=fs.readFileSync(path.join(repoRoot,"shortcuts","rage-tracker-sync.cherri"),"utf8");
+const root=path.join(__dirname,"..");
+const app=fs.readFileSync(path.join(root,"app.js"),"utf8");
+const html=fs.readFileSync(path.join(root,"index.html"),"utf8");
+const worker=fs.readFileSync(path.join(root,"worker","index.js"),"utf8");
+const source=fs.readFileSync(path.join(root,"shortcuts","rage-tracker-sync.cherri"),"utf8");
+const idSet=new Set([...html.matchAll(/\bid="([^"]+)"/g)].map(x=>x[1]));
 
-function prepareHarness(email="owner-a@example.com"){
- const deviceId="3f6ab11e-37e2-4607-89df-321014f10c39",token="a".repeat(64);
- const ids=[...html.matchAll(/\bid="([^"]+)"/g)].map(x=>x[1]),elements=new Map(),visited=[];
- const document={
+function harness(){
+ const store={moods:[],events:[],health:[],token:"a".repeat(64),deviceId:"test-device-001",syncOwnerEmail:"test@example.com"};
+ const elements=new Map();
+ const doc={
   getElementById(id){
-   if(!ids.includes(id))throw Error("Unknown element: "+id);
-   if(!elements.has(id))elements.set(id,{innerHTML:"",textContent:"",hidden:false,disabled:false,classList:{toggle(){}},style:{},value:""});
+   if(!idSet.has(id))throw Error("Unknown DOM ID: "+id);
+   if(!elements.has(id)){
+    const attrs=new Map();
+    elements.set(id,{id,hidden:false,disabled:false,textContent:"",innerHTML:"",value:"",
+     classList:{toggle(){}},setAttribute(k,v){attrs.set(k,v);},removeAttribute(k){attrs.delete(k);},
+     getAttribute(k){return attrs.get(k)||null;}});
+   }
    return elements.get(id);
   },
   querySelectorAll(){return[];}
  };
- const storage={getItem(){return JSON.stringify({moods:[],health:[],events:[],token,syncOwnerEmail:email,deviceId});},setItem(){}};
- const fakeFetch=async(url)=>{
-  if(url==="/shortcut.cherri")return {ok:true,async text(){return template;}};
-  if(url==="/api/auth/me")return {ok:true,redirected:false,headers:{get(){return "application/json";}},async json(){return{ok:true,email,devices:[{id:deviceId,label:"My iPhone",lastUsedAt:"2026-11-01T17:00:00Z",revoked:false}]};}};
-  throw Error("Unexpected URL "+url);
- };
- const code=appSource.replace(/init\(\);\s*\}\)\(\);\s*$/,
-  "globalThis.__appTest={renderSync,openShortcutBuilder,checkShortcutUpload,setAuth:s=>{authEmail=s;},getState:()=>state};})();");
- assert.notEqual(code,appSource,"App startup footer not found");
- const sandbox={
-  document,localStorage:storage,fetch:fakeFetch,
-  navigator:{onLine:true},
+ const code=app.replace(/init\(\);\s*\}\)\(\);\s*$/,
+  "globalThis.__test={renderSync,compareVersions,chooseRelease:x=>shortcutRelease=x,setAuth:x=>authEmail=x,setStatus:x=>shortcutStatus=x};})();");
+ assert.notEqual(code,app);
+ const env={localStorage:{getItem(){return JSON.stringify(store);},setItem(){}},document:doc,
   location:{origin:"https://rage-tracker.bishvili.workers.dev"},
-  window:{location:{assign(url){visited.push(url);}}},
-  console,URL,Date,setTimeout,clearTimeout,
- };
- vm.runInNewContext(code,sandbox,{filename:"app.js",timeout:3000});
- return {app:sandbox.__appTest,elements,visited,deviceId,token,email};
+  navigator:{onLine:true},URL,Date,console,setTimeout,clearTimeout};
+ vm.runInNewContext(code,env,{timeout:3000});
+ return {api:env.__test,elements,store};
 }
 
-test("public template requests a credential only at import",()=>{
- assert.match(template,/#question authorization /);
- assert.match(template,/is\.workflow\.actions\.filter\.health\.quantity/);
- assert.match(template,/is\.workflow\.actions\.filter\.calendarevents/);
- assert.match(template,/\/api\/ingest/);
- assert.match(template,/formRequest\(/);
- assert.doesNotMatch(template,/Bearer [a-f0-9]{64}/i);
- assert.doesNotMatch(template,/@(?:gmail|icloud)\.com/i);
+test("a signed Shortcut link opens in a new tab and never includes the device key",()=>{
+ assert.match(html,/id="install-shortcut"[^>]*target="_blank"[^>]*rel="noopener noreferrer"/);
+ assert.match(html,/id="shortcut-preview"[^>]*target="_blank"/);
+ assert.doesNotMatch(html,/Bearer [a-f0-9]{64}/i);
 });
-
-test("builder opens public source without leaking the private device credential",async()=>{
- const t=prepareHarness();
- t.app.setAuth(t.email);t.app.renderSync();
- assert.equal(t.elements.get("open-shortcut-builder").disabled,false);
- await t.app.openShortcutBuilder();
- assert.equal(t.visited.length,1);
- const target=new URL(t.visited[0]);
- assert.equal(target.hostname,"playground.cherrilang.org");
- assert.ok(target.searchParams.get("code").includes("#question authorization"));
- assert.equal(t.visited[0].includes(t.token),false);
- assert.equal(target.searchParams.get("code").includes(t.token),false);
- assert.ok(target.toString().length<16000);
+test("unverified iCloud release is not presented as a working installation",()=>{
+ const t=harness();
+ t.api.setAuth("test@example.com");
+ t.api.chooseRelease({version:"1.0.0",url:"https://www.icloud.com/shortcuts/82109f53491f4d95a0a8b8437c4090f2",verified:false});
+ t.api.renderSync();
+ const install=t.elements.get("install-shortcut");
+ assert.equal(install.getAttribute("aria-disabled"),"true");
+ assert.equal(install.getAttribute("href"),null);
+ assert.match(t.elements.get("shortcut-install-help").textContent,/does not request your key/);
 });
-
-test("a different signed-in account cannot launch the connected device's builder",async()=>{
- const t=prepareHarness();
- t.app.setAuth("owner-b@example.com");t.app.renderSync();
- assert.equal(t.elements.get("open-shortcut-builder").disabled,true);
- await t.app.openShortcutBuilder();
- assert.equal(t.visited.length,0);
+test("verified iCloud release enables new-tab installation",()=>{
+ const t=harness();
+ t.api.setAuth("test@example.com");
+ t.api.chooseRelease({version:"1.1.0",url:"https://www.icloud.com/shortcuts/82109f53491f4d95a0a8b8437c4090f2",verified:true});
+ t.api.renderSync();
+ assert.equal(t.elements.get("install-shortcut").href,"https://www.icloud.com/shortcuts/82109f53491f4d95a0a8b8437c4090f2");
+ assert.equal(t.elements.get("install-shortcut").getAttribute("aria-disabled"),null);
 });
-
-test("upload status uses the current device's server-issued last-use timestamp",async()=>{
- const t=prepareHarness();
- t.app.setAuth(t.email);
- await t.app.checkShortcutUpload();
- assert.match(t.elements.get("shortcut-last-upload").textContent,/Received/);
+test("a valid Shortcut handshake does not imply accepted Health data",()=>{
+ const t=harness();
+ t.api.setAuth("test@example.com");
+ t.api.setStatus({credentialValid:true,lastAttemptAt:"2026-11-01T17:00:00Z",installedShortcutVersion:"1.1.0",
+  lastDataUploadAt:null,healthMetrics:0,calendarEvents:0});
+ t.api.renderSync();
+ assert.match(t.elements.get("shortcut-last-upload").textContent,/no Health\/Calendar data yet/);
+ assert.match(t.elements.get("shortcut-upload-counts").textContent,/0 health/);
 });
-
-test("all app DOM references exist",()=>{
- const ids=new Set([...html.matchAll(/\bid="([^"]+)"/g)].map(x=>x[1]));
- for(const match of appSource.matchAll(/\$\("([^"]+)"\)/g)){
-  assert.ok(ids.has(match[1]),"Missing #"+match[1]);
- }
+test("Shortcut template prompts once, stores the key outside the Shortcut, and checks for updates",()=>{
+ for(const fragment of ["prompt(","getFile(","saveFile(","/api/profile","/api/shortcut/hello","/api/shortcut/release?current=1.1.0","updateAvailable","openURL("])
+  assert.ok(source.includes(fragment),"Missing "+fragment);
+ assert.doesNotMatch(source,/#question authorization/);
+ assert.doesNotMatch(source,/Bearer [a-f0-9]{64}/i);
+ assert.doesNotMatch(source,/@(?:gmail|icloud)\.com/i);
+});
+test("all app DOM references and network routes are defined",()=>{
+ for(const found of app.matchAll(/\$\("([^"]+)"\)/g))assert.ok(idSet.has(found[1]),found[1]);
+ assert.match(worker,/\/shortcut\/builder/);
+ assert.match(worker,/\/api\/shortcut\/hello/);
+ assert.match(worker,/updateAvailable/);
 });
