@@ -129,50 +129,63 @@
    </section>
 
    <section id="view-sync" class="view" aria-labelledby="sync-title">
-    <div class="eyebrow">YOUR DATA, ON YOUR TERMS</div>
-    <div class="intro"><h1 id="sync-title">Connect <em>the dots.</em></h1><p>Apple Shortcuts can send selected Health and Calendar details over HTTPS. No developer account required.</p></div>
+    <div class="eyebrow">CONNECT YOUR IPHONE, NOT YOUR PASSWORD</div>
+    <div class="intro"><h1 id="sync-title">Sync, <em>simplified.</em></h1><p>Sign in by email to connect Apple Shortcuts. Each account has its own private health and calendar data.</p></div>
     <div class="card sync-card">
-     <div class="connection-head"><span class="connection-icon">↗</span><div><div class="mini-heading">CLOUDFLARE SYNC</div><strong id="pair-status">Not connected</strong></div><span id="pair-badge" class="status-badge">OFF</span></div>
-     <div id="pair-form-wrap">
-      <p class="muted">First, add Rage Tracker to your Home Screen in Safari. Open it from the new icon, then enter your private pairing code.</p>
-      <label for="pair-code">Private pairing code</label><input type="password" id="pair-code" autocomplete="off" placeholder="Paste code from setup">
-      <button class="btn primary full" id="pair-button">Pair this iPhone</button>
+     <div class="connection-head"><span class="connection-icon">↗</span><div><div class="mini-heading">SECURE CLOUD SYNC</div><strong id="pair-status">Checking connection…</strong></div><span id="pair-badge" class="status-badge">OFF</span></div>
+     <div id="login-panel">
+      <p class="muted">Only two approved email addresses can create sync credentials. Cloudflare sends a one-time code: no password to create or remember.</p>
+      <button type="button" class="btn primary full" id="login-button"><span aria-hidden="true">✉</span> Continue with email</button>
+     </div>
+     <div id="login-ready" hidden>
+      <div class="account-banner"><span class="account-dot" aria-hidden="true"></span><div><small>VERIFIED EMAIL</small><strong id="auth-email">—</strong></div><button id="refresh-devices" class="small-action" type="button">Refresh</button></div>
+      <div id="owner-mismatch" class="sync-warning" hidden>Another email already owns this device's local records. Back them up in Settings and erase local data before switching accounts. No data was merged.</div>
+      <div id="need-device" hidden>
+       <p class="muted">Create a private device key, then use it once while setting up your Apple Shortcut. You can revoke it at any time.</p>
+       <label for="device-label">Device name</label><input id="device-label" autocomplete="off" maxlength="64" value="My iPhone">
+       <button type="button" class="btn primary full" id="issue-device">Generate my device key</button>
+      </div>
      </div>
      <div id="pair-connected" hidden>
-      <p class="muted">This device can securely receive your Shortcut updates.</p>
-      <div class="button-row"><button class="btn secondary" id="pull-button">↻ Sync now</button><button class="btn subtle" id="unpair-button">Forget device key</button></div>
-      <p class="sync-timestamp" id="last-sync">Never synced</p>
+      <p class="muted">Your private key is saved on this device. Only your account's calendar and health data can be synchronized.</p>
+      <div class="button-row"><button type="button" class="btn secondary" id="pull-button">↻ Sync now</button><button type="button" class="btn subtle" id="unpair-button">Revoke this device</button></div>
+      <p class="sync-timestamp" id="last-sync">No Shortcuts updates fetched yet</p>
      </div>
     </div>
-    <div class="card">
-     <div class="section-heading compact"><h2>Shortcut connection</h2><span class="muted">Copy into Shortcuts</span></div>
-     <label>Request URL</label><div class="copy-field"><code id="sync-url"></code><button data-copy="url">Copy</button></div>
-     <label>Authorization header</label><div class="copy-field"><code id="sync-token">Pair your device first</code><button data-copy="token">Copy</button></div>
-     <p class="muted" style="margin-top:12px">Keep the authorization value private. Anyone with it can access your synced data.</p>
+    <div class="card" id="shortcut-credentials">
+     <div class="section-heading compact"><h2>Connect Apple Shortcuts</h2><span class="muted">Two copy actions</span></div>
+     <p class="muted">The app generates a different credential for every signed-in device. Never share it or include it in a public iCloud Shortcut.</p>
+     <label>Sync endpoint</label><div class="copy-field"><code id="sync-url"></code><button type="button" data-copy="url">Copy</button></div>
+     <label>Authorization header value</label><div class="copy-field"><code id="sync-token">Sign in and generate a device key</code><button type="button" data-copy="token">Copy</button></div>
+     <div class="shortcut-install-note"><strong>A one-tap iCloud Shortcut installer is planned.</strong><p>Apple requires the completed Shortcut to be shared from the Shortcuts app. We haven't published that link yet. The setup below works in the meantime, without file imports or an Apple Developer account.</p></div>
     </div>
-    <div class="section-heading"><h2>Set up Apple Shortcuts</h2></div>
+    <div class="card" id="device-manager">
+     <div class="section-heading compact"><h2>My devices</h2><span class="muted">Access you control</span></div>
+     <div id="device-list" class="device-list"><p class="muted">Sign in to manage your authorized devices.</p></div>
+    </div>
+    <div class="section-heading"><h2>Guided Shortcut setup</h2></div>
     <div class="steps">
-     <details open><summary><span class="step-no">1</span> Install the Home Screen app</summary><div class="step-body"><p>Open this site in Safari → Share → <strong>Add to Home Screen</strong>. Launch Rage Tracker from its new icon, then pair it using the code provided with your setup.</p></div></details>
-     <details><summary><span class="step-no">2</span> Start with Health steps</summary><div class="step-body">
-      <p>In Apple's <strong>Shortcuts</strong> app, create a shortcut named <em>Rage Tracker · Steps</em>.</p>
-      <ol><li>Add <strong>Find Health Samples</strong>. Filter to <strong>Step Count</strong> dated <strong>today</strong>.</li><li>Add <strong>Calculate Statistics</strong>; choose <strong>Sum</strong> for the sample values. Some iOS versions may require extracting sample values first.</li><li>Add <strong>Current Date</strong> and <strong>Format Date</strong> with custom format <code>yyyy-MM-dd</code>.</li><li>Add <strong>Get Contents of URL</strong> using the request URL above. Choose <strong>POST</strong> and request body <strong>Form</strong>. Add fields <code>kind</code>=<code>health</code>, <code>date</code>=formatted date, <code>steps</code>=calculated sum.</li><li>In Headers, add <code>Authorization</code> with the exact copied header value. Run it and accept Health permissions.</li></ol>
-      <p>When this works, you can make similar shortcuts for <code>sleepHours</code>, <code>hrv</code>, or <code>workoutMin</code>. Each updates only the metric you send for that day.</p>
+     <details open><summary><span class="step-no">1</span> Sign in and copy your private key</summary><div class="step-body"><p>Open Rage Tracker from your iPhone Home Screen. Tap <strong>Continue with email</strong>, enter an approved address on Cloudflare's login page, and enter the one-time code emailed to you. Return here, tap <strong>Generate my device key</strong>, and copy the Authorization header shown above.</p></div></details>
+     <details><summary><span class="step-no">2</span> Create one Health Shortcut</summary><div class="step-body">
+      <p>Open <a href="shortcuts://">Apple Shortcuts</a> and create <em>Rage Tracker · Health</em>. Select just a few metrics to start:</p>
+      <ol><li><strong>Find Health Samples</strong> → Step Count → today; use <strong>Calculate Statistics → Sum</strong> for the sample values, extracting values first if needed.</li><li><strong>Format Date</strong> for today's date with custom format <code>yyyy-MM-dd</code>.</li><li><strong>Get Contents of URL</strong> → the copied sync endpoint → <strong>POST</strong> → body <strong>Form</strong>.</li><li>Fields: <code>kind</code> = <code>health</code>, <code>date</code> = formatted date, <code>steps</code> = summed steps.</li><li>Header <code>Authorization</code> = the exact copied value. Run once and approve Health permissions.</li></ol>
+      <p>When it works, add <code>sleepHours</code>, <code>hrv</code>, or <code>workoutMin</code> as you prefer. Shortcuts options vary by iOS version.</p>
      </div></details>
-     <details><summary><span class="step-no">3</span> Add calendar events</summary><div class="step-body">
-      <p>Create another Shortcut, <em>Rage Tracker · Calendar</em>.</p>
-      <ol><li>Use <strong>Find Calendar Events</strong> for today.</li><li>Add <strong>Repeat with Each</strong> event.</li><li>Inside the repeat, use <strong>Get Details of Calendar Events</strong> for its title, start, and end. Format dates to ISO 8601 if your iOS version offers it.</li><li>Inside the repeat, add <strong>Get Contents of URL</strong> → <strong>POST</strong> → <strong>Form</strong>, with <code>kind</code>=<code>calendar</code>, <code>title</code>=event title, <code>start</code>=start date, <code>end</code>=end date, <code>category</code>=<code>Meeting</code>. Add the copied Authorization header.</li></ol>
-      <p>For better privacy, omit <code>title</code> and send a category instead; the server will label it “Calendar event”. Test a single event before enabling repetition.</p>
+     <details><summary><span class="step-no">3</span> Add Calendar events</summary><div class="step-body">
+      <p>In the same Shortcut, add <strong>Find Calendar Events</strong> for today, then <strong>Repeat with Each</strong> event.</p>
+      <ol><li>Read the event's title, start and end using <strong>Get Details of Calendar Events</strong>.</li><li>For each event, <strong>Get Contents of URL</strong> using the same endpoint, method <strong>POST</strong>, body <strong>Form</strong>.</li><li>Fields: <code>kind</code> = <code>calendar</code>, <code>title</code> = event title, <code>start</code> = start date, <code>end</code> = end date, <code>category</code> = <code>Meeting</code>. Use ISO 8601 dates with time zones where possible.</li><li>Use the same <code>Authorization</code> header. You can omit titles and send just event times/categories if you prefer.</li></ol>
+      <p>Alternatively, a single <strong>JSON</strong> request can send <code>{"kind":"batch","health":[...],"events":[...]}</code>, which we'll use in the future shared Shortcut.</p>
      </div></details>
-     <details><summary><span class="step-no">4</span> Automate it</summary><div class="step-body"><p>In Shortcuts → <strong>Automation</strong>, add a <strong>Time of Day</strong> trigger and select the shortcut. Choose <strong>Run Immediately</strong> where offered. Start with once per day; add more triggers if useful. Automatic execution and Health permission prompts vary by iOS version. Open Rage Tracker and tap <strong>Sync now</strong> to fetch updates.</p></div></details>
+     <details><summary><span class="step-no">4</span> Automate and check the connection</summary><div class="step-body"><p>In Shortcuts → Automation, use a Time of Day trigger for your Shortcut and select <strong>Run Immediately</strong> if offered. Automatic execution and permission dialogs vary by iOS version. Return here and tap <strong>Sync now</strong>. Only the signed-in owner's data will be returned.</p></div></details>
     </div>
-    <div class="help-note"><strong>What goes to Cloudflare?</strong><p>Only the fields your Shortcuts send, such as step totals and event times/titles. Mood entries and notes remain on your iPhone. The synced information is stored in your Bishvili Cloudflare account and can be erased below. This is not end-to-end encrypted.</p></div>
-    <button class="btn subtle full" id="erase-remote">Erase cloud-synced Health & Calendar data</button>
+    <div class="help-note"><strong>Privacy and control</strong><p>Mood check-ins remain on this phone. Selected Health measurements and Calendar data are sent over HTTPS and stored in owner-specific Cloudflare database records. Access uses email one-time PIN; device keys are revocable. Data is not end-to-end encrypted. Back up your local data before switching accounts.</p></div>
+    <button type="button" class="btn subtle full" id="erase-remote">Erase my synced Health & Calendar data</button>
    </section>
 
    <section id="view-settings" class="view" aria-labelledby="settings-title">
     <div class="eyebrow">YOU OWN YOUR STORY</div><div class="intro"><h1 id="settings-title">Settings & <em>privacy.</em></h1><p>Keep control of your records, backups and connections.</p></div>
     <div class="card"><h2>Your local data</h2><p class="muted">Mood check-ins, notes and locally imported health/calendar data stay in this app's storage on this device. Clearing site data or deleting the Home Screen app may erase them.</p><div class="settings-meta" id="storage-summary"></div><button class="btn secondary full" id="backup-button">↓ Download JSON backup</button><label class="file-label">Restore from backup <input type="file" id="restore-input" accept="application/json,.json"></label><button class="btn danger full" id="erase-local">Erase all data on this device</button></div>
-    <div class="card"><h2>About the insights</h2><p class="muted">Comparisons require at least 3 observations in each group. Mood data is subjective and missing check-ins can bias findings. Nothing here diagnoses health conditions or establishes causality.</p><p class="muted">Version <span id="version">1.2.0</span> · Privacy-first prototype · No advertising or analytics scripts</p></div>
+    <div class="card"><h2>About the insights</h2><p class="muted">Comparisons require at least 3 observations in each group. Mood data is subjective and missing check-ins can bias findings. Nothing here diagnoses health conditions or establishes causality.</p><p class="muted">Version <span id="version">1.3.0</span> · Privacy-first prototype · No advertising or analytics scripts</p></div>
     <div class="card"><h2>Try a calendar correlation demo</h2><p class="muted">Explore 28 fictional days with meetings, focus time, workouts, social plans, commutes, and rest. There are mood check-ins before and after events to reveal illustrative patterns. Your personal statistics remain separate; no demo records are uploaded.</p><button class="btn secondary full" id="demo-button">Load 28-day calendar demo</button><button class="btn subtle full" id="clear-demo-button">Remove demo data</button></div>
    </section>
   </main>
