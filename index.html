@@ -165,17 +165,17 @@
       <span id="shortcut-release-version" class="shortcut-version">Published Shortcut: checking…</span>
       <span id="shortcut-update-badge" class="shortcut-update-label" hidden>New version available</span>
      </div>
-     <a id="install-shortcut" class="btn primary full" target="_blank" rel="noopener noreferrer" aria-disabled="true" tabindex="-1">Get Shortcut <span aria-hidden="true">↗</span></a>
+     <a id="install-shortcut" class="btn primary full" target="_blank" rel="noopener noreferrer" aria-disabled="true" tabindex="-1" hidden>Get Shortcut <span aria-hidden="true">↗</span></a>
      <p id="shortcut-install-help" class="shortcut-builder-help">Connect a device to get the latest Shortcut.</p>
      <div class="shortcut-preview-release">
       <span class="shortcut-preview-version">Rage Tracker Sync — v2.1 preview</span>
-      <a id="shortcut-preview" class="btn secondary full" target="_blank" rel="noopener noreferrer" href="/shortcut/builder">Prepare updated Shortcut <span aria-hidden="true">↗</span></a>
+      <a id="shortcut-preview" class="btn primary full" target="_blank" rel="noopener noreferrer" href="/shortcut/builder">Prepare updated Shortcut <span aria-hidden="true">↗</span></a>
       <p>No Files setup. Apple Shortcuts asks for your private Authorization value when you add the signed workflow. The updated version still needs an iPhone sync test before publication.</p>
      </div>
-     <div class="shortcut-installed-confirm"><span id="shortcut-installed-label">Installed version not recorded</span><button id="mark-shortcut-installed" class="small-action" type="button" disabled>Mark as installed</button></div>
+     <div class="shortcut-installed-confirm" id="shortcut-installed-confirm" hidden><span id="shortcut-installed-label">Installed version not recorded</span><button id="mark-shortcut-installed" class="small-action" type="button" disabled>Mark as installed</button></div>
      <div class="shortcut-setup-list" aria-label="Shortcut setup steps">
-      <div class="shortcut-setup-row"><span class="shortcut-step-number">1</span><div><strong>Install a verified release</strong><small>Use the iCloud link when available. Open the v2.1 preview, compile it and import the signed workflow. The earlier iCloud version is not the rebuilt Shortcut.</small></div></div>
-      <div class="shortcut-setup-row"><span class="shortcut-step-number">2</span><div><strong>Run once to connect</strong><small>When adding the Shortcut, Apple displays a setup question for your full Authorization value, including “Bearer”. The answer is stored in the Shortcut itself—no folder or credentials file.</small></div></div>
+      <div class="shortcut-setup-row"><span class="shortcut-step-number">1</span><div><strong>Prepare the updated Shortcut</strong><small>Open the v2.1 builder, compile it, and import the signed Shortcut. A verified iCloud installation link will appear after testing.</small></div></div>
+      <div class="shortcut-setup-row"><span class="shortcut-step-number">2</span><div><strong>Configure when installing</strong><small>Answer Apple’s Customize Shortcut setup question with your full Authorization value, including “Bearer”. No folder or credentials file is needed.</small></div></div>
       <div class="shortcut-setup-row"><span class="shortcut-step-number">3</span><div><strong>Allow access on your iPhone</strong><small>In Settings → Apps → Shortcuts → Advanced, turn on <strong>Allow Sharing Large Amounts of Data</strong> if requested. Then run the Shortcut and approve its Health, Calendar and network permissions.</small></div></div>
       <div class="shortcut-setup-row"><span class="shortcut-step-number">4</span><div><strong>Verify the upload</strong><small>After running the Shortcut, tap Test connection. It distinguishes an authenticated Shortcut run from actual Health/Calendar data being accepted.</small></div></div>
      </div>
