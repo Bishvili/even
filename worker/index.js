@@ -58,11 +58,20 @@ function readHealth(x){
  }
  return results;
 }
+function classifyCalendarTitle(title){
+ if(/\b(meeting|call|standup|stand-up)\b/i.test(title))return "Meeting";
+ if(/\b(workout|gym|run|running|training)\b/i.test(title))return "Exercise";
+ if(/\b(coffee|lunch|dinner|brunch)\b/i.test(title))return "Social";
+ if(/\b(commute|travel to work)\b/i.test(title))return "Commute";
+ return "Other";
+}
 function readEvent(x){
  if(!x||typeof x!=="object")return null;
  const start=new Date(x.start||x.start_time),end=new Date(x.end||x.end_time);
  if(!Number.isFinite(start.getTime())||!Number.isFinite(end.getTime())||end<=start||end-start>172800000)return null;
- return {start:start.toISOString(),end:end.toISOString(),title:String(x.title||"Calendar event").trim().slice(0,100)||"Calendar event",category:CATS.includes(x.category)?x.category:"Other"};
+ const title=String(x.title||"Calendar event").trim().slice(0,100)||"Calendar event";
+ const category=CATS.includes(x.category)?x.category:classifyCalendarTitle(title);
+ return {start:start.toISOString(),end:end.toISOString(),title,category};
 }
 async function authApi(request,env,ctx,path){
  const email=await authIdentity(request,env,ctx);
@@ -209,7 +218,7 @@ async function syncApi(request,env,path){
  return error("Not found",404);
 }
 async function api(request,env,ctx,path){
- if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:"Rage Tracker",version:"1.6.0",sync:"email-access"});
+ if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:"Rage Tracker",version:"1.7.0",sync:"email-access"});
  if(path.startsWith("/api/auth/"))return authApi(request,env,ctx,path);
  return syncApi(request,env,path);
 }
