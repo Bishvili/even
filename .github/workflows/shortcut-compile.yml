@@ -47,11 +47,12 @@ jobs:
         with:
           go-version: '1.24.2'
           cache: false
-      - name: Install Cherri 2.3.0
-        run: go install github.com/electrikmilk/cherri@v2.3.0
+      - name: Build Cherri 2.3.0
+        run: |
+          git clone --depth 1 --branch v2.3.0 https://github.com/electrikmilk/cherri.git /tmp/cherri-source
+          (cd /tmp/cherri-source && go build -trimpath -o /tmp/cherri-compiler .)
       - name: Compile Rage Tracker Sync
         run: |
-          export PATH="$(go env GOPATH)/bin:$PATH"
-          cherri shortcuts/rage-tracker-sync.cherri --output=/tmp/rage-tracker-compiled.shortcut
+          /tmp/cherri-compiler shortcuts/rage-tracker-sync.cherri --output=/tmp/rage-tracker-compiled.shortcut
       - name: Verify compiled Shortcut
         run: test -s /tmp/rage-tracker-compiled.shortcut
