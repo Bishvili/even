@@ -13,7 +13,7 @@ const version="1.0.0";
 const icloudUrl="https://www.icloud.com/shortcuts/82109f53491f4d95a0a8b8437c4090f2";
 const base="https://rage-tracker.bishvili.workers.dev";
 
-function setup({verified=true}={}){
+function setup({verified=true,reportedVersion=null}={}){
  const elementIds=new Set([...html.matchAll(/\bid="([^"]+)"/g)].map(x=>x[1]));
  const elements=new Map(),urls=[],storageWrites=[];
  const token="a".repeat(64),deviceId="3f6ab11e-37e2-4607-89df-321014f10c39",email="owner-a@example.com";
@@ -36,10 +36,10 @@ function setup({verified=true}={}){
  const localStorage={getItem(){return JSON.stringify(storageWrites.at(-1)||initial);},setItem(k,v){storageWrites.push(JSON.parse(v));}};
  const fetch=async(endpoint,options)=>{
   if(endpoint==="/api/shortcut/release")return {ok:true,async json(){return {ok:true,release:{version,url:icloudUrl,verified},automaticReplacement:false};}};
-  if(endpoint==="/api/sync/status")return {ok:true,status:200,async json(){return {ok:true,credentialValid:true,deviceId,lastDataUploadAt:null,lastAttemptAt:null,lastErrorCode:null,healthMetrics:0,calendarEvents:0,installedShortcutVersion:null};}};
+  if(endpoint==="/api/sync/status")return {ok:true,status:200,async json(){return {ok:true,credentialValid:true,deviceId,lastDataUploadAt:null,lastAttemptAt:reportedVersion?"2026-11-01T17:00:00Z":null,lastErrorCode:null,healthMetrics:0,calendarEvents:0,installedShortcutVersion:reportedVersion};}};
   throw Error("Unexpected request "+endpoint);
  };
- const code=source.replace(/init\(\);\s*\}\)\(\);\s*$/,'globalThis.__appTest={renderSync,loadShortcutRelease,checkShortcutUpload,markShortcutInstalled,setAuth:(e,d)=>{authEmail=e;authDevices=d;},getState:()=>state};})();');
+ const code=source.replace(/init\(\);\s*\}\)\(\);\s*$/,'globalThis.__appTest={renderSync,loadShortcutRelease,checkShortcutUpload,setAuth:(e,d)=>{authEmail=e;authDevices=d;},getState:()=>state};})();');
  assert.notEqual(code,source,"App boot marker not found");
  const sandbox={
   document,localStorage,fetch,navigator:{onLine:true},location:{origin:base},window:{location:{assign(u){urls.push(u);}}},
@@ -82,7 +82,7 @@ test("unverified release stays hidden while the public builder remains available
  t.app.renderSync();
  assert.equal(t.element("install-shortcut").hidden,true);
  assert.equal(t.element("shortcut-preview").hidden,false);
- assert.equal(t.element("shortcut-installed-confirm").hidden,true);
+ assert.equal(t.element("run-shortcut").hidden,false);
 });
 test("a valid credential is not mistaken for a successful Health upload",async()=>{
  const t=setup();
@@ -95,16 +95,15 @@ test("a valid credential is not mistaken for a successful Health upload",async()
  assert.match(t.element("shortcut-upload-counts").textContent,/0 health measurements/);
 });
 
-test("manual installation confirmation records only the current device version",async()=>{
- const t=setup();
+test("server-reported Shortcut handshake replaces manual installation confirmation",async()=>{
+ const t=setup({reportedVersion:"2.2.0"});
  t.app.setAuth(t.email,[]);
  await t.app.loadShortcutRelease();
- t.app.markShortcutInstalled();
- const state=t.app.getState();
- assert.equal(state.shortcutInstalledVersion,version);
- assert.equal(state.shortcutInstalledForDevice,t.deviceId);
- assert.match(t.element("shortcut-installed-label").textContent,/1\.0\.0/);
- assert.equal(t.element("shortcut-update-badge").hidden,true);
+ await t.app.checkShortcutUpload(false);
+ assert.match(t.element("shortcut-release-version").textContent,/Connected Shortcut v2\.2\.0/);
+ assert.match(t.element("shortcut-last-upload").textContent,/Shortcut connected/);
+ assert.match(t.element("shortcut-sync-diagnostic").textContent,/authenticated Shortcut handshake/);
+ assert.equal(t.storageWrites.length,0);
 });
 
 test("all application DOM references resolve to real elements",()=>{
