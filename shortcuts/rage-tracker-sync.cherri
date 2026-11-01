@@ -15,13 +15,15 @@
 downloadURL("https://rage-tracker.bishvili.workers.dev/api/status")
 const credential = text(authorization)
 
-// Every run verifies the credential before requesting Health or Calendar information.
-const profileRaw = downloadURL("https://rage-tracker.bishvili.workers.dev/api/profile", {"Authorization": "{credential}"})
-const profile = getDictionary(profileRaw)
-@authorized: bool
-@authorized = getValue(profile, "ok")
-if @authorized == false {
-    alert("This device key was not accepted. Copy a new Authorization value from Rage Tracker and customize this Shortcut.", "Connection failed")
+// Verify the connection and record the Shortcut's version, even if no health samples are available.
+const handshakeRaw = jsonRequest("https://rage-tracker.bishvili.workers.dev/api/shortcut/hello", "POST", {
+    "shortcutVersion": "2.2.0"
+}, {"Authorization": "{credential}"})
+const handshake = getDictionary(handshakeRaw)
+@connected: bool
+@connected = getValue(handshake, "connected")
+if @connected == false {
+    alert("The private device key was not accepted. Reconnect through Rage Tracker > Sync.", "Connection failed")
     stop()
 }
 
@@ -44,7 +46,7 @@ for event in events {
 
     const eventBody = formRequest("https://rage-tracker.bishvili.workers.dev/api/ingest", "POST", {
         "kind": "calendar",
-        "shortcutVersion": "2.1.0",
+        "shortcutVersion": "2.2.0",
         "title": "{title}",
         "start": "{startISO}",
         "end": "{endISO}"
@@ -69,7 +71,7 @@ if sampleCount > 0 {
     const day = formatDate(today, "Custom", "yyyy-MM-dd")
     const healthBody = formRequest("https://rage-tracker.bishvili.workers.dev/api/ingest", "POST", {
         "kind": "health",
-        "shortcutVersion": "2.1.0",
+        "shortcutVersion": "2.2.0",
         "date": "{day}",
         "steps": "{totalSteps}"
     }, {"Authorization": "{credential}"})
@@ -84,10 +86,10 @@ if sampleCount > 0 {
     }
 }
 
-showNotification("Rage Tracker accepted {@acceptedCount} updates.", "Rage Tracker")
+showNotification("Rage Tracker connected. Accepted {@acceptedCount} data uploads.", "Rage Tracker")
 
 // Offer an update after syncing; the user approves installation in Apple Shortcuts.
-const releaseBody = downloadURL("https://rage-tracker.bishvili.workers.dev/api/shortcut/release?current=2.1.0", {"Authorization": "{credential}"})
+const releaseBody = downloadURL("https://rage-tracker.bishvili.workers.dev/api/shortcut/release?current=2.2.0", {"Authorization": "{credential}"})
 const releaseInfo = getDictionary(releaseBody)
 @updateAvailable: bool
 @updateAvailable = getValue(releaseInfo, "updateAvailable")
