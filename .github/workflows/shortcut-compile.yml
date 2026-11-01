@@ -29,7 +29,7 @@ jobs:
       - name: Compile Rage Tracker Sync
         run: |
           export PATH="$(go env GOPATH)/bin:$PATH"
-          cherri shortcuts/rage-tracker-sync.cherri
+          cherri shortcuts/rage-tracker-sync.cherri --output=/tmp/rage-tracker-compiled.shortcut
       - name: Verify compiled Shortcut
         run: |
-          test -s shortcuts/rage-tracker-sync.shortcut
+          test -s /tmp/rage-tracker-compiled.shortcut
