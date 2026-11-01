@@ -90,7 +90,7 @@ Current UI is plain JavaScript and CSS. Do not rewrite it merely to adopt a fram
 
 ## Project hygiene and immediate technical debt
 
-The current prototype still has legacy shared-sync tables and an old pairing endpoint, manually published KV assets, a publicly downloadable source archive, and large single-file UI modules. These are cleanup targets, not patterns to extend. Remove the old shared-sync storage and endpoint only after verifying that no user data or external integration depends on them. Move toward one source-controlled deployment pipeline, small modules, and a private artifact release process rather than serving source bundles from the app.
+The shared-sync tables and pairing endpoint were removed after confirming the legacy tables were empty. A source archive is no longer served by the application; GitHub is the authoritative source repository. Remaining cleanup priorities are manual KV/Worker publishing, large single-file UI modules, and the absence of a GitHub-to-Cloudflare release pipeline. Prefer one source-controlled deployment flow, small modules, automated regression checks, and signed versioned Shortcut releases.
 
 ## Design and platform references
 
