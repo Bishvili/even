@@ -14,11 +14,9 @@
 createFolder("RageTracker")
 const folder = getFile("RageTracker")
 const savedFiles = getFolderContents(folder)
-@credential: text
 @credential = ""
 for saved in savedFiles {
     const itemName = getFileDetail(@saved, "Name")
-    @fileName: text
     @fileName = getText(itemName)
     if @fileName == "device-key.txt" {
         const savedKey = getText(@saved)
@@ -26,17 +24,11 @@ for saved in savedFiles {
     }
 }
 
-@newConnection: bool
 @newConnection = false
 if @credential == "" {
     const entered = prompt("Paste your Authorization value from Rage Tracker > Sync")
     @credential = getText(entered)
-    if @credential beginsWith "Bearer " {
-        @newConnection = true
-    } else {
-        alert("Copy the complete Authorization value starting with Bearer.", "Invalid connection")
-        stop()
-    }
+    @newConnection = true
 }
 
 // Validate every run. Only store a newly entered credential after verification.
@@ -61,7 +53,6 @@ action 'is.workflow.actions.filter.health.quantity' findTodaySteps(): array {"WF
 
 action 'is.workflow.actions.properties.health.quantity' getStepValues(variable samples: 'WFInput'): array {"WFContentItemPropertyName":"Value"}
 
-@acceptedCount: number
 @acceptedCount = 0
 const events = findTodayEvents()
 for event in events {
@@ -113,11 +104,7 @@ if sampleCount > 0 {
     }
 }
 
-if @acceptedCount > 0 {
-    showNotification("Rage Tracker accepted {@acceptedCount} updates.", "Rage Tracker")
-} else {
-    showNotification("No Health samples or Calendar events to sync today.", "Rage Tracker")
-}
+showNotification("Rage Tracker accepted {@acceptedCount} updates.", "Rage Tracker")
 
 // Offer an update after syncing; the user approves installation in Apple Shortcuts.
 const releaseBody = downloadURL("https://rage-tracker.bishvili.workers.dev/api/shortcut/release?current=2.0.0", {"Authorization": "{@credential}"})
@@ -129,7 +116,6 @@ if @updateAvailable == true {
     @link = @release['url']
     const updateOptions = list("Install update", "Not now")
     const selected = chooseFromList(updateOptions, "An updated Rage Tracker Sync is available.")
-    @selection: text
     @selection = getText(selected)
     if @selection == "Install update" {
         openURL("{link}")
