@@ -33,17 +33,18 @@ The PWA itself remains public and keeps anonymous/offline mood tracking. To sync
 
 ## Apple Shortcuts sync
 
-Rage Tracker uses one reusable **Rage Tracker Sync** shortcut to collect selected Health and Calendar context. Safari PWAs cannot access HealthKit or EventKit directly.
+Rage Tracker uses an Apple Shortcut to send selected Health and Calendar context to the Cloudflare Worker. iOS PWAs cannot directly access HealthKit or EventKit.
 
-Open **Sync → Open Shortcut builder** after signing in and connecting a device. The app opens the Cherri Playground with the generic, credential-free source. Compile and export a signed Shortcut, then enter that device's private `Authorization` value in Apple's import/setup question. Run it once and grant Health, Calendar, and network permissions. Use **Check upload** in Sync to see when the server last received data for the current device; **Sync now** then fetches owner-scoped context for Insights.
+**v1.6 app and API:** The Sync screen distinguishes a validated device credential, a Shortcut handshake, a rejected data request, and an accepted Health/Calendar upload. It shows the last accepted upload and private per-user record counts.
 
-The initial template synchronizes today's daily step total and up to 50 Calendar events (start/end, title and inferred category); it does not upload mood notes or contact information. It sends separate authenticated POST requests per event and one for Health, rather than a JSON batch, until its Apple Shortcuts behavior is validated on an actual device. HealthKit sources may contain overlapping step samples; verify the daily sum. Date classification and imported event categories should be checked by the user.
+**Shortcut source v1.1 preview:** The Shortcut asks for the full `Authorization: Bearer ...` value **on its first run**, verifies it using `GET /api/profile`, then stores it in `iCloud Drive/Shortcuts/RageTracker/device-key.txt` for future runs and updates. Keep this file private. It sends a connection handshake to `POST /api/shortcut/hello`, checks the latest published Shortcut version through `GET /api/shortcut/release?current=1.1.0`, and can offer to open a newer iCloud installation link. Apple requires an explicit install confirmation.
 
-Source: [shortcuts/rage-tracker-sync.cherri](shortcuts/rage-tracker-sync.cherri). Installation, privacy, signing, and troubleshooting: [shortcuts/README.md](shortcuts/README.md).
+The previously shared iCloud v1.0 Shortcut did not reliably request the key and is not treated as a verified release. Use **Prepare updated Shortcut** for the 1.1 source, compile a signed copy, and test it on an iPhone. Only then publish its unconfigured iCloud share link and set the release metadata to verified. The app opens external Shortcut links in a new tab.
 
-**Status:** a reproducible builder preview, not yet a verified one-tap iCloud Shortcut link. A signed import and complete first run must be tested on an iPhone. Once a signed master is shared from Apple Shortcuts, replace the builder flow with its tested iCloud install link. Do not publish a personalized Shortcut containing a bearer token.
+Today's workflow reads step samples and Calendar events. The backend can also accept sleep duration, HRV, resting heart rate and workout minutes, but those measurements require separate Apple Health aggregation testing before collection is enabled. It does not transmit mood check-ins or notes.
 
-Shortcuts Automations can optionally schedule runs, but users must enable them on the iPhone and iOS may require permission or interaction.
+See [shortcuts/README.md](shortcuts/README.md) for first-run setup, Apple permissions including **Allow Sharing Large Amounts of Data**, error diagnosis, updates, and release instructions.
+
 ## Deployment configuration
 
 - Access application name: Rage Tracker – Authorized Sync, with email One-time PIN provider and exact-address Allow policy.
