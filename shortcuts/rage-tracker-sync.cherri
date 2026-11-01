@@ -27,9 +27,10 @@ if !@savedCredential {
         stop()
     }
     const verifyRaw = downloadURL("https://rage-tracker.bishvili.workers.dev/api/profile", {"Authorization": "{@credential}"})
-    const verified = getDictionary(verifyRaw)
-    @verified = getValue(verified, "ok")
-    if !@verified {
+    const profileData = getDictionary(verifyRaw)
+    @profileAuthorized: bool
+    @profileAuthorized = getValue(profileData, "ok")
+    if @profileAuthorized == false {
         alert("Rage Tracker did not accept that device key. Copy the latest value from Sync and try again.", "Connection failed")
         stop()
     }
