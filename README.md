@@ -33,17 +33,15 @@ The PWA itself remains public and keeps anonymous/offline mood tracking. To sync
 
 ## Apple Shortcuts sync
 
-**Rage Tracker Sync v2.2.0** uses a native **Customize Shortcut** installation question for its private Authorization value. There are no credential files or folder permissions. The signed unconfigured build is available directly at `/rage-tracker-sync-v2.2.shortcut`.
+Rage Tracker uses an Apple Shortcut to transmit selected Calendar and Health measurements from the owner's iPhone to the Cloudflare Worker. The PWA itself does not access HealthKit or EventKit.
 
-When run, the Shortcut checks public server connectivity and sends `POST /api/shortcut/hello` with its configured device key and version. This records a successful connection even if no Calendar events or Health samples are available. It then sends today's Calendar events and Health step totals to `POST /api/ingest`, checking every response before counting an upload as accepted. Calendar activities are categorized by the backend, not inside the Shortcut.
+**Shortcut v2.3.0** fixes Apple Shortcuts **If** actions that previously had missing comparison values. The API returns explicit text states (`connected`, `accepted`, and `new_release`/`current`) so the workflow no longer compares generic Boolean dictionary values. The generated Shortcut plist is checked in GitHub CI to ensure that all six If conditions have real, correctly typed comparison operands.
 
-The Sync screen distinguishes **connected** from **data uploaded**. It shows the device's reported Shortcut version, last handshake, accepted data timestamp, and record counts. **Run installed Shortcut** opens Apple's Shortcuts app using its standard URL scheme, with no credential in the link.
+The corrected source is available through **Sync → Open corrected Shortcut builder**. Cherri Playground compiles and signs the generic workflow, then Apple Shortcuts requests the private device key during **Customize Shortcut**. The previously signed v2.2 binary was retired because it contains malformed If actions. **A signed v2.3 build and its iCloud installation link are not yet published.** A successfully compiled Shortcut must still be imported and tested on an iPhone before a release is marked verified.
 
-Version updates use `GET /api/shortcut/release?current=2.2.0`. Only newer **verified** releases are offered; Apple always requires explicit approval before replacing an installed Shortcut. The old v1.0 iCloud link remains unverified and is not presented as the current installer.
+The Shortcut sends an authenticated `/api/shortcut/hello` handshake, then today's Calendar events and Health Steps through `/api/ingest`; every accepted upload is checked explicitly. The Sync screen distinguishes a successful connection from actual accepted data and allows the user to revoke the device credential. Version checks only offer newer verified iCloud releases, and Apple requires approval before replacing an installed Shortcut.
 
-The v2.2 source compiles and its signed file has been created, but a complete iPhone import and actual Health/Calendar sync still require on-device acceptance testing before a new iCloud share link can be marked verified.
-
-See [Shortcut source](shortcuts/rage-tracker-sync.cherri) and [installation, privacy, and diagnostic instructions](shortcuts/README.md).
+The installed workflow has no credential-file or folder operations. Keep your private Authorization value out of public Shortcuts and source code. See [Shortcuts installation and diagnostics](shortcuts/README.md) and [Shortcut source](shortcuts/rage-tracker-sync.cherri).
 
 ## Deployment configuration
 
