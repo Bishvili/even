@@ -153,7 +153,7 @@ async function syncApi(request,env,path){
   const release=await loadShortcutRelease(env);
   if(!release)return error("No Shortcut release is configured",503);
   const installed=new URL(request.url).searchParams.get("current")||"";
-  return reply({ok:true,release,updateAvailable:semverNewer(release.version,installed),automaticReplacement:false});
+  return reply({ok:true,release,updateAvailable:release.verified&&semverNewer(release.version,installed),automaticReplacement:false});
  }
  if(path==="/api/shortcut/hello"&&request.method==="POST"){
   let body;try{body=await payload(request);}catch(e){return error("Invalid Shortcut handshake",400);}
@@ -218,7 +218,7 @@ async function syncApi(request,env,path){
  return error("Not found",404);
 }
 async function api(request,env,ctx,path){
- if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:"Rage Tracker",version:"1.8.2",sync:"email-access"});
+ if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:"Rage Tracker",version:"1.9.0",sync:"email-access"});
  if(path.startsWith("/api/auth/"))return authApi(request,env,ctx,path);
  return syncApi(request,env,path);
 }
