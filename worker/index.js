@@ -152,7 +152,8 @@ async function syncApi(request,env,path){
   const release=await loadShortcutRelease(env);
   if(!release)return error("No Shortcut release is configured",503);
   const installed=new URL(request.url).searchParams.get("current")||"";
-  return reply({ok:true,release,updateAvailable:release.verified&&semverNewer(release.version,installed),automaticReplacement:false});
+  const updateAvailable=release.verified&&semverNewer(release.version,installed);
+  return reply({ok:true,release,updateAvailable,updateStatus:updateAvailable?"new_release":"current",automaticReplacement:false});
  }
  if(path==="/api/shortcut/hello"&&request.method==="POST"){
   let body;try{body=await payload(request);}catch(e){return error("Invalid Shortcut handshake",400);}
@@ -161,7 +162,7 @@ async function syncApi(request,env,path){
   const at=new Date().toISOString();
   await env.DB.prepare("UPDATE rt_devices SET last_attempt_at=?,last_error_code=NULL,shortcut_version=? WHERE device_id=? AND owner_email=? AND revoked_at IS NULL")
    .bind(at,clientVersion,dev.id,owner).run();
-  return reply({ok:true,connected:true,shortcutVersion:clientVersion,receivedAt:at});
+  return reply({ok:true,connected:true,state:"connected",shortcutVersion:clientVersion,receivedAt:at});
  }
 
  if(path==="/api/pull"&&request.method==="GET"){
@@ -205,7 +206,7 @@ async function syncApi(request,env,path){
   const clientVersion=/^\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(claimedVersion)?claimedVersion:null;
   await env.DB.prepare("UPDATE rt_devices SET last_used_at=?,last_attempt_at=?,last_error_code=NULL,shortcut_version=COALESCE(?,shortcut_version) WHERE device_id=? AND owner_email=? AND revoked_at IS NULL")
     .bind(at,at,clientVersion,dev.id,owner).run();
-  return reply({ok:true,receivedAt:at,kind,healthMetrics:metrics.length,calendarEvents:events.length,shortcutVersion:clientVersion});
+  return reply({ok:true,state:"accepted",receivedAt:at,kind,healthMetrics:metrics.length,calendarEvents:events.length,shortcutVersion:clientVersion});
  }
  if(path==="/api/erase"&&request.method==="POST"){
   await env.DB.batch([
@@ -217,7 +218,7 @@ async function syncApi(request,env,path){
  return error("Not found",404);
 }
 async function api(request,env,ctx,path){
- if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:"Rage Tracker",version:"1.9.0",sync:"email-access"});
+ if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:"Rage Tracker",version:"1.10.0",sync:"email-access"});
  if(path.startsWith("/api/auth/"))return authApi(request,env,ctx,path);
  return syncApi(request,env,path);
 }
