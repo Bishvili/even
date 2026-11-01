@@ -26,7 +26,7 @@ if !@savedCredential {
     }
     const verifyRaw = downloadURL("https://rage-tracker.bishvili.workers.dev/api/profile", {"Authorization": "{@credential}"})
     const verified = getDictionary(verifyRaw)
-    @verified = verified['ok']
+    @verified = getValue(verified, "ok")
     if !@verified {
         alert("Rage Tracker did not accept that device key. Copy the latest value from Sync and try again.", "Connection failed")
         stop()
@@ -41,7 +41,7 @@ if !@savedCredential {
 jsonRequest("https://rage-tracker.bishvili.workers.dev/api/shortcut/hello", "POST", {"shortcutVersion": "1.1.0"}, {"Authorization": "{@credential}"})
 const helloRaw = downloadURL("https://rage-tracker.bishvili.workers.dev/api/sync/status", {"Authorization": "{@credential}"})
 const helloData = getDictionary(helloRaw)
-@confirmedVersion = helloData['installedShortcutVersion']
+@confirmedVersion = getValue(helloData, "installedShortcutVersion")
 if @confirmedVersion != "1.1.0" {
     alert("Rage Tracker did not confirm the Shortcut handshake. Your Health and Calendar data were not sent.", "Connection failed")
     stop()
@@ -50,9 +50,9 @@ if @confirmedVersion != "1.1.0" {
 // A version check can open a replacement Shortcut; Apple always requires confirmation.
 const latestRaw = downloadURL("https://rage-tracker.bishvili.workers.dev/api/shortcut/release?current=1.1.0", {"Authorization": "{@credential}"})
 const latest = getDictionary(latestRaw)
-@updateAvailable = latest['updateAvailable']
+@updateAvailable = getValue(latest, "updateAvailable")
 if @updateAvailable {
-    @release = latest['release']
+    @release = getValue(latest, "release")
     @newURL = @release['url']
     const updateOptions = list("Install update", "Continue syncing")
     @choice = chooseFromList(updateOptions, "A new Rage Tracker Sync version is available.")
