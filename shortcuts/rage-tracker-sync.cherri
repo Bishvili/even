@@ -1,0 +1,118 @@
+#include 'actions/calendar'
+#include 'actions/math'
+#include 'actions/text'
+#include 'actions/web'
+
+#question authorization "Paste your private Authorization value from Rage Tracker > Sync (it starts with Bearer)." "Bearer "
+
+// This value is supplied during Apple Shortcuts installation, never in a shared link.
+const credential = text(authorization)
+
+// Read samples for one day. The Health picker label is "Steps".
+action 'is.workflow.actions.filter.health.quantity' findTodaySteps(): array {
+    "WFContentItemFilter": {
+        "Value": {
+            "WFActionParameterFilterPrefix": 1,
+            "WFContentPredicateBoundedDate": false,
+            "WFActionParameterFilterTemplates": [
+                {
+                    "Bounded": true,
+                    "Operator": 4,
+                    "Property": "Type",
+                    "Removable": false,
+                    "Values": {
+                        "Enumeration": {
+                            "Value": "Steps",
+                            "WFSerializationType": "WFStringSubstitutableState"
+                        }
+                    }
+                },
+                {
+                    "Bounded": true,
+                    "Operator": 1002,
+                    "Property": "Start Date",
+                    "Removable": false,
+                    "Values": {"Number": "7", "Unit": 16}
+                }
+            ]
+        },
+        "WFSerializationType": "WFContentPredicateTableTemplate"
+    }
+}
+
+action 'is.workflow.actions.properties.health.quantity' getStepValues(variable samples: 'WFInput'): array {
+    "WFContentItemPropertyName": "Value"
+}
+
+// Query events starting today; do not include notes, locations or attendees.
+action 'is.workflow.actions.filter.calendarevents' findTodayEvents(): array {
+    "WFContentItemFilter": {
+        "Value": {
+            "WFActionParameterFilterPrefix": 1,
+            "WFContentPredicateBoundedDate": false,
+            "WFActionParameterFilterTemplates": [
+                {
+                    "Bounded": true,
+                    "Operator": 1002,
+                    "Property": "Start Date",
+                    "Removable": true,
+                    "Values": {}
+                }
+            ]
+        },
+        "WFSerializationType": "WFContentPredicateTableTemplate"
+    },
+    "WFContentItemLimitEnabled": true,
+    "WFContentItemLimitNumber": 50,
+    "WFContentItemSortProperty": "Start Date",
+    "WFContentItemSortOrder": "Ascending"
+}
+
+const today = formatDate(currentDate(), "Custom", "yyyy-MM-dd")
+const events = findTodayEvents()
+
+for event in @events {
+    const title = getEventDetail(@event, "Title")
+    const startDate = getEventDetail(@event, "Start Date")
+    const endDate = getEventDetail(@event, "End Date")
+    const startISO = formatDate(@startDate, "ISO 8601")
+    const endISO = formatDate(@endDate, "ISO 8601")
+    const name = lowercase("{title}")
+    @category = "Other"
+
+    if @name contains "meeting" || @name contains "call" {
+        @category = "Meeting"
+    }
+    if @name contains "workout" || @name contains "gym" || @name contains "walk" || @name contains "run" {
+        @category = "Exercise"
+    }
+    if @name contains "coffee" || @name contains "lunch" || @name contains "dinner" {
+        @category = "Social"
+    }
+    if @name contains "commute" || @name contains "drive" {
+        @category = "Commute"
+    }
+
+    formRequest("https://rage-tracker.bishvili.workers.dev/api/ingest", "POST", {
+        "kind": "calendar",
+        "title": "{title}",
+        "start": "{startISO}",
+        "end": "{endISO}",
+        "category": "{@category}"
+    }, {"Authorization": "{credential}"})
+}
+
+// Skip Health uploads when no samples are available; Calendar can still sync.
+const samples = findTodaySteps()
+const sampleCount = count(@samples)
+if @sampleCount > 0 {
+    const values = getStepValues(@samples)
+    const steps = statistic("Sum", @values)
+    formRequest("https://rage-tracker.bishvili.workers.dev/api/ingest", "POST", {
+        "kind": "health",
+        "date": "{today}",
+        "steps": "{steps}"
+    }, {"Authorization": "{credential}"})
+}
+
+show("Rage Tracker sync finished. Open Rage Tracker and tap Sync now to see your data.")
