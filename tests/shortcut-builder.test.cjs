@@ -51,7 +51,7 @@ test("unverified iCloud release is not presented as a working installation",()=>
  const install=t.elements.get("install-shortcut");
  assert.equal(install.getAttribute("aria-disabled"),"true");
  assert.equal(install.getAttribute("href"),null);
- assert.match(t.elements.get("shortcut-install-help").textContent,/does not request your key/);
+ assert.match(t.elements.get("shortcut-install-help").textContent,/unverified/);
 });
 test("verified iCloud release enables new-tab installation",()=>{
  const t=harness();
