@@ -27,7 +27,7 @@ The PWA itself remains public and keeps anonymous/offline mood tracking. To sync
 
 - Health and calendar data is owned by an email identity. Read/write/erase endpoints derive the owner from the authenticated device token, never from request body fields.
 - Device management requires an Access-authenticated session. Revocation is restricted to the authenticated owner.
-- The old shared pairing code and endpoint are retired (HTTP 410). The old shared database tables are preserved but unused by the new sync endpoints.
+- The shared pairing route and unscoped tables have been removed after confirming the legacy tables were empty. Cloud endpoints now require an authenticated, unrevoked, owner-specific device token.
 - Existing local mood entries are not uploaded. The PWA requires explicit consent before assigning existing local records to a verified account, and rejects a different account using the same local profile.
 - This is a prototype rather than an audited clinical records system. HTTPS is used, but D1 records and downloaded JSON backups are not end-to-end encrypted. Device bearer tokens are sensitive.
 
@@ -63,7 +63,7 @@ See [Shortcut source](shortcuts/rage-tracker-sync.cherri) and [installation, pri
 
 ## Hosting
 
-Static files currently live in Cloudflare Workers KV with keys of the form asset:index.html, asset:app.js, etc. PNG assets are stored Base64 encoded; textual assets are UTF-8. The Worker binds KV as ASSETS and D1 as DB. To redeploy source changes, update KV assets and the Worker script. Adding files to GitHub alone will not update the running deployment until a CI workflow is configured. Do not commit the private pairing code or a device authorization token.
+Static files currently live in Cloudflare Workers KV with keys of the form asset:index.html, asset:app.js, etc. PNG assets are stored Base64 encoded; textual assets are UTF-8. The Worker binds KV as ASSETS and owner-scoped D1 storage as DB. To redeploy source changes, update KV assets and the Worker script. Adding files to GitHub alone will not update the running deployment until a CI workflow is configured. Do not commit a device authorization token or any other credential.
 
 ## Privacy
 
