@@ -2,3 +2,39 @@ CREATE TABLE IF NOT EXISTS sync_tokens(hash TEXT PRIMARY KEY,created_at TEXT NOT
 CREATE TABLE IF NOT EXISTS health_metrics(day TEXT NOT NULL,metric TEXT NOT NULL,value REAL NOT NULL,updated_at TEXT NOT NULL,PRIMARY KEY(day,metric));
 CREATE TABLE IF NOT EXISTS calendar_events(id TEXT PRIMARY KEY,start_time TEXT NOT NULL,end_time TEXT NOT NULL,title TEXT NOT NULL,category TEXT NOT NULL,updated_at TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS idx_calendar_events_start ON calendar_events(start_time);
+
+-- v1.3: email-scoped device credentials and per-owner data.
+-- Do not use the legacy unscoped tables above for new requests.
+CREATE TABLE IF NOT EXISTS rt_users (
+  email TEXT PRIMARY KEY,
+  created_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS rt_devices (
+  token_hash TEXT PRIMARY KEY,
+  device_id TEXT NOT NULL UNIQUE,
+  owner_email TEXT NOT NULL REFERENCES rt_users(email),
+  label TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  last_used_at TEXT,
+  revoked_at TEXT
+);
+CREATE INDEX IF NOT EXISTS rt_devices_owner ON rt_devices(owner_email, revoked_at);
+CREATE TABLE IF NOT EXISTS rt_health_metrics (
+  owner_email TEXT NOT NULL REFERENCES rt_users(email),
+  day TEXT NOT NULL,
+  metric TEXT NOT NULL,
+  value REAL NOT NULL,
+  updated_at TEXT NOT NULL,
+  PRIMARY KEY (owner_email, day, metric)
+);
+CREATE TABLE IF NOT EXISTS rt_calendar_events (
+  owner_email TEXT NOT NULL REFERENCES rt_users(email),
+  event_id TEXT NOT NULL,
+  start_time TEXT NOT NULL,
+  end_time TEXT NOT NULL,
+  title TEXT NOT NULL,
+  category TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  PRIMARY KEY (owner_email, event_id)
+);
+CREATE INDEX IF NOT EXISTS rt_calendar_owner_start ON rt_calendar_events(owner_email, start_time);
