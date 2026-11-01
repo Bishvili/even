@@ -71,28 +71,11 @@ for event in events {
     const startISO = formatDate(startDate, "ISO 8601")
     const endISO = formatDate(endDate, "ISO 8601")
 
-    const lowered = lowercase("{title}")
-    @category: text
-    @category = "Other"
-    if lowered contains "meeting" || lowered contains "call" {
-        @category = "Meeting"
-    }
-    if lowered contains "gym" || lowered contains "workout" || lowered contains "run" {
-        @category = "Exercise"
-    }
-    if lowered contains "coffee" || lowered contains "lunch" || lowered contains "dinner" {
-        @category = "Social"
-    }
-    if lowered contains "commute" {
-        @category = "Commute"
-    }
-
     const eventBody = formRequest("https://rage-tracker.bishvili.workers.dev/api/ingest", "POST", {
         "kind": "calendar",
         "title": "{title}",
         "start": "{startISO}",
-        "end": "{endISO}",
-        "category": "{@category}"
+        "end": "{endISO}"
     }, {"Authorization": "{@credential}"})
     const eventResponse = getDictionary(eventBody)
     @eventAccepted: bool
