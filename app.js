@@ -1,6 +1,6 @@
 (function () {
 "use strict";
-var VERSION = "1.4.0";
+var VERSION = "1.5.0";
 var STORAGE_KEY = "rage-tracker:v1";
 var MOOD_NAMES = ["","Rough","Low","Okay","Good","Great"];
 var MOOD_EMOJI = ["","😣","😕","😐","🙂","😄"];
@@ -10,6 +10,7 @@ var ACTIVITY_LABELS = ["Work","Meeting","Exercise","Social","Family","Rest","Out
 var selectedMood = 0, selectedTags = new Set(), insightDays = 30, insightScope = "personal", toastTimer = null;
 var state = readState();
 var authEmail = "", authDevices = [], authChecking = false;
+var shortcutRelease = null, shortcutStatus = null, shortcutStatusLoading = false;
 function $(id){ return document.getElementById(id); }
 function emptyState(){ return {moods:[],health:[],events:[],token:"",deviceId:"",syncOwnerEmail:"",pairedAt:null,lastSync:null}; }
 function readState(){
@@ -77,11 +78,16 @@ function renderSources(){
  return '<div class="entry"><span class="entry-emoji">▦</span><div class="entry-main"><strong>'+esc(e.title||"Calendar event")+'</strong><small>'+esc(formatDate(e.start)+" "+formatTime(e.start)+" · "+e.category+(e.demo?" · DEMO":""))+'</small></div><button class="entry-delete" aria-label="Delete calendar event" data-delete-event="'+esc(e.id)+'">×</button></div>';
  }).join(""):blank("No context yet. Add a health day, calendar event, or connect Shortcuts.");
 }
+function compareVersions(left,right){
+ if(!/^\d+\.\d+\.\d+$/.test(left||"")||!/^\d+\.\d+\.\d+$/.test(right||""))return 0;
+ var a=left.split(".").map(Number),b=right.split(".").map(Number);
+ for(var i=0;i<3;i++)if(a[i]!==b[i])return a[i]>b[i]?1:-1;
+ return 0;
+}
 function renderSync(){
  var paired=!!state.token&&!!state.syncOwnerEmail&&!!state.deviceId;
  var mismatch=!!authEmail&&!!state.syncOwnerEmail&&authEmail!==state.syncOwnerEmail;
- $("login-panel").hidden=!!authEmail;
- $("login-ready").hidden=!authEmail;
+ $("login-panel").hidden=!!authEmail;$("login-ready").hidden=!authEmail;
  $("auth-email").textContent=authEmail||"—";
  $("owner-mismatch").hidden=!mismatch;
  $("need-device").hidden=!authEmail||paired||mismatch;
@@ -93,19 +99,28 @@ function renderSync(){
  $("sync-light-text").textContent=paired?"Sync ready":"Local only";
  $("sync-url").textContent=location.origin+"/api/ingest";
  $("sync-token").textContent=paired?"Bearer "+("•".repeat(18))+"…"+state.token.slice(-6):"Sign in to generate your device key";
- $("last-sync").textContent=state.lastSync?"Last fetched "+formatDate(state.lastSync)+" at "+formatTime(state.lastSync):"No Shortcuts updates fetched yet";
+ $("last-sync").textContent=state.lastSync?"Last fetched "+formatDate(state.lastSync)+" at "+formatTime(state.lastSync):"No Shortcuts data fetched yet";
  var accountMatches=!authEmail||authEmail===state.syncOwnerEmail;
- $("open-shortcut-builder").disabled=!paired||!accountMatches;
- $("check-shortcut-upload").disabled=!paired||!authEmail||!accountMatches;
- $("shortcut-builder-help").textContent=paired&&accountMatches
-   ?"Opens an external Shortcut builder with public source; your device key stays here."
-   :mismatch?"Sign in as the account that owns this device to continue."
-   :authEmail?"Generate your device key above to set up your Shortcut."
-   :"Sign in and generate a device key above to enable the builder.";
- var syncedDevice=authDevices.find(function(d){return d.id===state.deviceId&&!d.revoked;});
- $("shortcut-last-upload").textContent=syncedDevice&&syncedDevice.lastUsedAt
-   ?"Received "+formatDate(syncedDevice.lastUsedAt)+" at "+formatTime(syncedDevice.lastUsedAt)
-   :paired?"No Shortcut upload received yet":"Connect a device to see uploads";
+ var install=$("install-shortcut"),release=shortcutRelease;
+ var canInstall=paired&&accountMatches&&release&&release.url&&navigator.onLine;
+ if(canInstall){install.href=release.url;install.removeAttribute("aria-disabled");install.removeAttribute("tabindex");}
+ else{install.removeAttribute("href");install.setAttribute("aria-disabled","true");install.setAttribute("tabindex","-1");}
+ $("shortcut-release-version").textContent=release?"Latest Shortcut v"+release.version:"Latest Shortcut: not loaded";
+ $("shortcut-install-help").textContent=canInstall
+  ?"Opens the current shared Shortcut in a new Safari tab. Your device key is not included in the link."
+  :mismatch?"Sign in with this device's account before installing."
+  :paired?"The latest Shortcut link could not be loaded. Check your connection."
+  :"Sign in and generate a device key to install the Shortcut.";
+ $("check-shortcut-upload").disabled=!paired||mismatch||shortcutStatusLoading;
+ var installed=shortcutStatus&&shortcutStatus.installedShortcutVersion;
+ $("shortcut-update-badge").hidden=!(canInstall&&installed&&compareVersions(release.version,installed)>0);
+ var last=shortcutStatus&&shortcutStatus.lastDataUploadAt;
+ $("shortcut-last-upload").textContent=last
+  ?"Received "+formatDate(last)+" at "+formatTime(last)
+  :paired?"No accepted data upload yet":"Connect a device to see upload status";
+ $("shortcut-upload-counts").textContent=shortcutStatus
+  ?shortcutStatus.healthMetrics+" health measurements · "+shortcutStatus.calendarEvents+" calendar events"
+  :"Health and calendar records: —";
  renderDevices();
 }
 function renderDevices(){
@@ -380,44 +395,61 @@ function clearDemo(){
 }
 function arrayToHex(bytes){return Array.from(bytes).map(function(b){return b.toString(16).padStart(2,"0");}).join("");}
 function loginWithEmail(){window.location.assign("/api/auth/start");}
-async function openShortcutBuilder(){
- if(!state.token||!state.deviceId){toast("Connect this device before building the Shortcut.");return;}
- if(authEmail&&state.syncOwnerEmail!==authEmail){toast("Sign in as this device's account before continuing.");return;}
- var button=$("open-shortcut-builder");
- button.disabled=true;button.textContent="Preparing builder…";
- try{
-  var response=await fetch("/shortcut.cherri",{cache:"no-store"});
-  if(!response.ok)throw Error("Shortcut template unavailable");
-  var source=await response.text();
-  if(source.length>16000||!source.includes("#question authorization")||
-    !source.includes("https://rage-tracker.bishvili.workers.dev/api/ingest"))
-    throw Error("Shortcut template failed verification");
-  if(/Bearer [a-f0-9]{64}/i.test(source))throw Error("Template must not contain a device key");
-  var compact=source.split(/\r?\n/).map(function(line){return line.trim();})
-    .filter(function(line){return line&&!line.startsWith("//");}).join("\n");
-  var target="https://playground.cherrilang.org/?code="+encodeURIComponent(compact);
-  if(target.length>16000)throw Error("Shortcut template exceeds the builder URL limit");
-  window.location.assign(target);
- }catch(err){
-  button.disabled=false;button.textContent="Open Shortcut builder ↗";
-  toast(err.message||"Could not open Shortcut builder. Your data is safe.");
- }
+function syncErrorLabel(code){
+ var reasons={
+  invalid_body:"Rage Tracker received the request but could not read its body.",
+  invalid_kind:"The request did not contain a recognized kind (health, calendar or batch).",
+  no_valid_records:"The request arrived, but its dates, event times, or metric values were invalid."
+ };
+ return reasons[code]||"The last request was rejected. Check the Shortcut's network response.";
 }
-async function checkShortcutUpload(){
- if(!state.token){toast("Connect your device first.");return;}
- if(!authEmail){toast("Sign in with email to see the latest Shortcut upload.");return;}
- var button=$("check-shortcut-upload");button.disabled=true;button.textContent="Checking…";
+function renderSyncDiagnostic(message,type){
+ var el=$("shortcut-sync-diagnostic");
+ el.hidden=!message;
+ el.textContent=message||"";
+ el.classList.toggle("sync-error",type==="error");
+ el.classList.toggle("sync-success",type==="success");
+}
+async function loadShortcutRelease(){
+ if(!state.token||!state.deviceId||!navigator.onLine)return;
  try{
-  await refreshAuth();
-  if(!authEmail||authEmail!==state.syncOwnerEmail)throw Error("Sign in as the connected device owner.");
-  var device=authDevices.find(function(d){return d.id===state.deviceId&&!d.revoked;});
-  if(!device)throw Error("This device is not active. Verify your account in Sync.");
-  if(device.lastUsedAt){
-   toast("Shortcut upload received "+formatDate(device.lastUsedAt)+" at "+formatTime(device.lastUsedAt)+".");
-  }else toast("No Shortcut uploads received yet. Run the Shortcut once on your iPhone.");
-  renderSync();
- }catch(err){toast(err.message||"Could not check uploads. Try again online.");}
- finally{button.disabled=false;button.textContent="Check upload";}
+  var r=await fetch("/api/shortcut/release",{headers:{"Authorization":"Bearer "+state.token},cache:"no-store"});
+  if(!r.ok)throw Error("Release unavailable");
+  var result=await r.json(),release=result.release||{};
+  var url=new URL(release.url);
+  if(url.origin!=="https://www.icloud.com"||!/^\/shortcuts\/[a-f0-9]{32}$/i.test(url.pathname)||
+     !/^\d+\.\d+\.\d+$/.test(release.version))throw Error("Invalid Shortcut release");
+  shortcutRelease={url:url.href,version:release.version};
+ }catch(e){shortcutRelease=null;}
+ renderSync();
+}
+async function checkShortcutUpload(silent){
+ if(!state.token||!state.deviceId){if(!silent)toast("Sign in and connect this device first.");return;}
+ if(authEmail&&authEmail!==state.syncOwnerEmail){if(!silent)toast("Switch back to the device owner first.");return;}
+ if(shortcutStatusLoading)return;
+ var button=$("check-shortcut-upload");
+ shortcutStatusLoading=true;button.disabled=true;button.textContent="Checking…";
+ try{
+  var r=await fetch("/api/sync/status",{headers:{"Authorization":"Bearer "+state.token},cache:"no-store"});
+  var data=await r.json();
+  if(r.status===401){
+   shortcutStatus=null;shortcutRelease=null;
+   state.token="";state.deviceId="";state.lastSync=null;persist();
+   throw Error("Device key is invalid or revoked. Sign in and create a new one.");
+  }
+  if(!r.ok||!data.credentialValid)throw Error(data.error||"Could not verify your device key.");
+  if(data.deviceId!==state.deviceId)throw Error("The server returned a different device.");
+  shortcutStatus=data;
+  if(!silent){
+   if(data.lastErrorCode)renderSyncDiagnostic("Device credential verified. "+syncErrorLabel(data.lastErrorCode)+" Last attempt: "+formatDate(data.lastAttemptAt)+" at "+formatTime(data.lastAttemptAt)+".","error");
+   else if(data.lastDataUploadAt)renderSyncDiagnostic("Device credential verified. An upload was accepted on "+formatDate(data.lastDataUploadAt)+" at "+formatTime(data.lastDataUploadAt)+". Tap Sync now to download it.","success");
+   else renderSyncDiagnostic("Your device credential is valid, but no successful Shortcut upload has arrived. Open Shortcuts, inspect the Get Contents of URL action, verify that Authorization starts with Bearer followed by the private key, then run it again. A Shortcut's completion message alone does not confirm an upload.","error");
+  }
+ }catch(err){
+  if(!silent)renderSyncDiagnostic(err.message||"Could not check the connection. Try again online.","error");
+ }finally{
+  shortcutStatusLoading=false;button.disabled=false;button.textContent="Test connection";renderSync();
+ }
 }
 async function refreshAuth(){
  if(authChecking||!navigator.onLine)return;
@@ -451,7 +483,7 @@ async function issueDevice(){
   if(result.email!==authEmail)throw Error("Account identity changed; key not saved");
   state.syncOwnerEmail=authEmail;state.deviceId=result.deviceId;state.token=result.token;state.pairedAt=Date.now();state.lastSync=null;
   if(!persist())return;
-  await refreshAuth();render();toast("Device key created for "+authEmail+". Copy it into Shortcuts.");
+  await refreshAuth();await loadShortcutRelease();await checkShortcutUpload(true);render();toast("Device key created for "+authEmail+". Copy it into Shortcuts.");
  }catch(e){toast(e.message||"Could not connect this device.");}
  finally{button.disabled=false;button.textContent="Generate my device key";}
 }
@@ -461,7 +493,7 @@ async function revokeDevice(id){
  try{
   var r=await fetch("/api/auth/revoke",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({deviceId:id}),cache:"no-store"});
   var result=await r.json();if(!r.ok||!result.revoked)throw Error(result.error||"Device not revoked");
-  if(id===state.deviceId){state.token="";state.deviceId="";state.lastSync=null;persist();}
+  if(id===state.deviceId){state.token="";state.deviceId="";state.lastSync=null;shortcutStatus=null;shortcutRelease=null;persist();}
   await refreshAuth();render();toast("Device key revoked. Personal records remain on this iPhone.");
  }catch(e){toast(e.message||"Could not revoke the device.");}
 }
@@ -471,12 +503,13 @@ async function pull(silent){
  try{
   var r=await fetch("/api/pull",{headers:{"Authorization":"Bearer "+state.token},cache:"no-store"});
   var body=await r.json();
-  if(r.status===401){state.token="";state.deviceId="";persist();render();throw Error("Device key expired or revoked. Sign in to reconnect.");}
+  if(r.status===401){state.token="";state.deviceId="";shortcutStatus=null;shortcutRelease=null;persist();render();throw Error("Device key expired or revoked. Sign in to reconnect.");}
   if(!r.ok)throw Error(body.error||"Sync failed");
   if(!body.email||body.email!==state.syncOwnerEmail)throw Error("Account mismatch. Nothing was imported.");
   var h=0,e=0;(body.health||[]).forEach(function(x){var v=normalizeHealth(x,"shortcut");if(v){upsertHealth(v);h++;}});
   (body.events||[]).forEach(function(x){var v=normalizeEvent(x,"shortcut");if(v){upsertEvent(v);e++;}});
   state.lastSync=Date.now();persist();render();if(!silent)toast("Synced "+h+" health days and "+e+" calendar events for "+state.syncOwnerEmail+".");
+  checkShortcutUpload(true);
  }catch(e){if(!silent)toast(e.message||"Sync unavailable. Local data is unchanged.");}
  finally{button.disabled=false;button.textContent="↻ Sync now";}
 }
@@ -492,7 +525,7 @@ async function eraseRemote(){
 }
 function init(){
  $("health-date").value=dateKey(now());var start=new Date();start.setMinutes(0,0,0);start.setHours(start.getHours()+1);var end=new Date(start);end.setHours(end.getHours()+1);$("cal-start").value=localDateTime(start);$("cal-end").value=localDateTime(end);
- document.querySelectorAll("[data-go]").forEach(function(b){b.addEventListener("click",function(ev){ev.preventDefault();navigate(b.dataset.go);if(b.dataset.go==="sync")refreshAuth();});});
+ document.querySelectorAll("[data-go]").forEach(function(b){b.addEventListener("click",function(ev){ev.preventDefault();navigate(b.dataset.go);if(b.dataset.go==="sync"){refreshAuth();loadShortcutRelease();checkShortcutUpload(true);}});});
  document.querySelectorAll("[data-mood]").forEach(function(b){b.addEventListener("click",function(){selectMood(Number(b.dataset.mood));});});
  document.querySelectorAll("[data-tag]").forEach(function(b){b.setAttribute("aria-pressed","false");b.addEventListener("click",function(){var s=b.dataset.tag;selectedTags.has(s)?selectedTags.delete(s):selectedTags.add(s);b.classList.toggle("selected",selectedTags.has(s));b.setAttribute("aria-pressed",String(selectedTags.has(s)));});});
  $("energy").addEventListener("input",setEnergyText);$("save-mood").addEventListener("click",handleMoodSave);
@@ -507,8 +540,8 @@ function init(){
  $("login-button").addEventListener("click",loginWithEmail);
  $("issue-device").addEventListener("click",issueDevice);
  $("refresh-devices").addEventListener("click",refreshAuth);
- $("open-shortcut-builder").addEventListener("click",openShortcutBuilder);
- $("check-shortcut-upload").addEventListener("click",checkShortcutUpload);
+ $("install-shortcut").addEventListener("click",function(e){if(!state.token||!shortcutRelease||!this.href){e.preventDefault();toast("Connect your device to open the current Shortcut.");}});
+ $("check-shortcut-upload").addEventListener("click",function(){checkShortcutUpload(false);});
  $("device-list").addEventListener("click",function(e){var b=e.target.closest("[data-revoke-device]");if(b)revokeDevice(b.dataset.revokeDevice);});
  $("pull-button").addEventListener("click",function(){pull(false);});
  $("unpair-button").addEventListener("click",function(){if(state.deviceId)revokeDevice(state.deviceId);});
@@ -520,13 +553,13 @@ function init(){
  });});
  $("erase-remote").addEventListener("click",eraseRemote);
  $("backup-button").addEventListener("click",exportBackup);$("restore-input").addEventListener("change",function(ev){restoreBackup(ev.target.files[0]);ev.target.value="";});
- $("erase-local").addEventListener("click",function(){if(confirm("Delete ALL local mood check-ins, notes, health/calendar data and this device's sync key? Cloud data must be erased separately. This cannot be undone.")){state=emptyState();persist();render();toast("Local records deleted.");}});
+ $("erase-local").addEventListener("click",function(){if(confirm("Delete ALL local mood check-ins, notes, health/calendar data and this device's sync key? Cloud data must be erased separately. This cannot be undone.")){state=emptyState();shortcutRelease=null;shortcutStatus=null;persist();render();toast("Local records deleted.");}});
  $("demo-button").addEventListener("click",demo);$("clear-demo-button").addEventListener("click",clearDemo);
  setEnergyText();navigate(location.hash.slice(1)||"checkin");
  if(navigator.onLine)refreshAuth();
- if(state.token&&navigator.onLine)pull(true);
- window.addEventListener("online",function(){refreshAuth();if(state.token)pull(true);});
- document.addEventListener("visibilitychange",function(){if(!document.hidden){refreshAuth();if(state.token&&(!state.lastSync||Date.now()-state.lastSync>900000))pull(true);}});
+ if(state.token&&navigator.onLine){loadShortcutRelease();checkShortcutUpload(true);pull(true);}
+ window.addEventListener("online",function(){refreshAuth();if(state.token){loadShortcutRelease();checkShortcutUpload(true);pull(true);}});
+ document.addEventListener("visibilitychange",function(){if(!document.hidden){refreshAuth();if(state.token){loadShortcutRelease();checkShortcutUpload(true);if(!state.lastSync||Date.now()-state.lastSync>900000)pull(true);}}});
  if("serviceWorker" in navigator){window.addEventListener("load",function(){navigator.serviceWorker.register("/sw.js").catch(function(){});});}
 }
 init();
