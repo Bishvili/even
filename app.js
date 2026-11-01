@@ -1,6 +1,6 @@
 (function () {
 "use strict";
-var VERSION = "1.8.2";
+var VERSION = "1.9.0";
 var STORAGE_KEY = "rage-tracker:v1";
 var MOOD_NAMES = ["","Rough","Low","Okay","Good","Great"];
 var MOOD_EMOJI = ["","😣","😕","😐","🙂","😄"];
@@ -12,11 +12,11 @@ var state = readState();
 var authEmail = "", authDevices = [], authChecking = false;
 var shortcutRelease = null, shortcutStatus = null, shortcutStatusLoading = false;
 function $(id){ return document.getElementById(id); }
-function emptyState(){ return {moods:[],health:[],events:[],token:"",deviceId:"",syncOwnerEmail:"",pairedAt:null,lastSync:null,shortcutInstalledVersion:"",shortcutInstalledForDevice:""}; }
+function emptyState(){ return {moods:[],health:[],events:[],token:"",deviceId:"",syncOwnerEmail:"",pairedAt:null,lastSync:null}; }
 function readState(){
  try { var raw=JSON.parse(localStorage.getItem(STORAGE_KEY)||"null"); if(!raw || typeof raw!=="object")return emptyState();
  var owner=typeof raw.syncOwnerEmail==="string"?raw.syncOwnerEmail.toLowerCase():"",deviceId=typeof raw.deviceId==="string"?raw.deviceId:"";
- return {moods:Array.isArray(raw.moods)?raw.moods.slice(-6000):[],health:Array.isArray(raw.health)?raw.health.slice(-1200):[],events:Array.isArray(raw.events)?raw.events.slice(-2000):[],token:owner&&deviceId&&typeof raw.token==="string"?raw.token:"",deviceId:deviceId,syncOwnerEmail:owner,pairedAt:raw.pairedAt||null,lastSync:raw.lastSync||null,shortcutInstalledVersion:typeof raw.shortcutInstalledVersion==="string"?raw.shortcutInstalledVersion:"",shortcutInstalledForDevice:typeof raw.shortcutInstalledForDevice==="string"?raw.shortcutInstalledForDevice:""};
+ return {moods:Array.isArray(raw.moods)?raw.moods.slice(-6000):[],health:Array.isArray(raw.health)?raw.health.slice(-1200):[],events:Array.isArray(raw.events)?raw.events.slice(-2000):[],token:owner&&deviceId&&typeof raw.token==="string"?raw.token:"",deviceId:deviceId,syncOwnerEmail:owner,pairedAt:raw.pairedAt||null,lastSync:raw.lastSync||null};
  } catch(e){return emptyState();}
 }
 function persist(){ try{localStorage.setItem(STORAGE_KEY,JSON.stringify(state));return true;}catch(e){toast("Storage is full. Export a backup and free device storage.");return false;} }
@@ -105,23 +105,19 @@ function renderSync(){
  var canInstall=paired&&accountMatches&&release&&release.url&&release.verified&&navigator.onLine;
  install.hidden=!canInstall;
  $("shortcut-preview").hidden=!!canInstall;
- $("shortcut-installed-confirm").hidden=!canInstall;
+ $("run-shortcut").hidden=!paired||mismatch;
  if(canInstall){install.href=release.url;install.removeAttribute("aria-disabled");install.removeAttribute("tabindex");}
  else{install.removeAttribute("href");install.setAttribute("aria-disabled","true");install.setAttribute("tabindex","-1");}
- $("shortcut-release-version").textContent=release?(release.verified?"Published Shortcut v":"Previous iCloud Shortcut v")+release.version:"Published Shortcut: not loaded";
+ $("shortcut-release-version").textContent=shortcutStatus&&shortcutStatus.installedShortcutVersion?"Connected Shortcut v"+shortcutStatus.installedShortcutVersion:release&&release.verified?"Published Shortcut v"+release.version:"Signed test build v2.2";
  $("shortcut-install-help").textContent=canInstall
   ?"Opens the current shared Shortcut in a new Safari tab. Your device key is not included in the link."
   :mismatch?"Sign in with this device's account before installing."
-  :paired&&release&&!release.verified?"The previous iCloud Shortcut is not verified. Download the signed v2.1 test build below; a verified iCloud link will appear after its iPhone sync test."
+  :paired&&release&&!release.verified?"The older iCloud release is unverified. Download the v2.2 test build below; the verified iCloud link will appear after its iPhone sync test."
   :paired?"The latest Shortcut link could not be loaded. Check your connection."
   :"Sign in and generate a device key to install the Shortcut.";
  $("check-shortcut-upload").disabled=!paired||mismatch||shortcutStatusLoading;
- var localVersion=state.shortcutInstalledForDevice===state.deviceId?state.shortcutInstalledVersion:"";
- var installed=shortcutStatus&&shortcutStatus.installedShortcutVersion||localVersion;
+ var installed=shortcutStatus&&shortcutStatus.installedShortcutVersion||"";
  $("shortcut-update-badge").hidden=!(canInstall&&installed&&compareVersions(release.version,installed)>0);
- $("mark-shortcut-installed").disabled=!canInstall||installed===release.version;
- $("mark-shortcut-installed").textContent=installed===release?.version?"Recorded":"Mark as installed";
- $("shortcut-installed-label").textContent=installed?"Your installed version: "+installed:"Installed version not recorded";
  var last=shortcutStatus&&shortcutStatus.lastDataUploadAt;
  $("shortcut-last-upload").textContent=last
   ?"Received "+formatDate(last)+" at "+formatTime(last)
@@ -405,13 +401,6 @@ function clearDemo(){
 }
 function arrayToHex(bytes){return Array.from(bytes).map(function(b){return b.toString(16).padStart(2,"0");}).join("");}
 function loginWithEmail(){window.location.assign("/api/auth/start");}
-function markShortcutInstalled(){
- if(!state.token||!shortcutRelease)return toast("Connect your device and open the latest Shortcut first.");
- if(!confirm("Confirm that you installed Rage Tracker Sync v"+shortcutRelease.version+" from Apple Shortcuts. This does not verify that the Shortcut has uploaded data."))return;
- state.shortcutInstalledVersion=shortcutRelease.version;
- state.shortcutInstalledForDevice=state.deviceId;
- if(persist()){renderSync();toast("Installed version recorded. Use Test connection to verify uploads separately.");}
-}
 function syncErrorLabel(code){
  var reasons={
   invalid_body:"Rage Tracker received the request but could not read its body.",
@@ -499,7 +488,7 @@ async function issueDevice(){
   var r=await fetch("/api/auth/device",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json","Accept":"application/json"},body:JSON.stringify({label:$("device-label").value.trim()||"My iPhone"}),cache:"no-store"});
   var result=await r.json();if(!r.ok||!result.token)throw Error(result.error||"Could not create a device key");
   if(result.email!==authEmail)throw Error("Account identity changed; key not saved");
-  state.syncOwnerEmail=authEmail;state.deviceId=result.deviceId;state.token=result.token;state.pairedAt=Date.now();state.lastSync=null;state.shortcutInstalledVersion="";state.shortcutInstalledForDevice="";
+  state.syncOwnerEmail=authEmail;state.deviceId=result.deviceId;state.token=result.token;state.pairedAt=Date.now();state.lastSync=null;
   if(!persist())return;
   await refreshAuth();await loadShortcutRelease();await checkShortcutUpload(true);render();toast("Device key created for "+authEmail+". Copy it into Shortcuts.");
  }catch(e){toast(e.message||"Could not connect this device.");}
@@ -511,7 +500,7 @@ async function revokeDevice(id){
  try{
   var r=await fetch("/api/auth/revoke",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({deviceId:id}),cache:"no-store"});
   var result=await r.json();if(!r.ok||!result.revoked)throw Error(result.error||"Device not revoked");
-  if(id===state.deviceId){state.token="";state.deviceId="";state.lastSync=null;shortcutStatus=null;shortcutRelease=null;state.shortcutInstalledVersion="";state.shortcutInstalledForDevice="";persist();}
+  if(id===state.deviceId){state.token="";state.deviceId="";state.lastSync=null;shortcutStatus=null;shortcutRelease=null;persist();}
   await refreshAuth();render();toast("Device key revoked. Personal records remain on this iPhone.");
  }catch(e){toast(e.message||"Could not revoke the device.");}
 }
@@ -560,7 +549,6 @@ function init(){
  $("refresh-devices").addEventListener("click",refreshAuth);
  $("install-shortcut").addEventListener("click",function(e){if(!state.token||!shortcutRelease||!this.href){e.preventDefault();toast("Connect your device to open the current Shortcut.");}});
  $("check-shortcut-upload").addEventListener("click",function(){checkShortcutUpload(false);});
- $("mark-shortcut-installed").addEventListener("click",markShortcutInstalled);
  $("device-list").addEventListener("click",function(e){var b=e.target.closest("[data-revoke-device]");if(b)revokeDevice(b.dataset.revokeDevice);});
  $("pull-button").addEventListener("click",function(){pull(false);});
  $("unpair-button").addEventListener("click",function(){if(state.deviceId)revokeDevice(state.deviceId);});
