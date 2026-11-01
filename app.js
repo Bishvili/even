@@ -1,6 +1,6 @@
 (function () {
 "use strict";
-var VERSION = "1.8.0";
+var VERSION = "1.8.1";
 var STORAGE_KEY = "rage-tracker:v1";
 var MOOD_NAMES = ["","Rough","Low","Okay","Good","Great"];
 var MOOD_EMOJI = ["","😣","😕","😐","🙂","😄"];
@@ -103,13 +103,16 @@ function renderSync(){
  var accountMatches=!authEmail||authEmail===state.syncOwnerEmail;
  var install=$("install-shortcut"),release=shortcutRelease;
  var canInstall=paired&&accountMatches&&release&&release.url&&release.verified&&navigator.onLine;
+ install.hidden=!canInstall;
+ $("shortcut-preview").hidden=!!canInstall;
+ $("shortcut-installed-confirm").hidden=!canInstall;
  if(canInstall){install.href=release.url;install.removeAttribute("aria-disabled");install.removeAttribute("tabindex");}
  else{install.removeAttribute("href");install.setAttribute("aria-disabled","true");install.setAttribute("tabindex","-1");}
  $("shortcut-release-version").textContent=release?(release.verified?"Published Shortcut v":"Previous iCloud Shortcut v")+release.version:"Published Shortcut: not loaded";
  $("shortcut-install-help").textContent=canInstall
   ?"Opens the current shared Shortcut in a new Safari tab. Your device key is not included in the link."
   :mismatch?"Sign in with this device's account before installing."
-  :paired&&release&&!release.verified?"The shared v1.0 shortcut does not request your key. Prepare and test v1.1 above; the verified iCloud link will appear here after release."
+  :paired&&release&&!release.verified?"The previous iCloud Shortcut is not verified. Prepare v2.1 below; the verified installation link will appear here once an iPhone sync test succeeds."
   :paired?"The latest Shortcut link could not be loaded. Check your connection."
   :"Sign in and generate a device key to install the Shortcut.";
  $("check-shortcut-upload").disabled=!paired||mismatch||shortcutStatusLoading;
