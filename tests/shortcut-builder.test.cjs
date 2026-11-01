@@ -118,7 +118,7 @@ test("calendar classification remains on the backend",()=>{
 
 test("the PWA setup instructions and source agree",()=>{
  assert.match(html,/Customize Shortcut/);
- assert.match(html,/does not create any folders/);
+ assert.match(html,/contains no credentials or file operations/);
  assert.doesNotMatch(html,/device-key\.txt/);
  assert.match(html,/href="\/shortcut\/builder"/);
  assert.match(html,/target="_blank"/);
@@ -131,7 +131,7 @@ test("signed test Shortcut is offered without an iCloud release claim",()=>{
  assert.match(worker,/"rage-tracker-sync-v2\.2\.shortcut":"application\/octet-stream"/);
  assert.match(worker,/key\.endsWith\("\.shortcut"\)/);
  assert.match(worker,/Rage Tracker Sync v2\.2\.shortcut/);
- assert.match(html,/v2\.2 signed test build/);
+ assert.match(html,/v2\.2 · signed test build/);
 });
 
 test("Run Shortcut uses the Apple-supported URL scheme without a device key",()=>{
