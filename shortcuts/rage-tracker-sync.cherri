@@ -1,75 +1,83 @@
 #define name Rage Tracker Sync
-#define glyph heart
 #define color teal
+#define glyph heart
 #define mac false
 
 #include 'actions/calendar'
+#include 'actions/documents'
 #include 'actions/math'
 #include 'actions/text'
 #include 'actions/web'
 
-#include 'actions/documents'
-
-// Configuration lives outside the Shortcut so installing an update preserves it.
-// Apple Shortcuts stores this under iCloud Drive/Shortcuts/RageTracker.
-const currentShortcutVersion = "1.1.0"
-@savedCredential = getFile("RageTracker/device-key.txt", nil, false)
+// Create the app folder before inspecting its contents.
+// A fresh installation never attempts to open a missing credential file.
+createFolder("RageTracker")
+const folder = getFile("RageTracker")
+const savedFiles = getFolderContents(folder)
+@credential: text
 @credential = ""
-if !@savedCredential {
-    alert("Open Rage Tracker > Sync and copy your Authorization header value. Return here to enter it once. It starts with Bearer.", "Connect Rage Tracker")
-    const rawInput = prompt("Paste the complete Authorization value from Rage Tracker")
-    @entered: text
-    @entered = getText(rawInput)
-    if @entered beginsWith "Bearer " {
-        @credential = "{@entered}"
-    } else {
-        alert("The value must begin with Bearer followed by your private device key. Nothing has been saved.", "Invalid connection")
-        stop()
+for saved in savedFiles {
+    const itemName = getFileDetail(@saved, "Name")
+    @fileName: text
+    @fileName = getText(itemName)
+    if @fileName == "device-key.txt" {
+        const savedKey = getText(@saved)
+        @credential = "{savedKey}"
     }
-    const verifyRaw = downloadURL("https://rage-tracker.bishvili.workers.dev/api/profile", {"Authorization": "{@credential}"})
-    const profileData = getDictionary(verifyRaw)
-    @profileAuthorized: bool
-    @profileAuthorized = getValue(profileData, "ok")
-    if @profileAuthorized == false {
-        alert("Rage Tracker did not accept that device key. Copy the latest value from Sync and try again.", "Connection failed")
-        stop()
-    }
-    createFolder("RageTracker")
-    saveFile("RageTracker/device-key.txt", @credential, true)
-} else {
-    @credential = getText(@savedCredential)
 }
 
-// Confirm connectivity independently from the Health and Calendar uploads.
-jsonRequest("https://rage-tracker.bishvili.workers.dev/api/shortcut/hello", "POST", {"shortcutVersion": "1.1.0"}, {"Authorization": "{@credential}"})
-const helloRaw = downloadURL("https://rage-tracker.bishvili.workers.dev/api/sync/status", {"Authorization": "{@credential}"})
-const helloData = getDictionary(helloRaw)
-const versionValue = getValue(helloData, "installedShortcutVersion")
-@confirmedVersion: text
-@confirmedVersion = getText(versionValue)
-if @confirmedVersion != "1.1.0" {
-    alert("Rage Tracker did not confirm the Shortcut handshake. Your Health and Calendar data were not sent.", "Connection failed")
+@newConnection: bool
+@newConnection = false
+if @credential == "" {
+    const entered = prompt("Paste your Authorization value from Rage Tracker > Sync")
+    @credential = getText(entered)
+    @newConnection = true
+    if @credential beginsWith "Bearer " {
+    } else {
+        alert("Copy the complete Authorization value starting with Bearer.", "Invalid connection")
+        stop()
+    }
+}
+
+// Validate every run. Only store a newly entered credential after verification.
+const profileBody = downloadURL("https://rage-tracker.bishvili.workers.dev/api/profile", {"Authorization": "{@credential}"})
+const profile = getDictionary(profileBody)
+@connected: bool
+@connected = getValue(profile, "ok")
+if @connected == true {
+} else {
+    alert("Rage Tracker rejected the device key. Reconnect from the app's Sync tab.", "Connection failed")
     stop()
 }
-
-// A version check can open a replacement Shortcut; Apple always requires confirmation.
-const latestRaw = downloadURL("https://rage-tracker.bishvili.workers.dev/api/shortcut/release?current=1.1.0", {"Authorization": "{@credential}"})
-const latest = getDictionary(latestRaw)
-@updateAvailable = getValue(latest, "updateAvailable")
-if @updateAvailable {
-    @release = getValue(latest, "release")
-    @newURL = @release['url']
-    const updateOptions = list("Install update", "Continue syncing")
-    const selectedOption = chooseFromList(updateOptions, "A new Rage Tracker Sync version is available.")
-    @choice: text
-    @choice = getText(selectedOption)
-    if @choice == "Install update" {
-        openURL("{@newURL}")
-        stop()
-    }
+if @newConnection == true {
+    saveFile("RageTracker/device-key.txt", @credential, true)
 }
 
-// Read samples for one day. The Health picker label is "Steps".
+// Collect only events starting today.
+action 'is.workflow.actions.filter.calendarevents' findTodayEvents(): array {
+    "WFContentItemFilter": {
+        "Value": {
+            "WFActionParameterFilterPrefix": 1,
+            "WFContentPredicateBoundedDate": false,
+            "WFActionParameterFilterTemplates": [
+                {
+                    "Bounded": true,
+                    "Operator": 1002,
+                    "Property": "Start Date",
+                    "Removable": false,
+                    "Values": {"Number": "7", "Unit": 16}
+                }
+            ]
+        },
+        "WFSerializationType": "WFContentPredicateTableTemplate"
+    },
+    "WFContentItemLimitEnabled": true,
+    "WFContentItemLimitNumber": 30,
+    "WFContentItemSortProperty": "Start Date",
+    "WFContentItemSortOrder": "Ascending"
+}
+
+// Use the native Health sample-type picker. This is not a free-text filter.
 action 'is.workflow.actions.filter.health.quantity' findTodaySteps(): array {
     "WFContentItemFilter": {
         "Value": {
@@ -105,76 +113,92 @@ action 'is.workflow.actions.properties.health.quantity' getStepValues(variable s
     "WFContentItemPropertyName": "Value"
 }
 
-// Query events starting today; do not include notes, locations or attendees.
-action 'is.workflow.actions.filter.calendarevents' findTodayEvents(): array {
-    "WFContentItemFilter": {
-        "Value": {
-            "WFActionParameterFilterPrefix": 1,
-            "WFContentPredicateBoundedDate": false,
-            "WFActionParameterFilterTemplates": [
-                {
-                    "Bounded": true,
-                    "Operator": 1002,
-                    "Property": "Start Date",
-                    "Removable": true,
-                    "Values": {}
-                }
-            ]
-        },
-        "WFSerializationType": "WFContentPredicateTableTemplate"
-    },
-    "WFContentItemLimitEnabled": true,
-    "WFContentItemLimitNumber": 50,
-    "WFContentItemSortProperty": "Start Date",
-    "WFContentItemSortOrder": "Ascending"
-}
-
-const current = currentDate()
-const today = formatDate(current, "Custom", "yyyy-MM-dd")
-@events = findTodayEvents()
-
-for event in @events {
+@acceptedCount: number
+@acceptedCount = 0
+const events = findTodayEvents()
+for event in events {
     const title = getEventDetail(@event, "Title")
     const startDate = getEventDetail(@event, "Start Date")
     const endDate = getEventDetail(@event, "End Date")
     const startISO = formatDate(startDate, "ISO 8601")
     const endISO = formatDate(endDate, "ISO 8601")
-    @name = lowercase("{title}")
-    @category = "Other"
 
-    if @name contains "meeting" || @name contains "call" {
+    const lowered = lowercase("{title}")
+    @category: text
+    @category = "Other"
+    if lowered contains "meeting" || lowered contains "call" {
         @category = "Meeting"
     }
-    if @name contains "workout" || @name contains "gym" || @name contains "walk" || @name contains "run" {
+    if lowered contains "gym" || lowered contains "workout" || lowered contains "run" {
         @category = "Exercise"
     }
-    if @name contains "coffee" || @name contains "lunch" || @name contains "dinner" {
+    if lowered contains "coffee" || lowered contains "lunch" || lowered contains "dinner" {
         @category = "Social"
     }
-    if @name contains "commute" || @name contains "drive" {
+    if lowered contains "commute" {
         @category = "Commute"
     }
 
-    formRequest("https://rage-tracker.bishvili.workers.dev/api/ingest", "POST", {
+    const eventBody = formRequest("https://rage-tracker.bishvili.workers.dev/api/ingest", "POST", {
         "kind": "calendar",
         "title": "{title}",
         "start": "{startISO}",
         "end": "{endISO}",
         "category": "{@category}"
-    }, {"Authorization": "{credential}"})
+    }, {"Authorization": "{@credential}"})
+    const eventResponse = getDictionary(eventBody)
+    @eventAccepted: bool
+    @eventAccepted = getValue(eventResponse, "ok")
+    if @eventAccepted == true {
+        @acceptedCount += 1
+    } else {
+        alert("The server rejected an event. Check your Calendar permissions and its start/end times.", "Sync stopped")
+        stop()
+    }
 }
 
-// Skip Health uploads when no samples are available; Calendar can still sync.
-@samples = findTodaySteps()
-const sampleCount = count(@samples)
+const samples = findTodaySteps()
+const sampleCount = count(samples)
 if sampleCount > 0 {
-    const values = getStepValues(@samples)
-    const steps = statistic("Sum", values)
-    formRequest("https://rage-tracker.bishvili.workers.dev/api/ingest", "POST", {
+    const values = getStepValues(samples)
+    const totalSteps = statistic("Sum", values)
+    const today = currentDate()
+    const day = formatDate(today, "Custom", "yyyy-MM-dd")
+    const healthBody = formRequest("https://rage-tracker.bishvili.workers.dev/api/ingest", "POST", {
         "kind": "health",
-        "date": "{today}",
-        "steps": "{steps}"
-    }, {"Authorization": "{credential}"})
+        "date": "{day}",
+        "steps": "{totalSteps}"
+    }, {"Authorization": "{@credential}"})
+    const healthResponse = getDictionary(healthBody)
+    @healthAccepted: bool
+    @healthAccepted = getValue(healthResponse, "ok")
+    if @healthAccepted == true {
+        @acceptedCount += 1
+    } else {
+        alert("The server rejected the step total. Check Health access and the reported values.", "Sync stopped")
+        stop()
+    }
 }
 
-show("Rage Tracker connection verified. Data actions completed. Open Rage Tracker > Sync > Test connection to confirm accepted Health and Calendar uploads.")
+if @acceptedCount > 0 {
+    show("Rage Tracker accepted {@acceptedCount} updates.")
+} else {
+    show("Nothing to sync today. No calendar events or step samples were available.")
+}
+
+// Offer an update after syncing; the user approves installation in Apple Shortcuts.
+const releaseBody = downloadURL("https://rage-tracker.bishvili.workers.dev/api/shortcut/release?current=2.0.0", {"Authorization": "{@credential}"})
+const releaseInfo = getDictionary(releaseBody)
+@updateAvailable: bool
+@updateAvailable = getValue(releaseInfo, "updateAvailable")
+if @updateAvailable == true {
+    const release = getValue(releaseInfo, "release")
+    const link = getValue(release, "url")
+    const updateOptions = list("Install update", "Not now")
+    const selected = chooseFromList(updateOptions, "An updated Rage Tracker Sync is available.")
+    @selection: text
+    @selection = getText(selected)
+    if @selection == "Install update" {
+        openURL("{link}")
+    }
+}
