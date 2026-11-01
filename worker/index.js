@@ -116,6 +116,12 @@ async function recordSyncFailure(env,dev,code){
   .bind(new Date().toISOString(),code,dev.id,dev.owner).run();
 }
 
+function semverNewer(latest,installed){
+ if(!/^\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(latest)||!/^\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(installed))return false;
+ const a=latest.split(".").map(Number),b=installed.split(".").map(Number);
+ for(let i=0;i<3;i++)if(a[i]!==b[i])return a[i]>b[i];
+ return false;
+}
 async function syncApi(request,env,path){
  if(path==="/api/pair")return error("The old shared pairing code was retired. Sign in through Email login.",410);
  const dev=await validDevice(request,env);
@@ -137,7 +143,17 @@ async function syncApi(request,env,path){
  if(path==="/api/shortcut/release"&&request.method==="GET"){
   const release=await loadShortcutRelease(env);
   if(!release)return error("No Shortcut release is configured",503);
-  return reply({ok:true,release,automaticReplacement:false});
+  const installed=new URL(request.url).searchParams.get("current")||"";
+  return reply({ok:true,release,updateAvailable:semverNewer(release.version,installed),automaticReplacement:false});
+ }
+ if(path==="/api/shortcut/hello"&&request.method==="POST"){
+  let body;try{body=await payload(request);}catch(e){return error("Invalid Shortcut handshake",400);}
+  const clientVersion=String(body?.shortcutVersion||"").trim();
+  if(!/^\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(clientVersion))return error("A valid Shortcut version is required",400);
+  const at=new Date().toISOString();
+  await env.DB.prepare("UPDATE rt_devices SET last_attempt_at=?,last_error_code=NULL,shortcut_version=? WHERE device_id=? AND owner_email=? AND revoked_at IS NULL")
+   .bind(at,clientVersion,dev.id,owner).run();
+  return reply({ok:true,connected:true,shortcutVersion:clientVersion,receivedAt:at});
  }
 
  if(path==="/api/pull"&&request.method==="GET"){
@@ -193,7 +209,7 @@ async function syncApi(request,env,path){
  return error("Not found",404);
 }
 async function api(request,env,ctx,path){
- if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:"Rage Tracker",version:"1.5.0",sync:"email-access"});
+ if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:"Rage Tracker",version:"1.6.0",sync:"email-access"});
  if(path.startsWith("/api/auth/"))return authApi(request,env,ctx,path);
  return syncApi(request,env,path);
 }
