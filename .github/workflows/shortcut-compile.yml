@@ -1,13 +1,25 @@
-name: Compile Apple Shortcut
+name: Validate application and Shortcut
 
 on:
   push:
     paths:
       - 'shortcuts/**'
+      - 'tests/**'
+      - 'app.js'
+      - 'index.html'
+      - 'styles.css'
+      - 'worker/**'
+      - 'db/**'
       - '.github/workflows/shortcut-compile.yml'
   pull_request:
     paths:
       - 'shortcuts/**'
+      - 'tests/**'
+      - 'app.js'
+      - 'index.html'
+      - 'styles.css'
+      - 'worker/**'
+      - 'db/**'
       - '.github/workflows/shortcut-compile.yml'
   workflow_dispatch:
 
@@ -15,7 +27,18 @@ permissions:
   contents: read
 
 jobs:
-  compile:
+  application-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run tests
+        run: node --test tests/*.test.cjs
+
+  shortcut-compile:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -31,5 +54,4 @@ jobs:
           export PATH="$(go env GOPATH)/bin:$PATH"
           cherri shortcuts/rage-tracker-sync.cherri --output=/tmp/rage-tracker-compiled.shortcut
       - name: Verify compiled Shortcut
-        run: |
-          test -s /tmp/rage-tracker-compiled.shortcut
+        run: test -s /tmp/rage-tracker-compiled.shortcut
