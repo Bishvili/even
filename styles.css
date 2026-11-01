@@ -97,3 +97,10 @@
 .shortcut-installed-confirm button{flex:none;min-height:44px}
 .shortcut-installed-confirm button:disabled{opacity:.6}
 @media(max-width:370px){.shortcut-installed-confirm{flex-wrap:wrap}.shortcut-installed-confirm button{margin-left:auto}}
+
+/* Signed iCloud release and first-run configuration preview */
+.shortcut-preview-release{border:1px solid #d8e7dc;border-radius:14px;background:#f5faf5;padding:15px;margin:17px 0 12px}
+.shortcut-preview-version{display:block;color:#35715b;font-size:11px;font-weight:830;letter-spacing:.4px}
+.shortcut-preview-release .btn{margin:11px 0 0;min-height:48px}
+.shortcut-preview-release p{font-size:11px;line-height:1.6;margin:10px 0 0;color:#7a8d7e}
+.shortcut-builder-card code{font-size:11px;background:#edf3eb;border-radius:4px;padding:1px 4px;overflow-wrap:anywhere}
