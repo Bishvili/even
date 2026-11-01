@@ -33,16 +33,17 @@ The PWA itself remains public and keeps anonymous/offline mood tracking. To sync
 
 ## Apple Shortcuts sync
 
-Safari PWAs cannot directly use HealthKit/EventKit; Apple Shortcuts is the bridge. The Sync screen has two copy buttons for the endpoint URL and Authorization header.
+Rage Tracker uses one reusable **Rage Tracker Sync** shortcut to collect selected Health and Calendar context. Safari PWAs cannot access HealthKit or EventKit directly.
 
-The **POST /api/ingest** endpoint accepts Shortcuts Form fields:
+Open **Sync → Open Shortcut builder** after signing in and connecting a device. The app opens the Cherri Playground with the generic, credential-free source. Compile and export a signed Shortcut, then enter that device's private `Authorization` value in Apple's import/setup question. Run it once and grant Health, Calendar, and network permissions. Use **Check upload** in Sync to see when the server last received data for the current device; **Sync now** then fetches owner-scoped context for Insights.
 
-- Health: kind = health; date = YYYY-MM-DD; optional steps, sleepHours, hrv, restingHR, workoutMin.
-- Calendar: kind = calendar; title, start, end, category. ISO 8601 dates with time zones are recommended. Title can be omitted.
-- Combined JSON: kind = batch; health is an array of daily metric objects; events is an array of calendar events. This enables one HTTP request from a future shared Shortcut.
+The initial template synchronizes today's daily step total and up to 50 Calendar events (start/end, title and inferred category); it does not upload mood notes or contact information. It sends separate authenticated POST requests per event and one for Health, rather than a JSON batch, until its Apple Shortcuts behavior is validated on an actual device. HealthKit sources may contain overlapping step samples; verify the daily sum. Date classification and imported event categories should be checked by the user.
 
-A downloadable, one-tap installable iCloud Shortcut requires sharing a completed Shortcut from Apple's Shortcuts app. Such a link has **not** been published. The app instead currently offers a guided setup. Automations must also be enabled by the user on-device.
+Source: [shortcuts/rage-tracker-sync.cherri](shortcuts/rage-tracker-sync.cherri). Installation, privacy, signing, and troubleshooting: [shortcuts/README.md](shortcuts/README.md).
 
+**Status:** a reproducible builder preview, not yet a verified one-tap iCloud Shortcut link. A signed import and complete first run must be tested on an iPhone. Once a signed master is shared from Apple Shortcuts, replace the builder flow with its tested iCloud install link. Do not publish a personalized Shortcut containing a bearer token.
+
+Shortcuts Automations can optionally schedule runs, but users must enable them on the iPhone and iOS may require permission or interaction.
 ## Deployment configuration
 
 - Access application name: Rage Tracker – Authorized Sync, with email One-time PIN provider and exact-address Allow policy.
