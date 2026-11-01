@@ -25,3 +25,27 @@
 .calendar-explainer{color:#83958b;font-size:11px;line-height:1.6;margin:17px 0 0}
 .calendar-empty{line-height:1.55;padding:8px 0}
 @media(max-width:370px){.calendar-pair{grid-template-columns:minmax(65px,1fr) auto 54px;gap:5px}.calendar-pair-scores{font-size:12px}.calendar-delta{min-width:48px;font-size:11px}.scope-buttons button{padding:8px 9px}}
+
+/* Passwordless email login and device-scoped sync (v1.3) */
+.account-banner{display:flex;align-items:center;gap:10px;border:1px solid #d6e8db;background:#f1faf4;border-radius:14px;padding:12px;margin:12px 0 16px}
+.account-banner>div{flex:1;min-width:0}
+.account-banner small{display:block;color:#789c87;font-weight:850;letter-spacing:1.3px;font-size:9px}
+.account-banner strong{font-size:13px;display:block;overflow-wrap:anywhere;margin-top:5px;color:#235b46}
+.account-dot{display:block;width:11px;height:11px;flex:none;border:3px solid #b0dfc4;background:#398e64;border-radius:50%}
+.small-action{border:1px solid #d9e7de;background:#f1f9f3;color:#337757;font-size:11px;font-weight:780;padding:8px 10px;border-radius:9px;white-space:nowrap}
+.sync-warning{background:#fff3e8;border:1px solid #f0d2ae;color:#94623b;font-size:12px;line-height:1.6;border-radius:13px;padding:14px;margin:12px 0}
+.device-list{display:flex;flex-direction:column;gap:0}
+.device-row{display:flex;align-items:center;justify-content:space-between;gap:12px;border-bottom:1px solid #edf2eb;padding:13px 0}
+.device-row:first-child{padding-top:2px}
+.device-row:last-child{border-bottom:0;padding-bottom:0}
+.device-row-main{flex:1;min-width:0}
+.device-row-main strong{display:block;color:#386250;font-size:13px;overflow-wrap:anywhere}
+.device-row-main small{display:block;color:#8d9d93;font-size:11px;margin-top:5px}
+.shortcut-install-note{margin-top:17px;padding:14px 15px;background:#f5f6ed;border-radius:12px;border:1px solid #e6e9d9;color:#71816c}
+.shortcut-install-note strong{font-size:12px;color:#436850}
+.shortcut-install-note p{font-size:11px;line-height:1.6;margin:8px 0 0}
+#login-button{margin-top:14px}
+#login-ready label{display:block;margin:13px 0 7px;font-size:12px;font-weight:770;color:#4b6d60}
+#pair-connected .button-row{margin-top:10px}
+#shortcut-credentials .copy-field code{word-break:break-all}
+#device-manager .empty{padding:15px 12px}
