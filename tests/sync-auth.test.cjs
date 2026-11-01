@@ -37,7 +37,7 @@ function harness(){
     if(sql.startsWith("INSERT OR IGNORE INTO rt_users")){rows.users.set(args[0],args[1]);return{meta:{changes:1}};}
     if(sql.startsWith("INSERT INTO rt_devices")){rows.devices.set(args[0],{device_id:args[1],owner_email:args[2],label:args[3],created_at:args[4],last_used_at:null,last_attempt_at:null,last_error_code:null,shortcut_version:null,revoked_at:null});return{meta:{changes:1}};}
     if(sql.startsWith("UPDATE rt_devices SET revoked_at")){let changes=0;for(const d of rows.devices.values())if(d.device_id===args[1]&&d.owner_email===args[2]&&!d.revoked_at){d.revoked_at=args[0];changes++;}return{meta:{changes}};}
-    if(sql.startsWith("UPDATE rt_devices SET last_attempt_at")){for(const d of rows.devices.values())if(d.device_id===args[2]&&d.owner_email===args[3]&&!d.revoked_at){d.last_attempt_at=args[0];d.last_error_code=args[1];}return{meta:{changes:1}};}
+    if(sql.startsWith("UPDATE rt_devices SET last_attempt_at")){for(const d of rows.devices.values())if(d.device_id===args[2]&&d.owner_email===args[3]&&!d.revoked_at){d.last_attempt_at=args[0];if(sql.includes("last_error_code=NULL,shortcut_version=?")){d.last_error_code=null;d.shortcut_version=args[1];}else d.last_error_code=args[1];}return{meta:{changes:1}};}
     if(sql.startsWith("UPDATE rt_devices SET last_used_at")){for(const d of rows.devices.values())if(d.device_id===args[3]&&d.owner_email===args[4]&&!d.revoked_at){d.last_used_at=args[0];d.last_attempt_at=args[1];d.last_error_code=null;d.shortcut_version=args[2]||d.shortcut_version;}return{meta:{changes:1}};}
     if(sql.startsWith("INSERT INTO rt_health_metrics")){rows.health.set(args[0]+"|"+args[1]+"|"+args[2],{owner:args[0],day:args[1],metric:args[2],value:args[3]});return{meta:{changes:1}};}
     if(sql.startsWith("INSERT INTO rt_calendar_events")){rows.events.set(args[0]+"|"+args[1],{owner:args[0],id:args[1],start_time:args[2],end_time:args[3],title:args[4],category:args[5]});return{meta:{changes:1}};}
@@ -133,4 +133,34 @@ test("versioned Shortcut release metadata requires an owned device and a validat
  assert.equal(release.data.release.version,"1.0.0");
  assert.match(release.data.release.url,/^https:\/\/www\.icloud\.com\/shortcuts\/[a-f0-9]{32}$/);
  assert.equal(release.data.automaticReplacement,false);
+});
+
+test("first-run Shortcut handshake validates an owned token without inventing data",async()=>{
+ const {call,ctx}=harness();
+ const user=await call("/api/auth/device",{method:"POST",body:{label:"iPhone"},context:ctx("owner-a@example.com")});
+ const auth={Authorization:"Bearer "+user.data.token};
+ const invalid=await call("/api/shortcut/hello",{method:"POST",body:{shortcutVersion:"banana"},headers:auth});
+ assert.equal(invalid.status,400);
+ const accepted=await call("/api/shortcut/hello",{method:"POST",body:{shortcutVersion:"1.1.0"},headers:auth});
+ assert.equal(accepted.status,200);
+ assert.equal(accepted.data.connected,true);
+ const status=await call("/api/sync/status",{headers:auth});
+ assert.equal(status.status,200);
+ assert.equal(status.data.installedShortcutVersion,"1.1.0");
+ assert.ok(status.data.lastAttemptAt);
+ assert.equal(status.data.lastDataUploadAt,null);
+ assert.equal(status.data.healthMetrics,0);
+});
+
+test("Shortcut release comparison only offers upgrades",async()=>{
+ const {call,ctx}=harness();
+ const user=await call("/api/auth/device",{method:"POST",body:{label:"iPhone"},context:ctx("owner-a@example.com")});
+ const auth={Authorization:"Bearer "+user.data.token};
+ const older=await call("/api/shortcut/release?current=0.9.0",{headers:auth});
+ assert.equal(older.status,200);
+ assert.equal(older.data.updateAvailable,true);
+ const equal=await call("/api/shortcut/release?current=1.0.0",{headers:auth});
+ assert.equal(equal.data.updateAvailable,false);
+ const newer=await call("/api/shortcut/release?current=1.1.0",{headers:auth});
+ assert.equal(newer.data.updateAvailable,false);
 });
