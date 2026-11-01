@@ -156,39 +156,45 @@
      <div class="shortcut-builder-head">
       <span class="shortcut-builder-icon" aria-hidden="true">↗</span>
       <div>
-       <span class="mini-heading">IPHONE SHORTCUT</span>
+       <span class="mini-heading">APPLE SHORTCUTS</span>
        <h2 id="shortcut-builder-title">Rage Tracker Sync</h2>
-       <p class="muted">Calendar events and daily steps, from one Shortcut.</p>
+       <p class="muted">Your daily Health and Calendar connection</p>
       </div>
      </div>
-     <div class="shortcut-setup-list" aria-label="Shortcut installation steps">
-      <div class="shortcut-setup-row"><span class="shortcut-step-number">1</span><div><strong>Open the prepared builder</strong><small>The workflow is already written, so you don't have to add actions manually.</small></div></div>
-      <div class="shortcut-setup-row"><span class="shortcut-step-number">2</span><div><strong>Compile and import</strong><small>Export a signed Shortcut, then paste your private device key into Apple's import question.</small></div></div>
-      <div class="shortcut-setup-row"><span class="shortcut-step-number">3</span><div><strong>Run and approve permissions</strong><small>Allow Apple Health and Calendar access, then check below for a received upload.</small></div></div>
+     <div class="shortcut-release-row">
+      <span id="shortcut-release-version" class="shortcut-version">Latest Shortcut: checking…</span>
+      <span id="shortcut-update-badge" class="shortcut-update-label" hidden>New version available</span>
      </div>
-     <button type="button" class="btn primary full" id="open-shortcut-builder" disabled>Open Shortcut builder <span aria-hidden="true">↗</span></button>
-     <p id="shortcut-builder-help" class="shortcut-builder-help">Connect your iPhone above to enable the builder.</p>
-     <div class="shortcut-preview-note">
-      <strong>Builder preview</strong>
-      <p>The builder opens Cherri Playground, a third-party tool, with public, credential-free source. It is not yet an Apple-verified iCloud installation link. A signed Shortcut still requires an iPhone acceptance test.</p>
+     <a id="install-shortcut" class="btn primary full" target="_blank" rel="noopener noreferrer" aria-disabled="true" tabindex="-1">Get Shortcut <span aria-hidden="true">↗</span></a>
+     <p id="shortcut-install-help" class="shortcut-builder-help">Connect a device to get the latest Shortcut.</p>
+     <div class="shortcut-setup-list" aria-label="Shortcut setup steps">
+      <div class="shortcut-setup-row"><span class="shortcut-step-number">1</span><div><strong>Install from iCloud</strong><small>Get Shortcut opens an external Safari tab. Add it to Apple Shortcuts.</small></div></div>
+      <div class="shortcut-setup-row"><span class="shortcut-step-number">2</span><div><strong>Enter your private device key</strong><small>Copy the full Authorization value below, including “Bearer”, into the Shortcut's setup prompt. Don't paste it into a public share link.</small></div></div>
+      <div class="shortcut-setup-row"><span class="shortcut-step-number">3</span><div><strong>Allow access on your iPhone</strong><small>In Settings → Apps → Shortcuts → Advanced, turn on <strong>Allow Sharing Large Amounts of Data</strong> if requested. Then run the Shortcut and approve its Health, Calendar and network permissions.</small></div></div>
+      <div class="shortcut-setup-row"><span class="shortcut-step-number">4</span><div><strong>Check that data arrived</strong><small>Use Test connection below, then run the Shortcut and check for a successful Health or Calendar upload.</small></div></div>
      </div>
-     <div class="shortcut-upload-status" aria-live="polite">
-      <div><small>LAST SHORTCUT UPLOAD</small><strong id="shortcut-last-upload">No upload received yet</strong></div>
-      <button id="check-shortcut-upload" class="small-action" type="button" disabled>Check upload</button>
+     <div class="shortcut-upload-status">
+      <div><small>LAST ACCEPTED DATA UPLOAD</small><strong id="shortcut-last-upload">No upload received yet</strong><small id="shortcut-upload-counts" class="shortcut-upload-counts">Health and calendar records: —</small></div>
+      <button id="check-shortcut-upload" class="small-action" type="button" disabled>Test connection</button>
      </div>
-     <details class="shortcut-advanced"><summary>More about the Shortcut</summary><div>
-      <p>It sends today's calendar event titles, times, and simple inferred categories, plus a daily step total. Notes, locations, attendees and mood check-ins are not sent. Raw step samples from multiple devices may overlap.</p>
-      <p>For automatic updates, add a Time of Day automation in Apple Shortcuts and choose Run Immediately where available. Automatic execution depends on iOS permissions.</p>
-      <p><a href="https://github.com/Bishvili/rage-tracker/blob/main/shortcuts/rage-tracker-sync.cherri" target="_blank" rel="noopener noreferrer">View the Shortcut source</a></p>
-      <p>Do not share a personalized Shortcut after pasting your credential. Share only an unconfigured, signed master.</p>
-     </div></details>
+     <div id="shortcut-sync-diagnostic" class="shortcut-sync-diagnostic" role="status" aria-live="polite" hidden></div>
+     <details class="shortcut-advanced">
+      <summary>Updates, permissions and other data</summary>
+      <div>
+       <p>Shortcuts installed from iCloud do not automatically replace themselves when a new version is shared. Rage Tracker will always show the latest published link. Future Shortcuts can report their version so this screen can flag an update; installing it still needs your approval.</p>
+       <p>If you share a Shortcut after entering your Authorization value, anyone with its iCloud link may receive your private credential. Revoke that device key and share a fresh, unconfigured master instead.</p>
+       <p>The current shared release handles calendar events and steps. The server also supports sleep duration, HRV, resting heart rate and workout minutes; we'll add those to a future verified Shortcut release rather than infer their values from untested Apple Health actions.</p>
+       <p>Apple may require <strong>Settings → Apps → Shortcuts → Advanced → Allow Sharing Large Amounts of Data</strong>. Leave the deletion permissions disabled; this Shortcut should not delete your personal data.</p>
+       <p><a href="https://github.com/Bishvili/rage-tracker/blob/main/shortcuts/README.md" target="_blank" rel="noopener noreferrer">Setup and troubleshooting guide</a></p>
+      </div>
+     </details>
     </section>
     <div class="card" id="shortcut-credentials">
      <div class="section-heading compact"><h2>Private connection details</h2><span class="muted">Copy when installing</span></div>
      <p class="muted">Each approved device receives its own revocable key. Treat it like a password.</p>
      <label>Sync endpoint</label><div class="copy-field"><code id="sync-url"></code><button type="button" data-copy="url">Copy</button></div>
      <label>Authorization header value</label><div class="copy-field"><code id="sync-token">Sign in and generate a device key</code><button type="button" data-copy="token">Copy</button></div>
-     <p class="muted shortcut-credentials-note">Copy this Authorization value once when Apple Shortcuts asks during import. It is never added to the public template or builder URL.</p>
+     <p class="muted shortcut-credentials-note">Copy this value only into the Shortcut on your iPhone. Do not embed it in a publicly shared Shortcut.</p>
     </div>
     <div class="card" id="device-manager">
      <div class="section-heading compact"><h2>My devices</h2><span class="muted">Access you control</span></div>
@@ -201,7 +207,7 @@
    <section id="view-settings" class="view" aria-labelledby="settings-title">
     <div class="eyebrow">YOU OWN YOUR STORY</div><div class="intro"><h1 id="settings-title">Settings & <em>privacy.</em></h1><p>Keep control of your records, backups and connections.</p></div>
     <div class="card"><h2>Your local data</h2><p class="muted">Mood check-ins, notes and locally imported health/calendar data stay in this app's storage on this device. Clearing site data or deleting the Home Screen app may erase them.</p><div class="settings-meta" id="storage-summary"></div><button class="btn secondary full" id="backup-button">↓ Download JSON backup</button><label class="file-label">Restore from backup <input type="file" id="restore-input" accept="application/json,.json"></label><button class="btn danger full" id="erase-local">Erase all data on this device</button></div>
-    <div class="card"><h2>About the insights</h2><p class="muted">Comparisons require at least 3 observations in each group. Mood data is subjective and missing check-ins can bias findings. Nothing here diagnoses health conditions or establishes causality.</p><p class="muted">Version <span id="version">1.4.0</span> · Privacy-first prototype · No advertising or analytics scripts</p></div>
+    <div class="card"><h2>About the insights</h2><p class="muted">Comparisons require at least 3 observations in each group. Mood data is subjective and missing check-ins can bias findings. Nothing here diagnoses health conditions or establishes causality.</p><p class="muted">Version <span id="version">1.5.0</span> · Privacy-first prototype · No advertising or analytics scripts</p></div>
     <div class="card"><h2>Try a calendar correlation demo</h2><p class="muted">Explore 28 fictional days with meetings, focus time, workouts, social plans, commutes, and rest. There are mood check-ins before and after events to reveal illustrative patterns. Your personal statistics remain separate; no demo records are uploaded.</p><button class="btn secondary full" id="demo-button">Load 28-day calendar demo</button><button class="btn subtle full" id="clear-demo-button">Remove demo data</button></div>
    </section>
   </main>
