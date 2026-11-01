@@ -68,7 +68,8 @@ action 'is.workflow.actions.filter.calendarevents' findTodayEvents(): array {
     "WFContentItemSortOrder": "Ascending"
 }
 
-const today = formatDate(currentDate(), "Custom", "yyyy-MM-dd")
+const current = currentDate()
+const today = formatDate(@current, "Custom", "yyyy-MM-dd")
 const events = findTodayEvents()
 
 for event in @events {
