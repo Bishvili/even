@@ -31,8 +31,8 @@ for saved in savedFiles {
 if @credential == "" {
     const entered = prompt("Paste your Authorization value from Rage Tracker > Sync")
     @credential = getText(entered)
-    @newConnection = true
     if @credential beginsWith "Bearer " {
+        @newConnection = true
     } else {
         alert("Copy the complete Authorization value starting with Bearer.", "Invalid connection")
         stop()
@@ -45,12 +45,12 @@ const profile = getDictionary(profileBody)
 @connected: bool
 @connected = getValue(profile, "ok")
 if @connected == true {
+    if @newConnection == true {
+        saveFile("RageTracker/device-key.txt", @credential, true)
+    }
 } else {
     alert("Rage Tracker rejected the device key. Reconnect from the app's Sync tab.", "Connection failed")
     stop()
-}
-if @newConnection == true {
-    saveFile("RageTracker/device-key.txt", @credential, true)
 }
 
 // Collect only events starting today.
@@ -129,9 +129,9 @@ if sampleCount > 0 {
 }
 
 if @acceptedCount > 0 {
-    show("Rage Tracker accepted {@acceptedCount} updates.")
+    showNotification("Rage Tracker accepted {@acceptedCount} updates.", "Rage Tracker")
 } else {
-    show("Nothing to sync today. No calendar events or step samples were available.")
+    showNotification("No Health samples or Calendar events to sync today.", "Rage Tracker")
 }
 
 // Offer an update after syncing; the user approves installation in Apple Shortcuts.
@@ -140,8 +140,8 @@ const releaseInfo = getDictionary(releaseBody)
 @updateAvailable: bool
 @updateAvailable = getValue(releaseInfo, "updateAvailable")
 if @updateAvailable == true {
-    const release = getValue(releaseInfo, "release")
-    const link = getValue(release, "url")
+    @release = getValue(releaseInfo, "release")
+    @link = @release['url']
     const updateOptions = list("Install update", "Not now")
     const selected = chooseFromList(updateOptions, "An updated Rage Tracker Sync is available.")
     @selection: text
