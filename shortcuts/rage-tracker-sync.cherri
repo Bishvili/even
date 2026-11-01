@@ -73,6 +73,7 @@ for event in events {
 
     const eventBody = formRequest("https://rage-tracker.bishvili.workers.dev/api/ingest", "POST", {
         "kind": "calendar",
+        "shortcutVersion": "2.0.0",
         "title": "{title}",
         "start": "{startISO}",
         "end": "{endISO}"
@@ -97,6 +98,7 @@ if sampleCount > 0 {
     const day = formatDate(today, "Custom", "yyyy-MM-dd")
     const healthBody = formRequest("https://rage-tracker.bishvili.workers.dev/api/ingest", "POST", {
         "kind": "health",
+        "shortcutVersion": "2.0.0",
         "date": "{day}",
         "steps": "{totalSteps}"
     }, {"Authorization": "{@credential}"})
