@@ -1,6 +1,6 @@
 (function () {
 "use strict";
-var VERSION = "1.6.0";
+var VERSION = "1.7.0";
 var STORAGE_KEY = "rage-tracker:v1";
 var MOOD_NAMES = ["","Rough","Low","Okay","Good","Great"];
 var MOOD_EMOJI = ["","😣","😕","😐","🙂","😄"];
