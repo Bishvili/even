@@ -1,6 +1,6 @@
 (function () {
 "use strict";
-var VERSION = "1.5.0";
+var VERSION = "1.6.0";
 var STORAGE_KEY = "rage-tracker:v1";
 var MOOD_NAMES = ["","Rough","Low","Okay","Good","Great"];
 var MOOD_EMOJI = ["","😣","😕","😐","🙂","😄"];
@@ -102,13 +102,14 @@ function renderSync(){
  $("last-sync").textContent=state.lastSync?"Last fetched "+formatDate(state.lastSync)+" at "+formatTime(state.lastSync):"No Shortcuts data fetched yet";
  var accountMatches=!authEmail||authEmail===state.syncOwnerEmail;
  var install=$("install-shortcut"),release=shortcutRelease;
- var canInstall=paired&&accountMatches&&release&&release.url&&navigator.onLine;
+ var canInstall=paired&&accountMatches&&release&&release.url&&release.verified&&navigator.onLine;
  if(canInstall){install.href=release.url;install.removeAttribute("aria-disabled");install.removeAttribute("tabindex");}
  else{install.removeAttribute("href");install.setAttribute("aria-disabled","true");install.setAttribute("tabindex","-1");}
- $("shortcut-release-version").textContent=release?"Latest Shortcut v"+release.version:"Latest Shortcut: not loaded";
+ $("shortcut-release-version").textContent=release?(release.verified?"Published Shortcut v":"Previous iCloud Shortcut v")+release.version:"Published Shortcut: not loaded";
  $("shortcut-install-help").textContent=canInstall
   ?"Opens the current shared Shortcut in a new Safari tab. Your device key is not included in the link."
   :mismatch?"Sign in with this device's account before installing."
+  :paired&&release&&!release.verified?"The shared v1.0 shortcut does not request your key. Prepare and test v1.1 above; the verified iCloud link will appear here after release."
   :paired?"The latest Shortcut link could not be loaded. Check your connection."
   :"Sign in and generate a device key to install the Shortcut.";
  $("check-shortcut-upload").disabled=!paired||mismatch||shortcutStatusLoading;
@@ -121,6 +122,8 @@ function renderSync(){
  var last=shortcutStatus&&shortcutStatus.lastDataUploadAt;
  $("shortcut-last-upload").textContent=last
   ?"Received "+formatDate(last)+" at "+formatTime(last)
+  :paired&&shortcutStatus&&shortcutStatus.lastAttemptAt&&shortcutStatus.installedShortcutVersion
+    ?"Shortcut connected "+formatDate(shortcutStatus.lastAttemptAt)+" · no Health/Calendar data yet"
   :paired?"No accepted data upload yet":"Connect a device to see upload status";
  $("shortcut-upload-counts").textContent=shortcutStatus
   ?shortcutStatus.healthMetrics+" health measurements · "+shortcutStatus.calendarEvents+" calendar events"
@@ -430,7 +433,7 @@ async function loadShortcutRelease(){
   var url=new URL(release.url);
   if(url.origin!=="https://www.icloud.com"||!/^\/shortcuts\/[a-f0-9]{32}$/i.test(url.pathname)||
      !/^\d+\.\d+\.\d+$/.test(release.version))throw Error("Invalid Shortcut release");
-  shortcutRelease={url:url.href,version:release.version};
+  shortcutRelease={url:url.href,version:release.version,verified:release.verified===true};
  }catch(e){shortcutRelease=null;}
  renderSync();
 }
@@ -454,6 +457,7 @@ async function checkShortcutUpload(silent){
   if(!silent){
    if(data.lastErrorCode)renderSyncDiagnostic("Device credential verified. "+syncErrorLabel(data.lastErrorCode)+" Last attempt: "+formatDate(data.lastAttemptAt)+" at "+formatTime(data.lastAttemptAt)+".","error");
    else if(data.lastDataUploadAt)renderSyncDiagnostic("Device credential verified. An upload was accepted on "+formatDate(data.lastDataUploadAt)+" at "+formatTime(data.lastDataUploadAt)+". Tap Sync now to download it.","success");
+   else if(data.lastAttemptAt&&data.installedShortcutVersion)renderSyncDiagnostic("Rage Tracker received an authenticated Shortcut handshake (v"+data.installedShortcutVersion+") on "+formatDate(data.lastAttemptAt)+". No valid Health or Calendar data has been uploaded yet. Check the Shortcut's individual network responses.","error");
    else renderSyncDiagnostic("Your device credential is valid, but no successful Shortcut upload has arrived. Open Shortcuts, inspect the Get Contents of URL action, verify that Authorization starts with Bearer followed by the private key, then run it again. A Shortcut's completion message alone does not confirm an upload.","error");
   }
  }catch(err){
