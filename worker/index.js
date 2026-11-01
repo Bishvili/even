@@ -3,7 +3,7 @@
 // Only /api/auth/* is protected by Cloudflare Access. All other routes reject
 // unauthenticated sync operations unless a valid, unrevoked device token is supplied.
 const ACCESS_AUD="b15746656eee885f25c4f4b0605491289c01776b8710cc8339fb507f4574f745";
-const APPROVED=new Set(["ksariash@gmail.com","zatanelov@gmail.com"]);
+function approved(env,email){try{return JSON.parse(env.APPROVED_SYNC_EMAILS||"[]").includes(email);}catch(e){return false;}}
 const MIME={"index.html":"text/html; charset=utf-8","styles.css":"text/css; charset=utf-8","app.js":"text/javascript; charset=utf-8","sw.js":"text/javascript; charset=utf-8","manifest.webmanifest":"application/manifest+json","icon.svg":"image/svg+xml","icon-192.png":"image/png","icon-512.png":"image/png","source.zip":"application/zip"};
 const SECURITY={"X-Content-Type-Options":"nosniff","Referrer-Policy":"no-referrer","X-Frame-Options":"DENY","Permissions-Policy":"camera=(), microphone=(), geolocation=()","Content-Security-Policy":"default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'"};
 const METRICS={sleepHours:[0,24],steps:[0,100000],hrv:[0,500],restingHR:[20,250],workoutMin:[0,1440]};
@@ -21,13 +21,13 @@ async function payload(request){
  if(type.includes("application/x-www-form-urlencoded"))return Object.fromEntries(new URLSearchParams(text));
  try{return JSON.parse(text);}catch(e){return Object.fromEntries(new URLSearchParams(text));}
 }
-async function authIdentity(request,ctx){
+async function authIdentity(request,env,ctx){
  // Only Cloudflare's validated Access runtime identity counts. Never trust headers.
  if(!ctx?.access||ctx.access.aud!==ACCESS_AUD)return null;
  try{
   const identity=await ctx.access.getIdentity();
   const email=String(identity?.email||"").trim().toLowerCase();
-  return APPROVED.has(email)?email:null;
+  return approved(env,email)?email:null;
  }catch(e){return null;}
 }
 function browserPostAllowed(request){
@@ -40,7 +40,7 @@ async function validDevice(request,env){
  if(!match)return null;
  const tokenHash=await digest(match[1].toLowerCase());
  const device=await env.DB.prepare("SELECT device_id,owner_email,revoked_at FROM rt_devices WHERE token_hash=?").bind(tokenHash).first();
- if(!device||device.revoked_at||!APPROVED.has(device.owner_email))return null;
+ if(!device||device.revoked_at||!approved(env,device.owner_email))return null;
  return {id:device.device_id,owner:device.owner_email};
 }
 function dateOnly(value){
@@ -65,7 +65,7 @@ function readEvent(x){
  return {start:start.toISOString(),end:end.toISOString(),title:String(x.title||"Calendar event").trim().slice(0,100)||"Calendar event",category:CATS.includes(x.category)?x.category:"Other"};
 }
 async function authApi(request,env,ctx,path){
- const email=await authIdentity(request,ctx);
+ const email=await authIdentity(request,env,ctx);
  if(!email)return error("An approved Cloudflare Access login is required",401);
  if(path==="/api/auth/start"&&request.method==="GET"){
   const url=new URL(request.url);
