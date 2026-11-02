@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   verify-routinehub-connection:
-    name: Verify account owns Rage Tracker Sync #26975
+    name: Verify account owns Rage Tracker Sync #26978
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -41,11 +41,11 @@ jobs:
               raise SystemExit("RoutineHub rejected the configured developer API key.")
           shortcuts = data.get("shortcuts", {})
           if not isinstance(shortcuts, dict) or not any(
-              isinstance(item, dict) and str(item.get("id")) == "26975"
+              isinstance(item, dict) and str(item.get("id")) == "26978"
               for item in shortcuts.values()
           ):
-              raise SystemExit("This RoutineHub key does not own Rage Tracker Sync listing #26975.")
+              raise SystemExit("This RoutineHub key does not own Rage Tracker Sync listing #26978.")
 
-          print("RoutineHub developer key verified for Rage Tracker Sync #26975.")
+          print("RoutineHub developer key verified for Rage Tracker Sync #26978.")
           print("Read-only verification complete. No releases or listings were modified.")
           PY

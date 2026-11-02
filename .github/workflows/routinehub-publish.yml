@@ -104,7 +104,7 @@ jobs:
           key = os.environ.get("ROUTINEHUB_API_KEY", "")
           if not key:
               raise SystemExit("Missing GitHub secret: ROUTINEHUB_API_KEY")
-          url = "https://routinehub.co/api/v1/" + parse.quote(key, safe="") + "/shortcuts/26975/versions/create"
+          url = "https://routinehub.co/api/v1/" + parse.quote(key, safe="") + "/shortcuts/26978/versions/create"
           body = parse.urlencode({
               "version": os.environ["RELEASE_VERSION"],
               "link": os.environ["ICLOUD_LINK"],
@@ -125,7 +125,7 @@ jobs:
           if result.get("result") != "success":
               # Legacy RoutineHub endpoints can return HTTP 200 for API-level failures.
               raise SystemExit("RoutineHub reported an error; version was not confirmed.")
-          print(f"RoutineHub listing 26975 accepted version {os.environ['RELEASE_VERSION']}.")
+          print(f"RoutineHub listing 26978 accepted version {os.environ['RELEASE_VERSION']}.")
           PY
 
       - name: Publish listing after explicit approval (idempotent)
@@ -152,15 +152,15 @@ jobs:
 
           shortcuts = listing_response.get("shortcuts", {})
           listing = next((item for item in shortcuts.values()
-                          if str(item.get("id")) == "26975"), None)
+                          if str(item.get("id")) == "26978"), None)
           if listing_response.get("result") != "success" or listing is None:
-              raise SystemExit("RoutineHub key cannot verify ownership of listing 26975.")
+              raise SystemExit("RoutineHub key cannot verify ownership of listing 26978.")
           if str(listing.get("published")).lower() == "true":
-              print("RoutineHub listing 26975 is already public; no publish request made.")
+              print("RoutineHub listing 26978 is already public; no publish request made.")
               raise SystemExit(0)
 
           try:
-              with request.urlopen(request.Request(root + "/26975/publish", data=b"", method="POST"),
+              with request.urlopen(request.Request(root + "/26978/publish", data=b"", method="POST"),
                                    timeout=45) as response:
                   result = json.loads(response.read(32768))
           except error.HTTPError as exc:
@@ -169,7 +169,7 @@ jobs:
               raise SystemExit("RoutineHub publish response could not be verified.")
           if result.get("result") != "success":
               raise SystemExit("RoutineHub did not confirm publication.")
-          print("RoutineHub listing 26975 was published.")
+          print("RoutineHub listing 26978 was published.")
           PY
 
       - name: Release summary
@@ -177,4 +177,4 @@ jobs:
           RELEASE_VERSION: ${{ inputs.version }}
         run: |
           echo "Rage Tracker Sync ${RELEASE_VERSION}: RoutineHub release step completed." >> "$GITHUB_STEP_SUMMARY"
-          echo "Listing: https://routinehub.co/shortcut/26975/" >> "$GITHUB_STEP_SUMMARY"
+          echo "Listing: https://routinehub.co/shortcut/26978/" >> "$GITHUB_STEP_SUMMARY"
