@@ -95,6 +95,49 @@ def check_calendar_timestamps(actions) -> None:
     print("Calendar form sends full ISO date-time with timezone offsets for both event endpoints.")
 
 
+STEP_GROUPING_PATTERN = r"(?<=\d)[,\s](?=\d{3}(?:\D|$))"
+
+
+def check_connection_and_steps(document, actions) -> None:
+    if document.get("WFWorkflowImportQuestions", []):
+        raise AssertionError("Rage Tracker Sync cannot ask for a device key when reinstalled")
+
+    named = {
+        action.get("WFWorkflowActionParameters", {}).get("CustomOutputName"): action
+        for action in actions
+    }
+    connection = named.get("connectionOutput", {})
+    params = connection.get("WFWorkflowActionParameters", {})
+    if connection.get("WFWorkflowActionIdentifier") != "is.workflow.actions.runworkflow":
+        raise AssertionError("Missing Run Shortcut action for one-time credential helper")
+    if params.get("WFWorkflowName") != "Rage Tracker Connection":
+        raise AssertionError("Sync must call the persistent Rage Tracker Connection helper")
+
+    normalizer = named.get("normalizedSteps", {})
+    settings = normalizer.get("WFWorkflowActionParameters", {})
+    if normalizer.get("WFWorkflowActionIdentifier") != "is.workflow.actions.text.replace":
+        raise AssertionError("Step total was not normalized through Replace Text")
+    if settings.get("WFReplaceTextFind") != STEP_GROUPING_PATTERN or not settings.get("WFReplaceTextRegularExpression"):
+        raise AssertionError("Step count grouping-separator removal is missing or malformed")
+    text_input = settings.get("WFInput", {}).get("Value", {}).get("attachmentsByRange", {}).get("{0, 1}", {})
+    if text_input.get("OutputName") != "totalStepsText":
+        raise AssertionError("Step normalizer is not receiving the statistic's textual value")
+
+    health = named.get("healthBody", {}).get("WFWorkflowActionParameters", {})
+    fields = health.get("WFFormValues", {}).get("Value", {}).get("WFDictionaryFieldValueItems", [])
+    values = {
+        field.get("WFKey", {}).get("Value", {}).get("string"):
+        field.get("WFValue", {}).get("Value", {})
+        for field in fields
+    }
+    if values.get("kind", {}).get("string") != "health":
+        raise AssertionError("Expected health ingestion form")
+    steps = values.get("steps", {}).get("attachmentsByRange", {}).get("{0, 1}", {})
+    if steps.get("OutputName") != "normalizedSteps" or steps.get("OutputUUID") != settings.get("UUID"):
+        raise AssertionError("Health form does not use the normalized numeric step value")
+    print("Installed Sync has no import question; reusable connection and numeric Health fields verified.")
+
+
 def check(plist_path: Path) -> None:
     with plist_path.open("rb") as stream:
         document = plistlib.load(stream)
@@ -127,6 +170,7 @@ def check(plist_path: Path) -> None:
     if sorted(float(n) for n in numbers) != EXPECTED_NUMBER:
         raise AssertionError(f"Expected numeric thresholds 0 and 1, got {numbers}")
     check_calendar_timestamps(actions)
+    check_connection_and_steps(document, actions)
     print("All eight If comparisons have explicit, expected right-hand values.")
 
 
