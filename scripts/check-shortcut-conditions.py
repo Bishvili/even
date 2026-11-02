@@ -15,7 +15,7 @@ from pathlib import Path
 
 
 EXPECTED_TEXT = collections.Counter(
-    {"connected": 1, "accepted": 2, "new_release": 1, "Install update": 1}
+    {"connected": 1, "accepted": 2, "No valid records. Check date, metric values, and event start/end formats": 1, "new_release": 1, "Install update": 1}
 )
 EXPECTED_NUMBER = [1]
 
@@ -113,8 +113,8 @@ def check(plist_path: Path) -> None:
             observed.append({"action": index, "kind": kind, "value": value, "operator": operator})
 
     print(json.dumps({"plist": str(plist_path), "conditions": observed}, indent=2))
-    if len(observed) != 6:
-        raise AssertionError(f"Expected six If comparisons, found {len(observed)}")
+    if len(observed) != 7:
+        raise AssertionError(f"Expected seven If comparisons, found {len(observed)}")
 
     missing = [row for row in observed if row["kind"] == "missing" or row["value"] == ""]
     if missing:
@@ -127,7 +127,7 @@ def check(plist_path: Path) -> None:
     if len(numbers) != 1 or float(numbers[0]) != EXPECTED_NUMBER[0]:
         raise AssertionError(f"Expected numeric threshold 1, got {numbers}")
     check_calendar_timestamps(actions)
-    print("All six If comparisons have explicit, expected right-hand values.")
+    print("All seven If comparisons have explicit, expected right-hand values.")
 
 
 if __name__ == "__main__":
