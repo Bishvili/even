@@ -10,7 +10,8 @@
 #include 'actions/web'
 
 // Connection settings live in a separately installed one-time Shortcut.
-const connectionOutput = run("Rage Tracker Connection", "read")
+const connectionRequest = text("read")
+const connectionOutput = run("Rage Tracker Connection", connectionRequest)
 const credential = getText(connectionOutput)
 const credentialMatches = matchText('^Bearer [0-9A-Fa-f]{64}$', credential)
 const credentialMatchCount = count(credentialMatches)
