@@ -25,7 +25,14 @@ test("Calendar upload surfaces the actual API error without printing event title
  assert.doesNotMatch(source,/alert\("[^"]*\{title\}/);
 });
 
+test("Health data normalizes grouped step totals before uploading",()=>{
+ assert.match(source,/const normalizedSteps = replaceText/);
+ assert.match(source,/"steps": "\{normalizedSteps\}"/);
+ assert.match(source,/getValue\(healthResponse, "error"\)/);
+ assert.doesNotMatch(source,/"steps": "\{totalSteps\}"/);
+});
+
 test("the device handshake and every upload report the corrected Shortcut version",()=>{
- assert.equal((source.match(/"shortcutVersion": "2\.3\.2"/g)||[]).length,3);
- assert.match(source,/\/api\/shortcut\/release\?current=2\.3\.2/);
+ assert.equal((source.match(/"shortcutVersion": "2\.3\.3"/g)||[]).length,3);
+ assert.match(source,/\/api\/shortcut\/release\?current=2\.3\.3/);
 });
