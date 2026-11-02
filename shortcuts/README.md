@@ -31,8 +31,8 @@ The Shortcut itself contains no private token, so a tested installed copy can be
 - The sync starts with `POST /api/shortcut/hello`, reporting `shortcutVersion=2.3.3` and recording a connected handshake only after an authenticated device key is accepted.
 - Calendar events carry titles and start/end timestamps formatted as full ISO 8601 date-time strings with offsets. They contain no attendee, location, notes, or mood data. The Worker derives broad category labels.
 - An event rejected with the Worker's **exact known invalid-record message** is counted as skipped. Valid events continue uploading. Authentication or unexpected server errors still stop the workflow.
-- Apple Health Steps are read from native Health samples and summed. The total is converted to text and locale grouping separators (for example, in `12,345`) are removed before posting it as `steps` with the current local `date`. The Worker accepts values within configured numeric bounds. Sample overlap across devices may lead to differences from Apple's reconciled Step total.
-- The final notification distinguishes accepted uploads from skipped invalid Calendar events. If the Health upload is rejected, the Shortcut displays the server error without exposing the private value or token.
+- Apple Health Steps are read from native Health samples and summed. The total is converted to text, locale grouping separators (for example, in `12,345`) and any unit text are removed, and the number is posted as `steps` with the current local `date`. The Worker accepts values within configured numeric bounds. Sample overlap across devices may lead to differences from Apple's reconciled Step total.
+- The final notification distinguishes accepted uploads from skipped invalid Calendar events. If the Health upload is rejected, the Shortcut displays the server error with the step value and date it sent, on the device only and without the device key.
 - The Shortcut checks `/api/shortcut/release?current=2.3.3` and offers a newer **verified** version only when available. Installing a replacement always requires the user's approval.
 
 ## Automated checks and release process

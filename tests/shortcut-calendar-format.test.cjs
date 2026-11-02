@@ -27,7 +27,7 @@ test("Calendar upload surfaces the actual API error without printing event title
 
 test("Health data normalizes grouped step totals before uploading",()=>{
  assert.match(source,/const normalizedSteps = replaceText/);
- assert.match(source,/"steps": "\{normalizedSteps\}"/);
+ assert.match(source,/"steps": "\{stepsValue\}"/);
  assert.match(source,/getValue\(healthResponse, "error"\)/);
  assert.doesNotMatch(source,/"steps": "\{totalSteps\}"/);
 });

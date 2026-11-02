@@ -97,13 +97,15 @@ if sampleCount >= 1 {
     const totalSteps = statistic("Sum", values)
     const totalStepsText = getText(totalSteps)
     const normalizedSteps = replaceText('(?<=\d)[,\s](?=\d{3}(?:\D|$))', "", totalStepsText, true, true)
+    // Keep only the number, because the text form of a Health value can include a unit.
+    const stepsValue = replaceText('^\D*(\d+(?:\.\d+)?)[\s\S]*$', "$1", normalizedSteps, true, true)
     const today = currentDate()
     const day = formatDate(today, "Custom", "yyyy-MM-dd")
     const healthBody = formRequest("https://rage-tracker.bishvili.workers.dev/api/ingest", "POST", {
         "kind": "health",
         "shortcutVersion": "2.3.3",
         "date": "{day}",
-        "steps": "{normalizedSteps}"
+        "steps": "{stepsValue}"
     }, {"Authorization": "{@credential}"})
     const healthResponse = getDictionary(healthBody)
     const healthStatusValue = getValue(healthResponse, "state")
@@ -111,7 +113,7 @@ if sampleCount >= 1 {
     if healthStatus != "accepted" {
         const healthErrorValue = getValue(healthResponse, "error")
         const healthError = getText(healthErrorValue)
-        alert("Health upload failed: {healthError}. Check the step total in Apple Health.", "Sync stopped")
+        alert("Health upload failed: {healthError}. Steps read: {totalStepsText}. Steps sent: {stepsValue}. Date sent: {day}.", "Sync stopped")
         stop()
     }
     @acceptedCount += 1

@@ -151,7 +151,11 @@ def check_connection_and_steps(document, actions) -> None:
     if values.get("kind", {}).get("string") != "health":
         raise AssertionError("Expected health ingestion form")
     steps = values.get("steps", {}).get("attachmentsByRange", {}).get("{0, 1}", {})
-    if steps.get("OutputName") != "normalizedSteps" or steps.get("OutputUUID") != settings.get("UUID"):
+    extractor = named.get("stepsValue", {}).get("WFWorkflowActionParameters", {})
+    extractor_input = extractor.get("WFInput", {}).get("Value", {}).get("attachmentsByRange", {}).get("{0, 1}", {})
+    if extractor.get("WFReplaceTextReplace") != "$1" or not extractor.get("WFReplaceTextRegularExpression") or extractor_input.get("OutputName") != "normalizedSteps":
+        raise AssertionError("Step number extraction is missing or malformed")
+    if steps.get("OutputName") != "stepsValue" or steps.get("OutputUUID") != extractor.get("UUID"):
         raise AssertionError("Health form does not use the normalized numeric step value")
     print("Installed Sync has no import question; saved-key file and numeric Health fields verified.")
 

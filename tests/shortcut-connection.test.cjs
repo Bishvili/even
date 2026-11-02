@@ -43,9 +43,21 @@ test("one Cherri builder route is available", () => {
 test("the Health upload uses a grouping-normalized number, not the raw result", () => {
  assert.match(sync, /const totalSteps = statistic\("Sum", values\)/);
  assert.match(sync, /const normalizedSteps = replaceText/);
- assert.match(sync, /"steps": "\{normalizedSteps\}"/);
- assert.doesNotMatch(sync, /"steps": "\{totalSteps\}"/);
+ assert.match(sync, /"steps": "\{stepsValue\}"/);
+ assert.doesNotMatch(sync, /"steps": "\{(?:totalSteps|normalizedSteps)\}"/);
  assert.match(sync, /getValue\(healthResponse, "error"\)/);
+});
+
+test("the sent step value is only a number, whatever the text form includes", () => {
+ const pattern = sync.match(/const stepsValue = replaceText\('([^']+)', "\$1", normalizedSteps, true, true\)/);
+ assert.ok(pattern, "Missing step number extraction");
+ const clean = value => value.replace(new RegExp(pattern[1]), "$1");
+ assert.equal(clean("12345"), "12345");
+ assert.equal(clean("12345 steps"), "12345");
+ assert.equal(clean("12345 count"), "12345");
+ assert.equal(clean("1234.5"), "1234.5");
+ assert.equal(clean("12345\nsteps"), "12345");
+ assert.equal(clean(""), "");
 });
 
 test("the compiled step-cleanup pattern removes only grouping separators", () => {
