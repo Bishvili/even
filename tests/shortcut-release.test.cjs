@@ -13,7 +13,7 @@ const app=fs.readFileSync(path.join(root,"app.js"),"utf8");
 const schema=fs.readFileSync(path.join(root,"db","schema.sql"),"utf8");
 
 test("main sync obtains the device key from its persistent connection helper",()=>{
- const helper=source.indexOf('run("Rage Tracker Connection", "read")');
+ const helper=source.indexOf('run("Rage Tracker Connection", connectionRequest)');
  const credential=source.indexOf("const credential = getText(connectionOutput)");
  const handshake=source.indexOf('jsonRequest("https://rage-tracker.bishvili.workers.dev/api/shortcut/hello"');
  const firstUpload=source.indexOf('formRequest("https://rage-tracker.bishvili.workers.dev/api/ingest"');
