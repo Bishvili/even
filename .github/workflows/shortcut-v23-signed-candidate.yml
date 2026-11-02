@@ -90,8 +90,20 @@ jobs:
 
       - name: Sign both unconfigured Shortcuts using Cherri HubSign
         run: |
-          /tmp/cherri-compiler shortcuts/rage-tracker-connection.cherri --derive-uuids --hubsign --share=anyone --output="$GITHUB_WORKSPACE/dist/Rage Tracker Connection.shortcut"
-          /tmp/cherri-compiler shortcuts/rage-tracker-sync.cherri --derive-uuids --hubsign --share=anyone --output="$GITHUB_WORKSPACE/dist/Rage Tracker Sync.shortcut"
+          sign_one() {
+            local input="$1" output="$2" attempt
+            for attempt in 1 2 3; do
+              if /tmp/cherri-compiler "$input" --derive-uuids --hubsign --share=anyone --output="$output"; then
+                return 0
+              fi
+              rm -f "$output"
+              echo "Signing attempt $attempt failed; retrying if attempts remain." >&2
+              if [ "$attempt" -lt 3 ]; then sleep 5; fi
+            done
+            return 1
+          }
+          sign_one shortcuts/rage-tracker-connection.cherri "$GITHUB_WORKSPACE/dist/Rage Tracker Connection.shortcut"
+          sign_one shortcuts/rage-tracker-sync.cherri "$GITHUB_WORKSPACE/dist/Rage Tracker Sync.shortcut"
 
       - name: Verify both signed files retain stable unversioned names
         run: |
