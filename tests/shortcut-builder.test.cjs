@@ -69,7 +69,7 @@ test("a valid Shortcut handshake does not imply accepted Health data",()=>{
  assert.match(t.elements.get("shortcut-upload-counts").textContent,/0 health/);
 });
 test("main Shortcut reads its saved key before the handshake",()=>{
- const read=source.indexOf("const savedKeyFile = readSavedDeviceKey()");
+ const read=source.indexOf("const savedKeyFile = readSavedDeviceKey(keyFolder)");
  const handshake=source.indexOf('jsonRequest("https://rage-tracker.bishvili.workers.dev/api/shortcut/hello"');
  assert.ok(read>=0&&read<handshake);
  assert.doesNotMatch(source,/#question/);

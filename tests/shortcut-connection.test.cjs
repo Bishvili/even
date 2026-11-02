@@ -19,7 +19,8 @@ test("the device key is read from a file and has no install question or helper",
  assert.doesNotMatch(sync, /#question/);
  assert.doesNotMatch(sync, /\brun\("/);
  assert.match(sync, /"WFGetFilePath":"rage-tracker-device-key.txt","WFFileErrorIfNotFound":false,"WFShowFilePicker":false/);
- assert.equal((sync.match(/"WFFileStorageService":"iCloud Drive"/g) || []).length, 2);
+ assert.match(sync, /const keyFolder = createKeyFolder\(onMyIPhone\)/);
+ assert.match(sync, /readSavedDeviceKey\(keyFolder\)/);
  assert.match(sync, /if savedKeyMatchCount == 0/);
  assert.doesNotMatch(sync, /Bearer [a-f0-9]{64}/i);
  assert.equal(fs.existsSync(path.join(root, "shortcuts/rage-tracker-connection.cherri")), false);
@@ -27,7 +28,7 @@ test("the device key is read from a file and has no install question or helper",
 
 test("only a key the server accepted is saved", () => {
  const retryFailure = sync.indexOf('if retryStatus != "connected"');
- const save = sync.indexOf("saveDeviceKey(@credential)");
+ const save = sync.indexOf("saveDeviceKey(@credential, keyFolder)");
  const events = sync.indexOf("const events = findTodayEvents()");
  assert.ok(retryFailure >= 0 && retryFailure < save && save < events);
  assert.equal((sync.match(/^saveDeviceKey\(/gm) || []).length, 1);

@@ -8,10 +8,8 @@ Rage Tracker Sync is a single Shortcut. It has no import questions and holds no 
 
 1. Install **Rage Tracker Sync**. Its signed file is named `Rage Tracker Sync.shortcut`. Choose to replace the older Sync Shortcut if Apple offers this option. The version is part of the Shortcut's authenticated handshake and update request, not its installed name.
 2. In Rage Tracker → **Sync**, sign in with an approved email. Generate a revocable device key if necessary and copy the complete Authorization value, including `Bearer `.
-3. Run Sync. On the first run it asks for the Authorization value and, once Rage Tracker accepts it, saves it to `rage-tracker-device-key.txt` in the Shortcuts folder of iCloud Drive. Approve file access, Calendar, Health Steps and network permissions as needed. Apple may request those permissions again when a Shortcut is replaced.
+3. Run Sync. On the first run it asks for the Authorization value and, once Rage Tracker accepts it, saves it to `rage-tracker-device-key.txt` in the `Rage Tracker` folder in On My iPhone, which Sync creates if needed. Approve file access, Calendar, Health Steps and network permissions as needed. Apple may request those permissions again when a Shortcut is replaced.
 4. Check **Sync → Test connection** and **Sync now** in the PWA. A successful handshake without accepted data is not sufficient to establish that uploads worked.
-
-If Shortcuts reports **Location Doesn't Exist**, open the Shortcut, tap the Shortcuts folder in the **Get File** and **Save File** actions, choose **OK**, and run it again. This may be needed after each install.
 
 Later updates read the saved file and do not ask for the key. If the file is missing or the handshake does not succeed, Sync asks for the value. A value that is not accepted is never saved, so a failed attempt or a server outage cannot replace a working key.
 
@@ -19,8 +17,8 @@ Later updates read the saved file and do not ask for the key. If the file is mis
 
 The device key is stored as plain text. **It is not encrypted by Rage Tracker or held in the iOS Keychain.**
 
-- iCloud Drive syncs the file to the owner's other devices signed in to the same Apple Account.
-- Anyone with access to the Files app on those devices can read it, and any Shortcut granted access to the file can read it. Do not install untrusted Shortcuts.
+- The file stays on the iPhone and does not sync through iCloud Drive. A new device needs its own key.
+- Anyone with access to the Files app on the iPhone can read it, and any Shortcut granted access to the file can read it. Do not install untrusted Shortcuts.
 - Do not share the file or put its contents in GitHub, Cherri Playground, RoutineHub links, public source or screenshots.
 - Deleting the Shortcut does not delete the file. To disconnect a device, revoke its key in Rage Tracker and delete `rage-tracker-device-key.txt` in Files.
 

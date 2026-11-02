@@ -115,8 +115,14 @@ def check_connection_and_steps(document, actions) -> None:
     if len(reads) != 1:
         raise AssertionError(f"Expected one saved-key read, found {len(reads)}")
     read = reads[0].get("WFWorkflowActionParameters", {})
-    if read.get("WFFileStorageService") != "iCloud Drive":
-        raise AssertionError("Saved-key read must use iCloud Drive")
+    folders = by_id("is.workflow.actions.file.createfolder")
+    if len(folders) != 1:
+        raise AssertionError(f"Expected one key folder step, found {len(folders)}")
+    folder = folders[0].get("WFWorkflowActionParameters", {})
+    if folder.get("WFFilePath") != "Rage Tracker" or "LocalStorage" not in json.dumps(folder.get("WFFolder", {})):
+        raise AssertionError("Key folder must be created in On My iPhone")
+    if "keyFolder" not in json.dumps(read.get("WFFile", {})):
+        raise AssertionError("Saved-key read must use the created folder")
     if (read.get("WFGetFilePath"), read.get("WFFileErrorIfNotFound"), read.get("WFShowFilePicker")) != (KEY_FILE, False, False):
         raise AssertionError("Saved-key read must use the key path without a picker or a missing-file error")
 
@@ -124,8 +130,8 @@ def check_connection_and_steps(document, actions) -> None:
     if len(saves) != 1:
         raise AssertionError(f"Expected one saved-key write, found {len(saves)}")
     save = saves[0].get("WFWorkflowActionParameters", {})
-    if save.get("WFFileStorageService") != "iCloud Drive":
-        raise AssertionError("Saved-key write must use iCloud Drive")
+    if "keyFolder" not in json.dumps(save.get("WFFolder", {})):
+        raise AssertionError("Saved-key write must use the created folder")
     if (save.get("WFFileDestinationPath"), save.get("WFSaveFileOverwrite"), save.get("WFAskWhereToSave")) != (KEY_FILE, True, False):
         raise AssertionError("Saved-key write must overwrite the key path without asking where to save")
     if json.dumps(save.get("WFInput", {})).find("credential") < 0:
