@@ -48,7 +48,7 @@ test("an unverified iCloud release is not offered, and the listing is used inste
  t.api.chooseRelease({version:"1.0.0",url:"https://www.icloud.com/shortcuts/82109f53491f4d95a0a8b8437c4090f2",verified:false});
  t.api.renderSync();
  const install=t.elements.get("install-shortcut");
- assert.equal(install.href,"https://routinehub.co/shortcut/26975/");
+ assert.equal(install.href,"https://routinehub.co/shortcut/26978/");
  assert.equal(install.getAttribute("aria-disabled"),null);
 });
 test("verified iCloud release enables new-tab installation",()=>{

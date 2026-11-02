@@ -79,7 +79,7 @@ test("an unverified release falls back to the public listing",async()=>{
  await t.app.loadShortcutRelease();
  t.app.renderSync();
  assert.equal(t.element("install-shortcut").hidden,false);
- assert.equal(t.element("install-shortcut").href,"https://routinehub.co/shortcut/26975/");
+ assert.equal(t.element("install-shortcut").href,"https://routinehub.co/shortcut/26978/");
  assert.equal(t.element("run-shortcut").hidden,true);
 });
 test("a valid credential is not mistaken for a successful Health upload",async()=>{

@@ -39,7 +39,7 @@ The Shortcut itself contains no private token, so a tested installed copy can be
 
 GitHub Actions runs `node --test tests/*.test.cjs`, compiles pinned Cherri 2.3.0 without signing, inspects the generated plist for all typed `If` comparisons and timestamp tokens, then signs the Shortcut using Cherri HubSign. The ZIP artifact contains `Rage Tracker Sync.shortcut`.
 
-Passing source tests, plist checks, and signing **does not** establish that Calendar, HealthKit, file access, Apple permissions or network requests work on an actual iPhone. The release must pass live acceptance tests, including first-run key entry, reuse of the saved key after replacing the Shortcut, and accepted Health and Calendar records, before an iCloud link is shared and the verified update is published on [RoutineHub](https://routinehub.co/shortcut/26975/).
+Passing source tests, plist checks, and signing **does not** establish that Calendar, HealthKit, file access, Apple permissions or network requests work on an actual iPhone. The release must pass live acceptance tests, including first-run key entry, reuse of the saved key after replacing the Shortcut, and accepted Health and Calendar records, before an iCloud link is shared and the verified update is published on [RoutineHub](https://routinehub.co/shortcut/26978/).
 
 The historical iCloud v1.0 link is not the verified new release. GitHub `main` does not automatically deploy to the live Cloudflare Worker or KV namespace yet. See [the application README](../README.md) for deployment requirements.
 
