@@ -4,13 +4,14 @@
 #define mac false
 
 #include 'actions/calendar'
-#include 'actions/documents'
 #include 'actions/math'
 #include 'actions/text'
 #include 'actions/web'
 
 // The device key lives in a file, so replacing this Shortcut does not disconnect it.
-action 'is.workflow.actions.documentpicker.open' readSavedDeviceKey(): text {"WFGetFilePath":"rage-tracker-device-key.txt","WFFileErrorIfNotFound":false,"WFShowFilePicker":false}
+action 'is.workflow.actions.documentpicker.open' readSavedDeviceKey(): text {"WFFile":{"displayName":"Shortcuts","filename":"Documents","fileLocation":{"WFFileLocationType":"Shortcuts","relativeSubpath":""}},"WFGetFilePath":"rage-tracker-device-key.txt","WFFileErrorIfNotFound":false,"WFShowFilePicker":false}
+
+action 'is.workflow.actions.documentpicker.save' saveDeviceKey(variable key: 'WFInput') {"WFFolder":{"displayName":"Shortcuts","filename":"Documents","fileLocation":{"WFFileLocationType":"Shortcuts","relativeSubpath":""}},"WFFileDestinationPath":"rage-tracker-device-key.txt","WFSaveFileOverwrite":true,"WFAskWhereToSave":false}
 
 const savedKeyFile = readSavedDeviceKey()
 @credential = getText(savedKeyFile)
@@ -42,7 +43,7 @@ if connectionStatus != "connected" {
 }
 
 // Save only a key the server accepted, so a failed attempt cannot replace a working one.
-saveFile("rage-tracker-device-key.txt", @credential, true)
+saveDeviceKey(@credential)
 
 // Collect only events starting today.
 action 'is.workflow.actions.filter.calendarevents' findTodayEvents(): array {"WFContentItemFilter":{"Value":{"WFActionParameterFilterPrefix":1,"WFContentPredicateBoundedDate":false,"WFActionParameterFilterTemplates":[{"Bounded":true,"Operator":1002,"Property":"Start Date","Removable":false,"Values":{"Number":"7","Unit":16}}]},"WFSerializationType":"WFContentPredicateTableTemplate"},"WFContentItemLimitEnabled":true,"WFContentItemLimitNumber":30,"WFContentItemSortProperty":"Start Date","WFContentItemSortOrder":"Ascending"}

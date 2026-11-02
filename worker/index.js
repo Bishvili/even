@@ -225,7 +225,7 @@ async function api(request,env,ctx,path){
 
 async function shortcutBuilder(env){
  const source=await env.ASSETS.get("asset:shortcut.cherri");
- const valid=source?.includes("readSavedDeviceKey()")&&source.includes('saveFile("rage-tracker-device-key.txt"');
+ const valid=source?.includes("readSavedDeviceKey()")&&source.includes("saveDeviceKey(@credential)");
  if(!source||source.length>16000||/Bearer [a-f0-9]{64}/i.test(source)||!valid)
   return new Response("Shortcut preview unavailable",{status:503,headers:SECURITY});
  const compact=source.split(/\r?\n/).map(x=>x.trim()).filter(x=>x&&!x.startsWith("//")).join("\n");
