@@ -70,15 +70,13 @@ test("a valid Shortcut handshake does not imply accepted Health data",()=>{
  assert.match(t.elements.get("shortcut-last-upload").textContent,/no Health\/Calendar data yet/);
  assert.match(t.elements.get("shortcut-upload-counts").textContent,/0 health/);
 });
-test("native authorization setup question is attached to the configured Text action",()=>{
- const question=source.indexOf('#question authorization "Paste the full Authorization value from Rage Tracker > Sync" "Bearer "');
- const status=source.indexOf('downloadURL("https://rage-tracker.bishvili.workers.dev/api/status")');
- const binding=source.indexOf("const credential = text(authorization)");
- const verification=source.indexOf('jsonRequest("https://rage-tracker.bishvili.workers.dev/api/shortcut/hello"');
- assert.ok(question>=0&&question<status&&status<binding&&binding<verification);
- assert.equal((source.match(/^#question /gm)||[]).length,1);
- assert.match(source,/const credential = text\(authorization\)/);
- assert.doesNotMatch(source,/\bprompt\(/);
+test("main Shortcut reads its credential from a persistent one-time setup helper",()=>{
+ const helper=source.indexOf('run("Rage Tracker Connection", "read")');
+ const credential=source.indexOf("const credential = getText(connectionOutput)");
+ const handshake=source.indexOf('jsonRequest("https://rage-tracker.bishvili.workers.dev/api/shortcut/hello"');
+ assert.ok(helper>=0&&helper<credential&&credential<handshake);
+ assert.doesNotMatch(source,/#question authorization/);
+ assert.match(source,/if credentialMatchCount == 0/);
 });
 
 test("fresh installations have no filesystem or saved-credential dependency",()=>{
@@ -88,7 +86,7 @@ test("fresh installations have no filesystem or saved-credential dependency",()=
 });
 
 test("the owner-scoped API validates the configured key before collecting data",()=>{
- const binding=source.indexOf("const credential = text(authorization)");
+ const binding=source.indexOf("const credential = getText(connectionOutput)");
  const profile=source.indexOf("getDictionary(handshakeRaw)");
  const failure=source.indexOf('if connectionStatus != "connected"');
  const events=source.indexOf("const events = findTodayEvents()");
@@ -102,8 +100,8 @@ test("every accepted upload is acknowledged and versioned",()=>{
  assert.match(source,/getValue\(healthResponse, "state"\)/);
  assert.match(source,/if eventStatus != "accepted"/);
  assert.match(source,/if healthStatus != "accepted"/);
- assert.match(source,/shortcutVersion": "2\.3\.2"/);
- assert.match(source,/\/api\/shortcut\/release\?current=2\.3\.2/);
+ assert.match(source,/shortcutVersion": "2\.3\.3"/);
+ assert.match(source,/\/api\/shortcut\/release\?current=2\.3\.3/);
  assert.match(source,/showNotification\("Rage Tracker connected\. Accepted \{@acceptedCount\} uploads\. Skipped \{@skippedCalendarCount\} invalid calendar events\."/);
  assert.doesNotMatch(source,/\bnothing\(\)/);
  assert.doesNotMatch(source,/Bearer [a-f0-9]{64}/i);
@@ -113,6 +111,7 @@ test("every accepted upload is acknowledged and versioned",()=>{
 test("conditional comparisons use explicit typed text instead of Boolean values",()=>{
  const comparisons=[...source.matchAll(/^\s*if\s+([^\n]+)\{/gm)].map(x=>x[1].trim());
  assert.deepEqual(comparisons,[
+  'credentialMatchCount == 0',
   'connectionStatus != "connected"',
   'eventStatus != "accepted"',
   'eventError == "No valid records. Check date, metric values, and event start/end formats"',
@@ -134,12 +133,11 @@ test("calendar classification remains on the backend",()=>{
 
 test("the PWA setup instructions and source agree",()=>{
  assert.match(html,/Customize Shortcut/);
- assert.match(html,/credential-free v2\.3\.2 source/);
+ assert.match(html,/credential-free v2\.3\.3 source/);
  assert.doesNotMatch(html,/device-key\.txt/);
  assert.match(html,/href="\/shortcut\/builder"/);
  assert.match(html,/target="_blank"/);
- assert.match(worker,/#question authorization/);
- assert.match(worker,/text\(authorization\)/);
+ assert.match(worker,/Rage Tracker Connection/);
 });
 
 test("corrected v2.3 builder replaces the malformed signed download",()=>{
@@ -147,7 +145,7 @@ test("corrected v2.3 builder replaces the malformed signed download",()=>{
  assert.match(worker,/\/shortcut\/builder/);
  assert.doesNotMatch(worker,/rage-tracker-sync-v2\.2\.shortcut/);
  assert.doesNotMatch(html,/rage-tracker-sync-v2\.2\.shortcut/);
- assert.match(html,/v2\.3\.2 · corrected source/);
+ assert.match(html,/v2\.3\.3 · corrected source/);
 });
 
 test("Run Shortcut uses the Apple-supported URL scheme without a device key",()=>{
