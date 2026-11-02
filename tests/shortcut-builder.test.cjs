@@ -115,6 +115,7 @@ test("conditional comparisons use explicit typed text instead of Boolean values"
  assert.deepEqual(comparisons,[
   'connectionStatus != "connected"',
   'eventStatus != "accepted"',
+  'eventError == "No valid records. Check date, metric values, and event start/end formats"',
   'sampleCount >= 1',
   'healthStatus != "accepted"',
   'updateStatus == "new_release"',
