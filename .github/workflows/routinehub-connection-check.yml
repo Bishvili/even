@@ -1,0 +1,49 @@
+name: Verify RoutineHub release connection
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/routinehub-connection-check.yml
+      - .github/workflows/routinehub-publish.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-connection:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Verify RoutineHub key owns Rage Tracker listing
+        env:
+          ROUTINEHUB_API_KEY: ${{ secrets.ROUTINEHUB_API_KEY }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          from urllib import error, parse, request
+
+          key = os.getenv("ROUTINEHUB_API_KEY")
+          if not key:
+              raise SystemExit("GitHub Actions secret ROUTINEHUB_API_KEY is missing.")
+          endpoint = "https://routinehub.co/api/v1/" + parse.quote(key, safe="") + "/shortcuts"
+          try:
+              with request.urlopen(request.Request(endpoint, headers={"Accept":"application/json"}), timeout=30) as response:
+                  payload = json.loads(response.read(32768))
+          except error.HTTPError as exc:
+              raise SystemExit(f"RoutineHub account check failed (HTTP {exc.code}).")
+          except (error.URLError, ValueError, TimeoutError):
+              raise SystemExit("RoutineHub account check could not be completed.")
+
+          if payload.get("result") != "success":
+              raise SystemExit("RoutineHub rejected the API key.")
+          shortcuts = payload.get("shortcuts", {})
+          matching = [name for name, listing in shortcuts.items()
+                      if str(listing.get("id")) == "26975"]
+          if len(matching) != 1:
+              raise SystemExit("RoutineHub key does not own Rage Tracker listing 26975.")
+          print("RoutineHub API access confirmed for listing 26975.")
+          print("The check is read-only; no version was added or published.")
+          PY
