@@ -102,9 +102,9 @@ test("every accepted upload is acknowledged and versioned",()=>{
  assert.match(source,/getValue\(healthResponse, "state"\)/);
  assert.match(source,/if eventStatus != "accepted"/);
  assert.match(source,/if healthStatus != "accepted"/);
- assert.match(source,/shortcutVersion": "2\.3\.1"/);
- assert.match(source,/\/api\/shortcut\/release\?current=2\.3\.1/);
- assert.match(source,/showNotification\("Rage Tracker connected\. Accepted \{@acceptedCount\} data uploads\."/);
+ assert.match(source,/shortcutVersion": "2\.3\.2"/);
+ assert.match(source,/\/api\/shortcut\/release\?current=2\.3\.2/);
+ assert.match(source,/showNotification\("Rage Tracker connected\. Accepted \{@acceptedCount\} uploads\. Skipped \{@skippedCalendarCount\} invalid calendar events\."/);
  assert.doesNotMatch(source,/\bnothing\(\)/);
  assert.doesNotMatch(source,/Bearer [a-f0-9]{64}/i);
  assert.doesNotMatch(source,/@(?:gmail|icloud)\.com/i);
@@ -133,7 +133,7 @@ test("calendar classification remains on the backend",()=>{
 
 test("the PWA setup instructions and source agree",()=>{
  assert.match(html,/Customize Shortcut/);
- assert.match(html,/credential-free v2\.3\.1 source/);
+ assert.match(html,/credential-free v2\.3\.2 source/);
  assert.doesNotMatch(html,/device-key\.txt/);
  assert.match(html,/href="\/shortcut\/builder"/);
  assert.match(html,/target="_blank"/);
@@ -146,7 +146,7 @@ test("corrected v2.3 builder replaces the malformed signed download",()=>{
  assert.match(worker,/\/shortcut\/builder/);
  assert.doesNotMatch(worker,/rage-tracker-sync-v2\.2\.shortcut/);
  assert.doesNotMatch(html,/rage-tracker-sync-v2\.2\.shortcut/);
- assert.match(html,/v2\.3\.1 · corrected source/);
+ assert.match(html,/v2\.3\.2 · corrected source/);
 });
 
 test("Run Shortcut uses the Apple-supported URL scheme without a device key",()=>{
