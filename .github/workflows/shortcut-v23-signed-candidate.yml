@@ -1,0 +1,103 @@
+name: Build signed Rage Tracker Sync v2.3.3 candidate
+
+on:
+  push:
+    branches:
+      - release/shortcut-v23-candidate
+    paths:
+      - .github/workflows/shortcut-v23-signed-candidate.yml
+      - shortcuts/**
+      - scripts/check-shortcut-conditions.py
+      - tests/**
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  signed-candidate:
+    name: Validate and sign Sync
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.2'
+          cache: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Run regression tests
+        run: node --test tests/*.test.cjs
+
+      - name: Check the distributed source contains no configured bearer token
+        run: |
+          if grep -Eiq 'Bearer [a-f0-9]{64}' shortcuts/rage-tracker-sync.cherri; then
+            echo 'Refusing to sign a Shortcut containing a configured device key.' >&2
+            exit 1
+          fi
+
+      - name: Build pinned Cherri compiler
+        run: |
+          git clone --depth 1 --branch v2.3.0 https://github.com/electrikmilk/cherri.git /tmp/cherri-source
+          (cd /tmp/cherri-source && go build -trimpath -o /tmp/cherri-compiler .)
+
+      - name: Compile Sync and verify all nine If comparisons
+        run: |
+          /tmp/cherri-compiler shortcuts/rage-tracker-sync.cherri --debug --derive-uuids --skip-sign --output=/tmp/rage-tracker-sync-unsigned.shortcut
+          PLIST="$(find . -type f -name 'Rage Tracker Sync.plist' -print -quit)"
+          test -n "$PLIST"
+          python3 scripts/check-shortcut-conditions.py "$PLIST"
+          mkdir -p dist
+          cp "$PLIST" dist/compiled-sync.plist
+
+      - name: Upload compiled plists for structural diagnostics
+        uses: actions/upload-artifact@v4
+        with:
+          name: Rage-Tracker-v2.3.3-compiled-plists
+          path: dist/*.plist
+          if-no-files-found: error
+          retention-days: 3
+
+      - name: Sign the Shortcut using Cherri HubSign
+        run: |
+          sign_one() {
+            local input="$1" output="$2" attempt
+            for attempt in 1 2 3; do
+              if /tmp/cherri-compiler "$input" --derive-uuids --hubsign --share=anyone --output="$output"; then
+                return 0
+              fi
+              rm -f "$output"
+              echo "Signing attempt $attempt failed; retrying if attempts remain." >&2
+              if [ "$attempt" -lt 3 ]; then sleep 5; fi
+            done
+            return 1
+          }
+          sign_one shortcuts/rage-tracker-sync.cherri "$GITHUB_WORKSPACE/dist/Rage Tracker Sync.shortcut"
+
+      - name: Verify the signed file retains its stable unversioned name
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          expected = ["Rage Tracker Sync.shortcut"]
+          for name in expected:
+              candidate = Path("dist") / name
+              data = candidate.read_bytes()
+              if len(data) < 512 or not data.startswith(b"AEA1"):
+                  raise SystemExit(f"Missing or invalid signed Apple Shortcut: {name}")
+              print(f"Signed: {name} ({len(data)} bytes)")
+          PY
+          sha256sum dist/*.shortcut
+
+      - name: Upload the iPhone acceptance-test installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: Rage-Tracker-v2.3.3-UNVERIFIED-iPhone-Installer
+          path: dist/*.shortcut
+          if-no-files-found: error
+          retention-days: 7

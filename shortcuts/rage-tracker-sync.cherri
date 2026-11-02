@@ -4,28 +4,45 @@
 #define mac false
 
 #include 'actions/calendar'
-#include 'actions/math'
 #include 'actions/text'
 #include 'actions/web'
 
-// The credential is configured by Apple Shortcuts when the user installs the workflow.
-#question authorization "Paste the full Authorization value from Rage Tracker > Sync" "Bearer "
+// The device key lives in a file, so replacing this Shortcut does not disconnect it.
+action 'is.workflow.actions.documentpicker.open' readSavedDeviceKey(): text {"WFFileStorageService":"iCloud Drive","WFGetFilePath":"rage-tracker-device-key.txt","WFFileErrorIfNotFound":false,"WFShowFilePicker":false}
 
-// A public connectivity check keeps the import question attached to the next Text action.
-downloadURL("https://rage-tracker.bishvili.workers.dev/api/status")
-const credential = text(authorization)
+action 'is.workflow.actions.documentpicker.save' saveDeviceKey(variable key: 'WFInput') {"WFFileStorageService":"iCloud Drive","WFFileDestinationPath":"rage-tracker-device-key.txt","WFSaveFileOverwrite":true,"WFAskWhereToSave":false}
+
+const savedKeyFile = readSavedDeviceKey()
+@credential = getText(savedKeyFile)
+const savedKeyMatches = matchText('^Bearer [0-9A-Fa-f]{64}$', @credential)
+const savedKeyMatchCount = count(savedKeyMatches)
+if savedKeyMatchCount == 0 {
+    @credential = prompt("Paste the full Authorization value from Rage Tracker > Sync")
+}
 
 // Verify the connection and record the Shortcut's version, even if no health samples are available.
 const handshakeRaw = jsonRequest("https://rage-tracker.bishvili.workers.dev/api/shortcut/hello", "POST", {
-    "shortcutVersion": "2.3.0"
-}, {"Authorization": "{credential}"})
+    "shortcutVersion": "2.3.3"
+}, {"Authorization": "{@credential}"})
 const handshake = getDictionary(handshakeRaw)
 const connectionStatusValue = getValue(handshake, "state")
 const connectionStatus = getText(connectionStatusValue)
 if connectionStatus != "connected" {
-    alert("The private device key was not accepted. Reconnect through Rage Tracker > Sync.", "Connection failed")
-    stop()
+    @credential = prompt("Rage Tracker did not accept this device key. Paste the full Authorization value from Rage Tracker > Sync")
+    const retryRaw = jsonRequest("https://rage-tracker.bishvili.workers.dev/api/shortcut/hello", "POST", {
+        "shortcutVersion": "2.3.3"
+    }, {"Authorization": "{@credential}"})
+    const retry = getDictionary(retryRaw)
+    const retryStatusValue = getValue(retry, "state")
+    const retryStatus = getText(retryStatusValue)
+    if retryStatus != "connected" {
+        alert("The private device key was not accepted. Reconnect through Rage Tracker > Sync.", "Connection failed")
+        stop()
+    }
 }
+
+// Save only a key the server accepted, so a failed attempt cannot replace a working one.
+saveDeviceKey(@credential)
 
 // Collect only events starting today.
 action 'is.workflow.actions.filter.calendarevents' findTodayEvents(): array {"WFContentItemFilter":{"Value":{"WFActionParameterFilterPrefix":1,"WFContentPredicateBoundedDate":false,"WFActionParameterFilterTemplates":[{"Bounded":true,"Operator":1002,"Property":"Start Date","Removable":false,"Values":{"Number":"7","Unit":16}}]},"WFSerializationType":"WFContentPredicateTableTemplate"},"WFContentItemLimitEnabled":true,"WFContentItemLimitNumber":30,"WFContentItemSortProperty":"Start Date","WFContentItemSortOrder":"Ascending"}
@@ -35,59 +52,76 @@ action 'is.workflow.actions.filter.health.quantity' findTodaySteps(): array {"WF
 
 action 'is.workflow.actions.properties.health.quantity' getStepValues(variable samples: 'WFInput'): array {"WFContentItemPropertyName":"Value"}
 
+// Calculate Statistics takes its list through the Input parameter.
+action 'is.workflow.actions.statistics' sumValues(variable values: 'Input'): number {"WFStatisticsOperation":"Sum"}
+
 @acceptedCount = 0
+@skippedCalendarCount = 0
 const events = findTodayEvents()
 for event in events {
     const title = getEventDetail(@event, "Title")
     const startDate = getEventDetail(@event, "Start Date")
     const endDate = getEventDetail(@event, "End Date")
-    const startISO = formatDate(startDate, "ISO 8601")
-    const endISO = formatDate(endDate, "ISO 8601")
+    const startISO = formatTimestamp(startDate, "Custom", "None", "yyyy-MM-dd'T'HH:mm:ssZZZZZ")
+    const endISO = formatTimestamp(endDate, "Custom", "None", "yyyy-MM-dd'T'HH:mm:ssZZZZZ")
 
     const eventBody = formRequest("https://rage-tracker.bishvili.workers.dev/api/ingest", "POST", {
         "kind": "calendar",
-        "shortcutVersion": "2.3.0",
+        "shortcutVersion": "2.3.3",
         "title": "{title}",
         "start": "{startISO}",
         "end": "{endISO}"
-    }, {"Authorization": "{credential}"})
+    }, {"Authorization": "{@credential}"})
     const eventResponse = getDictionary(eventBody)
     const eventStatusValue = getValue(eventResponse, "state")
     const eventStatus = getText(eventStatusValue)
     if eventStatus != "accepted" {
-        alert("The server rejected an event. Check your Calendar permissions and its start/end times.", "Sync stopped")
-        stop()
+        const eventErrorValue = getValue(eventResponse, "error")
+        const eventError = getText(eventErrorValue)
+        if eventError == "No valid records. Check date, metric values, and event start/end formats" {
+            @skippedCalendarCount += 1
+        } else {
+            alert("Calendar upload failed: {eventError}", "Sync stopped")
+            stop()
+        }
+    } else {
+        @acceptedCount += 1
     }
-    @acceptedCount += 1
 }
 
 const samples = findTodaySteps()
 const sampleCount = count(samples)
 if sampleCount >= 1 {
     const values = getStepValues(samples)
-    const totalSteps = statistic("Sum", values)
+    const totalSteps = sumValues(values)
+    const totalStepsText = getText(totalSteps)
+    const normalizedSteps = replaceText('(?<=\d)[,\s](?=\d{3}(?:\D|$))', "", totalStepsText, true, true)
+    // Keep only the number, because the text form of a Health value can include a unit.
+    const stepsValue = replaceText('^\D*(\d+(?:\.\d+)?)[\s\S]*$', "$1", normalizedSteps, true, true)
     const today = currentDate()
     const day = formatDate(today, "Custom", "yyyy-MM-dd")
     const healthBody = formRequest("https://rage-tracker.bishvili.workers.dev/api/ingest", "POST", {
         "kind": "health",
-        "shortcutVersion": "2.3.0",
+        "shortcutVersion": "2.3.3",
         "date": "{day}",
-        "steps": "{totalSteps}"
-    }, {"Authorization": "{credential}"})
+        "steps": "{stepsValue}"
+    }, {"Authorization": "{@credential}"})
     const healthResponse = getDictionary(healthBody)
     const healthStatusValue = getValue(healthResponse, "state")
     const healthStatus = getText(healthStatusValue)
     if healthStatus != "accepted" {
-        alert("The server rejected the step total. Check Health access and the reported values.", "Sync stopped")
+        const healthErrorValue = getValue(healthResponse, "error")
+        const healthError = getText(healthErrorValue)
+        alert("Health upload failed: {healthError}. Steps read: {totalStepsText}. Steps sent: {stepsValue}. Date sent: {day}.", "Sync stopped")
         stop()
     }
     @acceptedCount += 1
 }
 
-showNotification("Rage Tracker connected. Accepted {@acceptedCount} data uploads.", "Rage Tracker")
+showNotification("Rage Tracker connected. Accepted {@acceptedCount} uploads. Skipped {@skippedCalendarCount} invalid calendar events.", "Rage Tracker")
 
 // Offer an update after syncing; the user approves installation in Apple Shortcuts.
-const releaseBody = downloadURL("https://rage-tracker.bishvili.workers.dev/api/shortcut/release?current=2.3.0", {"Authorization": "{credential}"})
+const releaseBody = downloadURL("https://rage-tracker.bishvili.workers.dev/api/shortcut/release?current=2.3.3", {"Authorization": "{@credential}"})
 const releaseInfo = getDictionary(releaseBody)
 const updateStatusValue = getValue(releaseInfo, "updateStatus")
 const updateStatus = getText(updateStatusValue)

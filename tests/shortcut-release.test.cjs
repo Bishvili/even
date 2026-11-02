@@ -12,22 +12,19 @@ const html=fs.readFileSync(path.join(root,"index.html"),"utf8");
 const app=fs.readFileSync(path.join(root,"app.js"),"utf8");
 const schema=fs.readFileSync(path.join(root,"db","schema.sql"),"utf8");
 
-test("the install question precedes authenticated requests",()=>{
- const question=source.indexOf("#question authorization");
- const publicCheck=source.indexOf('/api/status');
- const credential=source.indexOf("const credential = text(authorization)");
+test("main sync reads its saved device key before the handshake and uploads",()=>{
+ const read=source.indexOf("const savedKeyFile = readSavedDeviceKey()");
  const handshake=source.indexOf('jsonRequest("https://rage-tracker.bishvili.workers.dev/api/shortcut/hello"');
  const firstUpload=source.indexOf('formRequest("https://rage-tracker.bishvili.workers.dev/api/ingest"');
- assert.ok(question>=0&&question<publicCheck&&publicCheck<credential&&credential<handshake&&handshake<firstUpload);
- assert.equal((source.match(/^#question /gm)||[]).length,1);
- assert.doesNotMatch(source,/\b(createFolder|getFile|getFolderContents|saveFile)\s*\(/);
+ assert.ok(read>=0&&read<handshake&&handshake<firstUpload);
+ assert.doesNotMatch(source,/#question/);
  assert.doesNotMatch(source,/Bearer [a-f0-9]{64}/i);
 });
 
 test("the Shortcut identifies itself on the handshake, uploads, and update query",()=>{
- assert.match(source,/"shortcutVersion": "2\.3\.0"/);
- assert.equal((source.match(/"shortcutVersion": "2\.3\.0"/g)||[]).length,3);
- assert.match(source,/\/api\/shortcut\/release\?current=2\.3\.0/);
+ assert.match(source,/"shortcutVersion": "2\.3\.3"/);
+ assert.equal((source.match(/"shortcutVersion": "2\.3\.3"/g)||[]).length,4);
+ assert.match(source,/\/api\/shortcut\/release\?current=2\.3\.3/);
  assert.match(source,/getValue\(handshake, "state"\)/);
  assert.match(source,/if connectionStatus != "connected"/);
 });
@@ -39,12 +36,9 @@ test("server offers upgrades only for verified releases",()=>{
 });
 
 test("corrected Shortcut source is offered without a falsely signed release",()=>{
- assert.match(html,/id="shortcut-preview"[^>]*target="_blank"[^>]*rel="noopener noreferrer"[^>]*href="\/shortcut\/builder"/);
  assert.match(html,/id="run-shortcut"[^>]*href="shortcuts:\/\/run-shortcut\?name=Rage%20Tracker%20Sync"/);
- assert.match(worker,/\/shortcut\/builder/);
  assert.doesNotMatch(worker,/rage-tracker-sync-v2\.2\.shortcut/);
  assert.doesNotMatch(html,/rage-tracker-sync-v2\.2\.shortcut/);
- assert.doesNotMatch(html,/device-key\.txt/);
  assert.doesNotMatch(app,/markShortcutInstalled/);
 });
 

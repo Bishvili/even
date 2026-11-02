@@ -79,8 +79,8 @@ jobs:
               raise SystemExit("The historical v1.0.0 link cannot be reused for a new release.")
 
           versions = re.findall(r'"shortcutVersion": "(\d+\.\d+\.\d+)"', source)
-          if len(versions) != 3 or any(v != version for v in versions):
-              raise SystemExit("The submitted version does not match all three Shortcut source version fields.")
+          if len(versions) != 4 or any(v != version for v in versions):
+              raise SystemExit("The submitted version does not match all four Shortcut source version fields.")
           if f"/api/shortcut/release?current={version}" not in source:
               raise SystemExit("The committed Shortcut update-check version is different.")
           if re.search(r"Bearer [a-fA-F0-9]{64}", source):

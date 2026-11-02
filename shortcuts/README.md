@@ -1,46 +1,51 @@
 # Rage Tracker Sync
 
-The current Apple Shortcut source is **v2.3.0** at [rage-tracker-sync.cherri](rage-tracker-sync.cherri). It synchronizes the owner's selected Apple Health and Calendar context to Rage Tracker. The source is compiled and its six conditional comparison values are verified in CI, but the v2.3 Shortcut has **not** completed an on-device acceptance test.
+Rage Tracker Sync is the replaceable iPhone Shortcut that sends selected Calendar events and Apple Health Steps to the owner's private Rage Tracker account. **The installed Shortcut is always named `Rage Tracker Sync`**, with no version suffix. The current version is **v2.3.3**.
 
-## Installation
+## Set up once, update without re-entering your key
 
-1. In Rage Tracker → **Sync**, confirm email login and the connected device. Copy the complete Authorization value, including the `Bearer ` prefix.
-2. Select **Open corrected Shortcut builder**. Cherri Playground opens the generic, credential-free v2.3 source in a new tab.
-3. Click the hammer icon to compile, choose **Export**, then **Sign Shortcut** and download the signed result.
-4. Open the file in Apple Shortcuts, remove the earlier broken **Rage Tracker Sync** if necessary, and answer the **Customize Shortcut** question with your complete Authorization value. Do not paste the credential into the public Cherri editor or share a configured Shortcut.
-5. Run it and approve Calendar, Health and network permissions. In iOS Settings → Apps → Shortcuts → Advanced, enable **Allow Sharing Large Amounts of Data** if asked. The Shortcut does not require script-running or deletion permissions.
-6. Return to Rage Tracker → **Test connection**. Check that the server reports a successful v2.3 handshake, then distinguish that from accepted Health and Calendar data. Use **Sync now** to download accepted records into the local PWA.
+Rage Tracker Sync is a single Shortcut. It has no import questions and holds no credential; it keeps the device key in a file, so replacing the Shortcut does not affect the connection.
 
-The previous v2.2 signed build had incomplete **If** comparison values and must not be installed. The current download path is the corrected builder, not the obsolete binary. A direct signed v2.3 file and a new verified iCloud link will only be offered after signing and successful iPhone validation.
+1. Install **Rage Tracker Sync**. Its signed file is named `Rage Tracker Sync.shortcut`. Choose to replace the older Sync Shortcut if Apple offers this option. The version is part of the Shortcut's authenticated handshake and update request, not its installed name.
+2. In Rage Tracker → **Sync**, sign in with an approved email. Generate a revocable device key if necessary and copy the complete Authorization value, including `Bearer `.
+3. Run Sync. On the first run it asks for the Authorization value and, once Rage Tracker accepts it, saves it to `rage-tracker-device-key.txt` in the Shortcuts folder of iCloud Drive. Approve file access, Calendar, Health Steps and network permissions as needed. Apple may request those permissions again when a Shortcut is replaced.
+4. Check **Sync → Test connection** and **Sync now** in the PWA. A successful handshake without accepted data is not sufficient to establish that uploads worked.
 
-## Exactly what happens
+If Shortcuts reports **Location Doesn't Exist**, open the Shortcut, tap the Shortcuts folder in the **Get File** and **Save File** actions, choose **OK**, and run it again. This may be needed after each install.
 
-- A public GET to `/api/status` keeps the native Apple **Customize Shortcut** question bound to its Text action in Cherri 2.3.0.
-- `POST /api/shortcut/hello` sends `shortcutVersion=2.3.0` with the device credential. The Worker derives the account owner and returns `state: "connected"` only for an authorized device.
-- Calendar requests send up to 30 events beginning today, including title and ISO 8601 start/end times; the backend derives broad event categories. Notes, attendees, locations and mood entries are not sent.
-- Health requests send the daily sum of today's Step samples, which can differ from Apple's consolidated step total when samples from multiple devices overlap.
-- Successful data ingestion returns `state: "accepted"`, which the Shortcut checks before incrementing the successful-upload count. A rejected record stops the workflow.
-- The Shortcut checks `/api/shortcut/release?current=2.3.0` after syncing; only a newer **verified** release is offered. Apple requires explicit approval before installing replacements.
-- If no data was available, a valid handshake still appears as connected, while accepted record counts remain unchanged.
+Later updates read the saved file and do not ask for the key. If the file is missing or the handshake does not succeed, Sync asks for the value. A value that is not accepted is never saved, so a failed attempt or a server outage cannot replace a working key.
 
-## Why the If conditions are checked separately
+### Credential storage and privacy
 
-Cherri can compile code that produces a visually incomplete **If [variable] is** action on iOS. The v2.3 workflow uses explicit text values for every API outcome rather than comparing generic dictionary results as Booleans.
+The device key is stored as plain text. **It is not encrypted by Rage Tracker or held in the iOS Keychain.**
 
-The CI workflow runs the Node regression suite, compiles Cherri 2.3.0 using `--debug --skip-sign`, then inspects the **generated plist** using [check-shortcut-conditions.py](../scripts/check-shortcut-conditions.py). It fails if any If condition has a missing comparison, or if the six expected values differ: `connected`, `accepted` (twice), numeric `1`, `new_release`, and `Install update`.
+- iCloud Drive syncs the file to the owner's other devices signed in to the same Apple Account.
+- Anyone with access to the Files app on those devices can read it, and any Shortcut granted access to the file can read it. Do not install untrusted Shortcuts.
+- Do not share the file or put its contents in GitHub, Cherri Playground, RoutineHub links, public source or screenshots.
+- Deleting the Shortcut does not delete the file. To disconnect a device, revoke its key in Rage Tracker and delete `rage-tracker-device-key.txt` in Files.
 
-This is a compile-time structure check. It does not certify that HealthKit permissions, live calendars, network operations or Apple Shortcuts automation work on every device.
+Treat the key as sensitive and revoke it in Rage Tracker if exposure is suspected. A revoked key cannot be used even if a copy of the file remains.
 
-## Privacy and release process
+The Shortcut itself contains no private token, so a tested installed copy can be shared to create an iCloud link without exposing the key.
 
-- Each user controls a revocable device key issued after email authentication. Do not embed device keys, real calendar titles, or Health data into source, screenshots, public links or logs.
-- No credential file or folder is created; the Authorization value is configured in the installed Shortcut itself and will need to be re-entered for a replacement.
-- Share only a fresh unconfigured signed master to create an iCloud installation link; personalized Shortcuts may expose the credential.
-- Versioned source, matching Worker/API responses, tests and docs must be committed together. A verified public iCloud release needs an on-device import, valid/invalid key handling, permission checks, and an accepted data upload.
-- Do not mark a release verified based only on Cherri compilation or signing.
+## Upload semantics
+
+- The sync starts with `POST /api/shortcut/hello`, reporting `shortcutVersion=2.3.3` and recording a connected handshake only after an authenticated device key is accepted.
+- Calendar events carry titles and start/end timestamps formatted as full ISO 8601 date-time strings with offsets. They contain no attendee, location, notes, or mood data. The Worker derives broad category labels.
+- An event rejected with the Worker's **exact known invalid-record message** is counted as skipped. Valid events continue uploading. Authentication or unexpected server errors still stop the workflow.
+- Apple Health Steps are read from native Health samples and summed. The total is converted to text, locale grouping separators (for example, in `12,345`) and any unit text are removed, and the number is posted as `steps` with the current local `date`. The Worker accepts values within configured numeric bounds. Sample overlap across devices may lead to differences from Apple's reconciled Step total.
+- The final notification distinguishes accepted uploads from skipped invalid Calendar events. If the Health upload is rejected, the Shortcut displays the server error with the step value and date it sent, on the device only and without the device key.
+- The Shortcut checks `/api/shortcut/release?current=2.3.3` and offers a newer **verified** version only when available. Installing a replacement always requires the user's approval.
+
+## Automated checks and release process
+
+GitHub Actions runs `node --test tests/*.test.cjs`, compiles pinned Cherri 2.3.0 without signing, inspects the generated plist for all typed `If` comparisons and timestamp tokens, then signs the Shortcut using Cherri HubSign. The ZIP artifact contains `Rage Tracker Sync.shortcut`.
+
+Passing source tests, plist checks, and signing **does not** establish that Calendar, HealthKit, file access, Apple permissions or network requests work on an actual iPhone. The release must pass live acceptance tests, including first-run key entry, reuse of the saved key after replacing the Shortcut, and accepted Health and Calendar records, before an iCloud link is shared and the verified update is published on [RoutineHub](https://routinehub.co/shortcut/26975/).
+
+The historical iCloud v1.0 link is not the verified new release. GitHub `main` does not automatically deploy to the live Cloudflare Worker or KV namespace yet. See [the application README](../README.md) for deployment requirements.
 
 ## References
 
 - [Apple Shortcuts user guide](https://support.apple.com/guide/shortcuts/welcome/ios)
-- [Apple: Add import questions](https://support.apple.com/guide/shortcuts/apdf330fd3a0/ios)
-- [Cherri: Import questions](https://cherrilang.org/language/import-questions.html)
+- [Cherri documentation](https://cherrilang.org/language/standard/shortcuts.html)
