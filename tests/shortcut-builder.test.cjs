@@ -70,28 +70,26 @@ test("a valid Shortcut handshake does not imply accepted Health data",()=>{
  assert.match(t.elements.get("shortcut-last-upload").textContent,/no Health\/Calendar data yet/);
  assert.match(t.elements.get("shortcut-upload-counts").textContent,/0 health/);
 });
-test("main Shortcut reads its credential from a persistent one-time setup helper",()=>{
- const helper=source.indexOf('run("Rage Tracker Connection", connectionRequest)');
- const credential=source.indexOf("const credential = getText(connectionOutput)");
+test("main Shortcut reads its saved key before the handshake",()=>{
+ const read=source.indexOf("const savedKeyFile = readSavedDeviceKey()");
  const handshake=source.indexOf('jsonRequest("https://rage-tracker.bishvili.workers.dev/api/shortcut/hello"');
- assert.ok(helper>=0&&helper<credential&&credential<handshake);
- assert.doesNotMatch(source,/#question authorization/);
- assert.match(source,/if credentialMatchCount == 0/);
+ assert.ok(read>=0&&read<handshake);
+ assert.doesNotMatch(source,/#question/);
+ assert.match(source,/if savedKeyMatchCount == 0/);
 });
 
-test("fresh installations have no filesystem or saved-credential dependency",()=>{
- assert.doesNotMatch(source,/\b(createFolder|getFile|getFolderContents|getFileFromFolder|saveFile|deleteFiles)\s*\(/);
- assert.doesNotMatch(source,/\bdevice-key\.txt\b/);
- assert.doesNotMatch(source,/#include\s+['"]actions\/documents['"]/);
+test("the key file is the only filesystem dependency",()=>{
+ assert.equal((source.match(/rage-tracker-device-key\.txt/g)||[]).length,2);
+ assert.doesNotMatch(source,/\b(createFolder|getFolderContents|getFileFromFolder|deleteFiles)\s*\(/);
 });
 
 test("the owner-scoped API validates the configured key before collecting data",()=>{
- const binding=source.indexOf("const credential = getText(connectionOutput)");
+ const binding=source.indexOf("@credential = getText(savedKeyFile)");
  const profile=source.indexOf("getDictionary(handshakeRaw)");
  const failure=source.indexOf('if connectionStatus != "connected"');
  const events=source.indexOf("const events = findTodayEvents()");
  assert.ok(binding>=0&&binding<profile&&profile<failure&&failure<events);
- assert.match(source,/Authorization": "\{credential\}"/);
+ assert.match(source,/Authorization": "\{@credential\}"/);
  assert.match(source,/alert\("The private device key was not accepted/);
 });
 
@@ -111,8 +109,9 @@ test("every accepted upload is acknowledged and versioned",()=>{
 test("conditional comparisons use explicit typed text instead of Boolean values",()=>{
  const comparisons=[...source.matchAll(/^\s*if\s+([^\n]+)\{/gm)].map(x=>x[1].trim());
  assert.deepEqual(comparisons,[
-  'credentialMatchCount == 0',
+  'savedKeyMatchCount == 0',
   'connectionStatus != "connected"',
+  'retryStatus != "connected"',
   'eventStatus != "accepted"',
   'eventError == "No valid records. Check date, metric values, and event start/end formats"',
   'sampleCount >= 1',
@@ -132,12 +131,11 @@ test("calendar classification remains on the backend",()=>{
 });
 
 test("the PWA setup instructions and source agree",()=>{
- assert.match(html,/Customize Shortcut/);
+ assert.match(html,/rage-tracker-device-key\.txt/);
  assert.match(html,/credential-free v2\.3\.3 source/);
- assert.doesNotMatch(html,/device-key\.txt/);
  assert.match(html,/href="\/shortcut\/builder"/);
  assert.match(html,/target="_blank"/);
- assert.match(worker,/Rage Tracker Connection/);
+ assert.match(worker,/rage-tracker-device-key\.txt/);
 });
 
 test("corrected v2.3 builder replaces the malformed signed download",()=>{

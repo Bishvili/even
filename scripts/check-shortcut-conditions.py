@@ -15,7 +15,7 @@ from pathlib import Path
 
 
 EXPECTED_TEXT = collections.Counter(
-    {"connected": 1, "accepted": 2, "No valid records. Check date, metric values, and event start/end formats": 1, "new_release": 1, "Install update": 1}
+    {"connected": 2, "accepted": 2, "No valid records. Check date, metric values, and event start/end formats": 1, "new_release": 1, "Install update": 1}
 )
 EXPECTED_NUMBER = [0, 1]
 
@@ -95,6 +95,7 @@ def check_calendar_timestamps(actions) -> None:
     print("Calendar form sends full ISO date-time with timezone offsets for both event endpoints.")
 
 
+KEY_FILE = "rage-tracker-device-key.txt"
 STEP_GROUPING_PATTERN = r"(?<=\d)[,\s](?=\d{3}(?:\D|$))"
 
 
@@ -106,12 +107,25 @@ def check_connection_and_steps(document, actions) -> None:
         action.get("WFWorkflowActionParameters", {}).get("CustomOutputName"): action
         for action in actions
     }
-    connection = named.get("connectionOutput", {})
-    params = connection.get("WFWorkflowActionParameters", {})
-    if connection.get("WFWorkflowActionIdentifier") != "is.workflow.actions.runworkflow":
-        raise AssertionError("Missing Run Shortcut action for one-time credential helper")
-    if params.get("WFWorkflowName") != "Rage Tracker Connection":
-        raise AssertionError("Sync must call the persistent Rage Tracker Connection helper")
+    by_id = lambda identifier: [a for a in actions if a.get("WFWorkflowActionIdentifier") == identifier]
+    if any("runworkflow" in a.get("WFWorkflowActionIdentifier", "") for a in actions):
+        raise AssertionError("Rage Tracker Sync must not depend on another Shortcut")
+
+    reads = by_id("is.workflow.actions.documentpicker.open")
+    if len(reads) != 1:
+        raise AssertionError(f"Expected one saved-key read, found {len(reads)}")
+    read = reads[0].get("WFWorkflowActionParameters", {})
+    if (read.get("WFGetFilePath"), read.get("WFFileErrorIfNotFound"), read.get("WFShowFilePicker")) != (KEY_FILE, False, False):
+        raise AssertionError("Saved-key read must use the key path without a picker or a missing-file error")
+
+    saves = by_id("is.workflow.actions.documentpicker.save")
+    if len(saves) != 1:
+        raise AssertionError(f"Expected one saved-key write, found {len(saves)}")
+    save = saves[0].get("WFWorkflowActionParameters", {})
+    if (save.get("WFFileDestinationPath"), save.get("WFSaveFileOverwrite"), save.get("WFAskWhereToSave")) != (KEY_FILE, True, False):
+        raise AssertionError("Saved-key write must overwrite the key path without asking where to save")
+    if json.dumps(save.get("WFInput", {})).find("credential") < 0:
+        raise AssertionError("Saved-key write does not receive the accepted credential")
 
     normalizer = named.get("normalizedSteps", {})
     settings = normalizer.get("WFWorkflowActionParameters", {})
@@ -135,7 +149,7 @@ def check_connection_and_steps(document, actions) -> None:
     steps = values.get("steps", {}).get("attachmentsByRange", {}).get("{0, 1}", {})
     if steps.get("OutputName") != "normalizedSteps" or steps.get("OutputUUID") != settings.get("UUID"):
         raise AssertionError("Health form does not use the normalized numeric step value")
-    print("Installed Sync has no import question; reusable connection and numeric Health fields verified.")
+    print("Installed Sync has no import question; saved-key file and numeric Health fields verified.")
 
 
 def check(plist_path: Path) -> None:
@@ -156,8 +170,8 @@ def check(plist_path: Path) -> None:
             observed.append({"action": index, "kind": kind, "value": value, "operator": operator})
 
     print(json.dumps({"plist": str(plist_path), "conditions": observed}, indent=2))
-    if len(observed) != 8:
-        raise AssertionError(f"Expected eight If comparisons, found {len(observed)}")
+    if len(observed) != 9:
+        raise AssertionError(f"Expected nine If comparisons, found {len(observed)}")
 
     missing = [row for row in observed if row["kind"] == "missing" or row["value"] == ""]
     if missing:
@@ -171,7 +185,7 @@ def check(plist_path: Path) -> None:
         raise AssertionError(f"Expected numeric thresholds 0 and 1, got {numbers}")
     check_calendar_timestamps(actions)
     check_connection_and_steps(document, actions)
-    print("All eight If comparisons have explicit, expected right-hand values.")
+    print("All nine If comparisons have explicit, expected right-hand values.")
 
 
 if __name__ == "__main__":

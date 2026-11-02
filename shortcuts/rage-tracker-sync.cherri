@@ -4,33 +4,44 @@
 #define mac false
 
 #include 'actions/calendar'
+#include 'actions/documents'
 #include 'actions/math'
-#include 'actions/shortcuts'
 #include 'actions/text'
 #include 'actions/web'
 
-// Connection settings live in a separately installed one-time Shortcut.
-const connectionRequest = text("read")
-const connectionOutput = run("Rage Tracker Connection", connectionRequest)
-const credential = getText(connectionOutput)
-const credentialMatches = matchText('^Bearer [0-9A-Fa-f]{64}$', credential)
-const credentialMatchCount = count(credentialMatches)
-if credentialMatchCount == 0 {
-    alert("Install and configure Rage Tracker Connection once to save your device key across updates.", "Connection needed")
-    stop()
+// The device key lives in a file, so replacing this Shortcut does not disconnect it.
+action 'is.workflow.actions.documentpicker.open' readSavedDeviceKey(): text {"WFGetFilePath":"rage-tracker-device-key.txt","WFFileErrorIfNotFound":false,"WFShowFilePicker":false}
+
+const savedKeyFile = readSavedDeviceKey()
+@credential = getText(savedKeyFile)
+const savedKeyMatches = matchText('^Bearer [0-9A-Fa-f]{64}$', @credential)
+const savedKeyMatchCount = count(savedKeyMatches)
+if savedKeyMatchCount == 0 {
+    @credential = prompt("Paste the full Authorization value from Rage Tracker > Sync")
 }
 
 // Verify the connection and record the Shortcut's version, even if no health samples are available.
-const handshakeRaw = jsonRequest("https://rage-tracker.bishvili.workers.dev/api/shortcut/hello", "POST", {
+const helloBody = {
     "shortcutVersion": "2.3.3"
-}, {"Authorization": "{credential}"})
+}
+const handshakeRaw = jsonRequest("https://rage-tracker.bishvili.workers.dev/api/shortcut/hello", "POST", helloBody, {"Authorization": "{@credential}"})
 const handshake = getDictionary(handshakeRaw)
 const connectionStatusValue = getValue(handshake, "state")
 const connectionStatus = getText(connectionStatusValue)
 if connectionStatus != "connected" {
-    alert("The private device key was not accepted. Reconnect through Rage Tracker > Sync.", "Connection failed")
-    stop()
+    @credential = prompt("Rage Tracker did not accept this device key. Paste the full Authorization value from Rage Tracker > Sync")
+    const retryRaw = jsonRequest("https://rage-tracker.bishvili.workers.dev/api/shortcut/hello", "POST", helloBody, {"Authorization": "{@credential}"})
+    const retry = getDictionary(retryRaw)
+    const retryStatusValue = getValue(retry, "state")
+    const retryStatus = getText(retryStatusValue)
+    if retryStatus != "connected" {
+        alert("The private device key was not accepted. Reconnect through Rage Tracker > Sync.", "Connection failed")
+        stop()
+    }
 }
+
+// Save only a key the server accepted, so a failed attempt cannot replace a working one.
+saveFile("rage-tracker-device-key.txt", @credential, true)
 
 // Collect only events starting today.
 action 'is.workflow.actions.filter.calendarevents' findTodayEvents(): array {"WFContentItemFilter":{"Value":{"WFActionParameterFilterPrefix":1,"WFContentPredicateBoundedDate":false,"WFActionParameterFilterTemplates":[{"Bounded":true,"Operator":1002,"Property":"Start Date","Removable":false,"Values":{"Number":"7","Unit":16}}]},"WFSerializationType":"WFContentPredicateTableTemplate"},"WFContentItemLimitEnabled":true,"WFContentItemLimitNumber":30,"WFContentItemSortProperty":"Start Date","WFContentItemSortOrder":"Ascending"}
@@ -56,7 +67,7 @@ for event in events {
         "title": "{title}",
         "start": "{startISO}",
         "end": "{endISO}"
-    }, {"Authorization": "{credential}"})
+    }, {"Authorization": "{@credential}"})
     const eventResponse = getDictionary(eventBody)
     const eventStatusValue = getValue(eventResponse, "state")
     const eventStatus = getText(eventStatusValue)
@@ -88,7 +99,7 @@ if sampleCount >= 1 {
         "shortcutVersion": "2.3.3",
         "date": "{day}",
         "steps": "{normalizedSteps}"
-    }, {"Authorization": "{credential}"})
+    }, {"Authorization": "{@credential}"})
     const healthResponse = getDictionary(healthBody)
     const healthStatusValue = getValue(healthResponse, "state")
     const healthStatus = getText(healthStatusValue)
@@ -104,7 +115,7 @@ if sampleCount >= 1 {
 showNotification("Rage Tracker connected. Accepted {@acceptedCount} uploads. Skipped {@skippedCalendarCount} invalid calendar events.", "Rage Tracker")
 
 // Offer an update after syncing; the user approves installation in Apple Shortcuts.
-const releaseBody = downloadURL("https://rage-tracker.bishvili.workers.dev/api/shortcut/release?current=2.3.3", {"Authorization": "{credential}"})
+const releaseBody = downloadURL("https://rage-tracker.bishvili.workers.dev/api/shortcut/release?current=2.3.3", {"Authorization": "{@credential}"})
 const releaseInfo = getDictionary(releaseBody)
 const updateStatusValue = getValue(releaseInfo, "updateStatus")
 const updateStatus = getText(updateStatusValue)

@@ -1,6 +1,6 @@
 (function () {
 "use strict";
-var VERSION = "1.10.4";
+var VERSION = "1.10.5";
 var STORAGE_KEY = "rage-tracker:v1";
 var MOOD_NAMES = ["","Rough","Low","Okay","Good","Great"];
 var MOOD_EMOJI = ["","😣","😕","😐","🙂","😄"];
@@ -112,8 +112,8 @@ function renderSync(){
  $("shortcut-install-help").textContent=canInstall
   ?"Opens the current shared Shortcut in a new Safari tab. Your device key is not included in the link."
   :mismatch?"Sign in with this device's account before installing."
-  :paired&&release&&!release.verified?"The earlier Shortcut builds are not verified. Install Rage Tracker Connection once, then use the corrected v2.3.3 Sync builder."
-  :paired?"No verified Shortcut release is available. Set up Rage Tracker Connection once, then install Rage Tracker Sync v2.3.3."
+  :paired&&release&&!release.verified?"The earlier Shortcut builds are not verified. Use the corrected v2.3.3 Sync builder."
+  :paired?"No verified Shortcut release is available. Install Rage Tracker Sync v2.3.3 from the builder."
   :"Sign in and generate a device key to install the Shortcut.";
  $("check-shortcut-upload").disabled=!paired||mismatch||shortcutStatusLoading;
  var installed=shortcutStatus&&shortcutStatus.installedShortcutVersion||"";

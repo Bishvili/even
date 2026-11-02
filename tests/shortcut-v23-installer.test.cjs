@@ -17,7 +17,7 @@ test("corrected Shortcut is the only downloadable installation path",()=>{
  assert.doesNotMatch(worker,/rage-tracker-sync-v2\.2\.shortcut/);
  assert.doesNotMatch(app,/Signed test build v2\.2/);
  assert.match(worker,/\/shortcut\/builder/);
- assert.match(worker,/#question authorization/);
+ assert.match(worker,/readSavedDeviceKey\(\)/);
 });
 
 test("app does not launch old broken Shortcut versions",()=>{
@@ -34,11 +34,12 @@ test("API returns text outcomes and release requires verification",()=>{
  assert.match(worker,/WHERE owner_email=\?/);
 });
 
-test("Shortcut checks eight explicit typed values",()=>{
+test("Shortcut checks nine explicit typed values",()=>{
  const cond=[...shortcut.matchAll(/^\s*if ([^\n]+)\{$/gm)].map(x=>x[1].trim());
  assert.deepEqual(cond,[
-  'credentialMatchCount == 0',
+  'savedKeyMatchCount == 0',
   'connectionStatus != "connected"',
+  'retryStatus != "connected"',
   'eventStatus != "accepted"',
   'eventError == "No valid records. Check date, metric values, and event start/end formats"',
   'sampleCount >= 1',
@@ -47,6 +48,5 @@ test("Shortcut checks eight explicit typed values",()=>{
   'choice == "Install update"'
  ]);
  assert.doesNotMatch(shortcut,/if\s+@\w+\s*==\s*(true|false)/);
- assert.doesNotMatch(shortcut,/\b(?:createFolder|getFile|getFolderContents|saveFile)\s*\(/);
  assert.doesNotMatch(shortcut,/Bearer [a-f0-9]{64}/i);
 });

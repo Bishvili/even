@@ -16,7 +16,7 @@ permissions:
 
 jobs:
   signed-candidate:
-    name: Validate and sign connection plus main Sync
+    name: Validate and sign Sync
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -34,9 +34,9 @@ jobs:
       - name: Run regression tests
         run: node --test tests/*.test.cjs
 
-      - name: Check both distributed sources contain no configured bearer token
+      - name: Check the distributed source contains no configured bearer token
         run: |
-          if grep -Eiq 'Bearer [a-f0-9]{64}' shortcuts/rage-tracker-sync.cherri shortcuts/rage-tracker-connection.cherri; then
+          if grep -Eiq 'Bearer [a-f0-9]{64}' shortcuts/rage-tracker-sync.cherri; then
             echo 'Refusing to sign a Shortcut containing a configured device key.' >&2
             exit 1
           fi
@@ -46,7 +46,7 @@ jobs:
           git clone --depth 1 --branch v2.3.0 https://github.com/electrikmilk/cherri.git /tmp/cherri-source
           (cd /tmp/cherri-source && go build -trimpath -o /tmp/cherri-compiler .)
 
-      - name: Compile Sync and verify all eight If comparisons
+      - name: Compile Sync and verify all nine If comparisons
         run: |
           /tmp/cherri-compiler shortcuts/rage-tracker-sync.cherri --debug --derive-uuids --skip-sign --output=/tmp/rage-tracker-sync-unsigned.shortcut
           PLIST="$(find . -type f -name 'Rage Tracker Sync.plist' -print -quit)"
@@ -54,31 +54,6 @@ jobs:
           python3 scripts/check-shortcut-conditions.py "$PLIST"
           mkdir -p dist
           cp "$PLIST" dist/compiled-sync.plist
-
-      - name: Compile one-time Connection helper and inspect install question
-        run: |
-          /tmp/cherri-compiler shortcuts/rage-tracker-connection.cherri --debug --derive-uuids --skip-sign --output=/tmp/rage-tracker-connection-unsigned.shortcut
-          PLIST="$(find . -type f -name 'Rage Tracker Connection.plist' -print -quit)"
-          test -n "$PLIST"
-          python3 - "$PLIST" <<'PY'
-          import plistlib
-          import sys
-          from pathlib import Path
-
-          data = plistlib.loads(Path(sys.argv[1]).read_bytes())
-          questions = data.get("WFWorkflowImportQuestions", [])
-          if len(questions) != 1:
-              raise SystemExit(f"Expected exactly one initial device-key import question; got {len(questions)}.")
-          question = questions[0]
-          if question.get("ParameterKey") != "WFTextActionText" or question.get("DefaultValue") != "Bearer ":
-              raise SystemExit("Connection helper import question is misconfigured.")
-          actions = data.get("WFWorkflowActions", [])
-          ids = [action.get("WFWorkflowActionIdentifier", "") for action in actions]
-          if not any("output" in name for name in ids):
-              raise SystemExit("Connection helper does not return its saved credential to Sync.")
-          print("Connection helper retains a single configured Text action and returns it.")
-          PY
-          cp "$PLIST" dist/compiled-connection.plist
 
       - name: Upload compiled plists for structural diagnostics
         uses: actions/upload-artifact@v4
@@ -88,7 +63,7 @@ jobs:
           if-no-files-found: error
           retention-days: 3
 
-      - name: Sign both unconfigured Shortcuts using Cherri HubSign
+      - name: Sign the Shortcut using Cherri HubSign
         run: |
           sign_one() {
             local input="$1" output="$2" attempt
@@ -102,15 +77,14 @@ jobs:
             done
             return 1
           }
-          sign_one shortcuts/rage-tracker-connection.cherri "$GITHUB_WORKSPACE/dist/Rage Tracker Connection.shortcut"
           sign_one shortcuts/rage-tracker-sync.cherri "$GITHUB_WORKSPACE/dist/Rage Tracker Sync.shortcut"
 
-      - name: Verify both signed files retain stable unversioned names
+      - name: Verify the signed file retains its stable unversioned name
         run: |
           python3 - <<'PY'
           from pathlib import Path
 
-          expected = ["Rage Tracker Connection.shortcut", "Rage Tracker Sync.shortcut"]
+          expected = ["Rage Tracker Sync.shortcut"]
           for name in expected:
               candidate = Path("dist") / name
               data = candidate.read_bytes()

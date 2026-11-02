@@ -12,14 +12,12 @@ const html=fs.readFileSync(path.join(root,"index.html"),"utf8");
 const app=fs.readFileSync(path.join(root,"app.js"),"utf8");
 const schema=fs.readFileSync(path.join(root,"db","schema.sql"),"utf8");
 
-test("main sync obtains the device key from its persistent connection helper",()=>{
- const helper=source.indexOf('run("Rage Tracker Connection", connectionRequest)');
- const credential=source.indexOf("const credential = getText(connectionOutput)");
+test("main sync reads its saved device key before the handshake and uploads",()=>{
+ const read=source.indexOf("const savedKeyFile = readSavedDeviceKey()");
  const handshake=source.indexOf('jsonRequest("https://rage-tracker.bishvili.workers.dev/api/shortcut/hello"');
  const firstUpload=source.indexOf('formRequest("https://rage-tracker.bishvili.workers.dev/api/ingest"');
- assert.ok(helper>=0&&helper<credential&&credential<handshake&&handshake<firstUpload);
- assert.doesNotMatch(source,/#question authorization/);
- assert.doesNotMatch(source,/\b(createFolder|getFile|getFolderContents|saveFile)\s*\(/);
+ assert.ok(read>=0&&read<handshake&&handshake<firstUpload);
+ assert.doesNotMatch(source,/#question/);
  assert.doesNotMatch(source,/Bearer [a-f0-9]{64}/i);
 });
 
@@ -43,7 +41,6 @@ test("corrected Shortcut source is offered without a falsely signed release",()=
  assert.match(worker,/\/shortcut\/builder/);
  assert.doesNotMatch(worker,/rage-tracker-sync-v2\.2\.shortcut/);
  assert.doesNotMatch(html,/rage-tracker-sync-v2\.2\.shortcut/);
- assert.doesNotMatch(html,/device-key\.txt/);
  assert.doesNotMatch(app,/markShortcutInstalled/);
 });
 
