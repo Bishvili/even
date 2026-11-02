@@ -12,7 +12,7 @@ const shortcut=fs.readFileSync(path.join(root,"shortcuts","rage-tracker-sync.che
 
 test("corrected Shortcut is the only downloadable installation path",()=>{
  assert.match(html,/id="shortcut-preview"[^>]*target="_blank"[^>]*href="\/shortcut\/builder"/);
- assert.match(html,/v2\.3\.1 · corrected source/);
+ assert.match(html,/v2\.3\.2 · corrected source/);
  assert.doesNotMatch(html,/rage-tracker-sync-v2\.2\.shortcut/);
  assert.doesNotMatch(worker,/rage-tracker-sync-v2\.2\.shortcut/);
  assert.doesNotMatch(app,/Signed test build v2\.2/);
@@ -21,7 +21,7 @@ test("corrected Shortcut is the only downloadable installation path",()=>{
 });
 
 test("app does not launch old broken Shortcut versions",()=>{
- assert.match(app,/compareVersions\(shortcutStatus\.installedShortcutVersion,"2\.3\.1"\)<0/);
+ assert.match(app,/compareVersions\(shortcutStatus\.installedShortcutVersion,"2\.3\.2"\)<0/);
  assert.match(html,/id="run-shortcut"[^>]*href="shortcuts:\/\/run-shortcut\?name=Rage%20Tracker%20Sync"/);
  assert.doesNotMatch(html,/Bearer [a-f0-9]{64}/i);
 });
@@ -34,11 +34,12 @@ test("API returns text outcomes and release requires verification",()=>{
  assert.match(worker,/WHERE owner_email=\?/);
 });
 
-test("Shortcut checks six explicit typed values",()=>{
+test("Shortcut checks seven explicit typed values",()=>{
  const cond=[...shortcut.matchAll(/^\s*if ([^\n]+)\{$/gm)].map(x=>x[1].trim());
  assert.deepEqual(cond,[
   'connectionStatus != "connected"',
   'eventStatus != "accepted"',
+  'eventError == "No valid records. Check date, metric values, and event start/end formats"',
   'sampleCount >= 1',
   'healthStatus != "accepted"',
   'updateStatus == "new_release"',
