@@ -17,7 +17,7 @@ const credential = text(authorization)
 
 // Verify the connection and record the Shortcut's version, even if no health samples are available.
 const handshakeRaw = jsonRequest("https://rage-tracker.bishvili.workers.dev/api/shortcut/hello", "POST", {
-    "shortcutVersion": "2.3.0"
+    "shortcutVersion": "2.3.1"
 }, {"Authorization": "{credential}"})
 const handshake = getDictionary(handshakeRaw)
 const connectionStatusValue = getValue(handshake, "state")
@@ -41,12 +41,12 @@ for event in events {
     const title = getEventDetail(@event, "Title")
     const startDate = getEventDetail(@event, "Start Date")
     const endDate = getEventDetail(@event, "End Date")
-    const startISO = formatDate(startDate, "ISO 8601")
-    const endISO = formatDate(endDate, "ISO 8601")
+    const startISO = formatTimestamp(startDate, "Custom", "None", "yyyy-MM-dd'T'HH:mm:ssZZZZZ")
+    const endISO = formatTimestamp(endDate, "Custom", "None", "yyyy-MM-dd'T'HH:mm:ssZZZZZ")
 
     const eventBody = formRequest("https://rage-tracker.bishvili.workers.dev/api/ingest", "POST", {
         "kind": "calendar",
-        "shortcutVersion": "2.3.0",
+        "shortcutVersion": "2.3.1",
         "title": "{title}",
         "start": "{startISO}",
         "end": "{endISO}"
@@ -55,7 +55,9 @@ for event in events {
     const eventStatusValue = getValue(eventResponse, "state")
     const eventStatus = getText(eventStatusValue)
     if eventStatus != "accepted" {
-        alert("The server rejected an event. Check your Calendar permissions and its start/end times.", "Sync stopped")
+        const eventErrorValue = getValue(eventResponse, "error")
+        const eventError = getText(eventErrorValue)
+        alert("Calendar upload failed: {eventError}", "Sync stopped")
         stop()
     }
     @acceptedCount += 1
@@ -70,7 +72,7 @@ if sampleCount >= 1 {
     const day = formatDate(today, "Custom", "yyyy-MM-dd")
     const healthBody = formRequest("https://rage-tracker.bishvili.workers.dev/api/ingest", "POST", {
         "kind": "health",
-        "shortcutVersion": "2.3.0",
+        "shortcutVersion": "2.3.1",
         "date": "{day}",
         "steps": "{totalSteps}"
     }, {"Authorization": "{credential}"})
@@ -87,7 +89,7 @@ if sampleCount >= 1 {
 showNotification("Rage Tracker connected. Accepted {@acceptedCount} data uploads.", "Rage Tracker")
 
 // Offer an update after syncing; the user approves installation in Apple Shortcuts.
-const releaseBody = downloadURL("https://rage-tracker.bishvili.workers.dev/api/shortcut/release?current=2.3.0", {"Authorization": "{credential}"})
+const releaseBody = downloadURL("https://rage-tracker.bishvili.workers.dev/api/shortcut/release?current=2.3.1", {"Authorization": "{credential}"})
 const releaseInfo = getDictionary(releaseBody)
 const updateStatusValue = getValue(releaseInfo, "updateStatus")
 const updateStatus = getText(updateStatusValue)

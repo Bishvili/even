@@ -96,11 +96,11 @@ test("a valid credential is not mistaken for a successful Health upload",async()
 });
 
 test("server-reported Shortcut handshake replaces manual installation confirmation",async()=>{
- const t=setup({reportedVersion:"2.3.0"});
+ const t=setup({reportedVersion:"2.3.1"});
  t.app.setAuth(t.email,[]);
  await t.app.loadShortcutRelease();
  await t.app.checkShortcutUpload(false);
- assert.match(t.element("shortcut-release-version").textContent,/Connected Shortcut v2\.3\.0/);
+ assert.match(t.element("shortcut-release-version").textContent,/Connected Shortcut v2\.3\.1/);
  assert.equal(t.element("run-shortcut").hidden,false);
  assert.match(t.element("shortcut-last-upload").textContent,/Shortcut connected/);
  assert.match(t.element("shortcut-sync-diagnostic").textContent,/authenticated Shortcut handshake/);
@@ -117,4 +117,11 @@ test("a connected but outdated Shortcut cannot be launched from the PWA",async()
 test("all application DOM references resolve to real elements",()=>{
  const ids=new Set([...html.matchAll(/\bid="([^"]+)"/g)].map(x=>x[1]));
  for(const match of source.matchAll(/\$\("([^"]+)"\)/g))assert.ok(ids.has(match[1]),"Missing "+match[1]);
+});
+
+test("v2.3.0 date-only candidate cannot be launched from the PWA",async()=>{
+ const t=setup({reportedVersion:"2.3.0"});
+ t.app.setAuth(t.email,[]);
+ await t.app.checkShortcutUpload(false);
+ assert.equal(t.element("run-shortcut").hidden,true);
 });

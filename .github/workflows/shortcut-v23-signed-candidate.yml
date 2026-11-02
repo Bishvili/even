@@ -1,4 +1,4 @@
-name: Build signed Shortcut v2.3 candidate
+name: Build signed Shortcut v2.3.1 candidate
 
 on:
   push:
@@ -71,14 +71,14 @@ jobs:
       - name: Sign generic Shortcut with Cherri HubSign
         run: |
           mkdir -p dist
-          /tmp/cherri-compiler shortcuts/rage-tracker-sync.cherri --derive-uuids --hubsign --share=anyone --output="$GITHUB_WORKSPACE/dist/Rage-Tracker-Sync-v2.3.0.shortcut"
+          /tmp/cherri-compiler shortcuts/rage-tracker-sync.cherri --derive-uuids --hubsign --share=anyone --output="$GITHUB_WORKSPACE/dist/Rage-Tracker-Sync-v2.3.1.shortcut"
 
       - name: Verify candidate is signed and nonempty
         run: |
           python3 - <<'PY'
           from pathlib import Path
 
-          candidate = Path("dist/Rage-Tracker-Sync-v2.3.0.shortcut")
+          candidate = Path("dist/Rage-Tracker-Sync-v2.3.1.shortcut")
           data = candidate.read_bytes()
           if len(data) < 512:
               raise SystemExit("The candidate Shortcut is unexpectedly small")
@@ -86,12 +86,12 @@ jobs:
               raise SystemExit("The candidate is not a signed Apple Encrypted Archive (AEA1). Do not distribute it.")
           print(f"Signed candidate ready for on-device testing ({len(data)} bytes)")
           PY
-          sha256sum dist/Rage-Tracker-Sync-v2.3.0.shortcut
+          sha256sum dist/Rage-Tracker-Sync-v2.3.1.shortcut
 
       - name: Upload candidate for private device acceptance testing
         uses: actions/upload-artifact@v4
         with:
-          name: Rage-Tracker-Sync-v2.3.0-UNVERIFIED
-          path: dist/Rage-Tracker-Sync-v2.3.0.shortcut
+          name: Rage-Tracker-Sync-v2.3.1-UNVERIFIED
+          path: dist/Rage-Tracker-Sync-v2.3.1.shortcut
           if-no-files-found: error
           retention-days: 7

@@ -52,6 +52,49 @@ def operands(params):
             yield ("missing", None, item.get("WFCondition"))
 
 
+TIMESTAMP_PATTERN = "yyyy-MM-dd'T'HH:mm:ssZZZZZ"
+
+def check_calendar_timestamps(actions) -> None:
+    """Require the compiled form to send full timestamp and timezone offset tokens."""
+    named = {
+        a.get("WFWorkflowActionParameters", {}).get("CustomOutputName"): a.get("WFWorkflowActionParameters", {})
+        for a in actions
+    }
+    for time_name, event_name in (("startISO", "startDate"), ("endISO", "endDate")):
+        item = named.get(time_name)
+        if not item:
+            raise AssertionError(f"Missing compiled date formatter {time_name}")
+        actual = (item.get("WFDateFormatStyle"), item.get("WFTimeFormatStyle"), item.get("WFDateFormat"))
+        expected = ("Custom", "None", TIMESTAMP_PATTERN)
+        if actual != expected:
+            raise AssertionError(f"{time_name} strips event time/zone: {actual}, expected {expected}")
+        source = item.get("WFDate", {}).get("Value", {}).get("attachmentsByRange", {}).get("{0, 1}", {})
+        if source.get("OutputName") != event_name:
+            raise AssertionError(f"{time_name} does not reference {event_name}")
+
+    forms = [
+        a.get("WFWorkflowActionParameters", {}).get("WFFormValues", {}).get("Value", {}).get("WFDictionaryFieldValueItems", [])
+        for a in actions
+        if a.get("WFWorkflowActionIdentifier") == "is.workflow.actions.downloadurl"
+    ]
+    calendar_forms = []
+    for form in forms:
+        fields = {
+            x.get("WFKey", {}).get("Value", {}).get("string"): x.get("WFValue", {}).get("Value", {})
+            for x in form
+        }
+        if fields.get("kind", {}).get("string") == "calendar":
+            calendar_forms.append(fields)
+    if len(calendar_forms) != 1:
+        raise AssertionError(f"Expected one Calendar upload form, found {len(calendar_forms)}")
+    fields = calendar_forms[0]
+    for field, formatter in (("start", "startISO"), ("end", "endISO")):
+        token = fields.get(field, {}).get("attachmentsByRange", {}).get("{0, 1}", {})
+        if token.get("OutputName") != formatter or token.get("OutputUUID") != named[formatter].get("UUID"):
+            raise AssertionError(f"Calendar form field {field} does not reference {formatter}")
+    print("Calendar form sends full ISO date-time with timezone offsets for both event endpoints.")
+
+
 def check(plist_path: Path) -> None:
     with plist_path.open("rb") as stream:
         document = plistlib.load(stream)
@@ -83,6 +126,7 @@ def check(plist_path: Path) -> None:
         raise AssertionError(f"Unexpected text operands: {texts}; expected {EXPECTED_TEXT}")
     if len(numbers) != 1 or float(numbers[0]) != EXPECTED_NUMBER[0]:
         raise AssertionError(f"Expected numeric threshold 1, got {numbers}")
+    check_calendar_timestamps(actions)
     print("All six If comparisons have explicit, expected right-hand values.")
 
 

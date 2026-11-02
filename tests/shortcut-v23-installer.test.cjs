@@ -12,7 +12,7 @@ const shortcut=fs.readFileSync(path.join(root,"shortcuts","rage-tracker-sync.che
 
 test("corrected Shortcut is the only downloadable installation path",()=>{
  assert.match(html,/id="shortcut-preview"[^>]*target="_blank"[^>]*href="\/shortcut\/builder"/);
- assert.match(html,/v2\.3 · corrected source/);
+ assert.match(html,/v2\.3\.1 · corrected source/);
  assert.doesNotMatch(html,/rage-tracker-sync-v2\.2\.shortcut/);
  assert.doesNotMatch(worker,/rage-tracker-sync-v2\.2\.shortcut/);
  assert.doesNotMatch(app,/Signed test build v2\.2/);
@@ -21,7 +21,7 @@ test("corrected Shortcut is the only downloadable installation path",()=>{
 });
 
 test("app does not launch old broken Shortcut versions",()=>{
- assert.match(app,/compareVersions\(shortcutStatus\.installedShortcutVersion,"2\.3\.0"\)<0/);
+ assert.match(app,/compareVersions\(shortcutStatus\.installedShortcutVersion,"2\.3\.1"\)<0/);
  assert.match(html,/id="run-shortcut"[^>]*href="shortcuts:\/\/run-shortcut\?name=Rage%20Tracker%20Sync"/);
  assert.doesNotMatch(html,/Bearer [a-f0-9]{64}/i);
 });

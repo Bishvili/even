@@ -1,6 +1,6 @@
 (function () {
 "use strict";
-var VERSION = "1.10.1";
+var VERSION = "1.10.2";
 var STORAGE_KEY = "rage-tracker:v1";
 var MOOD_NAMES = ["","Rough","Low","Okay","Good","Great"];
 var MOOD_EMOJI = ["","😣","😕","😐","🙂","😄"];
@@ -105,15 +105,15 @@ function renderSync(){
  var canInstall=paired&&accountMatches&&release&&release.url&&release.verified&&navigator.onLine;
  install.hidden=!canInstall;
  $("shortcut-preview").hidden=!!canInstall;
- $("run-shortcut").hidden=!paired||mismatch||!shortcutStatus||!shortcutStatus.installedShortcutVersion||compareVersions(shortcutStatus.installedShortcutVersion,"2.3.0")<0;
+ $("run-shortcut").hidden=!paired||mismatch||!shortcutStatus||!shortcutStatus.installedShortcutVersion||compareVersions(shortcutStatus.installedShortcutVersion,"2.3.1")<0;
  if(canInstall){install.href=release.url;install.removeAttribute("aria-disabled");install.removeAttribute("tabindex");}
  else{install.removeAttribute("href");install.setAttribute("aria-disabled","true");install.setAttribute("tabindex","-1");}
  $("shortcut-release-version").textContent=shortcutStatus&&shortcutStatus.installedShortcutVersion?"Connected Shortcut v"+shortcutStatus.installedShortcutVersion:release&&release.verified?"Published Shortcut v"+release.version:"Corrected Shortcut source v2.3";
  $("shortcut-install-help").textContent=canInstall
   ?"Opens the current shared Shortcut in a new Safari tab. Your device key is not included in the link."
   :mismatch?"Sign in with this device's account before installing."
-  :paired&&release&&!release.verified?"The older signed Shortcut has incomplete If conditions. Open the corrected v2.3 builder below, compile it, and export a signed copy."
-  :paired?"No verified iCloud release is available. Use the corrected v2.3 builder below."
+  :paired&&release&&!release.verified?"The earlier Shortcut builds are not verified. Open the corrected v2.3.1 builder below, compile it, and export a signed copy."
+  :paired?"No verified iCloud release is available. Use the corrected v2.3.1 builder below."
   :"Sign in and generate a device key to install the Shortcut.";
  $("check-shortcut-upload").disabled=!paired||mismatch||shortcutStatusLoading;
  var installed=shortcutStatus&&shortcutStatus.installedShortcutVersion||"";
