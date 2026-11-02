@@ -1,0 +1,16 @@
+#define name Rage Tracker Connection
+#define color teal
+#define glyph key
+#define mac false
+
+#include 'actions/web'
+
+// Configure this helper once. Replacing Rage Tracker Sync will not modify it.
+#question authorization "Paste the full Authorization value from Rage Tracker > Sync" "Bearer "
+
+// Cherri 2.3.0 binds the install question to the following Text action.
+downloadURL("https://rage-tracker.bishvili.workers.dev/api/status")
+const credential = text(authorization)
+
+// Run Shortcut callers receive the credential. Do not share a configured copy.
+output(credential)
