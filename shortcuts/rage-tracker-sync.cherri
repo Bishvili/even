@@ -23,26 +23,26 @@ const savedKeyFile = readSavedDeviceKey(keyFolder)
 const savedKeyMatches = matchText('^Bearer [0-9A-Fa-f]{64}$', @credential)
 const savedKeyMatchCount = count(savedKeyMatches)
 if savedKeyMatchCount == 0 {
-    @credential = prompt("Paste the full Authorization value from Rage Tracker > Sync")
+    @credential = prompt("Paste your device key from Rage Tracker > Sync")
 }
 
 // Verify the connection and record the Shortcut's version, even if no health samples are available.
 const handshakeRaw = jsonRequest("https://rage-tracker.bishvili.workers.dev/api/shortcut/hello", "POST", {
-    "shortcutVersion": "2.3.3"
+    "shortcutVersion": "2.3.4"
 }, {"Authorization": "{@credential}"})
 const handshake = getDictionary(handshakeRaw)
 const connectionStatusValue = getValue(handshake, "state")
 const connectionStatus = getText(connectionStatusValue)
 if connectionStatus != "connected" {
-    @credential = prompt("Rage Tracker did not accept this device key. Paste the full Authorization value from Rage Tracker > Sync")
+    @credential = prompt("That key didn't work. Paste your device key from Rage Tracker > Sync")
     const retryRaw = jsonRequest("https://rage-tracker.bishvili.workers.dev/api/shortcut/hello", "POST", {
-        "shortcutVersion": "2.3.3"
+        "shortcutVersion": "2.3.4"
     }, {"Authorization": "{@credential}"})
     const retry = getDictionary(retryRaw)
     const retryStatusValue = getValue(retry, "state")
     const retryStatus = getText(retryStatusValue)
     if retryStatus != "connected" {
-        alert("The private device key was not accepted. Reconnect through Rage Tracker > Sync.", "Connection failed")
+        alert("That key didn't work. Generate a new one in Rage Tracker > Sync.", "Not connected")
         stop()
     }
 }
@@ -73,7 +73,7 @@ for event in events {
 
     const eventBody = formRequest("https://rage-tracker.bishvili.workers.dev/api/ingest", "POST", {
         "kind": "calendar",
-        "shortcutVersion": "2.3.3",
+        "shortcutVersion": "2.3.4",
         "title": "{title}",
         "start": "{startISO}",
         "end": "{endISO}"
@@ -87,7 +87,7 @@ for event in events {
         if eventError == "No valid records. Check date, metric values, and event start/end formats" {
             @skippedCalendarCount += 1
         } else {
-            alert("Calendar upload failed: {eventError}", "Sync stopped")
+            alert("Your calendar didn't sync. {eventError}", "Sync stopped")
             stop()
         }
     } else {
@@ -108,7 +108,7 @@ if sampleCount >= 1 {
     const day = formatDate(today, "Custom", "yyyy-MM-dd")
     const healthBody = formRequest("https://rage-tracker.bishvili.workers.dev/api/ingest", "POST", {
         "kind": "health",
-        "shortcutVersion": "2.3.3",
+        "shortcutVersion": "2.3.4",
         "date": "{day}",
         "steps": "{stepsValue}"
     }, {"Authorization": "{@credential}"})
@@ -118,16 +118,16 @@ if sampleCount >= 1 {
     if healthStatus != "accepted" {
         const healthErrorValue = getValue(healthResponse, "error")
         const healthError = getText(healthErrorValue)
-        alert("Health upload failed: {healthError}. Steps read: {totalStepsText}. Steps sent: {stepsValue}. Date sent: {day}.", "Sync stopped")
+        alert("Your steps didn't sync. {healthError}", "Sync stopped")
         stop()
     }
     @acceptedCount += 1
 }
 
-showNotification("Rage Tracker connected. Accepted {@acceptedCount} uploads. Skipped {@skippedCalendarCount} invalid calendar events.", "Rage Tracker")
+showNotification("Synced {@acceptedCount} items. Skipped {@skippedCalendarCount} calendar events.", "Rage Tracker")
 
 // Offer an update after syncing; the user approves installation in Apple Shortcuts.
-const releaseBody = downloadURL("https://rage-tracker.bishvili.workers.dev/api/shortcut/release?current=2.3.3", {"Authorization": "{@credential}"})
+const releaseBody = downloadURL("https://rage-tracker.bishvili.workers.dev/api/shortcut/release?current=2.3.4", {"Authorization": "{@credential}"})
 const releaseInfo = getDictionary(releaseBody)
 const updateStatusValue = getValue(releaseInfo, "updateStatus")
 const updateStatus = getText(updateStatusValue)
@@ -135,7 +135,7 @@ if updateStatus == "new_release" {
     @release = getValue(releaseInfo, "release")
     @link = @release['url']
     const updateOptions = list("Install update", "Not now")
-    const selected = chooseFromList(updateOptions, "An updated Rage Tracker Sync is available.")
+    const selected = chooseFromList(updateOptions, "A new version of Rage Tracker Sync is available.")
     const choice = getText(selected)
     if choice == "Install update" {
         openURL("{link}")
