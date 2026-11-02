@@ -45,6 +45,17 @@ test("the Health upload uses a grouping-normalized number, not the raw result", 
  assert.match(sync, /getValue\(healthResponse, "error"\)/);
 });
 
+test("the compiled step-cleanup pattern removes only grouping separators", () => {
+ const pattern=sync.match(/replaceText\('([^']+)', "", totalStepsText, true, true\)/);
+ assert.ok(pattern, "Missing regex-based step normalization");
+ const clean=value=>value.replace(new RegExp(pattern[1],"g"),"");
+ assert.equal(clean("12,345"),"12345");
+ assert.equal(clean("1,234,567"),"1234567");
+ assert.equal(clean("1 234 567"),"1234567");
+ assert.equal(clean("1234.5"),"1234.5");
+ assert.equal(clean("1,5"),"1,5");
+});
+
 test("the one-time connection is distinct from public RoutineHub releases", () => {
  assert.match(connection, /#define name Rage Tracker Connection/);
  assert.match(sync, /\/api\/shortcut\/release\?current=2\.3\.3/);
