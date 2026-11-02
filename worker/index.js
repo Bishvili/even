@@ -218,14 +218,18 @@ async function syncApi(request,env,path){
  return error("Not found",404);
 }
 async function api(request,env,ctx,path){
- if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:"Rage Tracker",version:"1.10.3",sync:"email-access"});
+ if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:"Rage Tracker",version:"1.10.4",sync:"email-access"});
  if(path.startsWith("/api/auth/"))return authApi(request,env,ctx,path);
  return syncApi(request,env,path);
 }
 
-async function shortcutBuilder(env){
- const source=await env.ASSETS.get("asset:shortcut.cherri");
- if(!source||source.length>16000||/Bearer [a-f0-9]{64}/i.test(source)||!source.includes("#question authorization")||!source.includes("text(authorization)"))return new Response("Shortcut preview unavailable",{status:503,headers:SECURITY});
+async function shortcutBuilder(env,connectionHelper=false){
+ const source=await env.ASSETS.get(connectionHelper?"asset:connection.cherri":"asset:shortcut.cherri");
+ const valid=connectionHelper
+  ?source?.includes("#question authorization")&&source.includes("text(authorization)")&&source.includes("output(credential)")
+  :source?.includes('run("Rage Tracker Connection"')&&source.includes("getText(connectionOutput)");
+ if(!source||source.length>16000||/Bearer [a-f0-9]{64}/i.test(source)||!valid)
+  return new Response("Shortcut preview unavailable",{status:503,headers:SECURITY});
  const compact=source.split(/\r?\n/).map(x=>x.trim()).filter(x=>x&&!x.startsWith("//")).join("\n");
  const destination="https://playground.cherrilang.org/?code="+encodeURIComponent(compact);
  if(destination.length>16000)return new Response("Shortcut preview is too large",{status:503,headers:SECURITY});
@@ -241,7 +245,7 @@ async function asset(path,env){
  return new Response(data,{headers});
 }
 export default {async fetch(request,env,ctx){
- try{const path=new URL(request.url).pathname;if(path.startsWith("/api/"))return await api(request,env,ctx,path);if(path==="/shortcut/builder"&&request.method==="GET")return shortcutBuilder(env);
+ try{const path=new URL(request.url).pathname;if(path.startsWith("/api/"))return await api(request,env,ctx,path);if(path==="/shortcut/builder"&&request.method==="GET")return shortcutBuilder(env,false);if(path==="/shortcut/connection-builder"&&request.method==="GET")return shortcutBuilder(env,true);
  if(request.method!=="GET"&&request.method!=="HEAD")return new Response("Method not allowed",{status:405,headers:SECURITY});
  return await asset(path,env);
  }catch(e){return error("Request could not be processed",500);}
