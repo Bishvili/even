@@ -17,6 +17,11 @@ for file in icon-192.png icon-512.png; do
   rm -f "$encoded"
 done
 
+# Removes source files the app no longer serves.
+for key in asset:shortcut.cherri asset:connection.cherri; do
+  $WRANGLER kv key delete "$key" --namespace-id "$NAMESPACE_ID" --remote || true
+done
+
 # Tells the Shortcut and the app which release is current.
 $WRANGLER kv key put "config:shortcut:latest" --path shortcuts/release.json --namespace-id "$NAMESPACE_ID" --remote
 

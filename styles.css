@@ -41,9 +41,6 @@
 .device-row-main{flex:1;min-width:0}
 .device-row-main strong{display:block;color:#386250;font-size:13px;overflow-wrap:anywhere}
 .device-row-main small{display:block;color:#8d9d93;font-size:11px;margin-top:5px}
-.shortcut-install-note{margin-top:17px;padding:14px 15px;background:#f5f6ed;border-radius:12px;border:1px solid #e6e9d9;color:#71816c}
-.shortcut-install-note strong{font-size:12px;color:#436850}
-.shortcut-install-note p{font-size:11px;line-height:1.6;margin:8px 0 0}
 #login-button{margin-top:14px}
 #login-ready label{display:block;margin:13px 0 7px;font-size:12px;font-weight:770;color:#4b6d60}
 #pair-connected .button-row{margin-top:10px}

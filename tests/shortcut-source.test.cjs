@@ -10,7 +10,7 @@ const app=fs.readFileSync(path.join(root,"app.js"),"utf8");
 const worker=fs.readFileSync(path.join(root,"worker","index.js"),"utf8");
 const shortcut=fs.readFileSync(path.join(root,"shortcuts","rage-tracker-sync.cherri"),"utf8");
 
-test("corrected Shortcut is the only downloadable installation path",()=>{
+test("the retired v2.2 download is gone",()=>{
  assert.doesNotMatch(html,/rage-tracker-sync-v2\.2\.shortcut/);
  assert.doesNotMatch(worker,/rage-tracker-sync-v2\.2\.shortcut/);
  assert.doesNotMatch(app,/Signed test build v2\.2/);

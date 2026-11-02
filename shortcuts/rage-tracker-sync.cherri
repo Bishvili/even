@@ -4,20 +4,18 @@
 #define mac false
 
 #include 'actions/calendar'
+#include 'actions/documents'
 #include 'actions/text'
 #include 'actions/web'
 
-// The device key lives in a file, so replacing this Shortcut does not disconnect it.
-// References On My iPhone.
-#ref onMyIPhone eyJkaXNwbGF5TmFtZSI6Ik9uIE15IGlQaG9uZSIsImZpbGVuYW1lIjoiRmlsZSBQcm92aWRlciBTdG9yYWdlIiwiZmlsZUxvY2F0aW9uIjp7IldGRmlsZUxvY2F0aW9uVHlwZSI6IkxvY2FsU3RvcmFnZSIsInJlbGF0aXZlU3VicGF0aCI6IiJ9fQ==
+// The device key lives in a file outside this Shortcut.
+action 'is.workflow.actions.documentpicker.open' readSavedDeviceKey(variable folder: 'WFFile'): text {"WFGetFilePath":"rage-tracker-device-key.txt","WFFileErrorIfNotFound":false,"WFShowFilePicker":false}
 
-action 'is.workflow.actions.file.createfolder' createKeyFolder(&variable location: 'WFFolder') {"WFFilePath":"Rage Tracker"}
+action 'is.workflow.actions.documentpicker.save' saveDeviceKey(variable key: 'WFInput', variable folder: 'WFFolder') {"WFFileDestinationPath":"rage-tracker-device-key.txt","WFSaveFileOverwrite":true,"WFAskWhereToSave":false}
 
-action 'is.workflow.actions.documentpicker.open' readSavedDeviceKey(&variable folder: 'WFFile'): text {"WFGetFilePath":"rage-tracker-device-key.txt","WFFileErrorIfNotFound":false,"WFShowFilePicker":false}
-
-action 'is.workflow.actions.documentpicker.save' saveDeviceKey(variable key: 'WFInput', &variable folder: 'WFFolder') {"WFFileDestinationPath":"rage-tracker-device-key.txt","WFSaveFileOverwrite":true,"WFAskWhereToSave":false}
-
-const keyFolder = createKeyFolder(onMyIPhone)
+// Create Folder keeps its existing folder and defaults to the Shortcuts folder in iCloud Drive.
+const keyFolderName = text("Rage Tracker")
+const keyFolder = createFolder("{keyFolderName}")
 const savedKeyFile = readSavedDeviceKey(keyFolder)
 @credential = getText(savedKeyFile)
 const savedKeyMatches = matchText('^Bearer [0-9A-Fa-f]{64}$', @credential)
@@ -28,7 +26,7 @@ if savedKeyMatchCount == 0 {
 
 // Verify the connection and record the Shortcut's version, even if no health samples are available.
 const handshakeRaw = jsonRequest("https://rage-tracker.bishvili.workers.dev/api/shortcut/hello", "POST", {
-    "shortcutVersion": "2.3.4"
+    "shortcutVersion": "2.3.5"
 }, {"Authorization": "{@credential}"})
 const handshake = getDictionary(handshakeRaw)
 const connectionStatusValue = getValue(handshake, "state")
@@ -36,7 +34,7 @@ const connectionStatus = getText(connectionStatusValue)
 if connectionStatus != "connected" {
     @credential = prompt("That key didn't work. Paste your device key from Rage Tracker > Sync")
     const retryRaw = jsonRequest("https://rage-tracker.bishvili.workers.dev/api/shortcut/hello", "POST", {
-        "shortcutVersion": "2.3.4"
+        "shortcutVersion": "2.3.5"
     }, {"Authorization": "{@credential}"})
     const retry = getDictionary(retryRaw)
     const retryStatusValue = getValue(retry, "state")
@@ -73,7 +71,7 @@ for event in events {
 
     const eventBody = formRequest("https://rage-tracker.bishvili.workers.dev/api/ingest", "POST", {
         "kind": "calendar",
-        "shortcutVersion": "2.3.4",
+        "shortcutVersion": "2.3.5",
         "title": "{title}",
         "start": "{startISO}",
         "end": "{endISO}"
@@ -108,7 +106,7 @@ if sampleCount >= 1 {
     const day = formatDate(today, "Custom", "yyyy-MM-dd")
     const healthBody = formRequest("https://rage-tracker.bishvili.workers.dev/api/ingest", "POST", {
         "kind": "health",
-        "shortcutVersion": "2.3.4",
+        "shortcutVersion": "2.3.5",
         "date": "{day}",
         "steps": "{stepsValue}"
     }, {"Authorization": "{@credential}"})
@@ -127,7 +125,7 @@ if sampleCount >= 1 {
 showNotification("Synced {@acceptedCount} items. Skipped {@skippedCalendarCount} calendar events.", "Rage Tracker")
 
 // Offer an update after syncing; the user approves installation in Apple Shortcuts.
-const releaseBody = downloadURL("https://rage-tracker.bishvili.workers.dev/api/shortcut/release?current=2.3.4", {"Authorization": "{@credential}"})
+const releaseBody = downloadURL("https://rage-tracker.bishvili.workers.dev/api/shortcut/release?current=2.3.5", {"Authorization": "{@credential}"})
 const releaseInfo = getDictionary(releaseBody)
 const updateStatusValue = getValue(releaseInfo, "updateStatus")
 const updateStatus = getText(updateStatusValue)

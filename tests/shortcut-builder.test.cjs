@@ -78,7 +78,7 @@ test("main Shortcut reads its saved key before the handshake",()=>{
 
 test("the key file is the only filesystem dependency",()=>{
  assert.equal((source.match(/rage-tracker-device-key\.txt/g)||[]).length,2);
- assert.doesNotMatch(source,/\b(createFolder|getFolderContents|getFileFromFolder|deleteFiles)\s*\(/);
+ assert.doesNotMatch(source,/\b(getFolderContents|getFileFromFolder|deleteFiles)\s*\(/);
 });
 
 test("the owner-scoped API validates the configured key before collecting data",()=>{
@@ -96,8 +96,8 @@ test("every accepted upload is acknowledged and versioned",()=>{
  assert.match(source,/getValue\(healthResponse, "state"\)/);
  assert.match(source,/if eventStatus != "accepted"/);
  assert.match(source,/if healthStatus != "accepted"/);
- assert.match(source,/shortcutVersion": "2\.3\.4"/);
- assert.match(source,/\/api\/shortcut\/release\?current=2\.3\.4/);
+ assert.match(source,/shortcutVersion": "2\.3\.5"/);
+ assert.match(source,/\/api\/shortcut\/release\?current=2\.3\.5/);
  assert.match(source,/showNotification\("Synced \{@acceptedCount\} items\. Skipped \{@skippedCalendarCount\} calendar events\."/);
  assert.doesNotMatch(source,/\bnothing\(\)/);
  assert.doesNotMatch(source,/Bearer [a-f0-9]{64}/i);
@@ -133,7 +133,7 @@ test("the PWA setup instructions and source agree",()=>{
  assert.match(html,/target="_blank"/);
 });
 
-test("corrected v2.3 builder replaces the malformed signed download",()=>{
+test("the malformed v2.2 download is gone",()=>{
  assert.doesNotMatch(worker,/rage-tracker-sync-v2\.2\.shortcut/);
  assert.doesNotMatch(html,/rage-tracker-sync-v2\.2\.shortcut/);
 });

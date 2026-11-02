@@ -19,7 +19,7 @@ test("the device key is read from a file and has no install question or helper",
  assert.doesNotMatch(sync, /#question/);
  assert.doesNotMatch(sync, /\brun\("/);
  assert.match(sync, /"WFGetFilePath":"rage-tracker-device-key.txt","WFFileErrorIfNotFound":false,"WFShowFilePicker":false/);
- assert.match(sync, /const keyFolder = createKeyFolder\(onMyIPhone\)/);
+ assert.match(sync, /const keyFolder = createFolder\("\{keyFolderName\}"\)/);
  assert.match(sync, /readSavedDeviceKey\(keyFolder\)/);
  assert.match(sync, /if savedKeyMatchCount == 0/);
  assert.doesNotMatch(sync, /Bearer [a-f0-9]{64}/i);
@@ -75,5 +75,5 @@ test("the compiled step-cleanup pattern removes only grouping separators", () =>
 });
 
 test("updates are checked against the current version", () => {
- assert.match(sync, /\/api\/shortcut\/release\?current=2\.3\.4/);
+ assert.match(sync, /\/api\/shortcut\/release\?current=2\.3\.5/);
 });

@@ -116,7 +116,7 @@ test("all application DOM references resolve to real elements",()=>{
  for(const match of source.matchAll(/\$\("([^"]+)"\)/g))assert.ok(ids.has(match[1]),"Missing "+match[1]);
 });
 
-test("v2.3.0 date-only candidate cannot be launched from the PWA",async()=>{
+test("a v2.3.0 Shortcut cannot be launched from the PWA",async()=>{
  const t=setup({reportedVersion:"2.3.0"});
  t.app.setAuth(t.email,[]);
  await t.app.checkShortcutUpload(false);

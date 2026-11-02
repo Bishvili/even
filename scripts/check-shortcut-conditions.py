@@ -119,8 +119,8 @@ def check_connection_and_steps(document, actions) -> None:
     if len(folders) != 1:
         raise AssertionError(f"Expected one key folder step, found {len(folders)}")
     folder = folders[0].get("WFWorkflowActionParameters", {})
-    if folder.get("WFFilePath") != "Rage Tracker" or "LocalStorage" not in json.dumps(folder.get("WFFolder", {})):
-        raise AssertionError("Key folder must be created in On My iPhone")
+    if "keyFolderName" not in json.dumps(folder.get("WFFilePath", {})) or "WFFolder" in folder:
+        raise AssertionError("Key folder must be created by name in the default Shortcuts folder")
     if "keyFolder" not in json.dumps(read.get("WFFile", {})):
         raise AssertionError("Saved-key read must use the created folder")
     if (read.get("WFGetFilePath"), read.get("WFFileErrorIfNotFound"), read.get("WFShowFilePicker")) != (KEY_FILE, False, False):

@@ -22,9 +22,9 @@ test("main sync reads its saved device key before the handshake and uploads",()=
 });
 
 test("the Shortcut identifies itself on the handshake, uploads, and update query",()=>{
- assert.match(source,/"shortcutVersion": "2\.3\.4"/);
- assert.equal((source.match(/"shortcutVersion": "2\.3\.4"/g)||[]).length,4);
- assert.match(source,/\/api\/shortcut\/release\?current=2\.3\.4/);
+ assert.match(source,/"shortcutVersion": "2\.3\.5"/);
+ assert.equal((source.match(/"shortcutVersion": "2\.3\.5"/g)||[]).length,4);
+ assert.match(source,/\/api\/shortcut\/release\?current=2\.3\.5/);
  assert.match(source,/getValue\(handshake, "state"\)/);
  assert.match(source,/if connectionStatus != "connected"/);
 });
@@ -35,7 +35,7 @@ test("server offers upgrades only for verified releases",()=>{
  assert.doesNotMatch(worker,/"source\.zip":"application\/zip"/);
 });
 
-test("corrected Shortcut source is offered without a falsely signed release",()=>{
+test("the public listing is offered without a falsely signed release",()=>{
  assert.match(html,/id="run-shortcut"[^>]*href="shortcuts:\/\/run-shortcut\?name=Rage%20Tracker%20Sync"/);
  assert.doesNotMatch(worker,/rage-tracker-sync-v2\.2\.shortcut/);
  assert.doesNotMatch(html,/rage-tracker-sync-v2\.2\.shortcut/);

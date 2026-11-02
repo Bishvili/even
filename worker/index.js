@@ -1,4 +1,4 @@
-// Rage Tracker 1.3: Cloudflare Access passwordless login and owner-scoped device sync.
+// Rage Tracker: Cloudflare Access passwordless login and owner-scoped device sync.
 // All server tokens are generated randomly, stored only as SHA-256 hashes, and revocable.
 // Only /api/auth/* is protected by Cloudflare Access. All other routes reject
 // unauthenticated sync operations unless a valid, unrevoked device token is supplied.
@@ -218,7 +218,7 @@ async function syncApi(request,env,path){
  return error("Not found",404);
 }
 async function api(request,env,ctx,path){
- if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:"Rage Tracker",version:"1.10.7",sync:"email-access"});
+ if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:"Rage Tracker",version:"1.10.8",sync:"email-access"});
  if(path.startsWith("/api/auth/"))return authApi(request,env,ctx,path);
  return syncApi(request,env,path);
 }
