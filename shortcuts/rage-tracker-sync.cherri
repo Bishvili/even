@@ -21,16 +21,17 @@ if savedKeyMatchCount == 0 {
 }
 
 // Verify the connection and record the Shortcut's version, even if no health samples are available.
-const helloBody = {
+const handshakeRaw = jsonRequest("https://rage-tracker.bishvili.workers.dev/api/shortcut/hello", "POST", {
     "shortcutVersion": "2.3.3"
-}
-const handshakeRaw = jsonRequest("https://rage-tracker.bishvili.workers.dev/api/shortcut/hello", "POST", helloBody, {"Authorization": "{@credential}"})
+}, {"Authorization": "{@credential}"})
 const handshake = getDictionary(handshakeRaw)
 const connectionStatusValue = getValue(handshake, "state")
 const connectionStatus = getText(connectionStatusValue)
 if connectionStatus != "connected" {
     @credential = prompt("Rage Tracker did not accept this device key. Paste the full Authorization value from Rage Tracker > Sync")
-    const retryRaw = jsonRequest("https://rage-tracker.bishvili.workers.dev/api/shortcut/hello", "POST", helloBody, {"Authorization": "{@credential}"})
+    const retryRaw = jsonRequest("https://rage-tracker.bishvili.workers.dev/api/shortcut/hello", "POST", {
+        "shortcutVersion": "2.3.3"
+    }, {"Authorization": "{@credential}"})
     const retry = getDictionary(retryRaw)
     const retryStatusValue = getValue(retry, "state")
     const retryStatus = getText(retryStatusValue)
