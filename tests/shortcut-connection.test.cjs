@@ -22,7 +22,7 @@ test("the private key is entered only in the persistent connection helper", () =
  assert.match(connection, /#question authorization "Paste the full Authorization value/);
  assert.match(connection, /const credential = text\(authorization\)/);
  assert.match(connection, /output\(credential\)/);
- assert.match(sync, /const connectionOutput = run\("Rage Tracker Connection", "read"\)/);
+ assert.match(sync, /const connectionOutput = run\("Rage Tracker Connection", connectionRequest\)/);
  assert.match(sync, /const credential = getText\(connectionOutput\)/);
  assert.match(sync, /if credentialMatchCount == 0/);
  assert.doesNotMatch(connection, /Bearer [a-f0-9]{64}/i);
