@@ -26,7 +26,7 @@ on:
         required: true
         default: false
       publish_listing:
-        description: "Make the RoutineHub listing public (normally false until final review)"
+        description: "Publish listing if still private; new versions of an already-public listing may appear immediately"
         type: boolean
         required: true
         default: false
@@ -128,7 +128,7 @@ jobs:
           print(f"RoutineHub listing 26975 accepted version {os.environ['RELEASE_VERSION']}.")
           PY
 
-      - name: Publish listing after explicit approval
+      - name: Publish listing after explicit approval (idempotent)
         if: ${{ inputs.publish_listing }}
         env:
           ROUTINEHUB_API_KEY: ${{ secrets.ROUTINEHUB_API_KEY }}
@@ -139,13 +139,33 @@ jobs:
           from urllib import error, parse, request
 
           key = os.environ["ROUTINEHUB_API_KEY"]
-          url = "https://routinehub.co/api/v1/" + parse.quote(key, safe="") + "/shortcuts/26975/publish"
+          root = "https://routinehub.co/api/v1/" + parse.quote(key, safe="") + "/shortcuts"
+
+          # An existing public listing does not need another publish request.
           try:
-              with request.urlopen(request.Request(url, data=b"", method="POST"), timeout=45) as response:
+              with request.urlopen(request.Request(root, headers={"Accept": "application/json"}), timeout=30) as response:
+                  listing_response = json.loads(response.read(32768))
+          except error.HTTPError as exc:
+              raise SystemExit(f"RoutineHub listing lookup failed (HTTP {exc.code}).")
+          except (error.URLError, ValueError, TimeoutError):
+              raise SystemExit("Could not verify the RoutineHub listing before publication.")
+
+          shortcuts = listing_response.get("shortcuts", {})
+          listing = next((item for item in shortcuts.values()
+                          if str(item.get("id")) == "26975"), None)
+          if listing_response.get("result") != "success" or listing is None:
+              raise SystemExit("RoutineHub key cannot verify ownership of listing 26975.")
+          if str(listing.get("published")).lower() == "true":
+              print("RoutineHub listing 26975 is already public; no publish request made.")
+              raise SystemExit(0)
+
+          try:
+              with request.urlopen(request.Request(root + "/26975/publish", data=b"", method="POST"),
+                                   timeout=45) as response:
                   result = json.loads(response.read(32768))
           except error.HTTPError as exc:
               raise SystemExit(f"RoutineHub publish request failed (HTTP {exc.code}).")
-          except (error.URLError, ValueError):
+          except (error.URLError, ValueError, TimeoutError):
               raise SystemExit("RoutineHub publish response could not be verified.")
           if result.get("result") != "success":
               raise SystemExit("RoutineHub did not confirm publication.")
