@@ -19,8 +19,7 @@ test("the device key is read from a file and has no install question or helper",
  assert.doesNotMatch(sync, /#question/);
  assert.doesNotMatch(sync, /\brun\("/);
  assert.match(sync, /"WFGetFilePath":"rage-tracker-device-key.txt","WFFileErrorIfNotFound":false,"WFShowFilePicker":false/);
- const folder = JSON.parse(Buffer.from(sync.match(/^#ref shortcutsFolder (\S+)$/m)[1], "base64").toString());
- assert.equal(folder.fileLocation.WFFileLocationType, "Shortcuts");
+ assert.equal((sync.match(/"WFFileStorageService":"iCloud Drive"/g) || []).length, 2);
  assert.match(sync, /if savedKeyMatchCount == 0/);
  assert.doesNotMatch(sync, /Bearer [a-f0-9]{64}/i);
  assert.equal(fs.existsSync(path.join(root, "shortcuts/rage-tracker-connection.cherri")), false);
@@ -28,7 +27,7 @@ test("the device key is read from a file and has no install question or helper",
 
 test("only a key the server accepted is saved", () => {
  const retryFailure = sync.indexOf('if retryStatus != "connected"');
- const save = sync.indexOf("saveDeviceKey(@credential, shortcutsFolder)");
+ const save = sync.indexOf("saveDeviceKey(@credential)");
  const events = sync.indexOf("const events = findTodayEvents()");
  assert.ok(retryFailure >= 0 && retryFailure < save && save < events);
  assert.equal((sync.match(/^saveDeviceKey\(/gm) || []).length, 1);
@@ -41,7 +40,8 @@ test("one Cherri builder route is available", () => {
 });
 
 test("the Health upload uses a grouping-normalized number, not the raw result", () => {
- assert.match(sync, /const totalSteps = statistic\("Sum", values\)/);
+ assert.match(sync, /sumValues\(variable values: 'Input'\)/);
+ assert.match(sync, /const totalSteps = sumValues\(values\)/);
  assert.match(sync, /const normalizedSteps = replaceText/);
  assert.match(sync, /"steps": "\{stepsValue\}"/);
  assert.doesNotMatch(sync, /"steps": "\{(?:totalSteps|normalizedSteps)\}"/);

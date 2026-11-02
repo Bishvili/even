@@ -115,8 +115,8 @@ def check_connection_and_steps(document, actions) -> None:
     if len(reads) != 1:
         raise AssertionError(f"Expected one saved-key read, found {len(reads)}")
     read = reads[0].get("WFWorkflowActionParameters", {})
-    if read.get("WFFile", {}).get("fileLocation", {}).get("WFFileLocationType") != "Shortcuts":
-        raise AssertionError("Saved-key read must name the Shortcuts folder")
+    if read.get("WFFileStorageService") != "iCloud Drive":
+        raise AssertionError("Saved-key read must use iCloud Drive")
     if (read.get("WFGetFilePath"), read.get("WFFileErrorIfNotFound"), read.get("WFShowFilePicker")) != (KEY_FILE, False, False):
         raise AssertionError("Saved-key read must use the key path without a picker or a missing-file error")
 
@@ -124,12 +124,18 @@ def check_connection_and_steps(document, actions) -> None:
     if len(saves) != 1:
         raise AssertionError(f"Expected one saved-key write, found {len(saves)}")
     save = saves[0].get("WFWorkflowActionParameters", {})
-    if save.get("WFFolder", {}).get("fileLocation", {}).get("WFFileLocationType") != "Shortcuts":
-        raise AssertionError("Saved-key write must name the Shortcuts folder")
+    if save.get("WFFileStorageService") != "iCloud Drive":
+        raise AssertionError("Saved-key write must use iCloud Drive")
     if (save.get("WFFileDestinationPath"), save.get("WFSaveFileOverwrite"), save.get("WFAskWhereToSave")) != (KEY_FILE, True, False):
         raise AssertionError("Saved-key write must overwrite the key path without asking where to save")
     if json.dumps(save.get("WFInput", {})).find("credential") < 0:
         raise AssertionError("Saved-key write does not receive the accepted credential")
+
+    total = named.get("totalSteps", {})
+    total_settings = total.get("WFWorkflowActionParameters", {})
+    total_input = json.dumps(total_settings.get("Input", {}))
+    if total.get("WFWorkflowActionIdentifier") != "is.workflow.actions.statistics" or total_settings.get("WFStatisticsOperation") != "Sum" or '"values"' not in total_input:
+        raise AssertionError("Step sum does not receive the Health sample values")
 
     normalizer = named.get("normalizedSteps", {})
     settings = normalizer.get("WFWorkflowActionParameters", {})

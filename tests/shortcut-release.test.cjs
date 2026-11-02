@@ -13,7 +13,7 @@ const app=fs.readFileSync(path.join(root,"app.js"),"utf8");
 const schema=fs.readFileSync(path.join(root,"db","schema.sql"),"utf8");
 
 test("main sync reads its saved device key before the handshake and uploads",()=>{
- const read=source.indexOf("const savedKeyFile = readSavedDeviceKey(shortcutsFolder)");
+ const read=source.indexOf("const savedKeyFile = readSavedDeviceKey()");
  const handshake=source.indexOf('jsonRequest("https://rage-tracker.bishvili.workers.dev/api/shortcut/hello"');
  const firstUpload=source.indexOf('formRequest("https://rage-tracker.bishvili.workers.dev/api/ingest"');
  assert.ok(read>=0&&read<handshake&&handshake<firstUpload);

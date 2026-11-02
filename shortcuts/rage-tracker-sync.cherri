@@ -4,19 +4,15 @@
 #define mac false
 
 #include 'actions/calendar'
-#include 'actions/math'
 #include 'actions/text'
 #include 'actions/web'
 
 // The device key lives in a file, so replacing this Shortcut does not disconnect it.
-// References the Shortcuts folder in iCloud Drive.
-#ref shortcutsFolder eyJkaXNwbGF5TmFtZSI6IlNob3J0Y3V0cyIsImZpbGVuYW1lIjoiRG9jdW1lbnRzIiwiZmlsZUxvY2F0aW9uIjp7IldGRmlsZUxvY2F0aW9uVHlwZSI6IlNob3J0Y3V0cyIsInJlbGF0aXZlU3VicGF0aCI6IiJ9fQ==
+action 'is.workflow.actions.documentpicker.open' readSavedDeviceKey(): text {"WFFileStorageService":"iCloud Drive","WFGetFilePath":"rage-tracker-device-key.txt","WFFileErrorIfNotFound":false,"WFShowFilePicker":false}
 
-action 'is.workflow.actions.documentpicker.open' readSavedDeviceKey(&variable folder: 'WFFile'): text {"WFGetFilePath":"rage-tracker-device-key.txt","WFFileErrorIfNotFound":false,"WFShowFilePicker":false}
+action 'is.workflow.actions.documentpicker.save' saveDeviceKey(variable key: 'WFInput') {"WFFileStorageService":"iCloud Drive","WFFileDestinationPath":"rage-tracker-device-key.txt","WFSaveFileOverwrite":true,"WFAskWhereToSave":false}
 
-action 'is.workflow.actions.documentpicker.save' saveDeviceKey(variable key: 'WFInput', &variable folder: 'WFFolder') {"WFFileDestinationPath":"rage-tracker-device-key.txt","WFSaveFileOverwrite":true,"WFAskWhereToSave":false}
-
-const savedKeyFile = readSavedDeviceKey(shortcutsFolder)
+const savedKeyFile = readSavedDeviceKey()
 @credential = getText(savedKeyFile)
 const savedKeyMatches = matchText('^Bearer [0-9A-Fa-f]{64}$', @credential)
 const savedKeyMatchCount = count(savedKeyMatches)
@@ -46,7 +42,7 @@ if connectionStatus != "connected" {
 }
 
 // Save only a key the server accepted, so a failed attempt cannot replace a working one.
-saveDeviceKey(@credential, shortcutsFolder)
+saveDeviceKey(@credential)
 
 // Collect only events starting today.
 action 'is.workflow.actions.filter.calendarevents' findTodayEvents(): array {"WFContentItemFilter":{"Value":{"WFActionParameterFilterPrefix":1,"WFContentPredicateBoundedDate":false,"WFActionParameterFilterTemplates":[{"Bounded":true,"Operator":1002,"Property":"Start Date","Removable":false,"Values":{"Number":"7","Unit":16}}]},"WFSerializationType":"WFContentPredicateTableTemplate"},"WFContentItemLimitEnabled":true,"WFContentItemLimitNumber":30,"WFContentItemSortProperty":"Start Date","WFContentItemSortOrder":"Ascending"}
@@ -55,6 +51,9 @@ action 'is.workflow.actions.filter.calendarevents' findTodayEvents(): array {"WF
 action 'is.workflow.actions.filter.health.quantity' findTodaySteps(): array {"WFContentItemFilter":{"Value":{"WFActionParameterFilterPrefix":1,"WFContentPredicateBoundedDate":false,"WFActionParameterFilterTemplates":[{"Bounded":true,"Operator":4,"Property":"Type","Removable":false,"Values":{"Enumeration":{"Value":"Steps","WFSerializationType":"WFStringSubstitutableState"}}},{"Bounded":true,"Operator":1002,"Property":"Start Date","Removable":false,"Values":{"Number":"7","Unit":16}}]},"WFSerializationType":"WFContentPredicateTableTemplate"}}
 
 action 'is.workflow.actions.properties.health.quantity' getStepValues(variable samples: 'WFInput'): array {"WFContentItemPropertyName":"Value"}
+
+// Calculate Statistics takes its list through the Input parameter.
+action 'is.workflow.actions.statistics' sumValues(variable values: 'Input'): number {"WFStatisticsOperation":"Sum"}
 
 @acceptedCount = 0
 @skippedCalendarCount = 0
@@ -94,7 +93,7 @@ const samples = findTodaySteps()
 const sampleCount = count(samples)
 if sampleCount >= 1 {
     const values = getStepValues(samples)
-    const totalSteps = statistic("Sum", values)
+    const totalSteps = sumValues(values)
     const totalStepsText = getText(totalSteps)
     const normalizedSteps = replaceText('(?<=\d)[,\s](?=\d{3}(?:\D|$))', "", totalStepsText, true, true)
     // Keep only the number, because the text form of a Health value can include a unit.

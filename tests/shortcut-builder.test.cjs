@@ -71,7 +71,7 @@ test("a valid Shortcut handshake does not imply accepted Health data",()=>{
  assert.match(t.elements.get("shortcut-upload-counts").textContent,/0 health/);
 });
 test("main Shortcut reads its saved key before the handshake",()=>{
- const read=source.indexOf("const savedKeyFile = readSavedDeviceKey(shortcutsFolder)");
+ const read=source.indexOf("const savedKeyFile = readSavedDeviceKey()");
  const handshake=source.indexOf('jsonRequest("https://rage-tracker.bishvili.workers.dev/api/shortcut/hello"');
  assert.ok(read>=0&&read<handshake);
  assert.doesNotMatch(source,/#question/);
@@ -135,7 +135,7 @@ test("the PWA setup instructions and source agree",()=>{
  assert.match(html,/credential-free v2\.3\.3 source/);
  assert.match(html,/href="\/shortcut\/builder"/);
  assert.match(html,/target="_blank"/);
- assert.match(worker,/saveDeviceKey\(@credential, shortcutsFolder\)/);
+ assert.match(worker,/saveDeviceKey\(@credential\)/);
 });
 
 test("corrected v2.3 builder replaces the malformed signed download",()=>{
