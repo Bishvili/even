@@ -53,6 +53,21 @@ jobs:
           test -n "$PLIST"
           python3 scripts/check-shortcut-conditions.py "$PLIST"
 
+      - name: Copy generated plist for structural analysis
+        run: |
+          mkdir -p dist
+          PLIST="$(find . -type f -name 'Rage Tracker Sync.plist' -print -quit)"
+          test -n "$PLIST"
+          cp "$PLIST" dist/compiled-shortcut.plist
+
+      - name: Upload unconfigured compiled plist for diagnostics
+        uses: actions/upload-artifact@v4
+        with:
+          name: Rage-Tracker-Sync-compiled-plist
+          path: dist/compiled-shortcut.plist
+          if-no-files-found: error
+          retention-days: 3
+
       - name: Sign generic Shortcut with Cherri HubSign
         run: |
           mkdir -p dist
