@@ -40,18 +40,16 @@ function harness(){
 
 test("a signed Shortcut link opens in a new tab and never includes the device key",()=>{
  assert.match(html,/id="install-shortcut"[^>]*target="_blank"[^>]*rel="noopener noreferrer"/);
- assert.match(html,/id="shortcut-preview"[^>]*target="_blank"/);
  assert.doesNotMatch(html,/Bearer [a-f0-9]{64}/i);
 });
-test("unverified iCloud release is not presented as a working installation",()=>{
+test("an unverified iCloud release is not offered, and the listing is used instead",()=>{
  const t=harness();
  t.api.setAuth("test@example.com");
  t.api.chooseRelease({version:"1.0.0",url:"https://www.icloud.com/shortcuts/82109f53491f4d95a0a8b8437c4090f2",verified:false});
  t.api.renderSync();
  const install=t.elements.get("install-shortcut");
- assert.equal(install.getAttribute("aria-disabled"),"true");
- assert.equal(install.getAttribute("href"),null);
- assert.match(t.elements.get("shortcut-install-help").textContent,/earlier Shortcut builds are not verified/);
+ assert.equal(install.href,"https://routinehub.co/shortcut/26975/");
+ assert.equal(install.getAttribute("aria-disabled"),null);
 });
 test("verified iCloud release enables new-tab installation",()=>{
  const t=harness();
@@ -67,7 +65,7 @@ test("a valid Shortcut handshake does not imply accepted Health data",()=>{
  t.api.setStatus({credentialValid:true,lastAttemptAt:"2026-11-01T17:00:00Z",installedShortcutVersion:"1.1.0",
   lastDataUploadAt:null,healthMetrics:0,calendarEvents:0});
  t.api.renderSync();
- assert.match(t.elements.get("shortcut-last-upload").textContent,/no Health\/Calendar data yet/);
+ assert.match(t.elements.get("shortcut-last-upload").textContent,/no data yet/);
  assert.match(t.elements.get("shortcut-upload-counts").textContent,/0 health/);
 });
 test("main Shortcut reads its saved key before the handshake",()=>{
@@ -132,18 +130,12 @@ test("calendar classification remains on the backend",()=>{
 
 test("the PWA setup instructions and source agree",()=>{
  assert.match(html,/rage-tracker-device-key\.txt/);
- assert.match(html,/credential-free v2\.3\.3 source/);
- assert.match(html,/href="\/shortcut\/builder"/);
  assert.match(html,/target="_blank"/);
- assert.match(worker,/saveDeviceKey\(@credential\)/);
 });
 
 test("corrected v2.3 builder replaces the malformed signed download",()=>{
- assert.match(html,/id="shortcut-preview"[^>]*target="_blank"[^>]*href="\/shortcut\/builder"/);
- assert.match(worker,/\/shortcut\/builder/);
  assert.doesNotMatch(worker,/rage-tracker-sync-v2\.2\.shortcut/);
  assert.doesNotMatch(html,/rage-tracker-sync-v2\.2\.shortcut/);
- assert.match(html,/v2\.3\.3 · corrected source/);
 });
 
 test("Run Shortcut uses the Apple-supported URL scheme without a device key",()=>{

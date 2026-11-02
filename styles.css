@@ -51,18 +51,18 @@
 #device-manager .empty{padding:15px 12px}
 
 /* Shortcut onboarding */
-.shortcut-builder-card{border-color:#cfe2d7;background:#fff}
-.shortcut-builder-head{display:flex;gap:13px;align-items:center;margin-bottom:18px}
-.shortcut-builder-icon{width:46px;height:46px;flex:none;display:grid;place-items:center;font-size:24px;font-weight:740;color:#296b56;background:#e0efe5;border-radius:14px}
-.shortcut-builder-head h2{font-size:19px;line-height:1.2;letter-spacing:-.5px;margin:5px 0 3px}
-.shortcut-builder-head .muted{margin:0;line-height:1.5}
+.shortcut-card{border-color:#cfe2d7;background:#fff}
+.shortcut-head{display:flex;gap:13px;align-items:center;margin-bottom:18px}
+.shortcut-icon{width:46px;height:46px;flex:none;display:grid;place-items:center;font-size:24px;font-weight:740;color:#296b56;background:#e0efe5;border-radius:14px}
+.shortcut-head h2{font-size:19px;line-height:1.2;letter-spacing:-.5px;margin:5px 0 3px}
+.shortcut-head .muted{margin:0;line-height:1.5}
 .shortcut-setup-list{border-top:1px solid #e8efea;border-bottom:1px solid #e8efea;margin:16px 0 20px;padding:10px 0}
 .shortcut-setup-row{display:flex;align-items:flex-start;gap:11px;padding:10px 1px}
 .shortcut-step-number{display:grid;place-items:center;flex:none;width:27px;height:27px;border-radius:50%;background:#eaf3ec;color:#3f7a63;font-size:12px;font-weight:830}
 .shortcut-setup-row strong{display:block;color:#355d4d;font-size:13px;line-height:1.5}
 .shortcut-setup-row small{display:block;font-size:11px;color:#84958a;line-height:1.55;margin-top:3px}
 
-.shortcut-builder-help{font-size:11px;color:#809287;line-height:1.5;text-align:center;margin:10px 0 0}
+.shortcut-help{font-size:11px;color:#809287;line-height:1.5;text-align:center;margin:10px 0 0}
 
 
 
@@ -90,16 +90,10 @@
 .shortcut-sync-diagnostic{margin:14px 0 4px;padding:13px 15px;border:1px solid #d7e5db;border-radius:12px;background:#eef6f0;color:#32634c;font-size:12px;line-height:1.65}
 .shortcut-sync-diagnostic.sync-error{color:#845c39;background:#fff6e8;border-color:#ead9bc}
 .shortcut-sync-diagnostic.sync-success{color:#2a6d52;background:#eaf5eb;border-color:#cfe6d2}
-.shortcut-builder-card details a{color:#296e59;text-decoration:underline;text-underline-offset:3px}
+.shortcut-card details a{color:#296e59;text-decoration:underline;text-underline-offset:3px}
 @media(max-width:360px){.shortcut-release-row{align-items:flex-start;flex-direction:column}.shortcut-upload-status button{min-width:96px}}
 
 
-/* Signed iCloud release and first-run configuration preview */
-.shortcut-preview-release{border:1px solid #d8e7dc;border-radius:14px;background:#f5faf5;padding:15px;margin:17px 0 12px}
-.shortcut-preview-version{display:block;color:#35715b;font-size:11px;font-weight:830;letter-spacing:.4px}
-.shortcut-preview-release .btn{margin:11px 0 0;min-height:48px}
-.shortcut-preview-release p{font-size:11px;line-height:1.6;margin:10px 0 0;color:#7a8d7e}
-.shortcut-builder-card code{font-size:11px;background:#edf3eb;border-radius:4px;padding:1px 4px;overflow-wrap:anywhere}
+.shortcut-card code{font-size:11px;background:#edf3eb;border-radius:4px;padding:1px 4px;overflow-wrap:anywhere}
 
 #run-shortcut{min-height:48px;margin-top:11px}
-.shortcut-run-note{font-size:11px;line-height:1.55;text-align:center;margin:8px 0 0;color:#7e9185}

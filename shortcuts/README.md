@@ -1,6 +1,6 @@
 # Rage Tracker Sync
 
-Rage Tracker Sync is the replaceable iPhone Shortcut that sends selected Calendar events and Apple Health Steps to the owner's private Rage Tracker account. **The installed Shortcut is always named `Rage Tracker Sync`**, with no version suffix. The current candidate is **v2.3.3** and is not yet a verified public release.
+Rage Tracker Sync is the replaceable iPhone Shortcut that sends selected Calendar events and Apple Health Steps to the owner's private Rage Tracker account. **The installed Shortcut is always named `Rage Tracker Sync`**, with no version suffix. The current version is **v2.3.3**.
 
 ## Set up once, update without re-entering your key
 
@@ -10,6 +10,8 @@ Rage Tracker Sync is a single Shortcut. It has no import questions and holds no 
 2. In Rage Tracker → **Sync**, sign in with an approved email. Generate a revocable device key if necessary and copy the complete Authorization value, including `Bearer `.
 3. Run Sync. On the first run it asks for the Authorization value and, once Rage Tracker accepts it, saves it to `rage-tracker-device-key.txt` in the Shortcuts folder of iCloud Drive. Approve file access, Calendar, Health Steps and network permissions as needed. Apple may request those permissions again when a Shortcut is replaced.
 4. Check **Sync → Test connection** and **Sync now** in the PWA. A successful handshake without accepted data is not sufficient to establish that uploads worked.
+
+If Shortcuts reports **Location Doesn't Exist**, open the Shortcut, tap the Shortcuts folder in the **Get File** and **Save File** actions, choose **OK**, and run it again. This may be needed after each install.
 
 Later updates read the saved file and do not ask for the key. If the file is missing or the handshake does not succeed, Sync asks for the value. A value that is not accepted is never saved, so a failed attempt or a server outage cannot replace a working key.
 

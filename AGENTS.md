@@ -4,7 +4,7 @@ This file is the operating guide for changes to the Rage Tracker codebase. Follo
 
 ## Product and quality bar
 
-Rage Tracker is an iPhone-first, installable progressive web app for quick mood check-ins and useful context from calendars and selected health metrics. Aim for the finish, consistency, speed, and restraint of a mature consumer iOS app, while remaining truthful about web-platform capabilities.
+Rage Tracker is an iPhone-first, installable progressive web app for quick mood check-ins and useful context from calendars and selected health metrics. This is a production app used by real people. Every change ships to them. Hold it to the finish, consistency, speed, and restraint of a popular App Store app, while remaining truthful about web-platform capabilities.
 
 - A check-in should take seconds. The interface must work while offline.
 - Personal mood check-ins and notes are local to the device unless a future feature explicitly changes this with consent.
@@ -15,10 +15,13 @@ Rage Tracker is an iPhone-first, installable progressive web app for quick mood 
 ## Product language and code quality
 
 - Write production-quality application code and documentation. Do not reference AI-generated code, a chat conversation, prompts, an assistant, or the circumstances in which a feature was requested in UI text, comments, commits, documentation, or runtime metadata.
+- The interface must read as a finished product. Never expose development state or internals to users: no prototype, beta, candidate, corrected, unverified, or test-build language; no version history; no tool, vendor, or infrastructure names such as Cherri, Cloudflare, or GitHub; no HTTP, API, header, or handshake terminology.
+- Keep copy short. Say what to do or what happened in a sentence, then stop. Do not explain how something works unless the person needs it to make a choice. Put necessary detail behind a disclosure.
+- Stay honest in fewer words: required privacy and security facts remain visible, stated plainly.
 - Use concise, user-facing language that describes actions and outcomes. Avoid placeholders, sales language, misleading success states, and filler.
 - Prefer small, cohesive modules, direct names, clear data flow, and well-defined interfaces. Remove incidental complexity rather than documenting it.
 - Do not leave dead branches, obsolete endpoints, unnecessary compatibility shims, commented-out replacements, redundant models, or unused dependencies in the finished change.
-- Prototype status is not an excuse to preserve broken abstractions. Make deliberate changes and keep the current state of the repository clean.
+- Do not preserve broken abstractions. Make deliberate changes and keep the current state of the repository clean.
 
 ## Existing architecture
 

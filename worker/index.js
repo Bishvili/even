@@ -218,21 +218,11 @@ async function syncApi(request,env,path){
  return error("Not found",404);
 }
 async function api(request,env,ctx,path){
- if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:"Rage Tracker",version:"1.10.5",sync:"email-access"});
+ if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:"Rage Tracker",version:"1.10.6",sync:"email-access"});
  if(path.startsWith("/api/auth/"))return authApi(request,env,ctx,path);
  return syncApi(request,env,path);
 }
 
-async function shortcutBuilder(env){
- const source=await env.ASSETS.get("asset:shortcut.cherri");
- const valid=source?.includes("readSavedDeviceKey()")&&source.includes("saveDeviceKey(@credential)");
- if(!source||source.length>16000||/Bearer [a-f0-9]{64}/i.test(source)||!valid)
-  return new Response("Shortcut preview unavailable",{status:503,headers:SECURITY});
- const compact=source.split(/\r?\n/).map(x=>x.trim()).filter(x=>x&&!x.startsWith("//")).join("\n");
- const destination="https://playground.cherrilang.org/?code="+encodeURIComponent(compact);
- if(destination.length>16000)return new Response("Shortcut preview is too large",{status:503,headers:SECURITY});
- return new Response(null,{status:302,headers:{...SECURITY,"Location":destination,"Cache-Control":"no-store","Referrer-Policy":"no-referrer"}});
-}
 async function asset(path,env){
  const key=path==="/"?"index.html":path.slice(1);
  if(!Object.prototype.hasOwnProperty.call(MIME,key))return new Response("Not found",{status:404,headers:SECURITY});
@@ -243,7 +233,7 @@ async function asset(path,env){
  return new Response(data,{headers});
 }
 export default {async fetch(request,env,ctx){
- try{const path=new URL(request.url).pathname;if(path.startsWith("/api/"))return await api(request,env,ctx,path);if(path==="/shortcut/builder"&&request.method==="GET")return shortcutBuilder(env);
+ try{const path=new URL(request.url).pathname;if(path.startsWith("/api/"))return await api(request,env,ctx,path);
  if(request.method!=="GET"&&request.method!=="HEAD")return new Response("Method not allowed",{status:405,headers:SECURITY});
  return await asset(path,env);
  }catch(e){return error("Request could not be processed",500);}

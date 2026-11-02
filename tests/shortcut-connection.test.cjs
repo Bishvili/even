@@ -33,10 +33,12 @@ test("only a key the server accepted is saved", () => {
  assert.equal((sync.match(/^saveDeviceKey\(/gm) || []).length, 1);
 });
 
-test("one Cherri builder route is available", () => {
- assert.match(worker, /asset:shortcut\.cherri/);
- assert.doesNotMatch(worker, /connection\.cherri|connection-builder/);
- assert.doesNotMatch(html, /Rage Tracker Connection|connection-builder/);
+test("the interface reads as a finished product", () => {
+ const app = fs.readFileSync(path.join(root, "app.js"), "utf8");
+ assert.doesNotMatch(worker, /shortcut\.cherri|\/shortcut\/builder/);
+ for (const copy of [html, app]) {
+  assert.doesNotMatch(copy, /Cherri|builder|corrected|handshake|prototype|candidate|Cloudflare/i);
+ }
 });
 
 test("the Health upload uses a grouping-normalized number, not the raw result", () => {

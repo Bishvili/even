@@ -130,92 +130,84 @@
 
    <section id="view-sync" class="view" aria-labelledby="sync-title">
     <div class="eyebrow">CONNECT YOUR IPHONE, NOT YOUR PASSWORD</div>
-    <div class="intro"><h1 id="sync-title">Sync, <em>simplified.</em></h1><p>Sign in by email to connect Apple Shortcuts. Each account has its own private health and calendar data.</p></div>
+    <div class="intro"><h1 id="sync-title">Sync, <em>simplified.</em></h1><p>Bring your steps and calendar into Rage Tracker.</p></div>
     <div class="card sync-card">
-     <div class="connection-head"><span class="connection-icon">↗</span><div><div class="mini-heading">SECURE CLOUD SYNC</div><strong id="pair-status">Checking connection…</strong></div><span id="pair-badge" class="status-badge">OFF</span></div>
+     <div class="connection-head"><span class="connection-icon">↗</span><div><div class="mini-heading">CLOUD SYNC</div><strong id="pair-status">Checking connection…</strong></div><span id="pair-badge" class="status-badge">OFF</span></div>
      <div id="login-panel">
-      <p class="muted">Only two approved email addresses can create sync credentials. Cloudflare sends a one-time code: no password to create or remember.</p>
+      <p class="muted">Sign in with your email. We’ll send you a one-time code.</p>
       <button type="button" class="btn primary full" id="login-button"><span aria-hidden="true">✉</span> Continue with email</button>
      </div>
      <div id="login-ready" hidden>
-      <div class="account-banner"><span class="account-dot" aria-hidden="true"></span><div><small>VERIFIED EMAIL</small><strong id="auth-email">—</strong></div><button id="refresh-devices" class="small-action" type="button">Refresh</button></div>
-      <div id="owner-mismatch" class="sync-warning" hidden>Another email already owns this device's local records. Back them up in Settings and erase local data before switching accounts. No data was merged.</div>
+      <div class="account-banner"><span class="account-dot" aria-hidden="true"></span><div><small>SIGNED IN AS</small><strong id="auth-email">—</strong></div><button id="refresh-devices" class="small-action" type="button">Refresh</button></div>
+      <div id="owner-mismatch" class="sync-warning" hidden>This iPhone’s records belong to another account. Back them up in Settings and erase them before switching.</div>
       <div id="need-device" hidden>
-       <p class="muted">Create a private device key, then use it once while setting up your Apple Shortcut. You can revoke it at any time.</p>
+       <p class="muted">Create a key to connect this iPhone. You can revoke it at any time.</p>
        <label for="device-label">Device name</label><input id="device-label" autocomplete="off" maxlength="64" value="My iPhone">
        <button type="button" class="btn primary full" id="issue-device">Generate my device key</button>
       </div>
      </div>
      <div id="pair-connected" hidden>
-      <p class="muted">Your private key is saved on this device. Only your account's calendar and health data can be synchronized.</p>
+      <p class="muted">This iPhone is connected to your account.</p>
       <div class="button-row"><button type="button" class="btn secondary" id="pull-button">↻ Sync now</button><button type="button" class="btn subtle" id="unpair-button">Revoke this device</button></div>
-      <p class="sync-timestamp" id="last-sync">No Shortcuts updates fetched yet</p>
+      <p class="sync-timestamp" id="last-sync">Not synced yet</p>
      </div>
     </div>
-    <section class="card shortcut-builder-card" id="shortcut-builder-card" aria-labelledby="shortcut-builder-title">
-     <div class="shortcut-builder-head">
-      <span class="shortcut-builder-icon" aria-hidden="true">↗</span>
+    <section class="card shortcut-card" id="shortcut-card" aria-labelledby="shortcut-title">
+     <div class="shortcut-head">
+      <span class="shortcut-icon" aria-hidden="true">↗</span>
       <div>
        <span class="mini-heading">APPLE SHORTCUTS</span>
-       <h2 id="shortcut-builder-title">Rage Tracker Sync</h2>
-       <p class="muted">Your daily Health and Calendar connection</p>
+       <h2 id="shortcut-title">Rage Tracker Sync</h2>
+       <p class="muted">Sends today’s steps and calendar events to Rage Tracker.</p>
       </div>
      </div>
      <div class="shortcut-release-row">
-      <span id="shortcut-release-version" class="shortcut-version">Published Shortcut: checking…</span>
+      <span id="shortcut-release-version" class="shortcut-version">Not connected</span>
       <span id="shortcut-update-badge" class="shortcut-update-label" hidden>New version available</span>
      </div>
      <a id="install-shortcut" class="btn primary full" target="_blank" rel="noopener noreferrer" aria-disabled="true" tabindex="-1" hidden>Get Shortcut <span aria-hidden="true">↗</span></a>
-     <p id="shortcut-install-help" class="shortcut-builder-help">Connect a device to get the latest Shortcut.</p>
-     <div class="shortcut-preview-release">
-      <span class="shortcut-preview-version">Rage Tracker Sync v2.3.3 · corrected source</span>
-      <a id="shortcut-preview" class="btn primary full" target="_blank" rel="noopener noreferrer" href="/shortcut/builder">Open corrected Shortcut builder <span aria-hidden="true">↗</span></a>
-      <p>Opens Cherri in a new tab with the credential-free v2.3.3 source. Compile, select Export, then sign and download the Shortcut. The compiled Shortcut checks credential availability, calendar timestamps, and grouped Health step formatting.</p>
-     </div>
-     <a id="run-shortcut" class="btn secondary full" href="shortcuts://run-shortcut?name=Rage%20Tracker%20Sync" hidden>Run installed Shortcut <span aria-hidden="true">↗</span></a>
-     <p class="muted shortcut-run-note">After installing, run the new Shortcut once from Apple Shortcuts, then return to check the connection.</p>
+     <p id="shortcut-install-help" class="shortcut-help">Generate a device key to get the Shortcut.</p>
+     <a id="run-shortcut" class="btn secondary full" href="shortcuts://run-shortcut?name=Rage%20Tracker%20Sync" hidden>Run Rage Tracker Sync <span aria-hidden="true">↗</span></a>
      <div class="shortcut-setup-list" aria-label="Shortcut setup steps">
-      <div class="shortcut-setup-row"><span class="shortcut-step-number">1</span><div><strong>Install Rage Tracker Sync</strong><small>Install the Shortcut named exactly Rage Tracker Sync. Replace the older version if Apple offers that option. In Settings → Apps → Shortcuts → Advanced, turn on <strong>Allow Sharing Large Amounts of Data</strong> if requested.</small></div></div>
-      <div class="shortcut-setup-row"><span class="shortcut-step-number">2</span><div><strong>Connect on the first run</strong><small>Run the Shortcut. When asked, paste the full Authorization value from this app, including “Bearer”, then approve its file, Health, Calendar and network permissions. Updates reuse the saved key.</small></div></div>
-      <div class="shortcut-setup-row"><span class="shortcut-step-number">3</span><div><strong>Verify the upload</strong><small>After running the Shortcut, tap Test connection. You will see whether the Shortcut connected, which version ran, and whether Health or Calendar data was accepted.</small></div></div>
+      <div class="shortcut-setup-row"><span class="shortcut-step-number">1</span><div><strong>Get the Shortcut</strong><small>Add Rage Tracker Sync to Shortcuts.</small></div></div>
+      <div class="shortcut-setup-row"><span class="shortcut-step-number">2</span><div><strong>Run it once</strong><small>Paste your device key when asked, then allow access.</small></div></div>
+      <div class="shortcut-setup-row"><span class="shortcut-step-number">3</span><div><strong>Check the connection</strong><small>Tap Test connection below.</small></div></div>
      </div>
      <div class="shortcut-upload-status">
-      <div><small>LAST ACCEPTED DATA UPLOAD</small><strong id="shortcut-last-upload">No upload received yet</strong><small id="shortcut-upload-counts" class="shortcut-upload-counts">Health and calendar records: —</small></div>
+      <div><small>LAST UPLOAD</small><strong id="shortcut-last-upload">Nothing received yet</strong><small id="shortcut-upload-counts" class="shortcut-upload-counts">No steps or events yet</small></div>
       <button id="check-shortcut-upload" class="small-action" type="button" disabled>Test connection</button>
      </div>
      <div id="shortcut-sync-diagnostic" class="shortcut-sync-diagnostic" role="status" aria-live="polite" hidden></div>
      <details class="shortcut-advanced">
-      <summary>Updates, permissions and other data</summary>
+      <summary>Help and privacy</summary>
       <div>
-       <p>The updated Shortcut checks the Rage Tracker version endpoint on each run. If a new verified release is available, it offers to open the corresponding RoutineHub or iCloud installation link. Apple still requires you to approve the installation; the Shortcut cannot silently overwrite itself.</p>
-       <p>Your device key is saved as plain text in rage-tracker-device-key.txt in the Shortcuts folder of iCloud Drive. It syncs through iCloud Drive and is not encrypted by Rage Tracker. Anyone with access to your Files app, and any Shortcut allowed to read the file, can read it. Do not share this file. Revoke the device key if it might be exposed.</p>
-       <p>The Shortcut shares today's step total and Calendar event times/titles. Rage Tracker classifies event categories on the server. Sleep, HRV, resting heart rate and workouts will follow only after their Apple Health values are validated on an iPhone.</p><p>Replacing Rage Tracker Sync keeps the saved key. Deleting the Shortcut does not delete the file, so to disconnect a device, revoke its key here and delete rage-tracker-device-key.txt in Files.</p>
-       <p>Apple may require <strong>Settings → Apps → Shortcuts → Advanced → Allow Sharing Large Amounts of Data</strong>. Leave the deletion permissions disabled; this Shortcut should not delete your personal data.</p>
-       <p><a href="https://github.com/Bishvili/rage-tracker/blob/main/shortcuts/README.md" target="_blank" rel="noopener noreferrer">Setup and troubleshooting guide</a></p>
-       <p><a href="/shortcut/builder" target="_blank" rel="noopener noreferrer">Edit the Shortcut source in Cherri</a></p>
+       <p>Rage Tracker Sync sends today’s step total and the titles and times of today’s calendar events.</p>
+       <p>Your device key is saved as a plain-text file, rage-tracker-device-key.txt, in the Shortcuts folder of iCloud Drive. Anyone who can open that file, and any Shortcut you let read it, can use the key. Don’t share it.</p>
+       <p>If Shortcuts can’t find the folder, open Rage Tracker Sync, tap the Shortcuts folder in Get File and Save File, then tap OK.</p>
+       <p>If Shortcuts asks, turn on <strong>Allow Sharing Large Amounts of Data</strong> in Settings → Apps → Shortcuts → Advanced.</p>
+       <p>To disconnect, revoke the key below and delete the file in Files.</p>
       </div>
      </details>
     </section>
     <div class="card" id="shortcut-credentials">
-     <div class="section-heading compact"><h2>Private connection details</h2><span class="muted">Copy when installing</span></div>
-     <p class="muted">Each approved device receives its own revocable key. Treat it like a password.</p>
-     <label>Sync endpoint</label><div class="copy-field"><code id="sync-url"></code><button type="button" data-copy="url">Copy</button></div>
-     <label>Authorization header value</label><div class="copy-field"><code id="sync-token">Sign in and generate a device key</code><button type="button" data-copy="token">Copy</button></div>
-     <p class="muted shortcut-credentials-note">Paste the full value only into Apple's <strong>Customize Shortcut</strong> setup question when installing. Do not paste it into the public Cherri editor or a shared link.</p>
+     <div class="section-heading compact"><h2>Your device key</h2></div>
+     <p class="muted">Treat it like a password.</p>
+     <div class="copy-field"><code id="sync-token">Generate a device key</code><button type="button" data-copy="token">Copy</button></div>
+     <p class="muted shortcut-credentials-note">Paste it when Rage Tracker Sync asks for your Authorization value.</p>
     </div>
     <div class="card" id="device-manager">
-     <div class="section-heading compact"><h2>My devices</h2><span class="muted">Access you control</span></div>
-     <div id="device-list" class="device-list"><p class="muted">Sign in to manage your authorized devices.</p></div>
+     <div class="section-heading compact"><h2>My devices</h2></div>
+     <div id="device-list" class="device-list"><p class="muted">Sign in to see your devices.</p></div>
     </div>
-    <div class="help-note"><strong>Privacy and control</strong><p>Mood check-ins remain on this phone. Selected Health measurements and Calendar data are sent over HTTPS and stored in owner-specific Cloudflare database records. Access uses email one-time PIN; device keys are revocable. Data is not end-to-end encrypted. Back up your local data before switching accounts.</p></div>
-    <button type="button" class="btn subtle full" id="erase-remote">Erase my synced Health & Calendar data</button>
+    <div class="help-note"><strong>Privacy</strong><p>Mood check-ins stay on this iPhone. Steps and calendar events you sync are sent over HTTPS and stored in your private account. They aren’t end-to-end encrypted. You can revoke a device or erase synced data at any time.</p></div>
+    <button type="button" class="btn subtle full" id="erase-remote">Erase synced data</button>
    </section>
 
    <section id="view-settings" class="view" aria-labelledby="settings-title">
     <div class="eyebrow">YOU OWN YOUR STORY</div><div class="intro"><h1 id="settings-title">Settings & <em>privacy.</em></h1><p>Keep control of your records, backups and connections.</p></div>
     <div class="card"><h2>Your local data</h2><p class="muted">Mood check-ins, notes and locally imported health/calendar data stay in this app's storage on this device. Clearing site data or deleting the Home Screen app may erase them.</p><div class="settings-meta" id="storage-summary"></div><button class="btn secondary full" id="backup-button">↓ Download JSON backup</button><label class="file-label">Restore from backup <input type="file" id="restore-input" accept="application/json,.json"></label><button class="btn danger full" id="erase-local">Erase all data on this device</button></div>
-    <div class="card"><h2>About the insights</h2><p class="muted">Comparisons require at least 3 observations in each group. Mood data is subjective and missing check-ins can bias findings. Nothing here diagnoses health conditions or establishes causality.</p><p class="muted">Version <span id="version">1.10.5</span> · Privacy-first prototype · No advertising or analytics scripts</p></div>
-    <div class="card"><h2>Try a calendar correlation demo</h2><p class="muted">Explore 28 fictional days with meetings, focus time, workouts, social plans, commutes, and rest. There are mood check-ins before and after events to reveal illustrative patterns. Your personal statistics remain separate; no demo records are uploaded.</p><button class="btn secondary full" id="demo-button">Load 28-day calendar demo</button><button class="btn subtle full" id="clear-demo-button">Remove demo data</button></div>
+    <div class="card"><h2>About the insights</h2><p class="muted">Comparisons need at least 3 check-ins in each group. Mood data is subjective and gaps can skew results. Nothing here is a diagnosis or proves a cause.</p><p class="muted">Version <span id="version">1.10.6</span> · No ads or analytics</p></div>
+    <div class="card"><h2>Explore a sample month</h2><p class="muted">See 28 days of fictional check-ins and events. They stay separate from your own data and are never uploaded.</p><button class="btn secondary full" id="demo-button">Load 28-day calendar demo</button><button class="btn subtle full" id="clear-demo-button">Remove demo data</button></div>
    </section>
   </main>
 

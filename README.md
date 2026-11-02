@@ -29,7 +29,7 @@ The PWA itself remains public and keeps anonymous/offline mood tracking. To sync
 - Device management requires an Access-authenticated session. Revocation is restricted to the authenticated owner.
 - The shared pairing route and unscoped tables have been removed after confirming the legacy tables were empty. Cloud endpoints now require an authenticated, unrevoked, owner-specific device token.
 - Existing local mood entries are not uploaded. The PWA requires explicit consent before assigning existing local records to a verified account, and rejects a different account using the same local profile.
-- This is a prototype rather than an audited clinical records system. HTTPS is used, but D1 records and downloaded JSON backups are not end-to-end encrypted. Device bearer tokens are sensitive.
+- Rage Tracker is not a clinical records system. HTTPS is used, but D1 records and downloaded JSON backups are not end-to-end encrypted. Device bearer tokens are sensitive.
 
 ## Apple Shortcuts sync
 
