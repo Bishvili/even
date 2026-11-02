@@ -68,6 +68,7 @@ action 'is.workflow.actions.filter.health.quantity' findSamples(&variable filter
 action 'is.workflow.actions.properties.health.quantity' getStepValues(variable samples: 'WFInput'): array {"WFContentItemPropertyName":"Value"}
 
 action 'is.workflow.actions.properties.health.quantity' getSampleValue(variable sample: 'WFInput') {"WFContentItemPropertyName":"Value"}
+action 'is.workflow.actions.properties.health.quantity' getDailyNumber(variable sample: 'WFInput'): number {"WFContentItemPropertyName":"Value"}
 action 'is.workflow.actions.properties.health.quantity' getSampleStart(variable sample: 'WFInput') {"WFContentItemPropertyName":"Start Date"}
 action 'is.workflow.actions.properties.health.quantity' getSampleEnd(variable sample: 'WFInput') {"WFContentItemPropertyName":"End Date"}
 action 'is.workflow.actions.gettimebetweendates' minutesSince(variable end: 'WFInput', variable start: 'WFTimeUntilFromDate'): number {"WFTimeUntilUnit":"Minutes"}
@@ -152,7 +153,7 @@ if sampleCount >= 1 {
 
 // A metric with no data today is left out, never sent as zero.
 const restingSamples = findLatestDay(restingFilter)
-const restingValue = getSampleValue(restingSamples)
+const restingValue = getDailyNumber(restingSamples)
 if restingValue >= 1 {
     const restingBody = formRequest("https://rage-tracker.bishvili.workers.dev/api/ingest", "POST", {
         "kind": "health",
@@ -169,7 +170,7 @@ if restingValue >= 1 {
 }
 
 const hrvSamples = findLatestDay(hrvFilter)
-const hrvValue = getSampleValue(hrvSamples)
+const hrvValue = getDailyNumber(hrvSamples)
 if hrvValue >= 1 {
     const hrvBody = formRequest("https://rage-tracker.bishvili.workers.dev/api/ingest", "POST", {
         "kind": "health",
@@ -186,7 +187,7 @@ if hrvValue >= 1 {
 }
 
 const exerciseSamples = findLatestDay(exerciseFilter)
-const exerciseValue = getSampleValue(exerciseSamples)
+const exerciseValue = getDailyNumber(exerciseSamples)
 if exerciseValue >= 1 {
     const workoutBody = formRequest("https://rage-tracker.bishvili.workers.dev/api/ingest", "POST", {
         "kind": "health",
