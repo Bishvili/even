@@ -17,7 +17,7 @@ const credential = text(authorization)
 
 // Verify the connection and record the Shortcut's version, even if no health samples are available.
 const handshakeRaw = jsonRequest("https://rage-tracker.bishvili.workers.dev/api/shortcut/hello", "POST", {
-    "shortcutVersion": "2.3.1"
+    "shortcutVersion": "2.3.2"
 }, {"Authorization": "{credential}"})
 const handshake = getDictionary(handshakeRaw)
 const connectionStatusValue = getValue(handshake, "state")
@@ -36,6 +36,7 @@ action 'is.workflow.actions.filter.health.quantity' findTodaySteps(): array {"WF
 action 'is.workflow.actions.properties.health.quantity' getStepValues(variable samples: 'WFInput'): array {"WFContentItemPropertyName":"Value"}
 
 @acceptedCount = 0
+@skippedCalendarCount = 0
 const events = findTodayEvents()
 for event in events {
     const title = getEventDetail(@event, "Title")
@@ -46,7 +47,7 @@ for event in events {
 
     const eventBody = formRequest("https://rage-tracker.bishvili.workers.dev/api/ingest", "POST", {
         "kind": "calendar",
-        "shortcutVersion": "2.3.1",
+        "shortcutVersion": "2.3.2",
         "title": "{title}",
         "start": "{startISO}",
         "end": "{endISO}"
@@ -57,10 +58,15 @@ for event in events {
     if eventStatus != "accepted" {
         const eventErrorValue = getValue(eventResponse, "error")
         const eventError = getText(eventErrorValue)
-        alert("Calendar upload failed: {eventError}", "Sync stopped")
-        stop()
+        if eventError == "No valid records. Check date, metric values, and event start/end formats" {
+            @skippedCalendarCount += 1
+        } else {
+            alert("Calendar upload failed: {eventError}", "Sync stopped")
+            stop()
+        }
+    } else {
+        @acceptedCount += 1
     }
-    @acceptedCount += 1
 }
 
 const samples = findTodaySteps()
@@ -72,7 +78,7 @@ if sampleCount >= 1 {
     const day = formatDate(today, "Custom", "yyyy-MM-dd")
     const healthBody = formRequest("https://rage-tracker.bishvili.workers.dev/api/ingest", "POST", {
         "kind": "health",
-        "shortcutVersion": "2.3.1",
+        "shortcutVersion": "2.3.2",
         "date": "{day}",
         "steps": "{totalSteps}"
     }, {"Authorization": "{credential}"})
@@ -86,10 +92,10 @@ if sampleCount >= 1 {
     @acceptedCount += 1
 }
 
-showNotification("Rage Tracker connected. Accepted {@acceptedCount} data uploads.", "Rage Tracker")
+showNotification("Rage Tracker connected. Accepted {@acceptedCount} uploads. Skipped {@skippedCalendarCount} invalid calendar events.", "Rage Tracker")
 
 // Offer an update after syncing; the user approves installation in Apple Shortcuts.
-const releaseBody = downloadURL("https://rage-tracker.bishvili.workers.dev/api/shortcut/release?current=2.3.1", {"Authorization": "{credential}"})
+const releaseBody = downloadURL("https://rage-tracker.bishvili.workers.dev/api/shortcut/release?current=2.3.2", {"Authorization": "{credential}"})
 const releaseInfo = getDictionary(releaseBody)
 const updateStatusValue = getValue(releaseInfo, "updateStatus")
 const updateStatus = getText(updateStatusValue)
