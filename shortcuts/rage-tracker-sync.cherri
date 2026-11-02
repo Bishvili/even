@@ -79,7 +79,7 @@ if sampleCount >= 1 {
     const values = getStepValues(samples)
     const totalSteps = statistic("Sum", values)
     const totalStepsText = getText(totalSteps)
-    const normalizedSteps = replaceText('(?<=\\d)[,\\s](?=\\d{3}(?:\\D|$))', "", totalStepsText, true, true)
+    const normalizedSteps = replaceText('(?<=\d)[,\s](?=\d{3}(?:\D|$))', "", totalStepsText, true, true)
     const today = currentDate()
     const day = formatDate(today, "Custom", "yyyy-MM-dd")
     const healthBody = formRequest("https://rage-tracker.bishvili.workers.dev/api/ingest", "POST", {
