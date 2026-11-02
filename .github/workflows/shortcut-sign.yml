@@ -12,7 +12,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   signed-shortcut:
@@ -36,7 +36,7 @@ jobs:
 
       - name: Check the distributed source contains no configured bearer token
         run: |
-          if grep -Eiq 'Bearer [a-f0-9]{64}' shortcuts/rage-tracker-sync.cherri; then
+          if grep -Eiq 'Bearer [a-f0-9]{64}' shortcuts/rage-tracker-sync.cherri shortcuts/rage-tracker-release.cherri; then
             echo 'Refusing to sign a Shortcut containing a configured device key.' >&2
             exit 1
           fi
@@ -78,13 +78,14 @@ jobs:
             return 1
           }
           sign_one shortcuts/rage-tracker-sync.cherri "$GITHUB_WORKSPACE/dist/Rage Tracker Sync.shortcut"
+          sign_one shortcuts/rage-tracker-release.cherri "$GITHUB_WORKSPACE/dist/Rage Tracker Release.shortcut"
 
-      - name: Verify the signed file retains its stable unversioned name
+      - name: Verify the signed files
         run: |
           python3 - <<'PY'
           from pathlib import Path
 
-          expected = ["Rage Tracker Sync.shortcut"]
+          expected = ["Rage Tracker Sync.shortcut", "Rage Tracker Release.shortcut"]
           for name in expected:
               signed = Path("dist") / name
               data = signed.read_bytes()
@@ -101,3 +102,13 @@ jobs:
           path: dist/*.shortcut
           if-no-files-found: error
           retention-days: 7
+
+      - name: Post the builds at fixed download links
+        if: ${{ github.ref == 'refs/heads/main' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view shortcut-latest >/dev/null 2>&1 || gh release create shortcut-latest --title "Latest Shortcut builds" --notes "Signed builds from main." --prerelease
+          cp "dist/Rage Tracker Sync.shortcut" dist/Rage-Tracker-Sync.shortcut
+          cp "dist/Rage Tracker Release.shortcut" dist/Rage-Tracker-Release.shortcut
+          gh release upload shortcut-latest dist/Rage-Tracker-Sync.shortcut dist/Rage-Tracker-Release.shortcut --clobber

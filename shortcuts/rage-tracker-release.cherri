@@ -1,0 +1,58 @@
+#define name Rage Tracker Release
+#define color teal
+#define glyph key
+#define mac false
+
+#include 'actions/documents'
+#include 'actions/shortcuts'
+#include 'actions/text'
+#include 'actions/web'
+
+// Holds a private GitHub token after install. Never share a configured copy.
+#question githubToken "Paste a GitHub token that can run workflows in Bishvili/rage-tracker" "github_pat_"
+
+// Cherri 2.3.0 binds the install question to the following Text action.
+downloadURL("https://api.github.com/zen")
+const token = text(githubToken)
+
+const tasks = list("Install latest build", "Publish installed build")
+const picked = chooseFromList(tasks, "Rage Tracker Release")
+const task = getText(picked)
+
+if task == "Install latest build" {
+    const build = downloadURL("https://github.com/Bishvili/rage-tracker/releases/download/shortcut-latest/Rage-Tracker-Sync.shortcut")
+    const namedBuild = setName(build, "Rage Tracker Sync.shortcut")
+    openFile(namedBuild)
+    stop()
+}
+
+// Run the installed build so its result can be checked before it goes public.
+const runRequest = text("release check")
+run("Rage Tracker Sync", runRequest)
+const confirmOptions = list("Publish", "Cancel")
+const confirmed = chooseFromList(confirmOptions, "Did Rage Tracker Sync work?")
+const decision = getText(confirmed)
+if decision != "Publish" {
+    stop()
+}
+
+const matches = searchShortcuts("Rage Tracker Sync")
+const syncShortcut = getFirstItem(matches)
+const linkResult = createShortcutLink(syncShortcut)
+const shareLink = getText(linkResult)
+
+const dispatchRaw = jsonRequest("https://api.github.com/repos/Bishvili/rage-tracker/actions/workflows/routinehub-publish.yml/dispatches", "POST", {
+    "ref": "main",
+    "inputs": {
+        "icloud_link": "{shareLink}"
+    }
+}, {"Authorization": "Bearer {token}", "Accept": "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28"})
+const dispatch = getDictionary(dispatchRaw)
+const errorValue = getValue(dispatch, "message")
+const errorText = getText(errorValue)
+const errorLength = count(errorText, "Characters")
+if errorLength >= 1 {
+    alert("{errorText}", "Publishing didn't start")
+    stop()
+}
+showNotification("Publishing started.", "Rage Tracker Release")
