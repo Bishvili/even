@@ -12,22 +12,21 @@ const html=fs.readFileSync(path.join(root,"index.html"),"utf8");
 const app=fs.readFileSync(path.join(root,"app.js"),"utf8");
 const schema=fs.readFileSync(path.join(root,"db","schema.sql"),"utf8");
 
-test("the install question precedes authenticated requests",()=>{
- const question=source.indexOf("#question authorization");
- const publicCheck=source.indexOf('/api/status');
- const credential=source.indexOf("const credential = text(authorization)");
+test("main sync obtains the device key from its persistent connection helper",()=>{
+ const helper=source.indexOf('run("Rage Tracker Connection", "read")');
+ const credential=source.indexOf("const credential = getText(connectionOutput)");
  const handshake=source.indexOf('jsonRequest("https://rage-tracker.bishvili.workers.dev/api/shortcut/hello"');
  const firstUpload=source.indexOf('formRequest("https://rage-tracker.bishvili.workers.dev/api/ingest"');
- assert.ok(question>=0&&question<publicCheck&&publicCheck<credential&&credential<handshake&&handshake<firstUpload);
- assert.equal((source.match(/^#question /gm)||[]).length,1);
+ assert.ok(helper>=0&&helper<credential&&credential<handshake&&handshake<firstUpload);
+ assert.doesNotMatch(source,/#question authorization/);
  assert.doesNotMatch(source,/\b(createFolder|getFile|getFolderContents|saveFile)\s*\(/);
  assert.doesNotMatch(source,/Bearer [a-f0-9]{64}/i);
 });
 
 test("the Shortcut identifies itself on the handshake, uploads, and update query",()=>{
- assert.match(source,/"shortcutVersion": "2\.3\.2"/);
- assert.equal((source.match(/"shortcutVersion": "2\.3\.2"/g)||[]).length,3);
- assert.match(source,/\/api\/shortcut\/release\?current=2\.3\.2/);
+ assert.match(source,/"shortcutVersion": "2\.3\.3"/);
+ assert.equal((source.match(/"shortcutVersion": "2\.3\.3"/g)||[]).length,3);
+ assert.match(source,/\/api\/shortcut\/release\?current=2\.3\.3/);
  assert.match(source,/getValue\(handshake, "state"\)/);
  assert.match(source,/if connectionStatus != "connected"/);
 });
