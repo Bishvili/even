@@ -96,11 +96,11 @@ test("a valid credential is not mistaken for a successful Health upload",async()
 });
 
 test("server-reported Shortcut handshake replaces manual installation confirmation",async()=>{
- const t=setup({reportedVersion:"2.3.1"});
+ const t=setup({reportedVersion:"2.3.2"});
  t.app.setAuth(t.email,[]);
  await t.app.loadShortcutRelease();
  await t.app.checkShortcutUpload(false);
- assert.match(t.element("shortcut-release-version").textContent,/Connected Shortcut v2\.3\.1/);
+ assert.match(t.element("shortcut-release-version").textContent,/Connected Shortcut v2\.3\.2/);
  assert.equal(t.element("run-shortcut").hidden,false);
  assert.match(t.element("shortcut-last-upload").textContent,/Shortcut connected/);
  assert.match(t.element("shortcut-sync-diagnostic").textContent,/authenticated Shortcut handshake/);
