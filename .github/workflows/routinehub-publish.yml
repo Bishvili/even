@@ -1,0 +1,160 @@
+name: Publish verified Rage Tracker Sync to RoutineHub
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version matching the committed Shortcut source (e.g. 2.3.2)"
+        type: string
+        required: true
+      icloud_link:
+        description: "Fresh iCloud link shared from an unconfigured, tested Shortcut"
+        type: string
+        required: true
+      changes:
+        description: "Release notes (plain text, no emojis)"
+        type: string
+        required: true
+      tested_on_iphone:
+        description: "I verified installation, sign-in, and actual accepted uploads on an iPhone"
+        type: boolean
+        required: true
+        default: false
+      unconfigured_master:
+        description: "The shared iCloud Shortcut contains no private device key"
+        type: boolean
+        required: true
+        default: false
+      publish_listing:
+        description: "Make the RoutineHub listing public (normally false until final review)"
+        type: boolean
+        required: true
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: routinehub-release
+  cancel-in-progress: false
+
+jobs:
+  routinehub-release:
+    if: >-
+      ${{ github.ref == 'refs/heads/main'
+          && inputs.tested_on_iphone
+          && inputs.unconfigured_master }}
+    runs-on: ubuntu-latest
+    environment: routinehub-release
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Run application and Shortcut regression tests
+        run: node --test tests/*.test.cjs
+
+      - name: Validate release version, link, and committed source
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+          ICLOUD_LINK: ${{ inputs.icloud_link }}
+        run: |
+          python3 - <<'PY'
+          import os
+          import re
+          from pathlib import Path
+
+          version = os.environ["RELEASE_VERSION"].strip()
+          link = os.environ["ICLOUD_LINK"].strip()
+          source = Path("shortcuts/rage-tracker-sync.cherri").read_text()
+
+          if not re.fullmatch(r"\d{1,3}\.\d{1,3}\.\d{1,3}", version):
+              raise SystemExit("Invalid version format.")
+          if not re.fullmatch(r"https://www\.icloud\.com/shortcuts/[a-fA-F0-9]{32}", link):
+              raise SystemExit("A valid Apple iCloud share link is required.")
+          if link == "https://www.icloud.com/shortcuts/82109f53491f4d95a0a8b8437c4090f2":
+              raise SystemExit("The historical v1.0.0 link cannot be reused for a new release.")
+
+          versions = re.findall(r'"shortcutVersion": "(\d+\.\d+\.\d+)"', source)
+          if len(versions) != 3 or any(v != version for v in versions):
+              raise SystemExit("The submitted version does not match all three Shortcut source version fields.")
+          if f"/api/shortcut/release?current={version}" not in source:
+              raise SystemExit("The committed Shortcut update-check version is different.")
+          if re.search(r"Bearer [a-fA-F0-9]{64}", source):
+              raise SystemExit("Credential detected in Shortcut source. Refusing release.")
+          print("Release input and committed source validated.")
+          PY
+
+      - name: Create RoutineHub version
+        env:
+          ROUTINEHUB_API_KEY: ${{ secrets.ROUTINEHUB_API_KEY }}
+          RELEASE_VERSION: ${{ inputs.version }}
+          ICLOUD_LINK: ${{ inputs.icloud_link }}
+          RELEASE_CHANGES: ${{ inputs.changes }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          import sys
+          from urllib import error, parse, request
+
+          key = os.environ.get("ROUTINEHUB_API_KEY", "")
+          if not key:
+              raise SystemExit("Missing GitHub secret: ROUTINEHUB_API_KEY")
+          url = "https://routinehub.co/api/v1/" + parse.quote(key, safe="") + "/shortcuts/26975/versions/create"
+          body = parse.urlencode({
+              "version": os.environ["RELEASE_VERSION"],
+              "link": os.environ["ICLOUD_LINK"],
+              "changes": os.environ["RELEASE_CHANGES"],
+          }).encode()
+          req = request.Request(url, data=body, method="POST", headers={
+              "Content-Type": "application/x-www-form-urlencoded",
+              "Accept": "application/json",
+          })
+          try:
+              with request.urlopen(req, timeout=45) as response:
+                  result = json.loads(response.read(32768))
+          except error.HTTPError as exc:
+              # Never print the request URL: the RoutineHub API embeds its key in the path.
+              raise SystemExit(f"RoutineHub rejected version creation (HTTP {exc.code}).")
+          except (error.URLError, ValueError):
+              raise SystemExit("Could not confirm a successful RoutineHub version creation.")
+          if result.get("result") != "success":
+              # Legacy RoutineHub endpoints can return HTTP 200 for API-level failures.
+              raise SystemExit("RoutineHub reported an error; version was not confirmed.")
+          print(f"RoutineHub listing 26975 accepted version {os.environ['RELEASE_VERSION']}.")
+          PY
+
+      - name: Publish listing after explicit approval
+        if: ${{ inputs.publish_listing }}
+        env:
+          ROUTINEHUB_API_KEY: ${{ secrets.ROUTINEHUB_API_KEY }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          from urllib import error, parse, request
+
+          key = os.environ["ROUTINEHUB_API_KEY"]
+          url = "https://routinehub.co/api/v1/" + parse.quote(key, safe="") + "/shortcuts/26975/publish"
+          try:
+              with request.urlopen(request.Request(url, data=b"", method="POST"), timeout=45) as response:
+                  result = json.loads(response.read(32768))
+          except error.HTTPError as exc:
+              raise SystemExit(f"RoutineHub publish request failed (HTTP {exc.code}).")
+          except (error.URLError, ValueError):
+              raise SystemExit("RoutineHub publish response could not be verified.")
+          if result.get("result") != "success":
+              raise SystemExit("RoutineHub did not confirm publication.")
+          print("RoutineHub listing 26975 was published.")
+          PY
+
+      - name: Release summary
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          echo "Rage Tracker Sync ${RELEASE_VERSION}: RoutineHub release step completed." >> "$GITHUB_STEP_SUMMARY"
+          echo "Listing: https://routinehub.co/shortcut/26975/" >> "$GITHUB_STEP_SUMMARY"
