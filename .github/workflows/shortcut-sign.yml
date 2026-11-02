@@ -46,7 +46,7 @@ jobs:
           git clone --depth 1 --branch v2.3.0 https://github.com/electrikmilk/cherri.git /tmp/cherri-source
           (cd /tmp/cherri-source && go build -trimpath -o /tmp/cherri-compiler .)
 
-      - name: Compile Sync and verify all nine If comparisons
+      - name: Compile Sync and verify all If comparisons
         run: |
           /tmp/cherri-compiler shortcuts/rage-tracker-sync.cherri --debug --derive-uuids --skip-sign --output=/tmp/rage-tracker-sync-unsigned.shortcut
           PLIST="$(find . -type f -name 'Rage Tracker Sync.plist' -print -quit)"

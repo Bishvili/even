@@ -30,7 +30,7 @@ test("API returns text outcomes and release requires verification",()=>{
  assert.match(worker,/WHERE owner_email=\?/);
 });
 
-test("Shortcut checks nine explicit typed values",()=>{
+test("Shortcut checks explicit typed values",()=>{
  const cond=[...shortcut.matchAll(/^\s*if ([^\n]+)\{$/gm)].map(x=>x[1].trim());
  assert.deepEqual(cond,[
   'savedKeyMatchCount == 0',
@@ -40,6 +40,15 @@ test("Shortcut checks nine explicit typed values",()=>{
   'eventError == "No valid records. Check date, metric values, and event start/end formats"',
   'sampleCount >= 1',
   'healthStatus != "accepted"',
+  'restingCount >= 1',
+  'restingStatus == "accepted"',
+  'hrvCount >= 1',
+  'hrvStatus == "accepted"',
+  'stageCount >= 1',
+  '@sleepMinutes >= 1',
+  'sleepStatus == "accepted"',
+  'workoutCount >= 1',
+  'workoutStatus == "accepted"',
   'updateStatus == "new_release"',
   'choice == "Install update"'
  ]);

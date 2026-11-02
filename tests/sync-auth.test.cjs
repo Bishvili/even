@@ -42,6 +42,7 @@ function harness({verified=false}={}){
     if(sql.startsWith("INSERT INTO rt_health_metrics")){rows.health.set(args[0]+"|"+args[1]+"|"+args[2],{owner:args[0],day:args[1],metric:args[2],value:args[3]});return{meta:{changes:1}};}
     if(sql.startsWith("INSERT INTO rt_calendar_events")){rows.events.set(args[0]+"|"+args[1],{owner:args[0],id:args[1],start_time:args[2],end_time:args[3],title:args[4],category:args[5]});return{meta:{changes:1}};}
     if(sql.startsWith("DELETE FROM rt_health_metrics")){for(const [k,d] of rows.health)if(d.owner===args[0])rows.health.delete(k);return{meta:{changes:1}};}
+    if(sql.includes("updated_at<?")){let changes=0;for(const [k,d] of rows.events)if(d.owner===args[0]&&d.start>=args[1]&&d.start<args[2]&&d.updated<args[3]){rows.events.delete(k);changes++;}return{meta:{changes}};}
     if(sql.startsWith("DELETE FROM rt_calendar_events")){for(const [k,d] of rows.events)if(d.owner===args[0])rows.events.delete(k);return{meta:{changes:1}};}
     throw new Error("Unexpected run: "+sql);
    }
@@ -180,4 +181,19 @@ test("Shortcut release comparison only offers upgrades",async()=>{
  const newer=await call("/api/shortcut/release?current=1.1.0",{headers:auth});
  assert.equal(newer.data.updateAvailable,false);
  assert.equal(newer.data.updateStatus,"current");
+});
+test("calendar_complete removes only this owner's older events in that day",async()=>{
+ const{call,ctx,rows}=harness();
+ const a=await call("/api/auth/device",{method:"POST",body:{label:"A"},context:ctx("owner-a@example.com")});
+ const auth={Authorization:"Bearer "+a.data.token};
+ const started=new Date().toISOString(),old=new Date(Date.now()-60000).toISOString();
+ rows.events.set("stale",{owner:"owner-a@example.com",start:"2026-11-02T18:00:00.000Z",updated:old});
+ rows.events.set("otherday",{owner:"owner-a@example.com",start:"2026-11-04T18:00:00.000Z",updated:old});
+ rows.events.set("otherowner",{owner:"owner-b@example.com",start:"2026-11-02T18:00:00.000Z",updated:old});
+ rows.events.set("fresh",{owner:"owner-a@example.com",start:"2026-11-02T19:00:00.000Z",updated:new Date(Date.now()+1000).toISOString()});
+ const done=await call("/api/ingest",{method:"POST",headers:auth,body:{kind:"calendar_complete",date:"2026-11-02",utcOffset:"-08:00",startedAt:started}});
+ assert.equal(done.status,200);assert.equal(done.data.removed,1);
+ assert.deepEqual([...rows.events.keys()].sort(),["fresh","otherday","otherowner"]);
+ assert.equal((await call("/api/ingest",{method:"POST",headers:auth,body:{kind:"calendar_complete",date:"2026-11-02",utcOffset:"bad",startedAt:started}})).status,400);
+ assert.equal((await call("/api/ingest",{method:"POST",headers:auth,body:{kind:"calendar_complete",date:"2026-11-02",utcOffset:"-08:00",startedAt:"2020-01-01T00:00:00Z"}})).status,400);
 });

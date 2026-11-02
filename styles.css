@@ -94,3 +94,7 @@
 .shortcut-card code{font-size:11px;background:#edf3eb;border-radius:4px;padding:1px 4px;overflow-wrap:anywhere}
 
 #run-shortcut{min-height:48px;margin-top:11px}
+.form-grid.date-times{grid-template-columns:minmax(0,1fr)}
+input:not([type=range]):not([type=file]),textarea,select{font-size:16px;max-width:100%}
+input[type=date],input[type=datetime-local]{-webkit-appearance:none;appearance:none;display:block;min-height:48px;text-align:left}
+input::-webkit-date-and-time-value{text-align:left}

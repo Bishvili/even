@@ -1,6 +1,6 @@
 (function () {
 "use strict";
-var VERSION = "1.10.9";
+var VERSION = "1.11.0";
 var SHORTCUT_PAGE = "https://routinehub.co/shortcut/26978/";
 var STORAGE_KEY = "rage-tracker:v1";
 var MOOD_NAMES = ["","Rough","Low","Okay","Good","Great"];
@@ -300,19 +300,33 @@ function parseCSV(str){
  var headers=rows.shift().map(function(x){return x.trim().toLowerCase().replace(/[^a-z0-9]/g,"");});
  return rows.slice(0,2500).map(function(r){var obj={};headers.forEach(function(h,i){obj[h]=r[i]||"";});return obj;});
 }
-function parseICSDate(v){
+function zonedTimeToISO(Y,M,D,h,mi,sec,zone){
+ var wall=Date.UTC(Y,M,D,h,mi,sec),format;
+ try{format=new Intl.DateTimeFormat("en-US",{timeZone:zone,hourCycle:"h23",year:"numeric",month:"numeric",day:"numeric",hour:"numeric",minute:"numeric",second:"numeric"});}
+ catch(e){return new Date(Y,M,D,h,mi,sec).toISOString();}
+ var offsetAt=function(ms){var p={};format.formatToParts(new Date(ms)).forEach(function(x){p[x.type]=+x.value;});return Date.UTC(p.year,p.month-1,p.day,p.hour,p.minute,p.second)-ms;};
+ var guess=wall-offsetAt(wall);
+ return new Date(wall-offsetAt(guess)).toISOString();
+}
+function parseICSDate(v,zone){
  var s=String(v||"").trim(),m=s.match(/^(\d{4})(\d\d)(\d\d)(?:T(\d\d)(\d\d)(\d\d)?(Z)?)?$/);
  if(!m)return null;
  var Y=+m[1],M=+m[2]-1,D=+m[3],h=+(m[4]||0),mi=+(m[5]||0),sec=+(m[6]||0);
- return m[7]?new Date(Date.UTC(Y,M,D,h,mi,sec)).toISOString():new Date(Y,M,D,h,mi,sec).toISOString();
+ if(m[7])return new Date(Date.UTC(Y,M,D,h,mi,sec)).toISOString();
+ if(zone&&m[4])return zonedTimeToISO(Y,M,D,h,mi,sec,zone);
+ return new Date(Y,M,D,h,mi,sec).toISOString();
 }
 function parseICS(text){
  var lines=text.replace(/\r\n/g,"\n").replace(/\n[ \t]/g,"").split("\n");var events=[],cur=null;
  lines.forEach(function(line){line=line.replace(/\r$/,"");if(line==="BEGIN:VEVENT"){cur={};return;}if(line==="END:VEVENT"){if(cur)events.push(cur);cur=null;return;}if(!cur)return;var idx=line.indexOf(":");if(idx<0)return;
- var name=line.slice(0,idx).split(";")[0].toUpperCase(),value=line.slice(idx+1);
- if(name==="DTSTART")cur.start=parseICSDate(value);else if(name==="DTEND")cur.end=parseICSDate(value);else if(name==="SUMMARY")cur.title=value.replace(/\\n/gi," ").replace(/\\,/g,",").replace(/\\\\/g,"\\");else if(name==="UID")cur.id=value;
+ var head=line.slice(0,idx).split(";"),name=head[0].toUpperCase(),value=line.slice(idx+1),zoneParam=head.find(function(x){return /^TZID=/i.test(x);}),zone=zoneParam?zoneParam.slice(5).replace(/^"|"$/g,""):"";
+ if(name==="DTSTART"){cur.start=parseICSDate(value,zone);cur.allDay=/^\d{8}$/.test(value.trim());}else if(name==="DTEND")cur.end=parseICSDate(value,zone);else if(name==="RECURRENCE-ID")cur.instance=value.trim();else if(name==="SUMMARY")cur.title=value.replace(/\\n/gi," ").replace(/\\,/g,",").replace(/\\\\/g,"\\");else if(name==="UID")cur.id=value;
  });
- return events.slice(0,2500).map(function(x){x.category="Other";return x;});
+ return events.slice(0,2500).map(function(x){
+  if(x.id&&x.instance)x.id=x.id+"|"+x.instance;
+  if(x.start&&!x.end)x.end=new Date(new Date(x.start).getTime()+(x.allDay?86400000:3600000)).toISOString();
+  delete x.instance;delete x.allDay;x.category="Other";return x;
+ });
 }
 async function importHealth(file){
  if(!file||file.size>3e6){toast("Use a health CSV under 3 MB.");return;}
@@ -513,6 +527,9 @@ async function pull(silent){
   if(!body.email||body.email!==state.syncOwnerEmail)throw Error("Account mismatch. Nothing was imported.");
   var h=0,e=0;(body.health||[]).forEach(function(x){var v=normalizeHealth(x,"shortcut");if(v){upsertHealth(v);h++;}});
   (body.events||[]).forEach(function(x){var v=normalizeEvent(x,"shortcut");if(v){upsertEvent(v);e++;}});
+  var serverEvents=body.events||[],serverIds={},oldest=null;
+  serverEvents.forEach(function(x){serverIds[x.id]=true;if(!oldest||x.start<oldest)oldest=x.start;});
+  if(oldest)state.events=state.events.filter(function(x){return x.source!=="shortcut"||x.start<oldest||serverIds[x.id];});
   state.lastSync=Date.now();persist();render();if(!silent)toast("Synced "+h+" health days and "+e+" calendar events for "+state.syncOwnerEmail+".");
   checkShortcutUpload(true);
  }catch(e){if(!silent)toast(e.message||"Sync unavailable. Local data is unchanged.");}

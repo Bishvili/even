@@ -27,7 +27,7 @@ if savedKeyMatchCount == 0 {
 
 // Verify the connection and record the Shortcut's version, even if no health samples are available.
 const handshakeRaw = jsonRequest("https://rage-tracker.bishvili.workers.dev/api/shortcut/hello", "POST", {
-    "shortcutVersion": "2.3.5"
+    "shortcutVersion": "2.3.6"
 }, {"Authorization": "{@credential}"})
 const handshake = getDictionary(handshakeRaw)
 const connectionStatusValue = getValue(handshake, "state")
@@ -35,7 +35,7 @@ const connectionStatus = getText(connectionStatusValue)
 if connectionStatus != "connected" {
     @credential = prompt("That key didn't work. Paste your device key from Rage Tracker > Sync")
     const retryRaw = jsonRequest("https://rage-tracker.bishvili.workers.dev/api/shortcut/hello", "POST", {
-        "shortcutVersion": "2.3.5"
+        "shortcutVersion": "2.3.6"
     }, {"Authorization": "{@credential}"})
     const retry = getDictionary(retryRaw)
     const retryStatusValue = getValue(retry, "state")
@@ -57,6 +57,17 @@ action 'is.workflow.actions.filter.health.quantity' findTodaySteps(): array {"WF
 
 action 'is.workflow.actions.properties.health.quantity' getStepValues(variable samples: 'WFInput'): array {"WFContentItemPropertyName":"Value"}
 
+action 'is.workflow.actions.filter.health.quantity' findTodayRestingHeartRate(): array {"WFContentItemFilter":{"Value":{"WFActionParameterFilterPrefix":1,"WFContentPredicateBoundedDate":false,"WFActionParameterFilterTemplates":[{"Bounded":true,"Operator":4,"Property":"Type","Removable":false,"Values":{"Enumeration":{"Value":"Resting Heart Rate","WFSerializationType":"WFStringSubstitutableState"}}},{"Bounded":true,"Operator":1002,"Property":"Start Date","Removable":false,"Values":{"Number":"7","Unit":16}}]},"WFSerializationType":"WFContentPredicateTableTemplate"}}
+action 'is.workflow.actions.filter.health.quantity' findTodayHRV(): array {"WFContentItemFilter":{"Value":{"WFActionParameterFilterPrefix":1,"WFContentPredicateBoundedDate":false,"WFActionParameterFilterTemplates":[{"Bounded":true,"Operator":4,"Property":"Type","Removable":false,"Values":{"Enumeration":{"Value":"Heart Rate Variability","WFSerializationType":"WFStringSubstitutableState"}}},{"Bounded":true,"Operator":1002,"Property":"Start Date","Removable":false,"Values":{"Number":"7","Unit":16}}]},"WFSerializationType":"WFContentPredicateTableTemplate"}}
+action 'is.workflow.actions.filter.health.quantity' findLastNightSleep(): array {"WFContentItemFilter":{"Value":{"WFActionParameterFilterPrefix":1,"WFContentPredicateBoundedDate":false,"WFActionParameterFilterTemplates":[{"Bounded":true,"Operator":4,"Property":"Type","Removable":false,"Values":{"Enumeration":{"Value":"Sleep","WFSerializationType":"WFStringSubstitutableState"}}},{"Bounded":true,"Operator":1002,"Property":"End Date","Removable":false,"Values":{"Number":"7","Unit":16}}]},"WFSerializationType":"WFContentPredicateTableTemplate"}}
+action 'is.workflow.actions.filter.health.quantity' findTodayWorkouts(): array {"WFContentItemFilter":{"Value":{"WFActionParameterFilterPrefix":1,"WFContentPredicateBoundedDate":false,"WFActionParameterFilterTemplates":[{"Bounded":true,"Operator":4,"Property":"Type","Removable":false,"Values":{"Enumeration":{"Value":"Workouts","WFSerializationType":"WFStringSubstitutableState"}}},{"Bounded":true,"Operator":1002,"Property":"Start Date","Removable":false,"Values":{"Number":"7","Unit":16}}]},"WFSerializationType":"WFContentPredicateTableTemplate"}}
+
+action 'is.workflow.actions.properties.health.quantity' getSampleValue(variable sample: 'WFInput') {"WFContentItemPropertyName":"Value"}
+action 'is.workflow.actions.properties.health.quantity' getSampleStart(variable sample: 'WFInput') {"WFContentItemPropertyName":"Start Date"}
+action 'is.workflow.actions.properties.health.quantity' getSampleEnd(variable sample: 'WFInput') {"WFContentItemPropertyName":"End Date"}
+action 'is.workflow.actions.gettimebetweendates' minutesSince(variable end: 'WFInput', variable start: 'WFTimeUntilFromDate'): number {"WFTimeUntilUnit":"Minutes"}
+action 'is.workflow.actions.statistics' averageValues(variable values: 'Input'): number {"WFStatisticsOperation":"Average"}
+
 // Calculate Statistics takes its list through the Input parameter.
 action 'is.workflow.actions.statistics' sumValues(variable values: 'Input'): number {"WFStatisticsOperation":"Sum"}
 
@@ -72,7 +83,7 @@ for event in events {
 
     const eventBody = formRequest("https://rage-tracker.bishvili.workers.dev/api/ingest", "POST", {
         "kind": "calendar",
-        "shortcutVersion": "2.3.5",
+        "shortcutVersion": "2.3.6",
         "title": "{title}",
         "start": "{startISO}",
         "end": "{endISO}"
@@ -94,6 +105,20 @@ for event in events {
     }
 }
 
+const today = currentDate()
+const day = formatDate(today, "Custom", "yyyy-MM-dd")
+const utcOffset = formatDate(today, "Custom", "ZZZZZ")
+
+// Remove today's events that this run did not send, such as deleted or edited ones.
+const syncStartedValue = getValue(handshake, "receivedAt")
+const syncStarted = getText(syncStartedValue)
+formRequest("https://rage-tracker.bishvili.workers.dev/api/ingest", "POST", {
+    "kind": "calendar_complete",
+    "date": "{day}",
+    "utcOffset": "{utcOffset}",
+    "startedAt": "{syncStarted}"
+}, {"Authorization": "{@credential}"})
+
 const samples = findTodaySteps()
 const sampleCount = count(samples)
 if sampleCount >= 1 {
@@ -103,11 +128,9 @@ if sampleCount >= 1 {
     const normalizedSteps = replaceText('(?<=\d)[,\s](?=\d{3}(?:\D|$))', "", totalStepsText, true, true)
     // Keep only the number, because the text form of a Health value can include a unit.
     const stepsValue = replaceText('^\D*(\d+(?:\.\d+)?)[\s\S]*$', "$1", normalizedSteps, true, true)
-    const today = currentDate()
-    const day = formatDate(today, "Custom", "yyyy-MM-dd")
     const healthBody = formRequest("https://rage-tracker.bishvili.workers.dev/api/ingest", "POST", {
         "kind": "health",
-        "shortcutVersion": "2.3.5",
+        "shortcutVersion": "2.3.6",
         "date": "{day}",
         "steps": "{stepsValue}"
     }, {"Authorization": "{@credential}"})
@@ -123,10 +146,104 @@ if sampleCount >= 1 {
     @acceptedCount += 1
 }
 
+// A metric with no data today is left out, never sent as zero.
+const restingSamples = findTodayRestingHeartRate()
+const restingCount = count(restingSamples)
+if restingCount >= 1 {
+    const restingValues = getSampleValue(restingSamples)
+    const restingAverage = averageValues(restingValues)
+    const restingBody = formRequest("https://rage-tracker.bishvili.workers.dev/api/ingest", "POST", {
+        "kind": "health",
+        "shortcutVersion": "2.3.6",
+        "date": "{day}",
+        "restingHR": "{restingAverage}"
+    }, {"Authorization": "{@credential}"})
+    const restingResponse = getDictionary(restingBody)
+    const restingStatusValue = getValue(restingResponse, "state")
+    const restingStatus = getText(restingStatusValue)
+    if restingStatus == "accepted" {
+        @acceptedCount += 1
+    }
+}
+
+const hrvSamples = findTodayHRV()
+const hrvCount = count(hrvSamples)
+if hrvCount >= 1 {
+    const hrvValues = getSampleValue(hrvSamples)
+    const hrvAverage = averageValues(hrvValues)
+    const hrvBody = formRequest("https://rage-tracker.bishvili.workers.dev/api/ingest", "POST", {
+        "kind": "health",
+        "shortcutVersion": "2.3.6",
+        "date": "{day}",
+        "hrv": "{hrvAverage}"
+    }, {"Authorization": "{@credential}"})
+    const hrvResponse = getDictionary(hrvBody)
+    const hrvStatusValue = getValue(hrvResponse, "state")
+    const hrvStatus = getText(hrvStatusValue)
+    if hrvStatus == "accepted" {
+        @acceptedCount += 1
+    }
+}
+
+// Count only time asleep, not time in bed or awake.
+@sleepMinutes = 0
+const sleepSamples = findLastNightSleep()
+for sleepSample in sleepSamples {
+    const stageValue = getSampleValue(@sleepSample)
+    const stageText = getText(stageValue)
+    const stageMatches = matchText('(?i)core|deep|rem|asleep', stageText)
+    const stageCount = count(stageMatches)
+    if stageCount >= 1 {
+        const sleepStart = getSampleStart(@sleepSample)
+        const sleepEnd = getSampleEnd(@sleepSample)
+        const stageMinutes = minutesSince(sleepEnd, sleepStart)
+        @sleepMinutes += stageMinutes
+    }
+}
+if @sleepMinutes >= 1 {
+    const sleepHours = @sleepMinutes / 60
+    const sleepBody = formRequest("https://rage-tracker.bishvili.workers.dev/api/ingest", "POST", {
+        "kind": "health",
+        "shortcutVersion": "2.3.6",
+        "date": "{day}",
+        "sleepHours": "{sleepHours}"
+    }, {"Authorization": "{@credential}"})
+    const sleepResponse = getDictionary(sleepBody)
+    const sleepStatusValue = getValue(sleepResponse, "state")
+    const sleepStatus = getText(sleepStatusValue)
+    if sleepStatus == "accepted" {
+        @acceptedCount += 1
+    }
+}
+
+@workoutMinutes = 0
+const workoutSamples = findTodayWorkouts()
+const workoutCount = count(workoutSamples)
+if workoutCount >= 1 {
+    for workoutSample in workoutSamples {
+        const workoutStart = getSampleStart(@workoutSample)
+        const workoutEnd = getSampleEnd(@workoutSample)
+        const thisWorkout = minutesSince(workoutEnd, workoutStart)
+        @workoutMinutes += thisWorkout
+    }
+    const workoutBody = formRequest("https://rage-tracker.bishvili.workers.dev/api/ingest", "POST", {
+        "kind": "health",
+        "shortcutVersion": "2.3.6",
+        "date": "{day}",
+        "workoutMin": "{@workoutMinutes}"
+    }, {"Authorization": "{@credential}"})
+    const workoutResponse = getDictionary(workoutBody)
+    const workoutStatusValue = getValue(workoutResponse, "state")
+    const workoutStatus = getText(workoutStatusValue)
+    if workoutStatus == "accepted" {
+        @acceptedCount += 1
+    }
+}
+
 showNotification("Synced {@acceptedCount} items. Skipped {@skippedCalendarCount} calendar events.", "Rage Tracker")
 
 // Offer an update after syncing; the user approves installation in Apple Shortcuts.
-const releaseBody = downloadURL("https://rage-tracker.bishvili.workers.dev/api/shortcut/release?current=2.3.5", {"Authorization": "{@credential}"})
+const releaseBody = downloadURL("https://rage-tracker.bishvili.workers.dev/api/shortcut/release?current=2.3.6", {"Authorization": "{@credential}"})
 const releaseInfo = getDictionary(releaseBody)
 const updateStatusValue = getValue(releaseInfo, "updateStatus")
 const updateStatus = getText(updateStatusValue)

@@ -184,6 +184,14 @@ async function syncApi(request,env,path){
    await recordSyncFailure(env,dev,"invalid_body");return error("Expected JSON or form fields");
   }
   const kind=String(input.kind||"").toLowerCase();
+  if(kind==="calendar_complete"){
+   const day=dateOnly(input.date),offset=String(input.utcOffset||"").trim(),started=new Date(input.startedAt);
+   if(!day||!/^(Z|[+-]\d{2}:\d{2})$/.test(offset)||!Number.isFinite(started.getTime())||Date.now()-started.getTime()>21600000)return error("Invalid calendar sync details");
+   const from=new Date(day+"T00:00:00"+offset);
+   const to=new Date(from.getTime()+86400000);
+   const result=await env.DB.prepare("DELETE FROM rt_calendar_events WHERE owner_email=? AND start_time>=? AND start_time<? AND updated_at<?").bind(owner,from.toISOString(),to.toISOString(),started.toISOString()).run();
+   return reply({ok:true,state:"reconciled",removed:result.meta?.changes||0});
+  }
   if(!["health","calendar","batch"].includes(kind)){
    await recordSyncFailure(env,dev,"invalid_kind");return error("Use kind=health, calendar, or batch");
   }
@@ -218,7 +226,7 @@ async function syncApi(request,env,path){
  return error("Not found",404);
 }
 async function api(request,env,ctx,path){
- if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:"Rage Tracker",version:"1.10.9",sync:"email-access"});
+ if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:"Rage Tracker",version:"1.11.0",sync:"email-access"});
  if(path.startsWith("/api/auth/"))return authApi(request,env,ctx,path);
  return syncApi(request,env,path);
 }

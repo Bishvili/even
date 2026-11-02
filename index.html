@@ -117,7 +117,7 @@
      <div class="section-heading compact"><h2>Add a calendar event</h2><span class="muted">Manual entry</span></div>
      <form id="calendar-form">
       <label for="cal-title">Event title</label><input id="cal-title" maxlength="100" placeholder="Team meeting" required>
-      <div class="form-grid"><div><label for="cal-start">Starts</label><input id="cal-start" type="datetime-local" required></div><div><label for="cal-end">Ends</label><input id="cal-end" type="datetime-local" required></div></div>
+      <div class="form-grid date-times"><div><label for="cal-start">Starts</label><input id="cal-start" type="datetime-local" required></div><div><label for="cal-end">Ends</label><input id="cal-end" type="datetime-local" required></div></div>
       <label for="cal-category">Type</label><select id="cal-category"><option>Meeting</option><option>Work</option><option>Exercise</option><option>Social</option><option>Family</option><option>Rest</option><option>Commute</option><option>Other</option></select>
       <button class="btn secondary full" type="submit">Save calendar event</button>
      </form>
@@ -130,7 +130,7 @@
 
    <section id="view-sync" class="view" aria-labelledby="sync-title">
     <div class="eyebrow">CONNECT YOUR IPHONE, NOT YOUR PASSWORD</div>
-    <div class="intro"><h1 id="sync-title">Sync, <em>simplified.</em></h1><p>Bring your steps and calendar into Rage Tracker.</p></div>
+    <div class="intro"><h1 id="sync-title">Sync, <em>simplified.</em></h1><p>Bring your health data and calendar into Rage Tracker.</p></div>
     <div class="card sync-card">
      <div class="connection-head"><span class="connection-icon">↗</span><div><div class="mini-heading">CLOUD SYNC</div><strong id="pair-status">Checking connection…</strong></div><span id="pair-badge" class="status-badge">OFF</span></div>
      <div id="login-panel">
@@ -158,7 +158,7 @@
       <div>
        <span class="mini-heading">APPLE SHORTCUTS</span>
        <h2 id="shortcut-title">Rage Tracker Sync</h2>
-       <p class="muted">Sends today’s steps and calendar events to Rage Tracker.</p>
+       <p class="muted">Sends today’s health data and calendar events to Rage Tracker.</p>
       </div>
      </div>
      <div class="shortcut-release-row">
@@ -181,7 +181,7 @@
      <details class="shortcut-advanced">
       <summary>Help and privacy</summary>
       <div>
-       <p>Rage Tracker Sync sends today’s step total and the titles and times of today’s calendar events.</p>
+       <p>Rage Tracker Sync sends today’s steps, resting heart rate, heart rate variability and workout minutes, last night’s sleep, and the titles and times of today’s calendar events. Anything with no data today is left out.</p>
        <p>Your device key is saved as a plain-text file, rage-tracker-device-key.txt, in a Rage Tracker folder in On My iPhone. It isn’t encrypted by Rage Tracker. Anyone who can open that file, and any Shortcut you let read it, can use the key. Don’t share it.</p>
        <p>If Shortcuts asks, turn on <strong>Allow Sharing Large Amounts of Data</strong> in Settings → Apps → Shortcuts → Advanced.</p>
        <p>To disconnect, revoke the key below and delete the file in Files.</p>
@@ -205,7 +205,7 @@
    <section id="view-settings" class="view" aria-labelledby="settings-title">
     <div class="eyebrow">YOU OWN YOUR STORY</div><div class="intro"><h1 id="settings-title">Settings & <em>privacy.</em></h1><p>Keep control of your records, backups and connections.</p></div>
     <div class="card"><h2>Your local data</h2><p class="muted">Mood check-ins, notes and locally imported health/calendar data stay in this app's storage on this device. Clearing site data or deleting the Home Screen app may erase them.</p><div class="settings-meta" id="storage-summary"></div><button class="btn secondary full" id="backup-button">↓ Download JSON backup</button><label class="file-label">Restore from backup <input type="file" id="restore-input" accept="application/json,.json"></label><button class="btn danger full" id="erase-local">Erase all data on this device</button></div>
-    <div class="card"><h2>About the insights</h2><p class="muted">Comparisons need at least 3 check-ins in each group. Mood data is subjective and gaps can skew results. Nothing here is a diagnosis or proves a cause.</p><p class="muted">Version <span id="version">1.10.9</span> · No ads or analytics</p></div>
+    <div class="card"><h2>About the insights</h2><p class="muted">Comparisons need at least 3 check-ins in each group. Mood data is subjective and gaps can skew results. Nothing here is a diagnosis or proves a cause.</p><p class="muted">Version <span id="version">1.11.0</span> · No ads or analytics</p></div>
     <div class="card"><h2>Explore a sample month</h2><p class="muted">See 28 days of fictional check-ins and events. They stay separate from your own data and are never uploaded.</p><button class="btn secondary full" id="demo-button">Load 28-day calendar demo</button><button class="btn subtle full" id="clear-demo-button">Remove demo data</button></div>
    </section>
   </main>
