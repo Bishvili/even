@@ -1,24 +1,17 @@
-# RoutineHub release workflow
+# RoutineHub releases
 
-Rage Tracker Sync's RoutineHub listing is [#26978](https://routinehub.co/shortcut/26978/), currently **reported as published by RoutineHub**. It was initialized with the historical iCloud share link `https://www.icloud.com/shortcuts/82109f53491f4d95a0a8b8437c4090f2` as version `1.0.0`. The historical v1.0.0 build is **not** a verified current release. The connected RoutineHub account reports that the listing is already public, so adding a new version may expose it immediately even when the workflow's Publish listing toggle is off. Do not relabel the historical iCloud link or publish an untested replacement.
+Rage Tracker Sync is listed at [#26978](https://routinehub.co/shortcut/26978/). A new version is public as soon as it is published, and published versions cannot be edited, so fixes ship as another version.
 
-## One-time GitHub setup
+## Setup
 
-1. Sign in to the RoutineHub account that owns listing #26978 (the connected RoutineHub account currently shows `Gallant-Ghoul-2611`).
-2. In RoutineHub, open **Settings → API** and generate a developer API key. Do not use the separate HubSign key or a buyer's proof-of-purchase key.
-3. Open [GitHub Actions repository secrets](https://github.com/Bishvili/rage-tracker/settings/secrets/actions), select **New repository secret**, and save it with the exact name `ROUTINEHUB_API_KEY`. Never commit it, paste it in a PR, or expose it as a workflow input.
-4. Create a GitHub Actions environment named `routinehub-release` in **Settings → Environments**. Configure required reviewers to approve publishing and restrict deployment branches to `main`.
-5. Merge the workflow PR after review. The workflow uses manual `workflow_dispatch` rather than publishing automatically on every push.
+Save a RoutineHub developer API key as the `ROUTINEHUB_API_KEY` repository secret. Do not use the HubSign key or a buyer's key, and never commit it. **Verify RoutineHub GitHub secret** checks that it works and owns the listing.
 
-## Release a new verified version
+## Publish a version
 
-1. Update `shortcuts/rage-tracker-sync.cherri` and related tests, docs, and the PWA version gate on a PR; merge to `main` after all CI jobs pass.
-2. Compile, inspect and sign the Shortcut, which contains no credential; install it on an iPhone. Confirm first-run key entry, the saved key file, reuse of that key after replacing the Shortcut, permissions, handshake, accepted calendar uploads, accepted Health Steps (when present), skipped-record behavior, and Cloudflare status reporting. Do not share the configured copy.
-3. In Apple Shortcuts, share the tested Shortcut to obtain a new `https://www.icloud.com/shortcuts/<32-character-id>` URL. GitHub Actions cannot mint Apple's iCloud sharing link on its own.
-4. Open **GitHub → Actions → Publish verified Rage Tracker Sync to RoutineHub → Run workflow** on `main`. Provide the exact version, the new iCloud URL and plain-text release notes. Check the two verification boxes. Be aware that the listing is already reported public: creating a new version may make it visible immediately. Never run the workflow before full iPhone acceptance and GitHub environment approval. The Publish listing toggle only controls publication of a currently private listing.
-5. The workflow runs the Node regression suite; verifies the version matches the committed Shortcut source in all four places; rejects reuse of the historical v1.0 link or a configured bearer token; posts the version using RoutineHub's official API; and verifies `result: success` (HTTP 200 alone does not imply success).
-6. Verify RoutineHub listing #26978 before starting. If it remains publicly listed, creating a version may immediately expose it. The workflow's optional Publish listing step is idempotent for an already-public listing. If the listing has been made private, switch on Publish listing only after reviewing the new version. Do not rerun the create-version workflow with the same version, because the API rejects duplicates.
+1. Update `shortcuts/rage-tracker-sync.cherri` and its version in all four places, then push to `main`.
+2. **Build signed Rage Tracker Sync** runs when Shortcut source changes on `main`. Download `Rage-Tracker-Sync-iPhone-Installer`.
+3. Install it on an iPhone and run it. The Shortcut holds no device key, so choose **Copy iCloud Link** from its share menu. GitHub Actions cannot create this link.
+4. Run **Publish verified Rage Tracker Sync to RoutineHub** on `main` with the version, the new iCloud link and short plain-text notes. It checks the version against the source, rejects a configured bearer token, and confirms RoutineHub's response. A version number can only be used once.
+5. Update `shortcuts/release.json` with the new version and link, then push to `main`. The deploy publishes it, and the Shortcut then offers the update.
 
-For production use, don't mark a version verified in Cloudflare KV until the iPhone acceptance checklist succeeds and the listing is reachable. The Worker currently validates only iCloud links in release metadata, so accepting RoutineHub page links in the PWA update flow is a separate code change.
-
-RoutineHub API: [official documentation](https://routinehub.co/docs/api/). The private developer key is embedded in the API path, so the publishing script deliberately does not log request URLs.
+RoutineHub API: [official documentation](https://routinehub.co/docs/api/). The developer key is part of the API path, so the publishing script does not log request URLs.

@@ -17,4 +17,7 @@ for file in icon-192.png icon-512.png; do
   rm -f "$encoded"
 done
 
+# Tells the Shortcut and the app which release is current.
+$WRANGLER kv key put "config:shortcut:latest" --path shortcuts/release.json --namespace-id "$NAMESPACE_ID" --remote
+
 $WRANGLER deploy

@@ -1,11 +1,11 @@
-name: Build signed Rage Tracker Sync v2.3.3 candidate
+name: Build signed Rage Tracker Sync
 
 on:
   push:
     branches:
-      - release/shortcut-v23-candidate
+      - main
     paths:
-      - .github/workflows/shortcut-v23-signed-candidate.yml
+      - .github/workflows/shortcut-sign.yml
       - shortcuts/**
       - scripts/check-shortcut-conditions.py
       - tests/**
@@ -15,7 +15,7 @@ permissions:
   contents: read
 
 jobs:
-  signed-candidate:
+  signed-shortcut:
     name: Validate and sign Sync
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -58,7 +58,7 @@ jobs:
       - name: Upload compiled plists for structural diagnostics
         uses: actions/upload-artifact@v4
         with:
-          name: Rage-Tracker-v2.3.3-compiled-plists
+          name: Rage-Tracker-Sync-compiled-plists
           path: dist/*.plist
           if-no-files-found: error
           retention-days: 3
@@ -86,18 +86,18 @@ jobs:
 
           expected = ["Rage Tracker Sync.shortcut"]
           for name in expected:
-              candidate = Path("dist") / name
-              data = candidate.read_bytes()
+              signed = Path("dist") / name
+              data = signed.read_bytes()
               if len(data) < 512 or not data.startswith(b"AEA1"):
                   raise SystemExit(f"Missing or invalid signed Apple Shortcut: {name}")
               print(f"Signed: {name} ({len(data)} bytes)")
           PY
           sha256sum dist/*.shortcut
 
-      - name: Upload the iPhone acceptance-test installer
+      - name: Upload the iPhone installer
         uses: actions/upload-artifact@v4
         with:
-          name: Rage-Tracker-v2.3.3-UNVERIFIED-iPhone-Installer
+          name: Rage-Tracker-Sync-iPhone-Installer
           path: dist/*.shortcut
           if-no-files-found: error
           retention-days: 7
