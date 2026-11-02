@@ -71,7 +71,7 @@ test("a valid Shortcut handshake does not imply accepted Health data",()=>{
  assert.match(t.elements.get("shortcut-upload-counts").textContent,/0 health/);
 });
 test("main Shortcut reads its credential from a persistent one-time setup helper",()=>{
- const helper=source.indexOf('run("Rage Tracker Connection", "read")');
+ const helper=source.indexOf('run("Rage Tracker Connection", connectionRequest)');
  const credential=source.indexOf("const credential = getText(connectionOutput)");
  const handshake=source.indexOf('jsonRequest("https://rage-tracker.bishvili.workers.dev/api/shortcut/hello"');
  assert.ok(helper>=0&&helper<credential&&credential<handshake);
