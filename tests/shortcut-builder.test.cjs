@@ -135,7 +135,7 @@ test("the PWA setup instructions and source agree",()=>{
  assert.match(html,/credential-free v2\.3\.3 source/);
  assert.match(html,/href="\/shortcut\/builder"/);
  assert.match(html,/target="_blank"/);
- assert.match(worker,/rage-tracker-device-key\.txt/);
+ assert.match(worker,/saveDeviceKey\(@credential\)/);
 });
 
 test("corrected v2.3 builder replaces the malformed signed download",()=>{
