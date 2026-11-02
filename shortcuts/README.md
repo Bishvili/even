@@ -4,21 +4,29 @@ Rage Tracker Sync is the replaceable iPhone Shortcut that sends selected Calenda
 
 ## Set up once, update without re-entering your key
 
-This release separates the private device credential from the replaceable sync logic.
+Rage Tracker Sync is a single Shortcut. It has no import questions and holds no credential; it keeps the device key in a file, so replacing the Shortcut does not affect the connection.
 
-1. In Rage Tracker → **Sync**, sign in with an approved email. Generate a revocable device key if necessary and copy the complete Authorization value, including `Bearer `.
-2. Download and install the **Rage Tracker Connection** helper before installing Sync. Use the generic, credential-free helper source at [rage-tracker-connection.cherri](rage-tracker-connection.cherri) or the private GitHub Actions test artifact. During Apple's **Customize Shortcut** step, enter the Authorization value **only in this helper**.
-3. Install **Rage Tracker Sync** from [rage-tracker-sync.cherri](rage-tracker-sync.cherri) (or the signed test artifact). Its signed file is named `Rage Tracker Sync.shortcut`. Choose to replace the older Sync Shortcut if Apple offers this option. The version is part of the Shortcut's authenticated handshake and update request, not its installed name.
-4. Run Sync. It calls the separately installed `Rage Tracker Connection` to retrieve the device credential and does **not** ask for it during Sync updates. Approve Calendar, Health Steps, and network permissions as needed. Apple may request those permissions again when a Shortcut is replaced.
-5. Check **Sync → Test connection** and **Sync now** in the PWA. A successful handshake without accepted data is not sufficient to establish that uploads worked.
+**Status:** this is the adopted v2.3.3 design. The source, builder and signed test artifacts on this branch still use the earlier `Rage Tracker Connection` helper until the matching Shortcut change lands. Do not treat the steps below as available before then.
 
-**Keep `Rage Tracker Connection` installed across all Sync upgrades.** If its configured authorization is lost, the device key is revoked, or the account changes, install/configure the helper again. Do not put credentials in GitHub, Cherri Playground, RoutineHub links, public source, or screenshots.
+1. Install **Rage Tracker Sync**. Its signed file is named `Rage Tracker Sync.shortcut`. Choose to replace the older Sync Shortcut if Apple offers this option. The version is part of the Shortcut's authenticated handshake and update request, not its installed name.
+2. In Rage Tracker → **Sync**, sign in with an approved email. Generate a revocable device key if necessary and copy the complete Authorization value, including `Bearer `.
+3. Run Sync. On the first run it asks for the Authorization value, checks its format and saves it to `Rage Tracker/device-key.txt` in the Shortcuts folder of iCloud Drive. Approve file access, Calendar, Health Steps and network permissions as needed. Apple may request those permissions again when a Shortcut is replaced.
+4. Check **Sync → Test connection** and **Sync now** in the PWA. A successful handshake without accepted data is not sufficient to establish that uploads worked.
+
+Later updates read the saved file and do not ask for the key. If the file is missing or the server rejects the saved key, Sync asks for the value again and overwrites the file.
 
 ### Credential storage and privacy
 
-The credential is saved in a configured Text action inside the separately installed connection helper. **It is not encrypted by Rage Tracker or held in the iOS Keychain.** Apple Shortcuts may sync installed configurations through iCloud. Any Shortcut permitted to invoke `Rage Tracker Connection` can receive the bearer token; do not install untrusted Shortcuts or share a configured helper. This design avoids writing an additional plaintext token file to Files, but it is a usability compromise, **not** a new security boundary. Treat the token as sensitive and revoke it in Rage Tracker if exposure is suspected.
+The device key is stored as plain text. **It is not encrypted by Rage Tracker or held in the iOS Keychain.**
 
-The generic helper file and the replaceable Sync file distributed by GitHub Actions contain no private token.
+- iCloud Drive syncs the file to the owner's other devices signed in to the same Apple Account.
+- Anyone with access to the Files app on those devices can read it, and any Shortcut granted access to the file can read it. Do not install untrusted Shortcuts.
+- Do not share the file or put its contents in GitHub, Cherri Playground, RoutineHub links, public source or screenshots.
+- Deleting the Shortcut does not delete the file. To disconnect a device, revoke its key in Rage Tracker and delete `Rage Tracker/device-key.txt` in Files.
+
+Treat the key as sensitive and revoke it in Rage Tracker if exposure is suspected. A revoked key cannot be used even if a copy of the file remains.
+
+The Shortcut itself contains no private token, so a tested installed copy can be shared to create an iCloud link without exposing the key.
 
 ## Upload semantics
 
@@ -31,17 +39,13 @@ The generic helper file and the replaceable Sync file distributed by GitHub Acti
 
 ## Automated checks and release process
 
-GitHub Actions runs `node --test tests/*.test.cjs`, compiles pinned Cherri 2.3.0 without signing, inspects the generated plist for all typed `If` comparisons and timestamp tokens, then signs both unconfigured Shortcuts using Cherri HubSign. It checks that installed names and credential configuration are separated. The ZIP artifact contains:
+GitHub Actions runs `node --test tests/*.test.cjs`, compiles pinned Cherri 2.3.0 without signing, inspects the generated plist for all typed `If` comparisons and timestamp tokens, then signs the Shortcut using Cherri HubSign. The ZIP artifact contains `Rage Tracker Sync.shortcut`.
 
-- `Rage Tracker Connection.shortcut` — install/configure once
-- `Rage Tracker Sync.shortcut` — replace on each update
-
-Passing source tests, plist checks, and signing **does not** establish that Calendar, HealthKit, Apple permissions or network requests work on an actual iPhone. The release must pass live acceptance tests, including accepted Health and Calendar records, and be shared as a fresh **unconfigured** iCloud master before publishing the verified update on [RoutineHub](https://routinehub.co/shortcut/26975/).
+Passing source tests, plist checks, and signing **does not** establish that Calendar, HealthKit, file access, Apple permissions or network requests work on an actual iPhone. The release must pass live acceptance tests, including first-run key entry, reuse of the saved key after replacing the Shortcut, and accepted Health and Calendar records, before an iCloud link is shared and the verified update is published on [RoutineHub](https://routinehub.co/shortcut/26975/).
 
 The historical iCloud v1.0 link is not the verified new release. GitHub `main` does not automatically deploy to the live Cloudflare Worker or KV namespace yet. See [the application README](../README.md) for deployment requirements.
 
 ## References
 
 - [Apple Shortcuts user guide](https://support.apple.com/guide/shortcuts/welcome/ios)
-- [Apple Shortcuts import questions](https://support.apple.com/guide/shortcuts/apdf330fd3a0/ios)
 - [Cherri documentation](https://cherrilang.org/language/standard/shortcuts.html)
