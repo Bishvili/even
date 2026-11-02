@@ -26,6 +26,6 @@ test("Calendar upload surfaces the actual API error without printing event title
 });
 
 test("the device handshake and every upload report the corrected Shortcut version",()=>{
- assert.equal((source.match(/"shortcutVersion": "2\.3\.1"/g)||[]).length,3);
- assert.match(source,/\/api\/shortcut\/release\?current=2\.3\.1/);
+ assert.equal((source.match(/"shortcutVersion": "2\.3\.2"/g)||[]).length,3);
+ assert.match(source,/\/api\/shortcut\/release\?current=2\.3\.2/);
 });
