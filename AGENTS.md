@@ -89,13 +89,13 @@ Current UI is plain JavaScript and CSS. Do not rewrite it merely to adopt a fram
 5. For UI changes, review at iPhone widths and in installed standalone mode. Exercise safe areas, keyboard, scroll, offline, focus, reduced motion, light/dark appearance, and empty/error states.
 6. For API or D1 changes, test invalid credentials, unauthorized requests, multiuser isolation, malformed payloads, idempotency, and rollback behavior.
 7. Update documentation, migration instructions, and the PWA service-worker cache version in the same change when necessary.
-8. Deploy through a repeatable, tested GitHub-to-Cloudflare workflow once available. Do not quietly assume that a GitHub commit updates the live Worker; the existing deployment is not automatically linked.
+8. Pushes to `main` deploy through Workers Builds using `scripts/deploy.sh`. Check that the build succeeded rather than assuming a commit is live.
 9. Verify the **deployed** version and its functionality before describing it as live. Prefer staging and a rollback path for changes involving auth or personal data.
 10. Leave the branch, test suite, and docs coherent. Avoid stray test scripts, stale comments, or unresolved TODOs with no owner.
 
 ## Project hygiene and immediate technical debt
 
-The shared-sync tables and pairing endpoint were removed after confirming the legacy tables were empty. A source archive is no longer served by the application; GitHub is the authoritative source repository. Remaining cleanup priorities are manual KV/Worker publishing, large single-file UI modules, and the absence of a GitHub-to-Cloudflare release pipeline. Prefer one source-controlled deployment flow, small modules, automated regression checks, and signed versioned Shortcut releases.
+The shared-sync tables and pairing endpoint were removed after confirming the legacy tables were empty. A source archive is no longer served by the application; GitHub is the authoritative source repository. Remaining cleanup priorities are large single-file UI modules. Prefer one source-controlled deployment flow, small modules, automated regression checks, and signed versioned Shortcut releases.
 
 ## Design and platform references
 

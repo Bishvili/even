@@ -49,7 +49,7 @@ The file `rage-tracker-device-key.txt` in the `Rage Tracker` folder in On My iPh
 - Cloudflare Worker secret APPROVED_SYNC_EMAILS: JSON array of the two allowed email addresses; manage in Cloudflare, not in GitHub.
 - Worker bindings: ASSETS (Workers KV), DB (D1).
 - Database migration: db/schema.sql.
-- GitHub pushes do not yet automatically deploy to Cloudflare. Asset changes must be published to the KV namespace and Worker changes uploaded with its existing bindings and secret preserved.
+- Pushes to `main` deploy through Cloudflare Workers Builds, which runs `sh scripts/deploy.sh` to publish the app files to KV and deploy the Worker.
 
 ## Structure
 
