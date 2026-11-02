@@ -4,18 +4,19 @@
 #define mac false
 
 #include 'actions/calendar'
-#include 'actions/documents'
 #include 'actions/text'
 #include 'actions/web'
 
-// The device key lives in a file outside this Shortcut.
-action 'is.workflow.actions.documentpicker.open' readSavedDeviceKey(variable folder: 'WFFile'): text {"WFGetFilePath":"rage-tracker-device-key.txt","WFFileErrorIfNotFound":false,"WFShowFilePicker":false}
+// The device key lives in a file outside this Shortcut, in On My iPhone so it works without iCloud Drive.
+#ref onMyIPhone eyJkaXNwbGF5TmFtZSI6Ik9uIE15IGlQaG9uZSIsImZpbGVuYW1lIjoiRmlsZSBQcm92aWRlciBTdG9yYWdlIiwiZmlsZUxvY2F0aW9uIjp7IldGRmlsZUxvY2F0aW9uVHlwZSI6IkxvY2FsU3RvcmFnZSIsInJlbGF0aXZlU3VicGF0aCI6IiJ9fQ==
 
-action 'is.workflow.actions.documentpicker.save' saveDeviceKey(variable key: 'WFInput', variable folder: 'WFFolder') {"WFFileDestinationPath":"rage-tracker-device-key.txt","WFSaveFileOverwrite":true,"WFAskWhereToSave":false}
+action 'is.workflow.actions.file.createfolder' createKeyFolder(&variable location: 'WFFolder') {"WFFilePath":"Rage Tracker"}
 
-// Create Folder keeps its existing folder and defaults to the Shortcuts folder in iCloud Drive.
-const keyFolderName = text("Rage Tracker")
-const keyFolder = createFolder("{keyFolderName}")
+action 'is.workflow.actions.documentpicker.open' readSavedDeviceKey(&variable folder: 'WFFile'): text {"WFGetFilePath":"rage-tracker-device-key.txt","WFFileErrorIfNotFound":false,"WFShowFilePicker":false}
+
+action 'is.workflow.actions.documentpicker.save' saveDeviceKey(variable key: 'WFInput', &variable folder: 'WFFolder') {"WFFileDestinationPath":"rage-tracker-device-key.txt","WFSaveFileOverwrite":true,"WFAskWhereToSave":false}
+
+const keyFolder = createKeyFolder(onMyIPhone)
 const savedKeyFile = readSavedDeviceKey(keyFolder)
 @credential = getText(savedKeyFile)
 const savedKeyMatches = matchText('^Bearer [0-9A-Fa-f]{64}$', @credential)
