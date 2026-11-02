@@ -9,11 +9,14 @@
 #include 'actions/web'
 
 // The device key lives in a file, so replacing this Shortcut does not disconnect it.
-action 'is.workflow.actions.documentpicker.open' readSavedDeviceKey(): text {"WFFile":{"displayName":"Shortcuts","filename":"Documents","fileLocation":{"WFFileLocationType":"Shortcuts","relativeSubpath":""}},"WFGetFilePath":"rage-tracker-device-key.txt","WFFileErrorIfNotFound":false,"WFShowFilePicker":false}
+// References the Shortcuts folder in iCloud Drive.
+#ref shortcutsFolder eyJkaXNwbGF5TmFtZSI6IlNob3J0Y3V0cyIsImZpbGVuYW1lIjoiRG9jdW1lbnRzIiwiZmlsZUxvY2F0aW9uIjp7IldGRmlsZUxvY2F0aW9uVHlwZSI6IlNob3J0Y3V0cyIsInJlbGF0aXZlU3VicGF0aCI6IiJ9fQ==
 
-action 'is.workflow.actions.documentpicker.save' saveDeviceKey(variable key: 'WFInput') {"WFFolder":{"displayName":"Shortcuts","filename":"Documents","fileLocation":{"WFFileLocationType":"Shortcuts","relativeSubpath":""}},"WFFileDestinationPath":"rage-tracker-device-key.txt","WFSaveFileOverwrite":true,"WFAskWhereToSave":false}
+action 'is.workflow.actions.documentpicker.open' readSavedDeviceKey(&variable folder: 'WFFile'): text {"WFGetFilePath":"rage-tracker-device-key.txt","WFFileErrorIfNotFound":false,"WFShowFilePicker":false}
 
-const savedKeyFile = readSavedDeviceKey()
+action 'is.workflow.actions.documentpicker.save' saveDeviceKey(variable key: 'WFInput', &variable folder: 'WFFolder') {"WFFileDestinationPath":"rage-tracker-device-key.txt","WFSaveFileOverwrite":true,"WFAskWhereToSave":false}
+
+const savedKeyFile = readSavedDeviceKey(shortcutsFolder)
 @credential = getText(savedKeyFile)
 const savedKeyMatches = matchText('^Bearer [0-9A-Fa-f]{64}$', @credential)
 const savedKeyMatchCount = count(savedKeyMatches)
@@ -43,7 +46,7 @@ if connectionStatus != "connected" {
 }
 
 // Save only a key the server accepted, so a failed attempt cannot replace a working one.
-saveDeviceKey(@credential)
+saveDeviceKey(@credential, shortcutsFolder)
 
 // Collect only events starting today.
 action 'is.workflow.actions.filter.calendarevents' findTodayEvents(): array {"WFContentItemFilter":{"Value":{"WFActionParameterFilterPrefix":1,"WFContentPredicateBoundedDate":false,"WFActionParameterFilterTemplates":[{"Bounded":true,"Operator":1002,"Property":"Start Date","Removable":false,"Values":{"Number":"7","Unit":16}}]},"WFSerializationType":"WFContentPredicateTableTemplate"},"WFContentItemLimitEnabled":true,"WFContentItemLimitNumber":30,"WFContentItemSortProperty":"Start Date","WFContentItemSortOrder":"Ascending"}

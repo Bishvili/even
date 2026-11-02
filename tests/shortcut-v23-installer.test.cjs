@@ -17,7 +17,7 @@ test("corrected Shortcut is the only downloadable installation path",()=>{
  assert.doesNotMatch(worker,/rage-tracker-sync-v2\.2\.shortcut/);
  assert.doesNotMatch(app,/Signed test build v2\.2/);
  assert.match(worker,/\/shortcut\/builder/);
- assert.match(worker,/readSavedDeviceKey\(\)/);
+ assert.match(worker,/readSavedDeviceKey\(shortcutsFolder\)/);
 });
 
 test("app does not launch old broken Shortcut versions",()=>{

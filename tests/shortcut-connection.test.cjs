@@ -19,8 +19,8 @@ test("the device key is read from a file and has no install question or helper",
  assert.doesNotMatch(sync, /#question/);
  assert.doesNotMatch(sync, /\brun\("/);
  assert.match(sync, /"WFGetFilePath":"rage-tracker-device-key.txt","WFFileErrorIfNotFound":false,"WFShowFilePicker":false/);
- assert.match(sync, /"WFFile":\{[^\n]*"WFFileLocationType":"Shortcuts"/);
- assert.match(sync, /"WFFolder":\{[^\n]*"WFFileLocationType":"Shortcuts"/);
+ const folder = JSON.parse(Buffer.from(sync.match(/^#ref shortcutsFolder (\S+)$/m)[1], "base64").toString());
+ assert.equal(folder.fileLocation.WFFileLocationType, "Shortcuts");
  assert.match(sync, /if savedKeyMatchCount == 0/);
  assert.doesNotMatch(sync, /Bearer [a-f0-9]{64}/i);
  assert.equal(fs.existsSync(path.join(root, "shortcuts/rage-tracker-connection.cherri")), false);
@@ -28,7 +28,7 @@ test("the device key is read from a file and has no install question or helper",
 
 test("only a key the server accepted is saved", () => {
  const retryFailure = sync.indexOf('if retryStatus != "connected"');
- const save = sync.indexOf("saveDeviceKey(@credential)");
+ const save = sync.indexOf("saveDeviceKey(@credential, shortcutsFolder)");
  const events = sync.indexOf("const events = findTodayEvents()");
  assert.ok(retryFailure >= 0 && retryFailure < save && save < events);
  assert.equal((sync.match(/^saveDeviceKey\(/gm) || []).length, 1);
