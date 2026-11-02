@@ -85,7 +85,7 @@ test("the owner-scoped API validates the configured key before collecting data",
  const binding=source.indexOf("@credential = getText(savedKeyFile)");
  const profile=source.indexOf("getDictionary(handshakeRaw)");
  const failure=source.indexOf('if connectionStatus != "connected"');
- const events=source.indexOf("const events = findTodayEvents()");
+ const events=source.indexOf("const events = findEvents(todayEventsFilter)");
  assert.ok(binding>=0&&binding<profile&&profile<failure&&failure<events);
  assert.match(source,/Authorization": "\{@credential\}"/);
  assert.match(source,/alert\("That key didn't work/);
@@ -114,17 +114,17 @@ test("conditional comparisons use explicit typed text instead of Boolean values"
   'eventError == "No valid records. Check date, metric values, and event start/end formats"',
   'sampleCount >= 1',
   'healthStatus != "accepted"',
-  'restingCount >= 1',
+  'restingValue >= 1',
   'restingStatus == "accepted"',
-  'hrvCount >= 1',
+  'hrvValue >= 1',
   'hrvStatus == "accepted"',
-  'stageCount >= 1',
-  '@sleepMinutes >= 1',
-  'sleepStatus == "accepted"',
-  'workoutCount >= 1',
+  'exerciseValue >= 1',
   'workoutStatus == "accepted"',
   'updateStatus == "new_release"',
-  'choice == "Install update"'
+  'choice == "Install update"',
+  'stageCount >= 1',
+  '@sleepMinutes >= 1',
+  'sleepStatus == "accepted"'
  ]);
  assert.doesNotMatch(source,/if\s+@\w+\s*(==|!=)\s*(true|false)/);
  for(const name of ["connectionStatus","eventStatus","healthStatus","updateStatus"])

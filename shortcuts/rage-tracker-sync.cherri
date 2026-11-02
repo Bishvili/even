@@ -7,6 +7,14 @@
 #include 'actions/text'
 #include 'actions/web'
 
+// Filters are passed as references because Cherri rewrites nested action parameters.
+#ref todayEventsFilter eyJWYWx1ZSI6eyJXRkFjdGlvblBhcmFtZXRlckZpbHRlclByZWZpeCI6MSwiV0ZDb250ZW50UHJlZGljYXRlQm91bmRlZERhdGUiOmZhbHNlLCJXRkFjdGlvblBhcmFtZXRlckZpbHRlclRlbXBsYXRlcyI6W3siQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjEwMDIsIlByb3BlcnR5IjoiU3RhcnQgRGF0ZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJOdW1iZXIiOiI3IiwiVW5pdCI6MTZ9fV19LCJXRlNlcmlhbGl6YXRpb25UeXBlIjoiV0ZDb250ZW50UHJlZGljYXRlVGFibGVUZW1wbGF0ZSJ9
+#ref stepsFilter eyJWYWx1ZSI6eyJXRkFjdGlvblBhcmFtZXRlckZpbHRlclByZWZpeCI6MSwiV0ZDb250ZW50UHJlZGljYXRlQm91bmRlZERhdGUiOmZhbHNlLCJXRkFjdGlvblBhcmFtZXRlckZpbHRlclRlbXBsYXRlcyI6W3siQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjQsIlByb3BlcnR5IjoiVHlwZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IlN0ZXBzIiwiV0ZTZXJpYWxpemF0aW9uVHlwZSI6IldGU3RyaW5nU3Vic3RpdHV0YWJsZVN0YXRlIn19fSx7IkJvdW5kZWQiOnRydWUsIk9wZXJhdG9yIjoxMDAxLCJQcm9wZXJ0eSI6IlN0YXJ0IERhdGUiLCJSZW1vdmFibGUiOmZhbHNlLCJWYWx1ZXMiOnsiTnVtYmVyIjoiMSIsIlVuaXQiOjE2fX1dfSwiV0ZTZXJpYWxpemF0aW9uVHlwZSI6IldGQ29udGVudFByZWRpY2F0ZVRhYmxlVGVtcGxhdGUifQ==
+#ref restingFilter eyJWYWx1ZSI6eyJXRkFjdGlvblBhcmFtZXRlckZpbHRlclByZWZpeCI6MSwiV0ZDb250ZW50UHJlZGljYXRlQm91bmRlZERhdGUiOmZhbHNlLCJXRkFjdGlvblBhcmFtZXRlckZpbHRlclRlbXBsYXRlcyI6W3siQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjQsIlByb3BlcnR5IjoiVHlwZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IlJlc3RpbmcgSGVhcnQgUmF0ZSIsIldGU2VyaWFsaXphdGlvblR5cGUiOiJXRlN0cmluZ1N1YnN0aXR1dGFibGVTdGF0ZSJ9fX0seyJCb3VuZGVkIjp0cnVlLCJPcGVyYXRvciI6MTAwMSwiUHJvcGVydHkiOiJTdGFydCBEYXRlIiwiUmVtb3ZhYmxlIjpmYWxzZSwiVmFsdWVzIjp7Ik51bWJlciI6IjEiLCJVbml0IjoxNn19XX0sIldGU2VyaWFsaXphdGlvblR5cGUiOiJXRkNvbnRlbnRQcmVkaWNhdGVUYWJsZVRlbXBsYXRlIn0=
+#ref hrvFilter eyJWYWx1ZSI6eyJXRkFjdGlvblBhcmFtZXRlckZpbHRlclByZWZpeCI6MSwiV0ZDb250ZW50UHJlZGljYXRlQm91bmRlZERhdGUiOmZhbHNlLCJXRkFjdGlvblBhcmFtZXRlckZpbHRlclRlbXBsYXRlcyI6W3siQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjQsIlByb3BlcnR5IjoiVHlwZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IkhlYXJ0IFJhdGUgVmFyaWFiaWxpdHkiLCJXRlNlcmlhbGl6YXRpb25UeXBlIjoiV0ZTdHJpbmdTdWJzdGl0dXRhYmxlU3RhdGUifX19LHsiQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjEwMDEsIlByb3BlcnR5IjoiU3RhcnQgRGF0ZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJOdW1iZXIiOiIxIiwiVW5pdCI6MTZ9fV19LCJXRlNlcmlhbGl6YXRpb25UeXBlIjoiV0ZDb250ZW50UHJlZGljYXRlVGFibGVUZW1wbGF0ZSJ9
+#ref exerciseFilter eyJWYWx1ZSI6eyJXRkFjdGlvblBhcmFtZXRlckZpbHRlclByZWZpeCI6MSwiV0ZDb250ZW50UHJlZGljYXRlQm91bmRlZERhdGUiOmZhbHNlLCJXRkFjdGlvblBhcmFtZXRlckZpbHRlclRlbXBsYXRlcyI6W3siQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjQsIlByb3BlcnR5IjoiVHlwZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IkV4ZXJjaXNlIE1pbnV0ZXMiLCJXRlNlcmlhbGl6YXRpb25UeXBlIjoiV0ZTdHJpbmdTdWJzdGl0dXRhYmxlU3RhdGUifX19LHsiQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjEwMDEsIlByb3BlcnR5IjoiU3RhcnQgRGF0ZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJOdW1iZXIiOiIxIiwiVW5pdCI6MTZ9fV19LCJXRlNlcmlhbGl6YXRpb25UeXBlIjoiV0ZDb250ZW50UHJlZGljYXRlVGFibGVUZW1wbGF0ZSJ9
+#ref sleepFilter eyJWYWx1ZSI6eyJXRkFjdGlvblBhcmFtZXRlckZpbHRlclByZWZpeCI6MSwiV0ZDb250ZW50UHJlZGljYXRlQm91bmRlZERhdGUiOmZhbHNlLCJXRkFjdGlvblBhcmFtZXRlckZpbHRlclRlbXBsYXRlcyI6W3siQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjQsIlByb3BlcnR5IjoiVHlwZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IlNsZWVwIiwiV0ZTZXJpYWxpemF0aW9uVHlwZSI6IldGU3RyaW5nU3Vic3RpdHV0YWJsZVN0YXRlIn19fSx7IkJvdW5kZWQiOnRydWUsIk9wZXJhdG9yIjoxMDAxLCJQcm9wZXJ0eSI6IlN0YXJ0IERhdGUiLCJSZW1vdmFibGUiOmZhbHNlLCJWYWx1ZXMiOnsiTnVtYmVyIjoiMSIsIlVuaXQiOjE2fX1dfSwiV0ZTZXJpYWxpemF0aW9uVHlwZSI6IldGQ29udGVudFByZWRpY2F0ZVRhYmxlVGVtcGxhdGUifQ==
+
 // The device key lives in a file outside this Shortcut, in On My iPhone so it works without iCloud Drive.
 #ref onMyIPhone eyJkaXNwbGF5TmFtZSI6Ik9uIE15IGlQaG9uZSIsImZpbGVuYW1lIjoiRmlsZSBQcm92aWRlciBTdG9yYWdlIiwiZmlsZUxvY2F0aW9uIjp7IldGRmlsZUxvY2F0aW9uVHlwZSI6IkxvY2FsU3RvcmFnZSIsInJlbGF0aXZlU3VicGF0aCI6IiJ9fQ==
 
@@ -50,30 +58,26 @@ if connectionStatus != "connected" {
 saveDeviceKey(@credential, keyFolder)
 
 // Collect only events starting today.
-action 'is.workflow.actions.filter.calendarevents' findTodayEvents(): array {"WFContentItemFilter":{"Value":{"WFActionParameterFilterPrefix":1,"WFContentPredicateBoundedDate":false,"WFActionParameterFilterTemplates":[{"Bounded":true,"Operator":1002,"Property":"Start Date","Removable":false,"Values":{"Number":"7","Unit":16}}]},"WFSerializationType":"WFContentPredicateTableTemplate"},"WFContentItemLimitEnabled":true,"WFContentItemLimitNumber":30,"WFContentItemSortProperty":"Start Date","WFContentItemSortOrder":"Ascending"}
+action 'is.workflow.actions.filter.calendarevents' findEvents(&variable filter: 'WFContentItemFilter'): array {"WFContentItemLimitEnabled":true,"WFContentItemLimitNumber":30,"WFContentItemSortProperty":"Start Date","WFContentItemSortOrder":"Oldest First"}
 
-// Use the native Health sample-type picker. This is not a free-text filter.
-action 'is.workflow.actions.filter.health.quantity' findTodaySteps(): array {"WFContentItemFilter":{"Value":{"WFActionParameterFilterPrefix":1,"WFContentPredicateBoundedDate":false,"WFActionParameterFilterTemplates":[{"Bounded":true,"Operator":4,"Property":"Type","Removable":false,"Values":{"Enumeration":{"Value":"Steps","WFSerializationType":"WFStringSubstitutableState"}}},{"Bounded":true,"Operator":1002,"Property":"Start Date","Removable":false,"Values":{"Number":"7","Unit":16}}]},"WFSerializationType":"WFContentPredicateTableTemplate"}}
+// Daily groups give Health's own totals, and filling missing days stops an empty type from ending the run.
+action 'is.workflow.actions.filter.health.quantity' findLatestDay(&variable filter: 'WFContentItemFilter'): array {"WFHKSampleFilteringGroupBy":"Day","WFHKSampleFilteringFillMissing":true,"WFContentItemSortProperty":"Start Date","WFContentItemSortOrder":"Latest First","WFContentItemLimitEnabled":true,"WFContentItemLimitNumber":1}
+
+action 'is.workflow.actions.filter.health.quantity' findSamples(&variable filter: 'WFContentItemFilter'): array {"WFContentItemSortProperty":"Start Date","WFContentItemSortOrder":"Oldest First"}
 
 action 'is.workflow.actions.properties.health.quantity' getStepValues(variable samples: 'WFInput'): array {"WFContentItemPropertyName":"Value"}
-
-action 'is.workflow.actions.filter.health.quantity' findTodayRestingHeartRate(): array {"WFContentItemFilter":{"Value":{"WFActionParameterFilterPrefix":1,"WFContentPredicateBoundedDate":false,"WFActionParameterFilterTemplates":[{"Bounded":true,"Operator":4,"Property":"Type","Removable":false,"Values":{"Enumeration":{"Value":"Resting Heart Rate","WFSerializationType":"WFStringSubstitutableState"}}},{"Bounded":true,"Operator":1002,"Property":"Start Date","Removable":false,"Values":{"Number":"7","Unit":16}}]},"WFSerializationType":"WFContentPredicateTableTemplate"}}
-action 'is.workflow.actions.filter.health.quantity' findTodayHRV(): array {"WFContentItemFilter":{"Value":{"WFActionParameterFilterPrefix":1,"WFContentPredicateBoundedDate":false,"WFActionParameterFilterTemplates":[{"Bounded":true,"Operator":4,"Property":"Type","Removable":false,"Values":{"Enumeration":{"Value":"Heart Rate Variability","WFSerializationType":"WFStringSubstitutableState"}}},{"Bounded":true,"Operator":1002,"Property":"Start Date","Removable":false,"Values":{"Number":"7","Unit":16}}]},"WFSerializationType":"WFContentPredicateTableTemplate"}}
-action 'is.workflow.actions.filter.health.quantity' findLastNightSleep(): array {"WFContentItemFilter":{"Value":{"WFActionParameterFilterPrefix":1,"WFContentPredicateBoundedDate":false,"WFActionParameterFilterTemplates":[{"Bounded":true,"Operator":4,"Property":"Type","Removable":false,"Values":{"Enumeration":{"Value":"Sleep","WFSerializationType":"WFStringSubstitutableState"}}},{"Bounded":true,"Operator":1002,"Property":"End Date","Removable":false,"Values":{"Number":"7","Unit":16}}]},"WFSerializationType":"WFContentPredicateTableTemplate"}}
-action 'is.workflow.actions.filter.health.quantity' findTodayWorkouts(): array {"WFContentItemFilter":{"Value":{"WFActionParameterFilterPrefix":1,"WFContentPredicateBoundedDate":false,"WFActionParameterFilterTemplates":[{"Bounded":true,"Operator":4,"Property":"Type","Removable":false,"Values":{"Enumeration":{"Value":"Workouts","WFSerializationType":"WFStringSubstitutableState"}}},{"Bounded":true,"Operator":1002,"Property":"Start Date","Removable":false,"Values":{"Number":"7","Unit":16}}]},"WFSerializationType":"WFContentPredicateTableTemplate"}}
 
 action 'is.workflow.actions.properties.health.quantity' getSampleValue(variable sample: 'WFInput') {"WFContentItemPropertyName":"Value"}
 action 'is.workflow.actions.properties.health.quantity' getSampleStart(variable sample: 'WFInput') {"WFContentItemPropertyName":"Start Date"}
 action 'is.workflow.actions.properties.health.quantity' getSampleEnd(variable sample: 'WFInput') {"WFContentItemPropertyName":"End Date"}
 action 'is.workflow.actions.gettimebetweendates' minutesSince(variable end: 'WFInput', variable start: 'WFTimeUntilFromDate'): number {"WFTimeUntilUnit":"Minutes"}
-action 'is.workflow.actions.statistics' averageValues(variable values: 'Input'): number {"WFStatisticsOperation":"Average"}
 
 // Calculate Statistics takes its list through the Input parameter.
 action 'is.workflow.actions.statistics' sumValues(variable values: 'Input'): number {"WFStatisticsOperation":"Sum"}
 
 @acceptedCount = 0
 @skippedCalendarCount = 0
-const events = findTodayEvents()
+const events = findEvents(todayEventsFilter)
 for event in events {
     const title = getEventDetail(@event, "Title")
     const startDate = getEventDetail(@event, "Start Date")
@@ -119,7 +123,7 @@ formRequest("https://rage-tracker.bishvili.workers.dev/api/ingest", "POST", {
     "startedAt": "{syncStarted}"
 }, {"Authorization": "{@credential}"})
 
-const samples = findTodaySteps()
+const samples = findLatestDay(stepsFilter)
 const sampleCount = count(samples)
 if sampleCount >= 1 {
     const values = getStepValues(samples)
@@ -147,16 +151,14 @@ if sampleCount >= 1 {
 }
 
 // A metric with no data today is left out, never sent as zero.
-const restingSamples = findTodayRestingHeartRate()
-const restingCount = count(restingSamples)
-if restingCount >= 1 {
-    const restingValues = getSampleValue(restingSamples)
-    const restingAverage = averageValues(restingValues)
+const restingSamples = findLatestDay(restingFilter)
+const restingValue = getSampleValue(restingSamples)
+if restingValue >= 1 {
     const restingBody = formRequest("https://rage-tracker.bishvili.workers.dev/api/ingest", "POST", {
         "kind": "health",
         "shortcutVersion": "2.3.6",
         "date": "{day}",
-        "restingHR": "{restingAverage}"
+        "restingHR": "{restingValue}"
     }, {"Authorization": "{@credential}"})
     const restingResponse = getDictionary(restingBody)
     const restingStatusValue = getValue(restingResponse, "state")
@@ -166,16 +168,14 @@ if restingCount >= 1 {
     }
 }
 
-const hrvSamples = findTodayHRV()
-const hrvCount = count(hrvSamples)
-if hrvCount >= 1 {
-    const hrvValues = getSampleValue(hrvSamples)
-    const hrvAverage = averageValues(hrvValues)
+const hrvSamples = findLatestDay(hrvFilter)
+const hrvValue = getSampleValue(hrvSamples)
+if hrvValue >= 1 {
     const hrvBody = formRequest("https://rage-tracker.bishvili.workers.dev/api/ingest", "POST", {
         "kind": "health",
         "shortcutVersion": "2.3.6",
         "date": "{day}",
-        "hrv": "{hrvAverage}"
+        "hrv": "{hrvValue}"
     }, {"Authorization": "{@credential}"})
     const hrvResponse = getDictionary(hrvBody)
     const hrvStatusValue = getValue(hrvResponse, "state")
@@ -185,52 +185,14 @@ if hrvCount >= 1 {
     }
 }
 
-// Count only time asleep, not time in bed or awake.
-@sleepMinutes = 0
-const sleepSamples = findLastNightSleep()
-for sleepSample in sleepSamples {
-    const stageValue = getSampleValue(@sleepSample)
-    const stageText = getText(stageValue)
-    const stageMatches = matchText('(?i)core|deep|rem|asleep', stageText)
-    const stageCount = count(stageMatches)
-    if stageCount >= 1 {
-        const sleepStart = getSampleStart(@sleepSample)
-        const sleepEnd = getSampleEnd(@sleepSample)
-        const stageMinutes = minutesSince(sleepEnd, sleepStart)
-        @sleepMinutes += stageMinutes
-    }
-}
-if @sleepMinutes >= 1 {
-    const sleepHours = @sleepMinutes / 60
-    const sleepBody = formRequest("https://rage-tracker.bishvili.workers.dev/api/ingest", "POST", {
-        "kind": "health",
-        "shortcutVersion": "2.3.6",
-        "date": "{day}",
-        "sleepHours": "{sleepHours}"
-    }, {"Authorization": "{@credential}"})
-    const sleepResponse = getDictionary(sleepBody)
-    const sleepStatusValue = getValue(sleepResponse, "state")
-    const sleepStatus = getText(sleepStatusValue)
-    if sleepStatus == "accepted" {
-        @acceptedCount += 1
-    }
-}
-
-@workoutMinutes = 0
-const workoutSamples = findTodayWorkouts()
-const workoutCount = count(workoutSamples)
-if workoutCount >= 1 {
-    for workoutSample in workoutSamples {
-        const workoutStart = getSampleStart(@workoutSample)
-        const workoutEnd = getSampleEnd(@workoutSample)
-        const thisWorkout = minutesSince(workoutEnd, workoutStart)
-        @workoutMinutes += thisWorkout
-    }
+const exerciseSamples = findLatestDay(exerciseFilter)
+const exerciseValue = getSampleValue(exerciseSamples)
+if exerciseValue >= 1 {
     const workoutBody = formRequest("https://rage-tracker.bishvili.workers.dev/api/ingest", "POST", {
         "kind": "health",
         "shortcutVersion": "2.3.6",
         "date": "{day}",
-        "workoutMin": "{@workoutMinutes}"
+        "workoutMin": "{exerciseValue}"
     }, {"Authorization": "{@credential}"})
     const workoutResponse = getDictionary(workoutBody)
     const workoutStatusValue = getValue(workoutResponse, "state")
@@ -255,5 +217,37 @@ if updateStatus == "new_release" {
     const choice = getText(selected)
     if choice == "Install update" {
         openURL("{link}")
+    }
+}
+
+// Sleep runs last because Find Health Samples stops the Shortcut when a type has no samples.
+// Count only time asleep, not time in bed or awake.
+@sleepMinutes = 0
+const sleepSamples = findSamples(sleepFilter)
+for sleepSample in sleepSamples {
+    const stageValue = getSampleValue(@sleepSample)
+    const stageText = getText(stageValue)
+    const stageMatches = matchText('(?i)asleep', stageText)
+    const stageCount = count(stageMatches)
+    if stageCount >= 1 {
+        const sleepStart = getSampleStart(@sleepSample)
+        const sleepEnd = getSampleEnd(@sleepSample)
+        const stageMinutes = minutesSince(sleepEnd, sleepStart)
+        @sleepMinutes += stageMinutes
+    }
+}
+if @sleepMinutes >= 1 {
+    const sleepHours = @sleepMinutes / 60
+    const sleepBody = formRequest("https://rage-tracker.bishvili.workers.dev/api/ingest", "POST", {
+        "kind": "health",
+        "shortcutVersion": "2.3.6",
+        "date": "{day}",
+        "sleepHours": "{sleepHours}"
+    }, {"Authorization": "{@credential}"})
+    const sleepResponse = getDictionary(sleepBody)
+    const sleepStatusValue = getValue(sleepResponse, "state")
+    const sleepStatus = getText(sleepStatusValue)
+    if sleepStatus == "accepted" {
+        @acceptedCount += 1
     }
 }

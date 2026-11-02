@@ -40,17 +40,17 @@ test("Shortcut checks explicit typed values",()=>{
   'eventError == "No valid records. Check date, metric values, and event start/end formats"',
   'sampleCount >= 1',
   'healthStatus != "accepted"',
-  'restingCount >= 1',
+  'restingValue >= 1',
   'restingStatus == "accepted"',
-  'hrvCount >= 1',
+  'hrvValue >= 1',
   'hrvStatus == "accepted"',
-  'stageCount >= 1',
-  '@sleepMinutes >= 1',
-  'sleepStatus == "accepted"',
-  'workoutCount >= 1',
+  'exerciseValue >= 1',
   'workoutStatus == "accepted"',
   'updateStatus == "new_release"',
-  'choice == "Install update"'
+  'choice == "Install update"',
+  'stageCount >= 1',
+  '@sleepMinutes >= 1',
+  'sleepStatus == "accepted"'
  ]);
  assert.doesNotMatch(shortcut,/if\s+@\w+\s*==\s*(true|false)/);
  assert.doesNotMatch(shortcut,/Bearer [a-f0-9]{64}/i);
@@ -63,3 +63,13 @@ test("the release helper holds no token in source and starts the publish workflo
  assert.match(helper,/routinehub-publish\.yml\/dispatches/);
  assert.doesNotMatch(helper,/github_pat_[A-Za-z0-9]{10}|ghp_[A-Za-z0-9]{10}/);
 });
+
+test("Shortcut filters are references, so the compiler cannot rewrite them",()=>{
+ for(const [name,type] of [["stepsFilter","Steps"],["restingFilter","Resting Heart Rate"],["hrvFilter","Heart Rate Variability"],["exerciseFilter","Exercise Minutes"],["sleepFilter","Sleep"]]){
+  const filter=JSON.parse(Buffer.from(shortcut.match(new RegExp("^#ref "+name+" (\\S+)$","m"))[1],"base64").toString());
+  assert.equal(filter.WFSerializationType,"WFContentPredicateTableTemplate");
+  assert.equal(filter.Value.WFActionParameterFilterTemplates[0].Values.Enumeration.Value,type);
+ }
+ assert.doesNotMatch(shortcut,/\): array \{"WFContentItemFilter"/);
+});
+

@@ -111,6 +111,19 @@ def check_connection_and_steps(document, actions) -> None:
     if any("runworkflow" in a.get("WFWorkflowActionIdentifier", "") for a in actions):
         raise AssertionError("Rage Tracker Sync must not depend on another Shortcut")
 
+    for finder, count, types in (("is.workflow.actions.filter.calendarevents", 1, [None]), ("is.workflow.actions.filter.health.quantity", 5, ["Steps", "Resting Heart Rate", "Heart Rate Variability", "Exercise Minutes", "Sleep"])):
+        found = by_id(finder)
+        if len(found) != count:
+            raise AssertionError(f"Expected {count} {finder} actions, found {len(found)}")
+        for action, expected_type in zip(found, types):
+            template = action["WFWorkflowActionParameters"].get("WFContentItemFilter", {})
+            if template.get("WFSerializationType") != "WFContentPredicateTableTemplate":
+                raise AssertionError(f"{finder} filter is not in Apple's filter format and would be ignored")
+            rows = template["Value"]["WFActionParameterFilterTemplates"]
+            actual = rows[0]["Values"]["Enumeration"]["Value"] if expected_type else None
+            if actual != expected_type:
+                raise AssertionError(f"Expected filter type {expected_type}, found {actual}")
+
     reads = by_id("is.workflow.actions.documentpicker.open")
     if len(reads) != 1:
         raise AssertionError(f"Expected one saved-key read, found {len(reads)}")

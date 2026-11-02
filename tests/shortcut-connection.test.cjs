@@ -29,7 +29,7 @@ test("the device key is read from a file and has no install question or helper",
 test("only a key the server accepted is saved", () => {
  const retryFailure = sync.indexOf('if retryStatus != "connected"');
  const save = sync.indexOf("saveDeviceKey(@credential, keyFolder)");
- const events = sync.indexOf("const events = findTodayEvents()");
+ const events = sync.indexOf("const events = findEvents(todayEventsFilter)");
  assert.ok(retryFailure >= 0 && retryFailure < save && save < events);
  assert.equal((sync.match(/^saveDeviceKey\(/gm) || []).length, 1);
 });

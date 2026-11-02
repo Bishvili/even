@@ -32,7 +32,8 @@ The Shortcut itself contains no private token, so a tested installed copy can be
 - Calendar events carry titles and start/end timestamps formatted as full ISO 8601 date-time strings with offsets. They contain no attendee, location, notes, or mood data. The Worker derives broad category labels.
 - An event rejected with the Worker's **exact known invalid-record message** is counted as skipped. Valid events continue uploading. Authentication or unexpected server errors still stop the workflow.
 - Apple Health Steps are read from native Health samples and summed. The total is converted to text, locale grouping separators (for example, in `12,345`) and any unit text are removed, and the number is posted as `steps` with the current local `date`. The Worker accepts values within configured numeric bounds. Sample overlap across devices may lead to differences from Apple's reconciled Step total.
-- Resting heart rate and heart rate variability are today's averages. Sleep is the time asleep in samples ending today, in hours. Workouts are today's total minutes. A metric with no data is left out rather than sent as zero.
+- Steps, resting heart rate, heart rate variability and exercise minutes use Apple Health's own daily values. Sleep adds up time asleep in samples from the last day, in hours. A value of zero is left out, except steps.
+- Sleep runs last because Find Health Samples stops the Shortcut when a type has no samples.
 - After the calendar uploads, `calendar_complete` removes today's events on the server that this run did not send, so edited and deleted events do not linger.
 - The final notification distinguishes accepted uploads from skipped invalid Calendar events. If an upload is rejected, the Shortcut displays the server error without the device key.
 - The Shortcut checks `/api/shortcut/release?current=2.3.6` and offers a newer **verified** version only when available. Installing a replacement always requires the user's approval.
