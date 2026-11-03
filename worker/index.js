@@ -3,6 +3,8 @@
 // Only /api/auth/* is protected by Cloudflare Access. All other routes reject
 // unauthenticated sync operations unless a valid, unrevoked device token is supplied.
 const ACCESS_AUD="b15746656eee885f25c4f4b0605491289c01776b8710cc8339fb507f4574f745";
+const ICLOUD_SHORTCUT=/^https:\/\/www\.icloud\.com\/shortcuts\/[a-f0-9]{32}$/i;
+async function canRelease(env,email){return !!await env.DB.prepare("SELECT 1 AS allowed FROM rt_release_accounts WHERE account=?").bind(email.split("@")[0]).first();}
 function approved(env,email){try{return JSON.parse(env.APPROVED_SYNC_EMAILS||"[]").includes(email);}catch(e){return false;}}
 const MIME={"index.html":"text/html; charset=utf-8","styles.css":"text/css; charset=utf-8","app.js":"text/javascript; charset=utf-8","sw.js":"text/javascript; charset=utf-8","manifest.webmanifest":"application/manifest+json","icon.svg":"image/svg+xml","icon-192.png":"image/png","icon-512.png":"image/png"};
 const SECURITY={"X-Content-Type-Options":"nosniff","Referrer-Policy":"no-referrer","X-Frame-Options":"DENY","Permissions-Policy":"camera=(), microphone=(), geolocation=()","Content-Security-Policy":"default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'"};
@@ -82,7 +84,7 @@ async function authApi(request,env,ctx,path){
  }
  if(path==="/api/auth/me"&&request.method==="GET"){
   const r=await env.DB.prepare("SELECT device_id,label,created_at,last_used_at,last_attempt_at,last_error_code,shortcut_version,revoked_at FROM rt_devices WHERE owner_email=? ORDER BY created_at DESC LIMIT 30").bind(email).all();
-  return reply({ok:true,email,devices:(r.results||[]).map(d=>({id:d.device_id,label:d.label,createdAt:d.created_at,lastUsedAt:d.last_used_at,lastAttemptAt:d.last_attempt_at,lastErrorCode:d.last_error_code,shortcutVersion:d.shortcut_version,revoked:!!d.revoked_at}))});
+  return reply({ok:true,email,canRelease:await canRelease(env,email),devices:(r.results||[]).map(d=>({id:d.device_id,label:d.label,createdAt:d.created_at,lastUsedAt:d.last_used_at,lastAttemptAt:d.last_attempt_at,lastErrorCode:d.last_error_code,shortcutVersion:d.shortcut_version,revoked:!!d.revoked_at}))});
  }
  if(path==="/api/auth/device"){
   if(!browserPostAllowed(request))return error("Same-origin JSON POST required",403);
@@ -110,7 +112,7 @@ function cleanShortcutRelease(value){
  const version=String(value.version||"").trim();
  const url=String(value.url||"").trim();
  if(!/^\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(version))return null;
- if(!/^https:\/\/www\.icloud\.com\/shortcuts\/[a-f0-9]{32}$/i.test(url))return null;
+ if(!ICLOUD_SHORTCUT.test(url))return null;
  return {version,url,publishedAt:String(value.publishedAt||"").slice(0,30),notes:String(value.notes||"").slice(0,180),verified:value.verified===true};
 }
 async function loadShortcutRelease(env){
@@ -135,6 +137,14 @@ async function syncApi(request,env,path){
  const dev=await validDevice(request,env);
  if(!dev)return error("A valid non-revoked device key is required",401);
  const owner=dev.owner;
+ if(path==="/api/shortcut/publish"&&request.method==="POST"){
+  if(!await canRelease(env,owner))return error("This account can't publish releases",403);
+  let input;try{input=await payload(request);}catch(e){return error("Invalid release request");}
+  const link=String(input?.link||"").trim();
+  if(!ICLOUD_SHORTCUT.test(link))return error("A valid Shortcut link is required");
+  const started=await fetch("https://api.github.com/repos/Bishvili/rage-tracker/actions/workflows/routinehub-publish.yml/dispatches",{method:"POST",headers:{"Authorization":"Bearer "+env.GITHUB_API_KEY,"Accept":"application/vnd.github+json","Content-Type":"application/json","User-Agent":"rage-tracker","X-GitHub-Api-Version":"2022-11-28"},body:JSON.stringify({ref:"main",inputs:{icloud_link:link}})});
+  return started.status===204?reply({ok:true}):error("Publishing couldn't start",502);
+ }
  if(path==="/api/profile"&&request.method==="GET")return reply({ok:true,email:owner,deviceId:dev.id});
  if(path==="/api/sync/status"&&request.method==="GET"){
   const [device,h,c]=await Promise.all([
@@ -226,7 +236,7 @@ async function syncApi(request,env,path){
  return error("Not found",404);
 }
 async function api(request,env,ctx,path){
- if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:"Rage Tracker",version:"1.11.0",sync:"email-access"});
+ if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:"Rage Tracker",version:"1.12.0",sync:"email-access"});
  if(path.startsWith("/api/auth/"))return authApi(request,env,ctx,path);
  return syncApi(request,env,path);
 }

@@ -12,14 +12,16 @@ function harness({verified=false}={}){
  const source=fs.readFileSync(path.join(__dirname,"..","worker","index.js"),"utf8");
  const loaded=source.replace("export default {","globalThis.__worker = {");
  assert.notEqual(source,loaded,"Worker ESM export not found");
- const runtime={crypto:webcrypto,TextEncoder,Response,URL,atob,Uint8Array,console};
+ const dispatches=[];
+ const runtime={crypto:webcrypto,TextEncoder,Response,URL,atob,Uint8Array,console,async fetch(url,init){dispatches.push({url,init});return new Response(null,{status:204});}};
  vm.runInNewContext(loaded,runtime,{timeout:2500,filename:"worker/index.js"});
  const allowed=["owner-a@example.com","owner-b@example.com"];
  const rows={users:new Map(),devices:new Map(),health:new Map(),events:new Map()};
  const release=JSON.stringify({version:"1.0.0",url:"https://www.icloud.com/shortcuts/82109f53491f4d95a0a8b8437c4090f2",publishedAt:"2026-11-01",notes:"First shared release",verified});
- const env={APPROVED_SYNC_EMAILS:JSON.stringify(allowed),ASSETS:{async get(key){return key==="config:shortcut:latest"?release:null;}},DB:{
+ const env={GITHUB_API_KEY:"server-only",APPROVED_SYNC_EMAILS:JSON.stringify(allowed),ASSETS:{async get(key){return key==="config:shortcut:latest"?release:null;}},DB:{
   prepare(sql){return{bind(...args){return {
    async first(){
+    if(sql.includes("FROM rt_release_accounts"))return args[0]==="owner-a"?{allowed:1}:null;
     if(sql.includes("SELECT device_id,owner_email,revoked_at"))return rows.devices.get(args[0])||null;
     if(sql.includes("SELECT last_used_at,last_attempt_at,last_error_code,shortcut_version")){const d=[...rows.devices.values()].find(d=>d.device_id===args[0]&&d.owner_email===args[1]&&!d.revoked_at);return d||null;}
     if(sql.includes("SELECT COUNT(*) AS count FROM rt_health_metrics"))return{count:[...rows.health.values()].filter(d=>d.owner===args[0]).length};
@@ -58,7 +60,7 @@ function harness({verified=false}={}){
   const response=await runtime.__worker.fetch(new Request(base+route,{method,headers:h,body:body===undefined?undefined:JSON.stringify(body)}),env,context);
   return{status:response.status,data:response.status===303?null:await response.json()};
  }
- return{call,ctx,rows};
+ return{call,ctx,rows,dispatches};
 }
 test("untrusted identity headers and non-allowlisted Access sessions fail closed",async()=>{
  const {call,ctx}=harness();
@@ -68,6 +70,23 @@ test("untrusted identity headers and non-allowlisted Access sessions fail closed
  assert.equal((await call("/api/auth/me",{context:ctx("random@example.com")})).status,401);
  assert.equal((await call("/api/auth/me",{context:ctx("owner-a@example.com")})).status,200);
  assert.equal((await call("/api/pair",{method:"POST",body:{pairCode:"old",token:"test"}})).status,401);
+});
+test("only release accounts with a valid device can start publishing",async()=>{
+ const{call,ctx,dispatches}=harness();
+ const link="https://www.icloud.com/shortcuts/82109f53491f4d95a0a8b8437c4090f2";
+ const a=await call("/api/auth/device",{method:"POST",body:{label:"A"},context:ctx("owner-a@example.com")});
+ const b=await call("/api/auth/device",{method:"POST",body:{label:"B"},context:ctx("owner-b@example.com")});
+ assert.equal((await call("/api/auth/me",{context:ctx("owner-a@example.com")})).data.canRelease,true);
+ assert.equal((await call("/api/auth/me",{context:ctx("owner-b@example.com")})).data.canRelease,false);
+ assert.equal((await call("/api/shortcut/publish",{method:"POST",body:{link}})).status,401);
+ assert.equal((await call("/api/shortcut/publish",{method:"POST",body:{link},headers:{Authorization:"Bearer "+b.data.token}})).status,403);
+ assert.equal((await call("/api/shortcut/publish",{method:"POST",body:{link:"https://example.com/x"},headers:{Authorization:"Bearer "+a.data.token}})).status,400);
+ assert.equal(dispatches.length,0);
+ const started=await call("/api/shortcut/publish",{method:"POST",body:{link},headers:{Authorization:"Bearer "+a.data.token}});
+ assert.equal(started.status,200);
+ assert.equal(dispatches.length,1);
+ assert.equal(JSON.parse(dispatches[0].init.body).inputs.icloud_link,link);
+ assert.doesNotMatch(JSON.stringify(started.data),/server-only/);
 });
 test("owner A data cannot be read or erased by owner B",async()=>{
  const{call,ctx}=harness();

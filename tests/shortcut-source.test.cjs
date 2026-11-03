@@ -56,11 +56,12 @@ test("Shortcut checks explicit typed values",()=>{
  assert.doesNotMatch(shortcut,/Bearer [a-f0-9]{64}/i);
 });
 
-test("the release helper holds no token in source and starts the publish workflow",()=>{
+test("the release helper holds no credentials and publishes through the app",()=>{
  const helper=fs.readFileSync(path.join(root,"shortcuts","rage-tracker-release.cherri"),"utf8");
- assert.match(helper,/#question githubToken/);
+ assert.doesNotMatch(helper,/#question/);
  assert.match(helper,/releases\/download\/shortcut-latest\/Rage-Tracker-Sync\.shortcut/);
- assert.match(helper,/routinehub-publish\.yml\/dispatches/);
+ assert.match(helper,/\/api\/shortcut\/publish/);
+ assert.doesNotMatch(helper,/api\.github\.com/);
  assert.doesNotMatch(helper,/github_pat_[A-Za-z0-9]{10}|ghp_[A-Za-z0-9]{10}/);
 });
 

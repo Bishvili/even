@@ -8,12 +8,11 @@
 #include 'actions/text'
 #include 'actions/web'
 
-// Holds a private GitHub token after install. Never share a configured copy.
-#question githubToken "Paste a GitHub token that can run workflows in Bishvili/rage-tracker" "github_pat_"
+#ref onMyIPhone eyJkaXNwbGF5TmFtZSI6Ik9uIE15IGlQaG9uZSIsImZpbGVuYW1lIjoiRmlsZSBQcm92aWRlciBTdG9yYWdlIiwiZmlsZUxvY2F0aW9uIjp7IldGRmlsZUxvY2F0aW9uVHlwZSI6IkxvY2FsU3RvcmFnZSIsInJlbGF0aXZlU3VicGF0aCI6IiJ9fQ==
 
-// Cherri 2.3.0 binds the install question to the following Text action.
-downloadURL("https://api.github.com/zen")
-const token = text(githubToken)
+action 'is.workflow.actions.file.createfolder' createKeyFolder(&variable location: 'WFFolder') {"WFFilePath":"Rage Tracker"}
+
+action 'is.workflow.actions.documentpicker.open' readSavedDeviceKey(&variable folder: 'WFFile'): text {"WFGetFilePath":"rage-tracker-device-key.txt","WFFileErrorIfNotFound":false,"WFShowFilePicker":false}
 
 const tasks = list("Install latest build", "Publish installed build")
 const picked = chooseFromList(tasks, "Rage Tracker Release")
@@ -41,14 +40,15 @@ const syncShortcut = getFirstItem(matches)
 const linkResult = createShortcutLink(syncShortcut)
 const shareLink = getText(linkResult)
 
-const dispatchRaw = jsonRequest("https://api.github.com/repos/Bishvili/rage-tracker/actions/workflows/routinehub-publish.yml/dispatches", "POST", {
-    "ref": "main",
-    "inputs": {
-        "icloud_link": "{shareLink}"
-    }
-}, {"Authorization": "Bearer {token}", "Accept": "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28"})
-const dispatch = getDictionary(dispatchRaw)
-const errorValue = getValue(dispatch, "message")
+const keyFolder = createKeyFolder(onMyIPhone)
+const savedKeyFile = readSavedDeviceKey(keyFolder)
+const credential = getText(savedKeyFile)
+
+const publishRaw = jsonRequest("https://rage-tracker.bishvili.workers.dev/api/shortcut/publish", "POST", {
+    "link": "{shareLink}"
+}, {"Authorization": "{credential}"})
+const publish = getDictionary(publishRaw)
+const errorValue = getValue(publish, "error")
 const errorText = getText(errorValue)
 const errorLength = count(errorText, "Characters")
 if errorLength >= 1 {

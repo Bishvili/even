@@ -1,6 +1,6 @@
 (function () {
 "use strict";
-var VERSION = "1.11.0";
+var VERSION = "1.12.0";
 var SHORTCUT_PAGE = "https://routinehub.co/shortcut/26978/";
 var STORAGE_KEY = "rage-tracker:v1";
 var MOOD_NAMES = ["","Rough","Low","Okay","Good","Great"];
@@ -10,7 +10,7 @@ var CATEGORIES = ["Meeting","Work","Exercise","Social","Family","Rest","Commute"
 var ACTIVITY_LABELS = ["Work","Meeting","Exercise","Social","Family","Rest","Outdoors","Commute","Food"];
 var selectedMood = 0, selectedTags = new Set(), insightDays = 30, insightScope = "personal", toastTimer = null;
 var state = readState();
-var authEmail = "", authDevices = [], authChecking = false;
+var authEmail = "", authDevices = [], authChecking = false, authCanRelease = false;
 var shortcutRelease = null, shortcutStatus = null, shortcutStatusLoading = false;
 function $(id){ return document.getElementById(id); }
 function emptyState(){ return {moods:[],health:[],events:[],token:"",deviceId:"",syncOwnerEmail:"",pairedAt:null,lastSync:null}; }
@@ -86,6 +86,7 @@ function compareVersions(left,right){
  return 0;
 }
 function renderSync(){
+ $("release-card").hidden=!authCanRelease;
  var paired=!!state.token&&!!state.syncOwnerEmail&&!!state.deviceId;
  var mismatch=!!authEmail&&!!state.syncOwnerEmail&&authEmail!==state.syncOwnerEmail;
  $("login-panel").hidden=!!authEmail;$("login-ready").hidden=!authEmail;
@@ -477,8 +478,8 @@ async function refreshAuth(){
   var r=await fetch("/api/auth/me",{credentials:"same-origin",cache:"no-store",headers:{"Accept":"application/json"}});
   if(!r.ok||r.redirected||!(r.headers.get("content-type")||"").includes("application/json"))throw Error("No active login");
   var data=await r.json();if(!data.ok||!data.email)throw Error("Identity unavailable");
-  authEmail=String(data.email).toLowerCase();authDevices=Array.isArray(data.devices)?data.devices:[];
- }catch(e){authEmail="";authDevices=[];}
+  authEmail=String(data.email).toLowerCase();authDevices=Array.isArray(data.devices)?data.devices:[];authCanRelease=data.canRelease===true;
+ }catch(e){authEmail="";authDevices=[];authCanRelease=false;}
  finally{authChecking=false;renderSync();}
 }
 function accountSafe(email){
