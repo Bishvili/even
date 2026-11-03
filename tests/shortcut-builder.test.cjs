@@ -125,12 +125,12 @@ test("conditional comparisons use explicit typed text instead of Boolean values"
   'exerciseAvailable >= 1',
   'exerciseValue >= 1',
   'workoutStatus == "accepted"',
-  'updateStatus == "new_release"',
   'sleepAvailable >= 1',
   'sleepAge <= 1440',
   'stageCount >= 1',
   '@sleepMinutes >= 1',
-  'sleepStatus == "accepted"'
+  'sleepStatus == "accepted"',
+  'updateStatus == "new_release"'
  ]);
  assert.doesNotMatch(source,/if\s+@\w+\s*(==|!=)\s*(true|false)/);
  for(const name of ["connectionStatus","eventStatus","healthStatus","updateStatus"])

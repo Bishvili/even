@@ -51,12 +51,12 @@ test("Shortcut checks explicit typed values",()=>{
   'exerciseAvailable >= 1',
   'exerciseValue >= 1',
   'workoutStatus == "accepted"',
-  'updateStatus == "new_release"',
   'sleepAvailable >= 1',
   'sleepAge <= 1440',
   'stageCount >= 1',
   '@sleepMinutes >= 1',
-  'sleepStatus == "accepted"'
+  'sleepStatus == "accepted"',
+  'updateStatus == "new_release"'
  ]);
  assert.doesNotMatch(shortcut,/if\s+@\w+\s*==\s*(true|false)/);
  assert.doesNotMatch(shortcut,/Bearer [a-f0-9]{64}/i);
