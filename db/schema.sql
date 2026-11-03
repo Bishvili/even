@@ -44,3 +44,12 @@ CREATE TABLE IF NOT EXISTS rt_calendars (
   enabled INTEGER NOT NULL DEFAULT 1,
   PRIMARY KEY (owner_email, name)
 );
+CREATE TABLE IF NOT EXISTS rt_push_subscriptions (
+  endpoint TEXT PRIMARY KEY,
+  owner_email TEXT NOT NULL REFERENCES rt_users(email),
+  device_id TEXT NOT NULL,
+  remind_at TEXT NOT NULL,
+  time_zone TEXT NOT NULL,
+  last_sent_day TEXT,
+  created_at TEXT NOT NULL
+);

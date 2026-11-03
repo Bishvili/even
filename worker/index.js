@@ -6,7 +6,7 @@ const ACCESS_AUD="b15746656eee885f25c4f4b0605491289c01776b8710cc8339fb507f4574f7
 const ICLOUD_SHORTCUT=/^https:\/\/www\.icloud\.com\/shortcuts\/[a-f0-9]{32}$/i;
 async function canRelease(env,email){return !!await env.DB.prepare("SELECT 1 AS allowed FROM rt_release_emails WHERE email=?").bind(email).first();}
 function approved(env,email){try{return JSON.parse(env.APPROVED_SYNC_EMAILS||"[]").includes(email);}catch(e){return false;}}
-const MIME={"index.html":"text/html; charset=utf-8","styles.css":"text/css; charset=utf-8","app.js":"text/javascript; charset=utf-8","sw.js":"text/javascript; charset=utf-8","manifest.webmanifest":"application/manifest+json","icon.svg":"image/svg+xml","icon-192.png":"image/png","icon-512.png":"image/png"};
+const MIME={"index.html":"text/html; charset=utf-8","styles.css":"text/css; charset=utf-8","app.js":"text/javascript; charset=utf-8","reminders.js":"text/javascript; charset=utf-8","sw.js":"text/javascript; charset=utf-8","manifest.webmanifest":"application/manifest+json","icon.svg":"image/svg+xml","icon-192.png":"image/png","icon-512.png":"image/png"};
 const SECURITY={"X-Content-Type-Options":"nosniff","Referrer-Policy":"no-referrer","X-Frame-Options":"DENY","Permissions-Policy":"camera=(), microphone=(), geolocation=()","Content-Security-Policy":"default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'"};
 const METRICS={sleepHours:[0,24],steps:[0,100000],hrv:[0,500],restingHR:[20,250],workoutMin:[0,1440]};
 const CATS=["Meeting","Work","Exercise","Social","Family","Rest","Commute","Other"];
@@ -84,7 +84,7 @@ async function authApi(request,env,ctx,path){
  }
  if(path==="/api/auth/me"&&request.method==="GET"){
   const r=await env.DB.prepare("SELECT device_id,label,created_at,last_used_at,last_attempt_at,last_error_code,shortcut_version,revoked_at FROM rt_devices WHERE owner_email=? ORDER BY created_at DESC LIMIT 30").bind(email).all();
-  return reply({ok:true,email,canRelease:await canRelease(env,email),devices:(r.results||[]).map(d=>({id:d.device_id,label:d.label,createdAt:d.created_at,lastUsedAt:d.last_used_at,lastAttemptAt:d.last_attempt_at,lastErrorCode:d.last_error_code,shortcutVersion:d.shortcut_version,revoked:!!d.revoked_at}))});
+  return reply({ok:true,email,canRelease:await canRelease(env,email),pushConfigured:!!pushKey(env),devices:(r.results||[]).map(d=>({id:d.device_id,label:d.label,createdAt:d.created_at,lastUsedAt:d.last_used_at,lastAttemptAt:d.last_attempt_at,lastErrorCode:d.last_error_code,shortcutVersion:d.shortcut_version,revoked:!!d.revoked_at}))});
  }
  if(path==="/api/auth/device"){
   if(!browserPostAllowed(request))return error("Same-origin JSON POST required",403);
@@ -143,6 +143,36 @@ async function enabledEvents(env,owner,events){
  const disabled=new Set((off.results||[]).map(c=>c.name));
  return events.filter(e=>!disabled.has(e.calendar));
 }
+const PUSH_HOST=/^(?:[\w-]+\.)*push\.apple\.com$|^fcm\.googleapis\.com$|^updates\.push\.services\.mozilla\.com$|^[\w.-]+\.notify\.windows\.com$/;
+const REMIND_AT=/^([01]\d|2[0-3]):[0-5]\d$/;
+function pushKey(env){try{const key=JSON.parse(env.VAPID_PRIVATE_KEY||"");return key.d&&key.x&&key.y?key:null;}catch(e){return null;}}
+function base64url(bytes){return btoa(String.fromCharCode(...bytes)).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");}
+function fromBase64url(text){return Uint8Array.from(atob(text.replace(/-/g,"+").replace(/_/g,"/")),c=>c.charCodeAt(0));}
+function pushPublicKey(key){return base64url([4,...fromBase64url(key.x),...fromBase64url(key.y)]);}
+function pushEndpoint(value){try{const url=new URL(String(value||""));return url.protocol==="https:"&&PUSH_HOST.test(url.hostname)&&url.href.length<=500?url.href:null;}catch(e){return null;}}
+function localTime(timeZone,now){
+ const parts=Object.fromEntries(new Intl.DateTimeFormat("en-CA",{timeZone,hourCycle:"h23",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit"}).formatToParts(now).map(p=>[p.type,p.value]));
+ return{day:`${parts.year}-${parts.month}-${parts.day}`,minutes:Number(parts.hour)*60+Number(parts.minute)};
+}
+// Reminders carry no payload, so no personal data passes through the push service.
+async function sendPush(key,endpoint,now){
+ const encoder=new TextEncoder(),text=value=>base64url(encoder.encode(JSON.stringify(value)));
+ const unsigned=text({typ:"JWT",alg:"ES256"})+"."+text({aud:new URL(endpoint).origin,exp:Math.floor(now.getTime()/1000)+43200,sub:"https://rage-tracker.bishvili.workers.dev"});
+ const signingKey=await crypto.subtle.importKey("jwk",{kty:"EC",crv:"P-256",d:key.d,x:key.x,y:key.y},{name:"ECDSA",namedCurve:"P-256"},false,["sign"]);
+ const signature=new Uint8Array(await crypto.subtle.sign({name:"ECDSA",hash:"SHA-256"},signingKey,encoder.encode(unsigned)));
+ return fetch(endpoint,{method:"POST",headers:{"Authorization":`vapid t=${unsigned}.${base64url(signature)}, k=${pushPublicKey(key)}`,"TTL":"3600","Urgency":"normal"}});
+}
+async function sendReminders(env,now=new Date()){
+ const key=pushKey(env);if(!key)return;
+ const due=await env.DB.prepare("SELECT s.endpoint,s.remind_at,s.time_zone,s.last_sent_day FROM rt_push_subscriptions s JOIN rt_devices d ON d.device_id=s.device_id WHERE d.revoked_at IS NULL").bind().all();
+ for(const sub of due.results||[]){
+  const local=localTime(sub.time_zone,now),[hour,minute]=sub.remind_at.split(":").map(Number),target=hour*60+minute;
+  if(sub.last_sent_day===local.day||local.minutes<target||local.minutes>=target+60)continue;
+  const sent=await sendPush(key,sub.endpoint,now);
+  if(sent.status===404||sent.status===410)await env.DB.prepare("DELETE FROM rt_push_subscriptions WHERE endpoint=?").bind(sub.endpoint).run();
+  else if(sent.ok)await env.DB.prepare("UPDATE rt_push_subscriptions SET last_sent_day=? WHERE endpoint=?").bind(local.day,sub.endpoint).run();
+ }
+}
 async function syncApi(request,env,path){
  const dev=await validDevice(request,env);
  if(!dev)return error("A valid non-revoked device key is required",401);
@@ -154,6 +184,20 @@ async function syncApi(request,env,path){
   if(!ICLOUD_SHORTCUT.test(link))return error("A valid Shortcut link is required");
   const started=await fetch("https://api.github.com/repos/Bishvili/rage-tracker/actions/workflows/routinehub-publish.yml/dispatches",{method:"POST",headers:{"Authorization":"Bearer "+env.GITHUB_API_KEY,"Accept":"application/vnd.github+json","Content-Type":"application/json","User-Agent":"rage-tracker","X-GitHub-Api-Version":"2022-11-28"},body:JSON.stringify({ref:"main",inputs:{icloud_link:link}})});
   return started.status===204?reply({ok:true}):error("Publishing couldn't start",502);
+ }
+ if(path==="/api/push/key"&&request.method==="GET"){const key=pushKey(env);return reply({ok:true,key:key?pushPublicKey(key):null});}
+ if(path==="/api/push/subscribe"&&request.method==="POST"){
+  let input;try{input=await payload(request);}catch(e){return error("Invalid reminder request");}
+  const endpoint=pushEndpoint(input?.endpoint),remindAt=String(input?.remindAt||""),timeZone=String(input?.timeZone||"");
+  if(!endpoint||!REMIND_AT.test(remindAt))return error("Invalid reminder request");
+  try{localTime(timeZone,new Date());}catch(e){return error("Invalid reminder request");}
+  await env.DB.prepare("INSERT INTO rt_push_subscriptions(endpoint,owner_email,device_id,remind_at,time_zone,created_at) VALUES(?,?,?,?,?,?) ON CONFLICT(endpoint) DO UPDATE SET owner_email=excluded.owner_email,device_id=excluded.device_id,remind_at=excluded.remind_at,time_zone=excluded.time_zone,last_sent_day=NULL").bind(endpoint,owner,dev.id,remindAt,timeZone,new Date().toISOString()).run();
+  return reply({ok:true});
+ }
+ if(path==="/api/push/unsubscribe"&&request.method==="POST"){
+  let input;try{input=await payload(request);}catch(e){return error("Invalid reminder request");}
+  await env.DB.prepare("DELETE FROM rt_push_subscriptions WHERE endpoint=? AND owner_email=?").bind(String(input?.endpoint||""),owner).run();
+  return reply({ok:true});
  }
  if(path==="/api/calendars"&&request.method==="GET"){
   const r=await env.DB.prepare("SELECT name,enabled FROM rt_calendars WHERE owner_email=? ORDER BY name").bind(owner).all();
@@ -261,7 +305,7 @@ async function syncApi(request,env,path){
  return error("Not found",404);
 }
 async function api(request,env,ctx,path){
- if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:"Rage Tracker",version:"1.12.6",sync:"email-access"});
+ if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:"Rage Tracker",version:"1.13.0",sync:"email-access"});
  if(path.startsWith("/api/auth/"))return authApi(request,env,ctx,path);
  return syncApi(request,env,path);
 }
@@ -280,4 +324,5 @@ export default {async fetch(request,env,ctx){
  if(request.method!=="GET"&&request.method!=="HEAD")return new Response("Method not allowed",{status:405,headers:SECURITY});
  return await asset(path,env);
  }catch(e){return error("Request could not be processed",500);}
-}};
+},
+async scheduled(event,env,ctx){ctx.waitUntil(sendReminders(env));}};

@@ -10,13 +10,13 @@ const {TextEncoder}=require("node:util");
 
 function harness({verified=false}={}){
  const source=fs.readFileSync(path.join(__dirname,"..","worker","index.js"),"utf8");
- const loaded=source.replace("export default {","globalThis.__worker = {");
+ const loaded=source.replace("export default {","globalThis.sendReminders = sendReminders;globalThis.__worker = {");
  assert.notEqual(source,loaded,"Worker ESM export not found");
  const dispatches=[];
- const runtime={crypto:webcrypto,TextEncoder,Response,URL,atob,Uint8Array,console,async fetch(url,init){dispatches.push({url,init});return new Response(null,{status:204});}};
+ const runtime={crypto:webcrypto,TextEncoder,Response,URL,atob,btoa,Intl,Uint8Array,console,async fetch(url,init){dispatches.push({url,init});return new Response(null,{status:204});}};
  vm.runInNewContext(loaded,runtime,{timeout:2500,filename:"worker/index.js"});
  const allowed=["owner-a@example.com","owner-b@example.com"];
- const rows={calendars:new Map(),users:new Map(),devices:new Map(),health:new Map(),events:new Map()};
+ const rows={subs:new Map(),calendars:new Map(),users:new Map(),devices:new Map(),health:new Map(),events:new Map()};
  const release=JSON.stringify({version:"1.0.0",url:"https://www.icloud.com/shortcuts/82109f53491f4d95a0a8b8437c4090f2",publishedAt:"2026-11-01",notes:"First shared release",verified});
  const env={GITHUB_API_KEY:"server-only",APPROVED_SYNC_EMAILS:JSON.stringify(allowed),ASSETS:{async get(key){return key==="config:shortcut:latest"?release:null;}},DB:{
   prepare(sql){return{bind(...args){return {
@@ -30,6 +30,7 @@ function harness({verified=false}={}){
     throw new Error("Unexpected first: "+sql);
    },
    async all(){
+    if(sql.startsWith("SELECT s.endpoint"))return{results:[...rows.subs.values()].filter(s=>[...rows.devices.values()].some(d=>d.device_id===s.device_id&&!d.revoked_at))};
     if(sql.startsWith("SELECT name FROM rt_calendars"))return{results:[...rows.calendars.values()].filter(c=>c.owner===args[0]&&!c.enabled)};
     if(sql.startsWith("SELECT name,enabled FROM rt_calendars"))return{results:[...rows.calendars.values()].filter(c=>c.owner===args[0])};
     if(sql.includes("SELECT device_id,label,created_at"))return{results:[...rows.devices.values()].filter(d=>d.owner_email===args[0]).map(d=>({device_id:d.device_id,label:d.label,created_at:d.created_at,last_used_at:d.last_used_at,revoked_at:d.revoked_at}))};
@@ -44,6 +45,10 @@ function harness({verified=false}={}){
     if(sql.startsWith("UPDATE rt_devices SET last_attempt_at")){for(const d of rows.devices.values())if(d.device_id===args[2]&&d.owner_email===args[3]&&!d.revoked_at){d.last_attempt_at=args[0];if(sql.includes("last_error_code=NULL,shortcut_version=?")){d.last_error_code=null;d.shortcut_version=args[1];}else d.last_error_code=args[1];}return{meta:{changes:1}};}
     if(sql.startsWith("UPDATE rt_devices SET last_used_at")){for(const d of rows.devices.values())if(d.device_id===args[3]&&d.owner_email===args[4]&&!d.revoked_at){d.last_used_at=args[0];d.last_attempt_at=args[1];d.last_error_code=null;d.shortcut_version=args[2]||d.shortcut_version;}return{meta:{changes:1}};}
     if(sql.startsWith("INSERT INTO rt_health_metrics")){rows.health.set(args[0]+"|"+args[1]+"|"+args[2],{owner:args[0],day:args[1],metric:args[2],value:args[3]});return{meta:{changes:1}};}
+    if(sql.startsWith("INSERT INTO rt_push_subscriptions")){rows.subs.set(args[0],{endpoint:args[0],owner:args[1],device_id:args[2],remind_at:args[3],time_zone:args[4],last_sent_day:null});return{meta:{changes:1}};}
+    if(sql.startsWith("UPDATE rt_push_subscriptions")){rows.subs.get(args[1]).last_sent_day=args[0];return{meta:{changes:1}};}
+    if(sql.startsWith("DELETE FROM rt_push_subscriptions WHERE endpoint=? AND owner_email=?")){const s=rows.subs.get(args[0]);if(s&&s.owner===args[1])rows.subs.delete(args[0]);return{meta:{changes:1}};}
+    if(sql.startsWith("DELETE FROM rt_push_subscriptions"))  {rows.subs.delete(args[0]);return{meta:{changes:1}};}
     if(sql.startsWith("INSERT OR IGNORE INTO rt_calendars")){const k=args[0]+"|"+args[1];if(!rows.calendars.has(k))rows.calendars.set(k,{owner:args[0],name:args[1],enabled:1});return{meta:{changes:1}};}
     if(sql.startsWith("UPDATE rt_calendars")){const c=rows.calendars.get(args[1]+"|"+args[2]);if(c)c.enabled=args[0];return{meta:{changes:c?1:0}};}
     if(sql.startsWith("DELETE FROM rt_calendars")){for(const [k,c] of rows.calendars)if(c.owner===args[0])rows.calendars.delete(k);return{meta:{changes:1}};}
@@ -65,7 +70,7 @@ function harness({verified=false}={}){
   const response=await runtime.__worker.fetch(new Request(base+route,{method,headers:h,body:body===undefined?undefined:JSON.stringify(body)}),env,context);
   return{status:response.status,data:response.status===303?null:await response.json()};
  }
- return{call,ctx,rows,dispatches};
+ return{call,ctx,rows,dispatches,env,runtime};
 }
 test("untrusted identity headers and non-allowlisted Access sessions fail closed",async()=>{
  const {call,ctx}=harness();
@@ -113,6 +118,34 @@ test("turned-off calendars are owner-scoped, reversible, and skip new events",as
  await call("/api/calendars",{method:"POST",body:{name:"Work",enabled:true},headers:A});
  assert.equal((await call("/api/pull",{headers:A})).data.events.length,1);
  assert.equal((await call("/api/calendars",{headers:B})).data.calendars[0].enabled,true);
+});
+test("reminders are validated, owner-scoped, sent once a day, and stop when a device is revoked",async()=>{
+ const{call,ctx,rows,env,runtime,dispatches}=harness();
+ const pair=await webcrypto.subtle.generateKey({name:"ECDSA",namedCurve:"P-256"},true,["sign"]);
+ env.VAPID_PRIVATE_KEY=JSON.stringify(await webcrypto.subtle.exportKey("jwk",pair.privateKey));
+ const a=await call("/api/auth/device",{method:"POST",body:{label:"A"},context:ctx("owner-a@example.com")});
+ const b=await call("/api/auth/device",{method:"POST",body:{label:"B"},context:ctx("owner-b@example.com")});
+ const A={Authorization:"Bearer "+a.data.token},B={Authorization:"Bearer "+b.data.token};
+ const endpoint="https://web.push.apple.com/abc",good={endpoint,remindAt:"20:00",timeZone:"America/Los_Angeles"};
+ assert.equal((await call("/api/push/subscribe",{method:"POST",body:good})).status,401);
+ assert.equal((await call("/api/push/subscribe",{method:"POST",body:{...good,endpoint:"https://attacker.example/x"},headers:A})).status,400);
+ assert.equal((await call("/api/push/subscribe",{method:"POST",body:{...good,remindAt:"25:00"},headers:A})).status,400);
+ assert.equal((await call("/api/push/subscribe",{method:"POST",body:{...good,timeZone:"Nowhere/Fake"},headers:A})).status,400);
+ assert.equal((await call("/api/push/subscribe",{method:"POST",body:good,headers:A})).status,200);
+ await call("/api/push/unsubscribe",{method:"POST",body:{endpoint},headers:B});
+ assert.equal(rows.subs.size,1);
+ const send=at=>runtime.sendReminders(env,new Date(at));
+ await send("2026-11-04T03:00:00Z");
+ assert.equal(dispatches.length,0);
+ await send("2026-11-04T04:05:00Z");
+ await send("2026-11-04T04:20:00Z");
+ assert.equal(dispatches.length,1);
+ assert.equal(dispatches[0].url,endpoint);
+ assert.equal(dispatches[0].init.body,undefined);
+ assert.match(dispatches[0].init.headers.Authorization,/^vapid t=[\w-]+\.[\w-]+\.[\w-]+, k=[\w-]+$/);
+ await call("/api/auth/revoke",{method:"POST",body:{deviceId:a.data.deviceId},context:ctx("owner-a@example.com")});
+ await send("2026-11-05T04:05:00Z");
+ assert.equal(dispatches.length,1);
 });
 test("owner A data cannot be read or erased by owner B",async()=>{
  const{call,ctx}=harness();
