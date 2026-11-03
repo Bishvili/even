@@ -30,7 +30,7 @@ The repository owner grants these, using the new developer's own accounts:
 
 ### Developer steps
 
-1. **Connect GitHub** in Claude, and confirm `Bishvili/rage-tracker` is listed with push access.
+1. **Connect GitHub** in Claude, and confirm push access without writing anything: listing the repository's collaborators shows their role (`write`, `maintain`, or `admin`), and GitHub only returns that list to accounts with push access. Do not create or push a branch to test access. All work goes to `main`; if a session starts on another branch, switch to `main` before committing.
 2. **Connect Cloudflare** in Claude and select the Bishvili account. It should list one Worker, `rage-tracker`. The older Workers Bindings server is deprecated in favor of `https://mcp.cloudflare.com/mcp`.
 3. **Optionally connect RoutineHub** using an API key from their own RoutineHub account, under **Settings → API**. It will only show listings that account owns. In cloud sessions, add it as a Claude connector, because `routinehub.co` is not on the default network allowlist.
 4. **Run the tests:** `node --test tests/*.test.cjs`.
