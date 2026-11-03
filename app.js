@@ -1,6 +1,6 @@
 (function () {
 "use strict";
-var VERSION = "1.13.0";
+var VERSION = "1.14.0";
 var SHORTCUT_PAGE = "https://routinehub.co/shortcut/26978/";
 var STORAGE_KEY = "rage-tracker:v1";
 var MOOD_NAMES = ["","Rough","Low","Okay","Good","Great"];
@@ -10,7 +10,7 @@ var CATEGORIES = ["Meeting","Work","Exercise","Social","Family","Rest","Commute"
 var ACTIVITY_LABELS = ["Work","Meeting","Exercise","Social","Family","Rest","Outdoors","Commute","Food"];
 var selectedMood = 0, selectedTags = new Set(), insightDays = 30, insightScope = "personal", toastTimer = null;
 var state = readState();
-var authEmail = "", authDevices = [], authChecking = false, authCanRelease = false, pushConfigured = false;
+var authEmail = "", authDevices = [], authChecking = false, authCanRelease = false;
 var shortcutRelease = null, shortcutStatus = null, shortcutStatusLoading = false;
 function $(id){ return document.getElementById(id); }
 function emptyState(){ return {moods:[],health:[],events:[],token:"",deviceId:"",syncOwnerEmail:"",pairedAt:null,lastSync:null}; }
@@ -74,9 +74,9 @@ function renderSources(){
  $("context-count").textContent=all.length+" items";
  $("context-list").innerHTML=all.length?all.slice(0,12).map(function(x){
  if(x.kind==="health"){var h=x.h, summary=[h.sleepHours!=null?Math.round(h.sleepHours*10)/10+"h sleep":"",h.steps!=null?h.steps.toLocaleString()+" steps":"",h.hrv!=null?Math.round(h.hrv)+" ms HRV":"",h.restingHR!=null?Math.round(h.restingHR)+" bpm resting":"",h.workoutMin!=null?Math.round(h.workoutMin)+" min exercise":""].filter(Boolean).join(" · ");
- return '<div class="entry"><span class="entry-emoji">♥</span><div class="entry-main"><strong>Health · '+esc(h.date)+'</strong><small>'+esc(summary||"Health day")+(h.demo?" · DEMO":"")+'</small></div><button class="entry-delete" aria-label="Delete health day" data-delete-health="'+esc(h.date)+'">×</button></div>';}
+ return '<div class="entry"><span class="entry-emoji" aria-hidden="true">♥︎</span><div class="entry-main"><strong>Health · '+esc(h.date)+'</strong><small>'+esc(summary||"Health day")+(h.demo?" · DEMO":"")+'</small></div><button class="entry-delete" aria-label="Delete health day" data-delete-health="'+esc(h.date)+'">×</button></div>';}
  var e=x.e;
- return '<div class="entry"><span class="entry-emoji">▦</span><div class="entry-main"><strong>'+esc(e.title||"Calendar event")+'</strong><small>'+esc(formatDate(e.start)+" "+formatTime(e.start)+" · "+e.category+(e.demo?" · DEMO":""))+'</small></div><button class="entry-delete" aria-label="Delete calendar event" data-delete-event="'+esc(e.id)+'">×</button></div>';
+ return '<div class="entry"><span class="entry-emoji" aria-hidden="true">▦︎</span><div class="entry-main"><strong>'+esc(e.title||"Calendar event")+'</strong><small>'+esc(formatDate(e.start)+" "+formatTime(e.start)+" · "+e.category+(e.demo?" · DEMO":""))+'</small></div><button class="entry-delete" aria-label="Delete calendar event" data-delete-event="'+esc(e.id)+'">×</button></div>';
  }).join(""):blank("No context yet. Add a health day, calendar event, or connect Shortcuts.");
 }
 function compareVersions(left,right){
@@ -86,7 +86,7 @@ function compareVersions(left,right){
  return 0;
 }
 function renderSync(){
- $("release-card").hidden=!authCanRelease;$("push-key-setup").hidden=!authCanRelease||pushConfigured;
+ $("release-card").hidden=!authCanRelease;
  var paired=!!state.token&&!!state.syncOwnerEmail&&!!state.deviceId;
  var mismatch=!!authEmail&&!!state.syncOwnerEmail&&authEmail!==state.syncOwnerEmail;
  $("login-panel").hidden=!!authEmail;$("login-ready").hidden=!authEmail;
@@ -101,6 +101,7 @@ function renderSync(){
  $("sync-light-text").textContent=paired?"Sync ready":"Local only";
  $("sync-token").textContent=paired?"Bearer "+("•".repeat(18))+"…"+state.token.slice(-6):"Generate a device key";
  $("last-sync").textContent=state.lastSync?"Last synced "+formatDate(state.lastSync)+" at "+formatTime(state.lastSync):"Not synced yet";
+ $("shortcut-setup").hidden=!!(shortcutStatus&&shortcutStatus.lastDataUploadAt);
  var accountMatches=!authEmail||authEmail===state.syncOwnerEmail;
  var install=$("install-shortcut"),release=shortcutRelease;
  var canInstall=paired&&accountMatches&&navigator.onLine;
@@ -505,7 +506,7 @@ async function refreshAuth(){
   var r=await fetch("/api/auth/me",{credentials:"same-origin",cache:"no-store",headers:{"Accept":"application/json"}});
   if(!r.ok||r.redirected||!(r.headers.get("content-type")||"").includes("application/json"))throw Error("No active login");
   var data=await r.json();if(!data.ok||!data.email)throw Error("Identity unavailable");
-  authEmail=String(data.email).toLowerCase();authDevices=Array.isArray(data.devices)?data.devices:[];authCanRelease=data.canRelease===true;pushConfigured=data.pushConfigured===true;
+  authEmail=String(data.email).toLowerCase();authDevices=Array.isArray(data.devices)?data.devices:[];authCanRelease=data.canRelease===true;
  }catch(e){authEmail="";authDevices=[];authCanRelease=false;}
  finally{authChecking=false;renderSync();}
 }
@@ -619,6 +620,6 @@ function init(){
  document.addEventListener("visibilitychange",function(){if(!document.hidden){refreshAuth();if(state.token){loadShortcutRelease();loadCalendars();checkShortcutUpload(true);if(shortcutRunPending){shortcutRunPending=false;pull(false);}else if(!state.lastSync||Date.now()-state.lastSync>900000)pull(true);}}});
  if("serviceWorker" in navigator){window.addEventListener("load",function(){navigator.serviceWorker.register("/sw.js").catch(function(){});});}
 }
-globalThis.RageTracker={toast:toast,copy:copy,formatTime:formatTime,deviceToken:function(){return state.token;}};
+globalThis.RageTracker={toast:toast,formatTime:formatTime,deviceToken:function(){return state.token;}};
 init();
 })();

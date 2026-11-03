@@ -64,10 +64,6 @@
  $("install-nudge-action").addEventListener("click",function(){var prompt=installEvent;installEvent=null;prompt.prompt();prompt.userChoice.finally(dismissNudge);});
  $("reminder-toggle").addEventListener("change",function(){updateReminder(this.checked);});
  $("reminder-time").addEventListener("change",function(){if(!this.value)return;settings.time=this.value;saveSettings();if(settings.on)updateReminder(true);});
- $("create-push-key").addEventListener("click",async function(){
-  var pair=await crypto.subtle.generateKey({name:"ECDSA",namedCurve:"P-256"},true,["sign","verify"]);
-  app.copy(JSON.stringify(await crypto.subtle.exportKey("jwk",pair.privateKey)));
- });
  document.addEventListener("visibilitychange",function(){if(!document.hidden)renderReminder();});
  renderNudge();renderReminder();
 })();

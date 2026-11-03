@@ -22,7 +22,7 @@
   <header class="topbar">
    <a href="#checkin" class="brand" data-go="checkin" aria-label="Rage Tracker home">
     <span class="brand-icon" aria-hidden="true"><svg viewBox="0 0 40 40" fill="none"><path d="M9 28C11 14 19 11 23 19c4 9 9 6 9-5" stroke="currentColor" stroke-width="4.8" stroke-linecap="round"/><circle cx="29" cy="29" r="3.7" fill="currentColor"/></svg></span>
-    <span class="brand-type"><strong>rage<span>tracker</span></strong><small>FEEL THE PATTERN</small></span>
+    <span class="brand-type"><strong>rage<span>tracker</span></strong></span>
    </a>
    <button class="sync-light" id="sync-light" data-go="sync"><span class="light-dot"></span><span id="sync-light-text">Local only</span></button>
   </header>
@@ -32,7 +32,6 @@
     <div class="eyebrow" id="date-label">YOUR DAY, YOUR DATA</div>
     <div class="intro">
      <h1 id="checkin-title">How are you <em>feeling?</em></h1>
-     <p>A small check-in now can reveal a bigger pattern later.</p>
     </div>
     <div class="card mood-card">
      <div class="card-top"><span class="mini-heading">RIGHT NOW</span><span class="muted" id="current-time">—</span></div>
@@ -64,8 +63,7 @@
    </section>
 
    <section id="view-insights" class="view" aria-labelledby="insights-title">
-    <div class="eyebrow">A LITTLE MORE CLARITY</div>
-    <div class="intro"><h1 id="insights-title">Your <em>patterns.</em></h1><p>Associations worth exploring, never judgments or diagnoses.</p></div>
+    <h1 class="page-title" id="insights-title">Insights</h1>
     <div class="insight-scope" id="insight-scope-controls" hidden>
      <span class="mini-heading">DATA SOURCE</span>
      <div class="scope-buttons" role="group" aria-label="Data source for insights">
@@ -96,12 +94,12 @@
    </section>
 
    <section id="view-sources" class="view" aria-labelledby="sources-title">
-    <div class="eyebrow">THE CONTEXT AROUND YOUR DAY</div>
-    <div class="intro"><h1 id="sources-title">Your <em>sources.</em></h1><p>Health and calendar context help illuminate what happens around your check-ins.</p></div>
-    <div class="source-banner"><div class="source-symbol">⌁</div><div><strong id="health-count">No health records</strong><small>Sleep, movement and recovery</small></div><span class="source-flag">HEALTH</span></div>
-    <div class="card">
-     <div class="section-heading compact"><h2>Add a health day</h2><span class="muted">Manual entry</span></div>
-     <form id="health-form">
+    <h1 class="page-title" id="sources-title">Sources</h1>
+    <div class="source-counts"><div><strong id="health-count">No health records</strong><small>Sleep, movement and recovery</small></div><div><strong id="calendar-count">No calendar events</strong><small>Meetings, plans and activities</small></div></div>
+    <div class="section-heading"><h2>Recent context</h2><span class="muted" id="context-count">0 items</span></div>
+    <div id="context-list" class="entry-list"></div>
+    <details class="card disclosure"><summary>Add a health day</summary>
+          <form id="health-form">
       <label for="health-date">Date</label><input type="date" id="health-date" required>
       <div class="form-grid">
        <div><label for="health-sleep">Sleep (hours)</label><input id="health-sleep" type="number" min="0" max="24" step=".1" placeholder="7.5"></div>
@@ -112,26 +110,21 @@
       <button class="btn secondary full" type="submit">Save health day</button>
      </form>
      <div class="inline-import"><label for="health-import">Or import a health CSV</label><input type="file" id="health-import" accept=".csv,text/csv"><small>Columns: date, sleepHours, steps, hrv, workoutMin</small></div>
-    </div>
-    <div class="source-banner calendar"><div class="source-symbol">▦</div><div><strong id="calendar-count">No calendar events</strong><small>Meetings, plans and activities</small></div><span class="source-flag">CALENDAR</span></div>
-    <div class="card">
-     <div class="section-heading compact"><h2>Add a calendar event</h2><span class="muted">Manual entry</span></div>
-     <form id="calendar-form">
+    </details>
+    <details class="card disclosure"><summary>Add a calendar event</summary>
+          <form id="calendar-form">
       <label for="cal-title">Event title</label><input id="cal-title" maxlength="100" placeholder="Team meeting" required>
       <div class="form-grid date-times"><div><label for="cal-start">Starts</label><input id="cal-start" type="datetime-local" required></div><div><label for="cal-end">Ends</label><input id="cal-end" type="datetime-local" required></div></div>
       <label for="cal-category">Type</label><select id="cal-category"><option>Meeting</option><option>Work</option><option>Exercise</option><option>Social</option><option>Family</option><option>Rest</option><option>Commute</option><option>Other</option></select>
       <button class="btn secondary full" type="submit">Save calendar event</button>
      </form>
      <div class="inline-import"><label for="calendar-import">Or import an .ics / .csv calendar</label><input type="file" id="calendar-import" accept=".ics,.csv,text/calendar,text/csv"><small>Calendar CSV: start, end, title, category</small></div>
-    </div>
-    <div class="section-heading"><h2>Recent context</h2><span class="muted" id="context-count">0 items</span></div>
-    <div id="context-list" class="entry-list"></div>
-    <div class="help-note">To get data automatically without imports, visit <button class="text-action" data-go="sync">Sync setup →</button></div>
+    </details>
+    <p class="muted page-note">Get this automatically with <button class="text-action" data-go="sync">Sync</button>.</p>
    </section>
 
    <section id="view-sync" class="view" aria-labelledby="sync-title">
-    <div class="eyebrow">CONNECT YOUR IPHONE, NOT YOUR PASSWORD</div>
-    <div class="intro"><h1 id="sync-title">Sync, <em>simplified.</em></h1><p>Bring your health data and calendar into Rage Tracker.</p></div>
+    <h1 class="page-title" id="sync-title">Sync</h1>
     <div class="card sync-card">
      <div class="connection-head"><span class="connection-icon">↗</span><div><div class="mini-heading">CLOUD SYNC</div><strong id="pair-status">Checking connection…</strong></div><span id="pair-badge" class="status-badge">OFF</span></div>
      <div id="login-panel">
@@ -169,7 +162,7 @@
      <a id="install-shortcut" class="btn primary full" target="_blank" rel="noopener noreferrer" aria-disabled="true" tabindex="-1" hidden>Get Shortcut <span aria-hidden="true">↗</span></a>
      <p id="shortcut-install-help" class="shortcut-help">Generate a device key to get the Shortcut.</p>
      <a id="run-shortcut" class="btn secondary full" href="shortcuts://run-shortcut?name=Rage%20Tracker%20Sync" hidden>Run Rage Tracker Sync <span aria-hidden="true">↗</span></a>
-     <div class="shortcut-setup-list" aria-label="Shortcut setup steps">
+     <div class="shortcut-setup-list" id="shortcut-setup" aria-label="Shortcut setup steps">
       <div class="shortcut-setup-row"><span class="shortcut-step-number">1</span><div><strong>Get the Shortcut</strong><small>Add Rage Tracker Sync to Shortcuts.</small></div></div>
       <div class="shortcut-setup-row"><span class="shortcut-step-number">2</span><div><strong>Run it once</strong><small>Tap Run Rage Tracker Sync, then allow access.</small></div></div>
       <div class="shortcut-setup-row"><span class="shortcut-step-number">3</span><div><strong>Check the connection</strong><small>Tap Test connection below.</small></div></div>
@@ -190,19 +183,13 @@
       </div>
      </details>
     </section>
-    <section class="card" id="release-card" aria-labelledby="release-title" hidden>
-     <h2 id="release-title">Developer tools</h2>
-     <p class="muted">Change this site, or install and publish Shortcut builds.</p>
-     <a class="btn primary full" id="improve-site" href="https://claude.ai/code/new?repo=Bishvili%2Frage-tracker&branch=main&q=Get%20me%20set%20up%20to%20improve%20Rage%20Tracker.%20Follow%20the%20onboarding%20section%20of%20AGENTS.md%3A%20check%20my%20connections%2C%20help%20me%20add%20what%27s%20missing%2C%20run%20the%20tests%2C%20and%20read%20the%20frontend%20guide.%20Then%20ask%20me%20what%20I%27d%20like%20to%20change." target="_blank" rel="noopener noreferrer">Improve This Site with Claude <span aria-hidden="true">↗</span></a>
-     <div id="push-key-setup" hidden><button type="button" class="btn secondary full" id="create-push-key">Copy New Reminder Key</button><p class="muted">Save it as the VAPID_PRIVATE_KEY secret to turn on reminders.</p></div>
-     <a class="btn secondary full" href="https://github.com/Bishvili/rage-tracker/releases/download/shortcut-latest/Rage-Tracker-Release.shortcut" target="_blank" rel="noopener noreferrer">Set Up Release Helper <span aria-hidden="true">↗</span></a>
-     <a class="btn secondary full" href="shortcuts://run-shortcut?name=Rage%20Tracker%20Release">Run Release Helper <span aria-hidden="true">↗</span></a>
-    </section>
+    
     <section class="card" id="calendar-card" aria-labelledby="calendars-title" hidden>
      <h2 id="calendars-title">Calendars</h2>
      <p class="muted">Calendars you turn off stop syncing and are hidden. Turn them back on anytime.</p>
      <div id="calendar-list" class="calendar-list"></div>
     </section>
+    <details class="card disclosure" id="device-details"><summary>Devices and data</summary>
     <div class="card" id="shortcut-credentials">
      <div class="section-heading compact"><h2>Your device key</h2></div>
      <p class="muted">Treat it like a password.</p>
@@ -213,13 +200,24 @@
      <div class="section-heading compact"><h2>My devices</h2></div>
      <div id="device-list" class="device-list"><p class="muted">Sign in to see your devices.</p></div>
     </div>
-    <div class="help-note"><strong>Privacy</strong><p>Mood check-ins stay on this iPhone. Steps and calendar events you sync are sent over HTTPS and stored in your private account. They aren’t end-to-end encrypted. You can revoke a device or erase synced data at any time.</p></div>
     <button type="button" class="btn subtle full" id="erase-remote">Erase synced data</button>
+    </details>
+    <div class="help-note"><strong>Privacy</strong><p>Mood check-ins stay on this iPhone. Steps and calendar events you sync are sent over HTTPS and stored in your private account. They aren’t end-to-end encrypted. You can revoke a device or erase synced data at any time.</p></div>
+    <section class="card" id="release-card" aria-labelledby="release-title" hidden>
+     <h2 id="release-title">Developer tools</h2>
+     <p class="muted">Change this site, or install and publish Shortcut builds.</p>
+     <a class="btn primary full" id="improve-site" href="https://claude.ai/code/new?repo=Bishvili%2Frage-tracker&branch=main&q=Get%20me%20set%20up%20to%20improve%20Rage%20Tracker.%20Follow%20the%20onboarding%20section%20of%20AGENTS.md%3A%20check%20my%20connections%2C%20help%20me%20add%20what%27s%20missing%2C%20run%20the%20tests%2C%20and%20read%20the%20frontend%20guide.%20Then%20ask%20me%20what%20I%27d%20like%20to%20change." target="_blank" rel="noopener noreferrer">Improve This Site with Claude <span aria-hidden="true">↗</span></a>
+     <a class="btn secondary full" href="https://github.com/Bishvili/rage-tracker/releases/download/shortcut-latest/Rage-Tracker-Release.shortcut" target="_blank" rel="noopener noreferrer">Set Up Release Helper <span aria-hidden="true">↗</span></a>
+     <a class="btn secondary full" href="shortcuts://run-shortcut?name=Rage%20Tracker%20Release">Run Release Helper <span aria-hidden="true">↗</span></a>
+    </section>
+    
+    
+    
+    
    </section>
 
    <section id="view-settings" class="view" aria-labelledby="settings-title">
-    <div class="eyebrow">YOU OWN YOUR STORY</div><div class="intro"><h1 id="settings-title">Settings & <em>privacy.</em></h1><p>Keep control of your records, backups and connections.</p></div>
-    <div class="card"><h2>Your local data</h2><p class="muted">Mood check-ins, notes and locally imported health/calendar data stay in this app's storage on this device. Clearing site data or deleting the Home Screen app may erase them.</p><div class="settings-meta" id="storage-summary"></div><button class="btn secondary full" id="backup-button">↓ Download JSON backup</button><label class="file-label">Restore from backup <input type="file" id="restore-input" accept="application/json,.json"></label><button class="btn danger full" id="erase-local">Erase all data on this device</button></div>
+    <h1 class="page-title" id="settings-title">Settings</h1>
     <section class="card" aria-labelledby="reminder-title">
      <h2 id="reminder-title">Daily reminder</h2>
      <p class="muted" id="reminder-note"></p>
@@ -228,17 +226,19 @@
       <label class="calendar-row"><span>Time</span><input type="time" id="reminder-time"></label>
      </div>
     </section>
-    <div class="card"><h2>About the insights</h2><p class="muted">Comparisons need at least 3 check-ins in each group. Mood data is subjective and gaps can skew results. Nothing here is a diagnosis or proves a cause.</p><p class="muted">Version <span id="version">1.13.0</span> · No ads or analytics</p></div>
+    <div class="card"><h2>Your local data</h2><p class="muted">Mood check-ins, notes and locally imported health/calendar data stay in this app's storage on this device. Clearing site data or deleting the Home Screen app may erase them.</p><div class="settings-meta" id="storage-summary"></div><button class="btn secondary full" id="backup-button">Download backup</button><label class="file-label">Restore from backup <input type="file" id="restore-input" accept="application/json,.json"></label><button class="btn danger full" id="erase-local">Erase all data on this device</button></div>
+    
+    <div class="card"><h2>About the insights</h2><p class="muted">Comparisons need at least 3 check-ins in each group. Mood data is subjective and gaps can skew results. Nothing here is a diagnosis or proves a cause.</p><p class="muted">Version <span id="version">1.14.0</span> · No ads or analytics</p></div>
     <div class="card"><h2>Explore a sample month</h2><p class="muted">See 28 days of fictional check-ins and events. They stay separate from your own data and are never uploaded.</p><button class="btn secondary full" id="demo-button">Load 28-day calendar demo</button><button class="btn subtle full" id="clear-demo-button">Remove demo data</button></div>
    </section>
   </main>
 
   <nav class="bottom-nav" aria-label="Main navigation">
-   <button class="nav-item active" data-go="checkin"><span class="nav-glyph">◉</span><span>Check in</span></button>
-   <button class="nav-item" data-go="insights"><span class="nav-glyph">⌁</span><span>Insights</span></button>
-   <button class="nav-item" data-go="sources"><span class="nav-glyph">▦</span><span>Sources</span></button>
-   <button class="nav-item" data-go="sync"><span class="nav-glyph">↗</span><span>Sync</span></button>
-   <button class="nav-item" data-go="settings"><span class="nav-glyph">⚙</span><span>Settings</span></button>
+   <button class="nav-item active" data-go="checkin"><span class="nav-glyph" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3.5" fill="currentColor" stroke="none"/></svg></span><span>Check in</span></button>
+   <button class="nav-item" data-go="insights"><span class="nav-glyph" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13h4l3-8 4 15 3-7h4"/></svg></span><span>Insights</span></button>
+   <button class="nav-item" data-go="sources"><span class="nav-glyph" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="4.5" width="17" height="16" rx="3"/><path d="M3.5 10h17M8 2.5v4M16 2.5v4"/></svg></span><span>Sources</span></button>
+   <button class="nav-item" data-go="sync"><span class="nav-glyph" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 0 1 13.7-5.6L20 8.5M20 4v4.5h-4.5M20 12a8 8 0 0 1-13.7 5.6L4 15.5M4 20v-4.5h4.5"/></svg></span><span>Sync</span></button>
+   <button class="nav-item" data-go="settings"><span class="nav-glyph" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2.2"/><circle cx="9" cy="17" r="2.2"/></svg></span><span>Settings</span></button>
   </nav>
   <aside class="install-nudge" id="install-nudge" aria-label="Install Rage Tracker" hidden>
    <p id="install-nudge-text"></p>
