@@ -35,7 +35,7 @@ if savedKeyMatchCount == 0 {
 
 // Verify the connection and record the Shortcut's version, even if no health samples are available.
 const handshakeRaw = jsonRequest("https://rage-tracker.bishvili.workers.dev/api/shortcut/hello", "POST", {
-    "shortcutVersion": "2.3.6"
+    "shortcutVersion": "2.3.7"
 }, {"Authorization": "{@credential}"})
 const handshake = getDictionary(handshakeRaw)
 const connectionStatusValue = getValue(handshake, "state")
@@ -43,7 +43,7 @@ const connectionStatus = getText(connectionStatusValue)
 if connectionStatus != "connected" {
     @credential = prompt("That key didn't work. Paste your device key from Rage Tracker > Sync")
     const retryRaw = jsonRequest("https://rage-tracker.bishvili.workers.dev/api/shortcut/hello", "POST", {
-        "shortcutVersion": "2.3.6"
+        "shortcutVersion": "2.3.7"
     }, {"Authorization": "{@credential}"})
     const retry = getDictionary(retryRaw)
     const retryStatusValue = getValue(retry, "state")
@@ -61,7 +61,8 @@ saveDeviceKey(@credential, keyFolder)
 action 'is.workflow.actions.filter.calendarevents' findEvents(&variable filter: 'WFContentItemFilter'): array {"WFContentItemLimitEnabled":true,"WFContentItemLimitNumber":30,"WFContentItemSortProperty":"Start Date","WFContentItemSortOrder":"Oldest First"}
 
 // Daily groups give Health's own totals, and filling missing days stops an empty type from ending the run.
-action 'is.workflow.actions.filter.health.quantity' findLatestDay(&variable filter: 'WFContentItemFilter'): array {"WFHKSampleFilteringGroupBy":"Day","WFHKSampleFilteringFillMissing":true,"WFContentItemSortProperty":"Start Date","WFContentItemSortOrder":"Latest First","WFContentItemLimitEnabled":true,"WFContentItemLimitNumber":1}
+// The newest group is today. A result limit would apply before grouping and return a single sample.
+action 'is.workflow.actions.filter.health.quantity' findLatestDay(&variable filter: 'WFContentItemFilter'): array {"WFHKSampleFilteringGroupBy":"Day","WFHKSampleFilteringFillMissing":true,"WFContentItemSortProperty":"Start Date","WFContentItemSortOrder":"Latest First"}
 
 action 'is.workflow.actions.filter.health.quantity' findSamples(&variable filter: 'WFContentItemFilter'): array {"WFContentItemSortProperty":"Start Date","WFContentItemSortOrder":"Oldest First"}
 
@@ -88,7 +89,7 @@ for event in events {
 
     const eventBody = formRequest("https://rage-tracker.bishvili.workers.dev/api/ingest", "POST", {
         "kind": "calendar",
-        "shortcutVersion": "2.3.6",
+        "shortcutVersion": "2.3.7",
         "title": "{title}",
         "start": "{startISO}",
         "end": "{endISO}"
@@ -124,7 +125,8 @@ formRequest("https://rage-tracker.bishvili.workers.dev/api/ingest", "POST", {
     "startedAt": "{syncStarted}"
 }, {"Authorization": "{@credential}"})
 
-const samples = findLatestDay(stepsFilter)
+const stepDays = findLatestDay(stepsFilter)
+const samples = getFirstItem(stepDays)
 const sampleCount = count(samples)
 if sampleCount >= 1 {
     const values = getStepValues(samples)
@@ -135,7 +137,7 @@ if sampleCount >= 1 {
     const stepsValue = replaceText('^\D*(\d+(?:\.\d+)?)[\s\S]*$', "$1", normalizedSteps, true, true)
     const healthBody = formRequest("https://rage-tracker.bishvili.workers.dev/api/ingest", "POST", {
         "kind": "health",
-        "shortcutVersion": "2.3.6",
+        "shortcutVersion": "2.3.7",
         "date": "{day}",
         "steps": "{stepsValue}"
     }, {"Authorization": "{@credential}"})
@@ -152,12 +154,13 @@ if sampleCount >= 1 {
 }
 
 // A metric with no data today is left out, never sent as zero.
-const restingSamples = findLatestDay(restingFilter)
+const restingDays = findLatestDay(restingFilter)
+const restingSamples = getFirstItem(restingDays)
 const restingValue = getDailyNumber(restingSamples)
 if restingValue >= 1 {
     const restingBody = formRequest("https://rage-tracker.bishvili.workers.dev/api/ingest", "POST", {
         "kind": "health",
-        "shortcutVersion": "2.3.6",
+        "shortcutVersion": "2.3.7",
         "date": "{day}",
         "restingHR": "{restingValue}"
     }, {"Authorization": "{@credential}"})
@@ -169,12 +172,13 @@ if restingValue >= 1 {
     }
 }
 
-const hrvSamples = findLatestDay(hrvFilter)
+const hrvDays = findLatestDay(hrvFilter)
+const hrvSamples = getFirstItem(hrvDays)
 const hrvValue = getDailyNumber(hrvSamples)
 if hrvValue >= 1 {
     const hrvBody = formRequest("https://rage-tracker.bishvili.workers.dev/api/ingest", "POST", {
         "kind": "health",
-        "shortcutVersion": "2.3.6",
+        "shortcutVersion": "2.3.7",
         "date": "{day}",
         "hrv": "{hrvValue}"
     }, {"Authorization": "{@credential}"})
@@ -186,12 +190,13 @@ if hrvValue >= 1 {
     }
 }
 
-const exerciseSamples = findLatestDay(exerciseFilter)
+const exerciseDays = findLatestDay(exerciseFilter)
+const exerciseSamples = getFirstItem(exerciseDays)
 const exerciseValue = getDailyNumber(exerciseSamples)
 if exerciseValue >= 1 {
     const workoutBody = formRequest("https://rage-tracker.bishvili.workers.dev/api/ingest", "POST", {
         "kind": "health",
-        "shortcutVersion": "2.3.6",
+        "shortcutVersion": "2.3.7",
         "date": "{day}",
         "workoutMin": "{exerciseValue}"
     }, {"Authorization": "{@credential}"})
@@ -206,7 +211,7 @@ if exerciseValue >= 1 {
 showNotification("Synced {@acceptedCount} items. Skipped {@skippedCalendarCount} calendar events.", "Rage Tracker")
 
 // Offer an update after syncing; the user approves installation in Apple Shortcuts.
-const releaseBody = downloadURL("https://rage-tracker.bishvili.workers.dev/api/shortcut/release?current=2.3.6", {"Authorization": "{@credential}"})
+const releaseBody = downloadURL("https://rage-tracker.bishvili.workers.dev/api/shortcut/release?current=2.3.7", {"Authorization": "{@credential}"})
 const releaseInfo = getDictionary(releaseBody)
 const updateStatusValue = getValue(releaseInfo, "updateStatus")
 const updateStatus = getText(updateStatusValue)
@@ -241,7 +246,7 @@ if @sleepMinutes >= 1 {
     const sleepHours = @sleepMinutes / 60
     const sleepBody = formRequest("https://rage-tracker.bishvili.workers.dev/api/ingest", "POST", {
         "kind": "health",
-        "shortcutVersion": "2.3.6",
+        "shortcutVersion": "2.3.7",
         "date": "{day}",
         "sleepHours": "{sleepHours}"
     }, {"Authorization": "{@credential}"})

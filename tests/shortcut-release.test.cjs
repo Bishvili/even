@@ -22,9 +22,9 @@ test("main sync reads its saved device key before the handshake and uploads",()=
 });
 
 test("the Shortcut identifies itself on the handshake, uploads, and update query",()=>{
- assert.match(source,/"shortcutVersion": "2\.3\.6"/);
- assert.equal((source.match(/"shortcutVersion": "2\.3\.6"/g)||[]).length,8);
- assert.match(source,/\/api\/shortcut\/release\?current=2\.3\.6/);
+ assert.match(source,/"shortcutVersion": "2\.3\.7"/);
+ assert.equal((source.match(/"shortcutVersion": "2\.3\.7"/g)||[]).length,8);
+ assert.match(source,/\/api\/shortcut\/release\?current=2\.3\.7/);
  assert.match(source,/getValue\(handshake, "state"\)/);
  assert.match(source,/if connectionStatus != "connected"/);
 });
