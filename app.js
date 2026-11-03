@@ -1,6 +1,6 @@
 (function () {
 "use strict";
-var VERSION = "1.12.3";
+var VERSION = "1.12.4";
 var SHORTCUT_PAGE = "https://routinehub.co/shortcut/26978/";
 var STORAGE_KEY = "rage-tracker:v1";
 var MOOD_NAMES = ["","Rough","Low","Okay","Good","Great"];
@@ -435,7 +435,7 @@ async function loadCalendars(){
   if(!calendars.length){var empty=document.createElement("p");empty.className="muted";empty.textContent="Calendars appear here after they sync an event.";list.appendChild(empty);return;}
   calendars.forEach(function(calendar){
    var row=document.createElement("label"),name=document.createElement("span"),box=document.createElement("input");
-   row.className="calendar-row";name.textContent=calendar.name;box.type="checkbox";box.checked=calendar.enabled;
+   row.className="calendar-row";name.textContent=calendar.name;box.type="checkbox";box.setAttribute("role","switch");box.checked=calendar.enabled;
    box.addEventListener("change",function(){setCalendar(calendar.name,box);});
    row.appendChild(name);row.appendChild(box);list.appendChild(row);
   });
