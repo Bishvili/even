@@ -74,3 +74,11 @@ test("Shortcut filters are references, so the compiler cannot rewrite them",()=>
  assert.doesNotMatch(shortcut,/\): array \{"WFContentItemFilter"/);
 });
 
+
+test("the developer tools card starts onboarding on this repository",()=>{
+ const html=fs.readFileSync(path.join(root,"index.html"),"utf8");
+ const link=new URL(html.match(/id="improve-site" href="([^"]+)"/)[1].replaceAll("&amp;","&"));
+ assert.equal(link.origin+link.pathname,"https://claude.ai/code/new");
+ assert.equal(link.searchParams.get("repo"),"Bishvili/rage-tracker");
+ assert.match(link.searchParams.get("q"),/onboarding section of AGENTS\.md/);
+});

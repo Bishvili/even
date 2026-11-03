@@ -34,7 +34,7 @@ The repository owner grants these, using the new developer's own accounts:
 2. **Connect Cloudflare** in Claude and select the Bishvili account. It should list one Worker, `rage-tracker`. The older Workers Bindings server is deprecated in favor of `https://mcp.cloudflare.com/mcp`.
 3. **Optionally connect RoutineHub** using an API key from their own RoutineHub account, under **Settings → API**. It will only show listings that account owns. In cloud sessions, add it as a Claude connector, because `routinehub.co` is not on the default network allowlist.
 4. **Run the tests:** `node --test tests/*.test.cjs`.
-5. **To release Shortcuts:** in Rage Tracker → **Sync**, use **Set Up Release Helper**, then **Run Release Helper**. The card appears for accounts listed in `rt_release_emails`. See [RoutineHub releases](shortcuts/ROUTINEHUB_RELEASE.md).
+5. **To release Shortcuts:** in Rage Tracker → **Sync**, use **Set Up Release Helper**, then **Run Release Helper**. The card appears for accounts listed in `rt_release_emails`, and **Improve This Site with Claude** opens a new session on this repository that starts with this onboarding. See [RoutineHub releases](shortcuts/ROUTINEHUB_RELEASE.md).
 6. **To test Sync:** generate their own device key in Rage Tracker → **Sync**. Keys belong to one account, so never reuse someone else's.
 
 ### What to know before changing anything

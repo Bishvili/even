@@ -1,6 +1,6 @@
 (function () {
 "use strict";
-var VERSION = "1.12.0";
+var VERSION = "1.12.1";
 var SHORTCUT_PAGE = "https://routinehub.co/shortcut/26978/";
 var STORAGE_KEY = "rage-tracker:v1";
 var MOOD_NAMES = ["","Rough","Low","Okay","Good","Great"];
