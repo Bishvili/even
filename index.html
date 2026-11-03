@@ -184,6 +184,7 @@
        <p>Rage Tracker Sync sends today’s steps, resting heart rate, heart rate variability and exercise minutes, last night’s sleep, and the titles, times and calendar names of today’s calendar events. Anything with no data today is left out.</p>
        <p>Your device key is saved as a plain-text file, rage-tracker-device-key.txt, in a Rage Tracker folder in On My iPhone. It isn’t encrypted by Rage Tracker. Anyone who can open that file, and any Shortcut you let read it, can use the key. Don’t share it.</p>
        <p>If Shortcuts asks, turn on <strong>Allow Sharing Large Amounts of Data</strong> in Settings → Apps → Shortcuts → Advanced.</p>
+       <p>To sync on a schedule, add a Time of Day automation in Shortcuts that runs Rage Tracker Sync, and choose Run Immediately. Your iPhone must be unlocked to read Health data.</p>
        <p>To disconnect, revoke the key below and delete the file in Files.</p>
       </div>
      </details>
@@ -217,7 +218,7 @@
    <section id="view-settings" class="view" aria-labelledby="settings-title">
     <div class="eyebrow">YOU OWN YOUR STORY</div><div class="intro"><h1 id="settings-title">Settings & <em>privacy.</em></h1><p>Keep control of your records, backups and connections.</p></div>
     <div class="card"><h2>Your local data</h2><p class="muted">Mood check-ins, notes and locally imported health/calendar data stay in this app's storage on this device. Clearing site data or deleting the Home Screen app may erase them.</p><div class="settings-meta" id="storage-summary"></div><button class="btn secondary full" id="backup-button">↓ Download JSON backup</button><label class="file-label">Restore from backup <input type="file" id="restore-input" accept="application/json,.json"></label><button class="btn danger full" id="erase-local">Erase all data on this device</button></div>
-    <div class="card"><h2>About the insights</h2><p class="muted">Comparisons need at least 3 check-ins in each group. Mood data is subjective and gaps can skew results. Nothing here is a diagnosis or proves a cause.</p><p class="muted">Version <span id="version">1.12.5</span> · No ads or analytics</p></div>
+    <div class="card"><h2>About the insights</h2><p class="muted">Comparisons need at least 3 check-ins in each group. Mood data is subjective and gaps can skew results. Nothing here is a diagnosis or proves a cause.</p><p class="muted">Version <span id="version">1.12.6</span> · No ads or analytics</p></div>
     <div class="card"><h2>Explore a sample month</h2><p class="muted">See 28 days of fictional check-ins and events. They stay separate from your own data and are never uploaded.</p><button class="btn secondary full" id="demo-button">Load 28-day calendar demo</button><button class="btn subtle full" id="clear-demo-button">Remove demo data</button></div>
    </section>
   </main>

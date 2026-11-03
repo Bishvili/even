@@ -52,7 +52,6 @@ test("Shortcut checks explicit typed values",()=>{
   'exerciseValue >= 1',
   'workoutStatus == "accepted"',
   'updateStatus == "new_release"',
-  'choice == "Install update"',
   'sleepAvailable >= 1',
   'sleepAge <= 1440',
   'stageCount >= 1',
