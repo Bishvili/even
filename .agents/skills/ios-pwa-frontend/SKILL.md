@@ -35,7 +35,7 @@ When a design needs a distinctive moment, spend the visual emphasis once: an exc
 
 ## Current visual direction and tokens
 
-Retain the existing Sage/Ink direction unless a deliberate product redesign is approved. Consolidate values into CSS custom properties or typed theme tokens rather than continuing to sprinkle magic hex literals.
+The product is called Even: a calm, private health coach. Use serif headlines from the system stack (ui-serif, New York), system sans for everything else, pill buttons, deep green hero surfaces, and warm yellow as the single accent. Colors live in the CSS custom properties in styles.css, with a complete dark palette; never add literal colors outside them. Consolidate values into CSS custom properties or typed theme tokens rather than continuing to sprinkle magic hex literals.
 
 | Role | Starting value | Use |
 | --- | --- | --- |

@@ -17,13 +17,13 @@
   var nudge=$("install-nudge"),due=Date.now()-settings.nudgedAt>NUDGE_GAP;
   nudge.hidden=isInstalled()||!due||!(installEvent||isIOS());
   $("install-nudge-action").hidden=!installEvent;
-  $("install-nudge-text").textContent=installEvent?"Install Rage Tracker for quick check-ins and reminders.":"Tap Share, then Add to Home Screen, for quick check-ins and reminders.";
+  $("install-nudge-text").textContent=installEvent?"Install Even for quick check-ins and reminders.":"Tap Share, then Add to Home Screen, for quick check-ins and reminders.";
  }
  function dismissNudge(){settings.nudgedAt=Date.now();saveSettings();renderNudge();}
 
  function renderReminder(){
   var toggle=$("reminder-toggle"),note=$("reminder-note"),blocked="";
-  if(!canPush())blocked=isIOS()&&!isInstalled()?"Add Rage Tracker to your Home Screen to turn on reminders.":"This browser can’t show reminders.";
+  if(!canPush())blocked=isIOS()&&!isInstalled()?"Add Even to your Home Screen to turn on reminders.":"This browser can’t show reminders.";
   else if(!app.deviceToken())blocked="Sign in under Sync to turn on reminders.";
   else if(Notification.permission==="denied")blocked="Notifications are off. Turn them on in Settings.";
   toggle.disabled=!!blocked;toggle.checked=!blocked&&settings.on;

@@ -1,4 +1,4 @@
-const BRIEF="rage-tracker-brief";const CACHE="rage-tracker-shell-v1.15.0";const SHELL=["/","/index.html","/styles.css","/app.js","/reminders.js","/coach.js","/manifest.webmanifest","/icon.svg","/icon-192.png","/icon-512.png"];
+const BRIEF="rage-tracker-brief";const CACHE="rage-tracker-shell-v1.16.0";const SHELL=["/","/index.html","/styles.css","/app.js","/reminders.js","/coach.js","/manifest.webmanifest","/icon.svg","/icon-192.png","/icon-512.png"];
 self.addEventListener("install",event=>{event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(SHELL)).then(()=>self.skipWaiting()));});
 self.addEventListener("activate",event=>{event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE&&k!==BRIEF).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));});
 self.addEventListener("fetch",event=>{
@@ -14,7 +14,7 @@ function todaysBrief(){
  const now=new Date(),day=now.getFullYear()+"-"+String(now.getMonth()+1).padStart(2,"0")+"-"+String(now.getDate()).padStart(2,"0");
  return caches.open(BRIEF).then(c=>c.match("/brief")).then(r=>r?r.json():{}).then(b=>b[day]||"How are you feeling?").catch(()=>"How are you feeling?");
 }
-self.addEventListener("push",event=>{event.waitUntil(todaysBrief().then(body=>self.registration.showNotification("Rage Tracker",{body,icon:"/icon-192.png",tag:"check-in"})));});
+self.addEventListener("push",event=>{event.waitUntil(todaysBrief().then(body=>self.registration.showNotification("Even",{body,icon:"/icon-192.png",tag:"check-in"})));});
 self.addEventListener("notificationclick",event=>{
  event.notification.close();
  event.waitUntil(self.clients.matchAll({type:"window",includeUncontrolled:true}).then(windows=>{

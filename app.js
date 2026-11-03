@@ -1,6 +1,6 @@
 (function () {
 "use strict";
-var VERSION = "1.15.0";
+var VERSION = "1.16.0";
 var SHORTCUT_PAGE = "https://routinehub.co/shortcut/26978/";
 var STORAGE_KEY = "rage-tracker:v1";
 var MOOD_NAMES = ["","Rough","Low","Okay","Good","Great"];
@@ -13,11 +13,11 @@ var state = readState();
 var authEmail = "", authDevices = [], authChecking = false, authCanRelease = false;
 var shortcutRelease = null, shortcutStatus = null, shortcutStatusLoading = false;
 function $(id){ return document.getElementById(id); }
-function emptyState(){ return {moods:[],health:[],events:[],token:"",deviceId:"",syncOwnerEmail:"",pairedAt:null,lastSync:null}; }
+function emptyState(){ return {moods:[],health:[],events:[],reflections:[],token:"",deviceId:"",syncOwnerEmail:"",pairedAt:null,lastSync:null}; }
 function readState(){
  try { var raw=JSON.parse(localStorage.getItem(STORAGE_KEY)||"null"); if(!raw || typeof raw!=="object")return emptyState();
  var owner=typeof raw.syncOwnerEmail==="string"?raw.syncOwnerEmail.toLowerCase():"",deviceId=typeof raw.deviceId==="string"?raw.deviceId:"";
- return {moods:Array.isArray(raw.moods)?raw.moods.slice(-6000):[],health:Array.isArray(raw.health)?raw.health.slice(-1200):[],events:Array.isArray(raw.events)?raw.events.slice(-2000):[],token:owner&&deviceId&&typeof raw.token==="string"?raw.token:"",deviceId:deviceId,syncOwnerEmail:owner,pairedAt:raw.pairedAt||null,lastSync:raw.lastSync||null};
+ return {moods:Array.isArray(raw.moods)?raw.moods.slice(-6000):[],health:Array.isArray(raw.health)?raw.health.slice(-1200):[],events:Array.isArray(raw.events)?raw.events.slice(-2000):[],reflections:Array.isArray(raw.reflections)?raw.reflections.slice(-200):[],token:owner&&deviceId&&typeof raw.token==="string"?raw.token:"",deviceId:deviceId,syncOwnerEmail:owner,pairedAt:raw.pairedAt||null,lastSync:raw.lastSync||null};
  } catch(e){return emptyState();}
 }
 function persist(){ try{localStorage.setItem(STORAGE_KEY,JSON.stringify(state));return true;}catch(e){toast("Storage is full. Export a backup and free device storage.");return false;} }
@@ -40,7 +40,7 @@ function navigate(view){if(!["checkin","insights","sources","sync","settings"].i
  if(location.hash!=="#"+view)history.replaceState(null,"","#"+view);
  window.scrollTo(0,0);render();
 }
-function refreshCoach(){if(globalThis.RageCoach&&globalThis.RageCoach.render)globalThis.RageCoach.render({moods:state.moods,events:state.events,health:state.health,scope:insightScope});}
+function refreshCoach(){if(globalThis.RageCoach&&globalThis.RageCoach.render)globalThis.RageCoach.render({moods:state.moods,events:state.events,health:state.health,reflections:state.reflections,scope:insightScope});}
 function render(){
  $("date-label").textContent=formatPrettyDate(now()).toUpperCase();
  $("current-time").textContent=formatTime(now());
@@ -349,9 +349,9 @@ async function importCalendar(file){
  }catch(e){toast("Could not import the calendar file.");}
 }
 function exportBackup(){
- var data={app:"Rage Tracker",version:VERSION,account:state.syncOwnerEmail||null,exportedAt:new Date().toISOString(),moods:state.moods,health:state.health,events:state.events};
+ var data={app:"Rage Tracker",version:VERSION,account:state.syncOwnerEmail||null,exportedAt:new Date().toISOString(),moods:state.moods,health:state.health,events:state.events,reflections:state.reflections};
  var blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"}),url=URL.createObjectURL(blob),a=document.createElement("a");
- a.href=url;a.download="rage-tracker-backup-"+dateKey(now())+".json";document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(url);},2000);
+ a.href=url;a.download="even-backup-"+dateKey(now())+".json";document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(url);},2000);
  toast("Backup downloaded. Store it securely; it is not encrypted.");
 }
 async function restoreBackup(file){
@@ -359,11 +359,12 @@ async function restoreBackup(file){
  try{var data=JSON.parse(await file.text());if(data.app!=="Rage Tracker"||!Array.isArray(data.moods)||!Array.isArray(data.health)||!Array.isArray(data.events))throw Error("Not a backup");
  if(data.account&&state.syncOwnerEmail&&data.account!==state.syncOwnerEmail)throw Error("This backup belongs to another account");
  if(!confirm("Replace locally saved mood, health and calendar data with this backup? Your sync pairing will remain."))return;
+ state.reflections=Array.isArray(data.reflections)?data.reflections.slice(-200):[];
  state.moods=data.moods.slice(-6000).filter(function(x){return Number.isInteger(x.score)&&x.score>=1&&x.score<=5&&!isNaN(new Date(x.ts).getTime());}).map(function(x){return {id:String(x.id||newId()),ts:new Date(x.ts).toISOString(),score:x.score,energy:Number(x.energy)||3,tags:Array.isArray(x.tags)?x.tags.filter(function(y){return ACTIVITY_LABELS.includes(y);}).slice(0,10):[],note:String(x.note||"").slice(0,400),stress:Number.isInteger(x.stress)&&x.stress>=1&&x.stress<=5?x.stress:undefined,demo:!!x.demo};});
  state.health=[];data.health.slice(-1200).forEach(function(x){var h=normalizeHealth(x,x.source);if(h)upsertHealth(h);});
  state.events=[];data.events.slice(-2000).forEach(function(x){var e=normalizeEvent(x,x.source);if(e)upsertEvent(e);});
  persist();render();toast("Backup restored.");
- }catch(e){toast("This file is not a valid Rage Tracker backup.");}
+ }catch(e){toast("This file is not a valid backup.");}
 }
 function buildDemoCalendarScenario(base){
  var result={moods:[],events:[],health:[]};
@@ -423,8 +424,8 @@ function arrayToHex(bytes){return Array.from(bytes).map(function(b){return b.toS
 function loginWithEmail(){window.location.assign("/api/auth/start");}
 function syncErrorLabel(code){
  var reasons={
-  invalid_body:"Rage Tracker couldn’t read the last upload.",
-  invalid_kind:"Rage Tracker couldn’t read the last upload.",
+  invalid_body:"Even couldn’t read the last upload.",
+  invalid_kind:"Even couldn’t read the last upload.",
   no_valid_records:"Some data in the last upload wasn’t valid."
  };
  return reasons[code]||"The last upload didn’t go through.";
@@ -637,6 +638,6 @@ function init(){
  document.addEventListener("visibilitychange",function(){if(!document.hidden){refreshAuth();if(state.token){loadShortcutRelease();loadCalendars();checkShortcutUpload(true);if(shortcutRunPending){shortcutRunPending=false;pull(false);}else if(!state.lastSync||Date.now()-state.lastSync>900000)pull(true);}}});
  if("serviceWorker" in navigator){window.addEventListener("load",function(){navigator.serviceWorker.register("/sw.js").catch(function(){});});}
 }
-globalThis.RageTracker={refreshCoach:refreshCoach,toast:toast,formatTime:formatTime,deviceToken:function(){return state.token;}};
+globalThis.RageTracker={refreshCoach:refreshCoach,addReflection:function(r){state.reflections.push(r);if(persist())render();},toast:toast,formatTime:formatTime,deviceToken:function(){return state.token;}};
 init();
 })();

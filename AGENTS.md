@@ -49,7 +49,7 @@ The repository owner grants these, using the new developer's own accounts:
 
 **Working mode:** iterate quickly. Commit directly to `main`, without feature branches, waiting on CI, or approval steps. The interface should still look and read like a finished App Store app.
 
-Rage Tracker is an iPhone-first, installable progressive web app for quick mood check-ins and useful context from calendars and selected health metrics. Hold the interface to the finish, consistency, speed, and restraint of a popular App Store app, while remaining truthful about web-platform capabilities.
+Rage Tracker, shown to people as **Even**, is an iPhone-first, installable progressive web app for quick mood check-ins and useful context from calendars and selected health metrics. Hold the interface to the finish, consistency, speed, and restraint of a popular App Store app, while remaining truthful about web-platform capabilities.
 
 - A check-in should take seconds. The interface must work while offline.
 - Personal mood check-ins and notes are local to the device unless a future feature explicitly changes this with consent.

@@ -2,7 +2,7 @@
 const test=require("node:test");
 const assert=require("node:assert/strict");
 require("../coach.js");
-const {outlook,patterns,brief,hardStretch}=globalThis.RageCoach;
+const {outlook,patterns,brief,hardStretch,steadiness,reflectionDue}=globalThis.RageCoach;
 const today=new Date(2026,10,3,12);// a Tuesday
 const at=(daysAgo,hour=12)=>{const d=new Date(today);d.setDate(d.getDate()-daysAgo);d.setHours(hour);return d.toISOString();};
 
@@ -43,4 +43,14 @@ test("a hard stretch needs high stress on three recent days",()=>{
  assert.equal(hardStretch([0,1].map(n=>({ts:at(n),stress:5})),today),false);
  assert.equal(hardStretch([0,1,2].map(n=>({ts:at(n),stress:4})),today),true);
  assert.equal(hardStretch([10,11,12].map(n=>({ts:at(n),stress:5})),today),false);
+});
+test("the weekly reflection scores a steadier week higher and rejects incomplete answers",()=>{
+ assert.equal(steadiness({snapped:0,setOff:0,recovered:4,rested:4}),100);
+ assert.equal(steadiness({snapped:4,setOff:4,recovered:0,rested:0}),0);
+ assert.equal(steadiness({snapped:2,setOff:2,recovered:2}),null);
+});
+test("the reflection is due at first and again after seven days",()=>{
+ assert.equal(reflectionDue([],today),true);
+ assert.equal(reflectionDue([{ts:at(3)}],today),false);
+ assert.equal(reflectionDue([{ts:at(7)}],today),true);
 });

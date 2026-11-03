@@ -60,11 +60,33 @@
   return Object.keys(hard).length>=3;
  }
 
- var api={outlook:outlook,patterns:patterns,brief:brief,hardStretch:hardStretch};
+ var REFLECTION=[
+  {id:"snapped",text:"How often did you snap or lose your temper?",options:["Never","Rarely","Sometimes","Often","Very often"],reverse:true},
+  {id:"setOff",text:"How often did small things set you off?",options:["Never","Rarely","Sometimes","Often","Very often"],reverse:true},
+  {id:"recovered",text:"How easily did you settle after a hard moment?",options:["Not at all","A little","Somewhat","Mostly","Very easily"]},
+  {id:"rested",text:"How rested did you feel on most days?",options:["Not at all","A little","Somewhat","Mostly","Very rested"]}
+ ];
+ function steadiness(answers){
+  var total=0;
+  for(var i=0;i<REFLECTION.length;i++){
+   var q=REFLECTION[i],a=answers[q.id];
+   if(!Number.isInteger(a)||a<0||a>4)return null;
+   total+=q.reverse?4-a:a;
+  }
+  return Math.round(total/(REFLECTION.length*4)*100);
+ }
+ function reflectionDue(reflections,today){
+  if(!reflections.length)return true;
+  var last=Math.max.apply(null,reflections.map(function(r){return new Date(r.ts).getTime();}));
+  return new Date(today).getTime()-last>=7*DAY_MS;
+ }
+
+ var api={outlook:outlook,patterns:patterns,brief:brief,hardStretch:hardStretch,steadiness:steadiness,reflectionDue:reflectionDue,REFLECTION:REFLECTION};
  root.RageCoach=api;
  if(typeof document==="undefined"||!root.RageTracker)return;
 
  var LEVELS={harder:"Tends to be harder",easier:"Tends to be easier",typical:"About average",unknown:"Not enough check-ins"};
+ var reflectionSnoozed=false;
  var STEPS=["Breathe in","Hold","Breathe out","Hold"],breathTimer=null;
  function $(id){return document.getElementById(id);}
  function element(tag,className,text){var e=document.createElement(tag);if(className)e.className=className;if(text!==undefined)e.textContent=text;return e;}
@@ -101,6 +123,38 @@
    list.appendChild(row);
   });
  }
+ function renderReflections(reflections){
+  var list=$("reflection-history"),rows=reflections.slice(-6).reverse();list.textContent="";
+  if(!rows.length){list.appendChild(element("p","muted","Answer your first reflection on Check in to start a weekly trend."));return;}
+  rows.forEach(function(r){
+   var row=element("div","outlook-row"),text=element("div");
+   text.appendChild(element("strong","",new Date(r.ts).toLocaleDateString(undefined,{month:"short",day:"numeric"})));
+   text.appendChild(element("small","","Higher means a steadier week"));
+   row.appendChild(text);row.appendChild(element("span","outlook-level",steadiness(r.answers)+" / 100"));
+   list.appendChild(row);
+  });
+ }
+ function buildReflectionForm(){
+  var form=$("reflection-form");
+  REFLECTION.forEach(function(q){
+   var set=element("fieldset"),options=element("div","reflection-options");
+   set.appendChild(element("legend","",q.text));
+   q.options.forEach(function(option,index){
+    var label=element("label"),input=element("input");
+    input.type="radio";input.name=q.id;input.value=String(index);input.required=true;
+    label.appendChild(input);label.appendChild(element("span","",option));options.appendChild(label);
+   });
+   set.appendChild(options);form.appendChild(set);
+  });
+  var save=element("button","btn primary full","Save reflection");save.type="submit";save.value="save";form.appendChild(save);
+  var later=element("button","btn subtle full","Not now");later.type="button";later.id="close-reflection";form.appendChild(later);
+  later.addEventListener("click",function(){reflectionSnoozed=true;$("reflection-dialog").close();$("reflection-prompt").hidden=true;});
+  form.addEventListener("submit",function(){
+   var answers={};REFLECTION.forEach(function(q){answers[q.id]=Number(form.elements[q.id].value);});
+   form.reset();root.RageTracker.addReflection({ts:new Date().toISOString(),answers:answers});
+   root.RageTracker.toast("Reflection saved.");
+  });
+ }
  function stopBreathing(){if(breathTimer)clearInterval(breathTimer);breathTimer=null;}
  function startBreathing(){
   var step=0,cycles=0,label=$("breath-label"),circle=$("breath-circle");
@@ -113,11 +167,15 @@
  }
  function render(data){
   renderToday(data);
+  $("reflection-prompt").hidden=reflectionSnoozed||!reflectionDue(data.reflections,new Date());
+  renderReflections(data.reflections);
   var scoped=function(x){return !!x.demo===(data.scope==="demo");};
   renderOutlook(data.moods.filter(scoped));
   renderPatterns(data.moods.filter(scoped),data.events.filter(scoped),data.health.filter(scoped));
  }
  api.render=render;
+ buildReflectionForm();
+ $("open-reflection").addEventListener("click",function(){$("reflection-dialog").showModal();});
  $("open-reset").addEventListener("click",function(){$("reset-dialog").showModal();startBreathing();});
  $("close-reset").addEventListener("click",function(){$("reset-dialog").close();});
  $("reset-dialog").addEventListener("close",stopBreathing);
