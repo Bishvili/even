@@ -1,6 +1,6 @@
-# Rage Tracker — mood patterns PWA
+# Even — mood patterns PWA
 
-Live app: https://rage-tracker.bishvili.workers.dev
+Live app: https://even.bishvili.workers.dev
 
 ## Developing
 
@@ -25,7 +25,7 @@ These are exploratory **associations, not causal effects**. Overlapping events m
 
 ## Passwordless login and owner-scoped sync (v1.3.0)
 
-Cloudflare Zero Trust Access protects **rage-tracker.bishvili.workers.dev/api/auth/** (including child paths), using Email One-time PIN login. An exact-address Cloudflare Access policy controls eligibility. In the Worker, identities are accepted only from validated Access runtime context and the matching Access audience, then checked against a server-side **APPROVED_SYNC_EMAILS** secret (JSON array). Do not commit this allowlist to the public GitHub repository.
+Cloudflare Zero Trust Access protects **even.bishvili.workers.dev/api/auth/** (including child paths), using Email One-time PIN login. An exact-address Cloudflare Access policy controls eligibility. In the Worker, identities are accepted only from validated Access runtime context and the matching Access audience, then checked against a server-side **APPROVED_SYNC_EMAILS** secret (JSON array). Do not commit this allowlist to the public GitHub repository.
 
 The PWA itself remains public and keeps anonymous/offline mood tracking. To sync, an approved email signs in, then clicks **Generate my device key**. This issues a random 256-bit bearer token, stored only as its SHA-256 hash in D1, associated with the verified email, and returned once to the device. The user can copy its Authorization header into Apple Shortcuts and revoke it in the Sync tab.
 
@@ -33,21 +33,21 @@ The PWA itself remains public and keeps anonymous/offline mood tracking. To sync
 - Device management requires an Access-authenticated session. Revocation is restricted to the authenticated owner.
 - The shared pairing route and unscoped tables have been removed after confirming the legacy tables were empty. Cloud endpoints now require an authenticated, unrevoked, owner-specific device token.
 - Existing local mood entries are not uploaded. The PWA requires explicit consent before assigning existing local records to a verified account, and rejects a different account using the same local profile.
-- Rage Tracker is not a clinical records system. HTTPS is used, but D1 records and downloaded JSON backups are not end-to-end encrypted. Device bearer tokens are sensitive.
+- Even is not a clinical records system. HTTPS is used, but D1 records and downloaded JSON backups are not end-to-end encrypted. Device bearer tokens are sensitive.
 
 ## Apple Shortcuts sync
 
-Rage Tracker uses an Apple Shortcut to transmit selected Calendar and Health measurements from the owner's iPhone to the Cloudflare Worker. The PWA itself does not access HealthKit or EventKit.
+Even uses an Apple Shortcut to transmit selected Calendar and Health measurements from the owner's iPhone to the Cloudflare Worker. The PWA itself does not access HealthKit or EventKit.
 
-Rage Tracker Sync is a single Shortcut with no import questions, published on [RoutineHub](https://routinehub.co/shortcut/26978/). On its first run it asks for the private device key and saves it to a file once Rage Tracker accepts it. Later runs reuse the file. **Known issue:** installing a new version can ask for the key again.
+Even Sync is a single Shortcut with no import questions, published on [RoutineHub](https://routinehub.co/shortcut/26978/). On its first run it asks for the private device key and saves it to a file once Even accepts it. Later runs reuse the file. **Known issue:** installing a new version can ask for the key again.
 
 The Sync Shortcut reads its Authorization value from the saved file, asking for it if it is missing or not accepted, then sends an authenticated `/api/shortcut/hello` handshake, then today's Calendar events and Health data through `/api/ingest`; every accepted upload is checked explicitly. The Sync screen distinguishes a successful connection from actual accepted data and allows the user to revoke the device credential. Version checks only offer newer verified releases, and Apple requires approval before replacing an installed Shortcut.
 
-The file `rage-tracker-device-key.txt` in a `Rage Tracker` folder in On My iPhone holds the private Authorization value as plain text. It is not encrypted by Rage Tracker or held in the iOS Keychain, and Shortcuts granted access to it can read it; treat any untrusted Shortcuts on the device as a privacy risk. Do not share the file, and keep your private Authorization value out of public Shortcuts and source code. Deleting the Shortcut does not delete the file, so revoke the key and delete the file to disconnect a device. See [Shortcuts installation and diagnostics](shortcuts/README.md) and [Shortcut source](shortcuts/rage-tracker-sync.cherri).
+The file `even-device-key.txt` in a `Even` folder in On My iPhone holds the private Authorization value as plain text. It is not encrypted by Even or held in the iOS Keychain, and Shortcuts granted access to it can read it; treat any untrusted Shortcuts on the device as a privacy risk. Do not share the file, and keep your private Authorization value out of public Shortcuts and source code. Deleting the Shortcut does not delete the file, so revoke the key and delete the file to disconnect a device. See [Shortcuts installation and diagnostics](shortcuts/README.md) and [Shortcut source](shortcuts/even-sync.cherri).
 
 ## Deployment configuration
 
-- Access application name: Rage Tracker – Authorized Sync, with email One-time PIN provider and exact-address Allow policy.
+- Access application name: Even – Authorized Sync, with email One-time PIN provider and exact-address Allow policy.
 - Cloudflare Worker secret APPROVED_SYNC_EMAILS: JSON array of the two allowed email addresses; manage in Cloudflare, not in GitHub.
 - Worker bindings: ASSETS (Workers KV), DB (D1).
 - Database migration: db/schema.sql.

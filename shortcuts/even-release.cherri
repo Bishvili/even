@@ -1,4 +1,4 @@
-#define name Rage Tracker Release
+#define name Even Release
 #define color teal
 #define glyph key
 #define mac false
@@ -10,32 +10,32 @@
 
 #ref onMyIPhone eyJkaXNwbGF5TmFtZSI6Ik9uIE15IGlQaG9uZSIsImZpbGVuYW1lIjoiRmlsZSBQcm92aWRlciBTdG9yYWdlIiwiZmlsZUxvY2F0aW9uIjp7IldGRmlsZUxvY2F0aW9uVHlwZSI6IkxvY2FsU3RvcmFnZSIsInJlbGF0aXZlU3VicGF0aCI6IiJ9fQ==
 
-action 'is.workflow.actions.file.createfolder' createKeyFolder(&variable location: 'WFFolder') {"WFFilePath":"Rage Tracker"}
+action 'is.workflow.actions.file.createfolder' createKeyFolder(&variable location: 'WFFolder') {"WFFilePath":"Even"}
 
-action 'is.workflow.actions.documentpicker.open' readSavedDeviceKey(&variable folder: 'WFFile'): text {"WFGetFilePath":"rage-tracker-device-key.txt","WFFileErrorIfNotFound":false,"WFShowFilePicker":false}
+action 'is.workflow.actions.documentpicker.open' readSavedDeviceKey(&variable folder: 'WFFile'): text {"WFGetFilePath":"even-device-key.txt","WFFileErrorIfNotFound":false,"WFShowFilePicker":false}
 
 const tasks = list("Install latest build", "Publish installed build")
-const picked = chooseFromList(tasks, "Rage Tracker Release")
+const picked = chooseFromList(tasks, "Even Release")
 const task = getText(picked)
 
 if task == "Install latest build" {
-    const build = downloadURL("https://github.com/Bishvili/rage-tracker/releases/download/shortcut-latest/Rage-Tracker-Sync.shortcut")
-    const namedBuild = setName(build, "Rage Tracker Sync.shortcut")
+    const build = downloadURL("https://github.com/Bishvili/even/releases/download/shortcut-latest/Even-Sync.shortcut")
+    const namedBuild = setName(build, "Even Sync.shortcut")
     openFile(namedBuild)
     stop()
 }
 
 // Run the installed build so its result can be checked before it goes public.
 const runRequest = text("release check")
-run("Rage Tracker Sync", runRequest)
+run("Even Sync", runRequest)
 const confirmOptions = list("Publish", "Cancel")
-const confirmed = chooseFromList(confirmOptions, "Did Rage Tracker Sync work?")
+const confirmed = chooseFromList(confirmOptions, "Did Even Sync work?")
 const decision = getText(confirmed)
 if decision != "Publish" {
     stop()
 }
 
-const matches = searchShortcuts("Rage Tracker Sync")
+const matches = searchShortcuts("Even Sync")
 const syncShortcut = getFirstItem(matches)
 const linkResult = createShortcutLink(syncShortcut)
 const shareLink = getText(linkResult)
@@ -44,7 +44,7 @@ const keyFolder = createKeyFolder(onMyIPhone)
 const savedKeyFile = readSavedDeviceKey(keyFolder)
 const credential = getText(savedKeyFile)
 
-const publishRaw = jsonRequest("https://rage-tracker.bishvili.workers.dev/api/shortcut/publish", "POST", {
+const publishRaw = jsonRequest("https://even.bishvili.workers.dev/api/shortcut/publish", "POST", {
     "link": "{shareLink}"
 }, {"Authorization": "{credential}"})
 const publish = getDictionary(publishRaw)
@@ -55,4 +55,4 @@ if errorLength >= 1 {
     alert("{errorText}", "Publishing didn't start")
     stop()
 }
-showNotification("Publishing started.", "Rage Tracker Release")
+showNotification("Publishing started.", "Even Release")

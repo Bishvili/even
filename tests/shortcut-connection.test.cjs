@@ -5,25 +5,25 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 const root = path.join(__dirname, "..");
-const sync = fs.readFileSync(path.join(root, "shortcuts/rage-tracker-sync.cherri"), "utf8");
+const sync = fs.readFileSync(path.join(root, "shortcuts/even-sync.cherri"), "utf8");
 const worker = fs.readFileSync(path.join(root, "worker/index.js"), "utf8");
 const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
 
 test("the replaceable Shortcut always uses its stable unversioned name", () => {
- assert.match(sync, /^#define name Rage Tracker Sync$/m);
+ assert.match(sync, /^#define name Even Sync$/m);
  assert.doesNotMatch(sync, /^#define name.*v2\./m);
- assert.match(html, /shortcuts:\/\/run-shortcut\?name=Rage%20Tracker%20Sync/);
+ assert.match(html, /shortcuts:\/\/run-shortcut\?name=Even%20Sync/);
 });
 
 test("the device key is read from a file and has no install question or helper", () => {
  assert.doesNotMatch(sync, /#question/);
  assert.doesNotMatch(sync, /\brun\("/);
- assert.match(sync, /"WFGetFilePath":"rage-tracker-device-key.txt","WFFileErrorIfNotFound":false,"WFShowFilePicker":false/);
+ assert.match(sync, /"WFGetFilePath":"even-device-key.txt","WFFileErrorIfNotFound":false,"WFShowFilePicker":false/);
  assert.match(sync, /const keyFolder = createKeyFolder\(onMyIPhone\)/);
  assert.match(sync, /readSavedDeviceKey\(keyFolder\)/);
  assert.match(sync, /if savedKeyMatchCount == 0/);
  assert.doesNotMatch(sync, /Bearer [a-f0-9]{64}/i);
- assert.equal(fs.existsSync(path.join(root, "shortcuts/rage-tracker-connection.cherri")), false);
+ assert.equal(fs.existsSync(path.join(root, "shortcuts/even-connection.cherri")), false);
 });
 
 test("only a key the server accepted is saved", () => {
@@ -75,5 +75,5 @@ test("the compiled step-cleanup pattern removes only grouping separators", () =>
 });
 
 test("updates are checked against the current version", () => {
- assert.match(sync, /\/api\/shortcut\/release\?current=2\.3\.10/);
+ assert.match(sync, /\/api\/shortcut\/release\?current=2\.4\.0/);
 });

@@ -95,13 +95,13 @@ def check_calendar_timestamps(actions) -> None:
     print("Calendar form sends full ISO date-time with timezone offsets for both event endpoints.")
 
 
-KEY_FILE = "rage-tracker-device-key.txt"
+KEY_FILE = "even-device-key.txt"
 STEP_GROUPING_PATTERN = r"(?<=\d)[,\s](?=\d{3}(?:\D|$))"
 
 
 def check_connection_and_steps(document, actions) -> None:
     if document.get("WFWorkflowImportQuestions", []):
-        raise AssertionError("Rage Tracker Sync cannot ask for a device key when reinstalled")
+        raise AssertionError("Even Sync cannot ask for a device key when reinstalled")
 
     named = {
         action.get("WFWorkflowActionParameters", {}).get("CustomOutputName"): action
@@ -109,7 +109,7 @@ def check_connection_and_steps(document, actions) -> None:
     }
     by_id = lambda identifier: [a for a in actions if a.get("WFWorkflowActionIdentifier") == identifier]
     if any("runworkflow" in a.get("WFWorkflowActionIdentifier", "") for a in actions):
-        raise AssertionError("Rage Tracker Sync must not depend on another Shortcut")
+        raise AssertionError("Even Sync must not depend on another Shortcut")
 
     for finder, count, types in (("is.workflow.actions.filter.calendarevents", 1, [None]), ("is.workflow.actions.filter.health.quantity", 6, ["Steps", "Steps", "Resting Heart Rate", "Heart Rate Variability", "Exercise Minutes", "Sleep"])):
         found = by_id(finder)
@@ -132,7 +132,7 @@ def check_connection_and_steps(document, actions) -> None:
     if len(folders) != 1:
         raise AssertionError(f"Expected one key folder step, found {len(folders)}")
     folder = folders[0].get("WFWorkflowActionParameters", {})
-    if folder.get("WFFilePath") != "Rage Tracker" or "LocalStorage" not in json.dumps(folder.get("WFFolder", {})):
+    if folder.get("WFFilePath") != "Even" or "LocalStorage" not in json.dumps(folder.get("WFFolder", {})):
         raise AssertionError("Key folder must be created in On My iPhone")
     if "keyFolder" not in json.dumps(read.get("WFFile", {})):
         raise AssertionError("Saved-key read must use the created folder")

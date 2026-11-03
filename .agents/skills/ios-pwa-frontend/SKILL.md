@@ -1,15 +1,15 @@
 ---
 name: ios-pwa-frontend
-description: Design and implement polished, accessible, iPhone-first interfaces for Rage Tracker, an installable mood and context PWA.
+description: Design and implement polished, accessible, iPhone-first interfaces for Even, an installable mood and context PWA.
 ---
 
-# Rage Tracker — iOS PWA Frontend Design
+# Even — iOS PWA Frontend Design
 
 Use this guide whenever changing screens, components, typography, navigation, motion, onboarding, PWA integration, graphs, or user-facing copy. This is a product-specific design system inspired by https://agenticskills.io/skills/frontend-design and informed by Apple's Human Interface Guidelines. It is tailored to a WebKit-installed iPhone app, not a marketing website or a generic dashboard.
 
 ## Product character
 
-Rage Tracker helps someone record a feeling quickly and later understand what might correlate with it. The tone is thoughtful, private, gentle, and precise; avoid clinical coldness, productivity-game scoreboards, exaggerated cheerfulness, or judgment.
+Even helps someone record a feeling quickly and later understand what might correlate with it. The tone is thoughtful, private, gentle, and precise; avoid clinical coldness, productivity-game scoreboards, exaggerated cheerfulness, or judgment.
 
 The experience should feel:
 - **Calm:** a clear primary action and limited visual noise.

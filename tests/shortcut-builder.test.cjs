@@ -9,7 +9,7 @@ const root=path.join(__dirname,"..");
 const app=fs.readFileSync(path.join(root,"app.js"),"utf8");
 const html=fs.readFileSync(path.join(root,"index.html"),"utf8");
 const worker=fs.readFileSync(path.join(root,"worker","index.js"),"utf8");
-const source=fs.readFileSync(path.join(root,"shortcuts","rage-tracker-sync.cherri"),"utf8");
+const source=fs.readFileSync(path.join(root,"shortcuts","even-sync.cherri"),"utf8");
 const idSet=new Set([...html.matchAll(/\bid="([^"]+)"/g)].map(x=>x[1]));
 
 function harness(){
@@ -32,7 +32,7 @@ function harness(){
   "globalThis.__test={renderSync,compareVersions,chooseRelease:x=>shortcutRelease=x,setAuth:x=>authEmail=x,setStatus:x=>shortcutStatus=x};})();");
  assert.notEqual(code,app);
  const env={localStorage:{getItem(){return JSON.stringify(store);},setItem(){}},document:doc,
-  location:{origin:"https://rage-tracker.bishvili.workers.dev"},
+  location:{origin:"https://even.bishvili.workers.dev"},
   navigator:{onLine:true},URL,Date,console,setTimeout,clearTimeout};
  vm.runInNewContext(code,env,{timeout:3000});
  return {api:env.__test,elements,store};
@@ -70,14 +70,14 @@ test("a valid Shortcut handshake does not imply accepted Health data",()=>{
 });
 test("main Shortcut reads its saved key before the handshake",()=>{
  const read=source.indexOf("const savedKeyFile = readSavedDeviceKey(keyFolder)");
- const handshake=source.indexOf('jsonRequest("https://rage-tracker.bishvili.workers.dev/api/shortcut/hello"');
+ const handshake=source.indexOf('jsonRequest("https://even.bishvili.workers.dev/api/shortcut/hello"');
  assert.ok(read>=0&&read<handshake);
  assert.doesNotMatch(source,/#question/);
  assert.match(source,/if savedKeyMatchCount == 0/);
 });
 
 test("the key file is the only filesystem dependency",()=>{
- assert.equal((source.match(/rage-tracker-device-key\.txt/g)||[]).length,2);
+ assert.equal((source.match(/even-device-key\.txt/g)||[]).length,2);
  assert.doesNotMatch(source,/\b(getFolderContents|getFileFromFolder|deleteFiles)\s*\(/);
 });
 
@@ -96,8 +96,8 @@ test("every accepted upload is acknowledged and versioned",()=>{
  assert.match(source,/getValue\(healthResponse, "state"\)/);
  assert.match(source,/if eventStatus != "accepted"/);
  assert.match(source,/if healthStatus != "accepted"/);
- assert.match(source,/shortcutVersion": "2\.3\.10"/);
- assert.match(source,/\/api\/shortcut\/release\?current=2\.3\.10/);
+ assert.match(source,/shortcutVersion": "2\.4\.0"/);
+ assert.match(source,/\/api\/shortcut\/release\?current=2\.4\.0/);
  assert.match(source,/showNotification\("Synced \{@acceptedCount\} items\. Skipped \{@skippedCalendarCount\} calendar events\."/);
  assert.doesNotMatch(source,/\bnothing\(\)/);
  assert.doesNotMatch(source,/Bearer [a-f0-9]{64}/i);
@@ -144,17 +144,17 @@ test("calendar classification remains on the backend",()=>{
 });
 
 test("the PWA setup instructions and source agree",()=>{
- assert.match(html,/rage-tracker-device-key\.txt/);
+ assert.match(html,/even-device-key\.txt/);
  assert.match(html,/target="_blank"/);
 });
 
 test("the malformed v2.2 download is gone",()=>{
- assert.doesNotMatch(worker,/rage-tracker-sync-v2\.2\.shortcut/);
- assert.doesNotMatch(html,/rage-tracker-sync-v2\.2\.shortcut/);
+ assert.doesNotMatch(worker,/even-sync-v2\.2\.shortcut/);
+ assert.doesNotMatch(html,/even-sync-v2\.2\.shortcut/);
 });
 
 test("Run Shortcut uses the Apple-supported URL scheme without a device key",()=>{
- assert.match(html,/id="run-shortcut"[^>]*href="shortcuts:\/\/run-shortcut\?name=Rage%20Tracker%20Sync"/);
+ assert.match(html,/id="run-shortcut"[^>]*href="shortcuts:\/\/run-shortcut\?name=Even%20Sync"/);
  assert.doesNotMatch(html,/Bearer [a-f0-9]{64}/i);
 });
 

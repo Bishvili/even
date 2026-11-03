@@ -1,4 +1,4 @@
-#define name Rage Tracker Sync
+#define name Even Sync
 #define color teal
 #define glyph heart
 #define mac false
@@ -19,11 +19,11 @@
 // The device key lives in a file outside this Shortcut, in On My iPhone so it works without iCloud Drive.
 #ref onMyIPhone eyJkaXNwbGF5TmFtZSI6Ik9uIE15IGlQaG9uZSIsImZpbGVuYW1lIjoiRmlsZSBQcm92aWRlciBTdG9yYWdlIiwiZmlsZUxvY2F0aW9uIjp7IldGRmlsZUxvY2F0aW9uVHlwZSI6IkxvY2FsU3RvcmFnZSIsInJlbGF0aXZlU3VicGF0aCI6IiJ9fQ==
 
-action 'is.workflow.actions.file.createfolder' createKeyFolder(&variable location: 'WFFolder') {"WFFilePath":"Rage Tracker"}
+action 'is.workflow.actions.file.createfolder' createKeyFolder(&variable location: 'WFFolder') {"WFFilePath":"Even"}
 
-action 'is.workflow.actions.documentpicker.open' readSavedDeviceKey(&variable folder: 'WFFile'): text {"WFGetFilePath":"rage-tracker-device-key.txt","WFFileErrorIfNotFound":false,"WFShowFilePicker":false}
+action 'is.workflow.actions.documentpicker.open' readSavedDeviceKey(&variable folder: 'WFFile'): text {"WFGetFilePath":"even-device-key.txt","WFFileErrorIfNotFound":false,"WFShowFilePicker":false}
 
-action 'is.workflow.actions.documentpicker.save' saveDeviceKey(variable key: 'WFInput', &variable folder: 'WFFolder') {"WFFileDestinationPath":"rage-tracker-device-key.txt","WFSaveFileOverwrite":true,"WFAskWhereToSave":false}
+action 'is.workflow.actions.documentpicker.save' saveDeviceKey(variable key: 'WFInput', &variable folder: 'WFFolder') {"WFFileDestinationPath":"even-device-key.txt","WFSaveFileOverwrite":true,"WFAskWhereToSave":false}
 
 const keyFolder = createKeyFolder(onMyIPhone)
 // Running from the app passes the key as input, so nothing needs pasting.
@@ -36,27 +36,27 @@ if providedKeyCount == 0 {
     const savedKeyMatches = matchText('^Bearer [0-9A-Fa-f]{64}$', @credential)
     const savedKeyMatchCount = count(savedKeyMatches)
     if savedKeyMatchCount == 0 {
-        @credential = prompt("Paste your device key from Rage Tracker > Sync")
+        @credential = prompt("Paste your device key from Even > Sync")
     }
 }
 
 // Verify the connection and record the Shortcut's version, even if no health samples are available.
-const handshakeRaw = jsonRequest("https://rage-tracker.bishvili.workers.dev/api/shortcut/hello", "POST", {
-    "shortcutVersion": "2.3.10"
+const handshakeRaw = jsonRequest("https://even.bishvili.workers.dev/api/shortcut/hello", "POST", {
+    "shortcutVersion": "2.4.0"
 }, {"Authorization": "{@credential}"})
 const handshake = getDictionary(handshakeRaw)
 const connectionStatusValue = getValue(handshake, "state")
 const connectionStatus = getText(connectionStatusValue)
 if connectionStatus != "connected" {
-    @credential = prompt("That key didn't work. Paste your device key from Rage Tracker > Sync")
-    const retryRaw = jsonRequest("https://rage-tracker.bishvili.workers.dev/api/shortcut/hello", "POST", {
-        "shortcutVersion": "2.3.10"
+    @credential = prompt("That key didn't work. Paste your device key from Even > Sync")
+    const retryRaw = jsonRequest("https://even.bishvili.workers.dev/api/shortcut/hello", "POST", {
+        "shortcutVersion": "2.4.0"
     }, {"Authorization": "{@credential}"})
     const retry = getDictionary(retryRaw)
     const retryStatusValue = getValue(retry, "state")
     const retryStatus = getText(retryStatusValue)
     if retryStatus != "connected" {
-        alert("That key didn't work. Generate a new one in Rage Tracker > Sync.", "Not connected")
+        alert("That key didn't work. Generate a new one in Even > Sync.", "Not connected")
         stop()
     }
 }
@@ -101,9 +101,9 @@ for event in events {
     const startISO = formatTimestamp(startDate, "Custom", "None", "yyyy-MM-dd'T'HH:mm:ssZZZZZ")
     const endISO = formatTimestamp(endDate, "Custom", "None", "yyyy-MM-dd'T'HH:mm:ssZZZZZ")
 
-    const eventBody = formRequest("https://rage-tracker.bishvili.workers.dev/api/ingest", "POST", {
+    const eventBody = formRequest("https://even.bishvili.workers.dev/api/ingest", "POST", {
         "kind": "calendar",
-        "shortcutVersion": "2.3.10",
+        "shortcutVersion": "2.4.0",
         "title": "{title}",
         "calendar": "{calendarName}",
         "start": "{startISO}",
@@ -133,7 +133,7 @@ const utcOffset = formatDate(today, "Custom", "ZZZZZ")
 // Remove today's events that this run did not send, such as deleted or edited ones.
 const syncStartedValue = getValue(handshake, "receivedAt")
 const syncStarted = getText(syncStartedValue)
-formRequest("https://rage-tracker.bishvili.workers.dev/api/ingest", "POST", {
+formRequest("https://even.bishvili.workers.dev/api/ingest", "POST", {
     "kind": "calendar_complete",
     "date": "{day}",
     "utcOffset": "{utcOffset}",
@@ -159,9 +159,9 @@ if stepsAvailable >= 1 {
         const normalizedSteps = replaceText('(?<=\d)[,\s](?=\d{3}(?:\D|$))', "", totalStepsText, true, true)
         // Keep only the number, because the text form of a Health value can include a unit.
         const stepsValue = replaceText('^\D*(\d+(?:\.\d+)?)[\s\S]*$', "$1", normalizedSteps, true, true)
-        const healthBody = formRequest("https://rage-tracker.bishvili.workers.dev/api/ingest", "POST", {
+        const healthBody = formRequest("https://even.bishvili.workers.dev/api/ingest", "POST", {
             "kind": "health",
-            "shortcutVersion": "2.3.10",
+            "shortcutVersion": "2.4.0",
             "date": "{stepDay}",
             "steps": "{stepsValue}"
         }, {"Authorization": "{@credential}"})
@@ -188,9 +188,9 @@ if restingAvailable >= 1 {
     const restingDay = formatDate(restingDate, "Custom", "yyyy-MM-dd")
     const restingValue = getDailyNumber(restingSamples)
     if restingValue >= 1 {
-        const restingBody = formRequest("https://rage-tracker.bishvili.workers.dev/api/ingest", "POST", {
+        const restingBody = formRequest("https://even.bishvili.workers.dev/api/ingest", "POST", {
             "kind": "health",
-            "shortcutVersion": "2.3.10",
+            "shortcutVersion": "2.4.0",
             "date": "{restingDay}",
             "restingHR": "{restingValue}"
         }, {"Authorization": "{@credential}"})
@@ -212,9 +212,9 @@ if hrvAvailable >= 1 {
     const hrvDay = formatDate(hrvDate, "Custom", "yyyy-MM-dd")
     const hrvValue = getDailyNumber(hrvSamples)
     if hrvValue >= 1 {
-        const hrvBody = formRequest("https://rage-tracker.bishvili.workers.dev/api/ingest", "POST", {
+        const hrvBody = formRequest("https://even.bishvili.workers.dev/api/ingest", "POST", {
             "kind": "health",
-            "shortcutVersion": "2.3.10",
+            "shortcutVersion": "2.4.0",
             "date": "{hrvDay}",
             "hrv": "{hrvValue}"
         }, {"Authorization": "{@credential}"})
@@ -236,9 +236,9 @@ if exerciseAvailable >= 1 {
     const exerciseDay = formatDate(exerciseDate, "Custom", "yyyy-MM-dd")
     const exerciseValue = getDailyNumber(exerciseSamples)
     if exerciseValue >= 1 {
-        const workoutBody = formRequest("https://rage-tracker.bishvili.workers.dev/api/ingest", "POST", {
+        const workoutBody = formRequest("https://even.bishvili.workers.dev/api/ingest", "POST", {
             "kind": "health",
-            "shortcutVersion": "2.3.10",
+            "shortcutVersion": "2.4.0",
             "date": "{exerciseDay}",
             "workoutMin": "{exerciseValue}"
         }, {"Authorization": "{@credential}"})
@@ -275,9 +275,9 @@ if sleepAvailable >= 1 {
     }
     if @sleepMinutes >= 1 {
         const sleepHours = @sleepMinutes / 60
-        const sleepBody = formRequest("https://rage-tracker.bishvili.workers.dev/api/ingest", "POST", {
+        const sleepBody = formRequest("https://even.bishvili.workers.dev/api/ingest", "POST", {
             "kind": "health",
-            "shortcutVersion": "2.3.10",
+            "shortcutVersion": "2.4.0",
             "date": "{day}",
             "sleepHours": "{sleepHours}"
         }, {"Authorization": "{@credential}"})
@@ -290,14 +290,14 @@ if sleepAvailable >= 1 {
     }
 }
 
-showNotification("Synced {@acceptedCount} items. Skipped {@skippedCalendarCount} calendar events.", "Rage Tracker")
+showNotification("Synced {@acceptedCount} items. Skipped {@skippedCalendarCount} calendar events.", "Even")
 
 // Offer an update after syncing; the user approves installation in Apple Shortcuts.
-const releaseBody = downloadURL("https://rage-tracker.bishvili.workers.dev/api/shortcut/release?current=2.3.10", {"Authorization": "{@credential}"})
+const releaseBody = downloadURL("https://even.bishvili.workers.dev/api/shortcut/release?current=2.4.0", {"Authorization": "{@credential}"})
 const releaseInfo = getDictionary(releaseBody)
 const updateStatusValue = getValue(releaseInfo, "updateStatus")
 const updateStatus = getText(updateStatusValue)
 // A notification, because a question would stall a scheduled run.
 if updateStatus == "new_release" {
-    showNotification("A new version is ready in Rage Tracker > Sync.", "Rage Tracker Sync")
+    showNotification("A new version is ready in Even > Sync.", "Even Sync")
 }

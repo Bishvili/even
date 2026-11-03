@@ -2,7 +2,7 @@
 (function(root){
  var DAY_MS=86400000,DAYS=["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
  var MIN_SAMPLES=3,MIN_GAP=0.4,HISTORY_DAYS=56,NEAR_EVENT_MS=5400000,SHORT_SLEEP=6.5;
- var BRIEF_CACHE="rage-tracker-brief",DEFAULT_ACTION="Leave room for a short reset today.";
+ var BRIEF_CACHE="even-brief",DEFAULT_ACTION="Leave room for a short reset today.";
 
  function mean(values){return values.reduce(function(a,b){return a+b;},0)/values.length;}
  function localDay(date){var d=new Date(date);return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");}
@@ -82,8 +82,8 @@
  }
 
  var api={outlook:outlook,patterns:patterns,brief:brief,hardStretch:hardStretch,steadiness:steadiness,reflectionDue:reflectionDue,REFLECTION:REFLECTION};
- root.RageCoach=api;
- if(typeof document==="undefined"||!root.RageTracker)return;
+ root.EvenCoach=api;
+ if(typeof document==="undefined"||!root.EvenApp)return;
 
  var LEVELS={harder:"Tends to be harder",easier:"Tends to be easier",typical:"About average",unknown:"Not enough check-ins"};
  var reflectionSnoozed=false;
@@ -151,8 +151,8 @@
   later.addEventListener("click",function(){reflectionSnoozed=true;$("reflection-dialog").close();$("reflection-prompt").hidden=true;});
   form.addEventListener("submit",function(){
    var answers={};REFLECTION.forEach(function(q){answers[q.id]=Number(form.elements[q.id].value);});
-   form.reset();root.RageTracker.addReflection({ts:new Date().toISOString(),answers:answers});
-   root.RageTracker.toast("Reflection saved.");
+   form.reset();root.EvenApp.addReflection({ts:new Date().toISOString(),answers:answers});
+   root.EvenApp.toast("Reflection saved.");
   });
  }
  function stopBreathing(){if(breathTimer)clearInterval(breathTimer);breathTimer=null;}
@@ -179,5 +179,5 @@
  $("open-reset").addEventListener("click",function(){$("reset-dialog").showModal();startBreathing();});
  $("close-reset").addEventListener("click",function(){$("reset-dialog").close();});
  $("reset-dialog").addEventListener("close",stopBreathing);
- root.RageTracker.refreshCoach();
+ root.EvenApp.refreshCoach();
 })(globalThis);

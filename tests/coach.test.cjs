@@ -2,7 +2,7 @@
 const test=require("node:test");
 const assert=require("node:assert/strict");
 require("../coach.js");
-const {outlook,patterns,brief,hardStretch,steadiness,reflectionDue}=globalThis.RageCoach;
+const {outlook,patterns,brief,hardStretch,steadiness,reflectionDue}=globalThis.EvenCoach;
 const today=new Date(2026,10,3,12);// a Tuesday
 const at=(daysAgo,hour=12)=>{const d=new Date(today);d.setDate(d.getDate()-daysAgo);d.setHours(hour);return d.toISOString();};
 

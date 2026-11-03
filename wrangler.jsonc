@@ -1,5 +1,5 @@
 {
-  "name": "rage-tracker",
+  "name": "even",
   "main": "worker/index.js",
   "compatibility_date": "2026-10-30",
   "triggers": {
@@ -8,14 +8,14 @@
   "kv_namespaces": [
     {
       "binding": "ASSETS",
-      "id": "df672457613b47759360416439d0c7f1"
+      "id": "22aa6c748a8c436cafef2e87b8522c19"
     }
   ],
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "rage-tracker-private",
-      "database_id": "ce89ea59-a3b9-4078-bdf2-cbb49d287e96"
+      "database_name": "even-private",
+      "database_id": "e489c042-ef73-49e3-a332-f28df4371b93"
     }
   ]
 }

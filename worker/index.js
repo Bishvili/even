@@ -1,10 +1,10 @@
-// Rage Tracker: Cloudflare Access passwordless login and owner-scoped device sync.
+// Even: Cloudflare Access passwordless login and owner-scoped device sync.
 // All server tokens are generated randomly, stored only as SHA-256 hashes, and revocable.
 // Only /api/auth/* is protected by Cloudflare Access. All other routes reject
 // unauthenticated sync operations unless a valid, unrevoked device token is supplied.
 const ACCESS_AUD="b15746656eee885f25c4f4b0605491289c01776b8710cc8339fb507f4574f745";
 const ICLOUD_SHORTCUT=/^https:\/\/www\.icloud\.com\/shortcuts\/[a-f0-9]{32}$/i;
-async function canRelease(env,email){return !!await env.DB.prepare("SELECT 1 AS allowed FROM rt_release_emails WHERE email=?").bind(email).first();}
+async function canRelease(env,email){return !!await env.DB.prepare("SELECT 1 AS allowed FROM even_release_emails WHERE email=?").bind(email).first();}
 function approved(env,email){try{return JSON.parse(env.APPROVED_SYNC_EMAILS||"[]").includes(email);}catch(e){return false;}}
 const MIME={"index.html":"text/html; charset=utf-8","styles.css":"text/css; charset=utf-8","app.js":"text/javascript; charset=utf-8","reminders.js":"text/javascript; charset=utf-8","coach.js":"text/javascript; charset=utf-8","sw.js":"text/javascript; charset=utf-8","manifest.webmanifest":"application/manifest+json","icon.svg":"image/svg+xml","icon-192.png":"image/png","icon-512.png":"image/png"};
 const SECURITY={"X-Content-Type-Options":"nosniff","Referrer-Policy":"no-referrer","X-Frame-Options":"DENY","Permissions-Policy":"camera=(), microphone=(), geolocation=()","Content-Security-Policy":"default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'"};
@@ -41,7 +41,7 @@ async function validDevice(request,env){
  const auth=request.headers.get("authorization")||"",match=/^Bearer ([a-f0-9]{64})$/i.exec(auth);
  if(!match)return null;
  const tokenHash=await digest(match[1].toLowerCase());
- const device=await env.DB.prepare("SELECT device_id,owner_email,revoked_at FROM rt_devices WHERE token_hash=?").bind(tokenHash).first();
+ const device=await env.DB.prepare("SELECT device_id,owner_email,revoked_at FROM even_devices WHERE token_hash=?").bind(tokenHash).first();
  if(!device||device.revoked_at||!approved(env,device.owner_email))return null;
  return {id:device.device_id,owner:device.owner_email};
 }
@@ -83,24 +83,24 @@ async function authApi(request,env,ctx,path){
   return new Response(null,{status:303,headers:{...SECURITY,"Cache-Control":"no-store","Location":url.origin+"/?auth=ready#sync"}});
  }
  if(path==="/api/auth/me"&&request.method==="GET"){
-  const r=await env.DB.prepare("SELECT device_id,label,created_at,last_used_at,last_attempt_at,last_error_code,shortcut_version,revoked_at FROM rt_devices WHERE owner_email=? ORDER BY created_at DESC LIMIT 30").bind(email).all();
-  const welcome=await env.DB.prepare("SELECT display_name FROM rt_release_emails WHERE email=? AND display_name IS NOT NULL AND welcomed_at IS NULL").bind(email).first();
+  const r=await env.DB.prepare("SELECT device_id,label,created_at,last_used_at,last_attempt_at,last_error_code,shortcut_version,revoked_at FROM even_devices WHERE owner_email=? ORDER BY created_at DESC LIMIT 30").bind(email).all();
+  const welcome=await env.DB.prepare("SELECT display_name FROM even_release_emails WHERE email=? AND display_name IS NOT NULL AND welcomed_at IS NULL").bind(email).first();
   return reply({ok:true,email,canRelease:await canRelease(env,email),welcomeName:welcome?.display_name||null,devices:(r.results||[]).map(d=>({id:d.device_id,label:d.label,createdAt:d.created_at,lastUsedAt:d.last_used_at,lastAttemptAt:d.last_attempt_at,lastErrorCode:d.last_error_code,shortcutVersion:d.shortcut_version,revoked:!!d.revoked_at}))});
  }
  if(path==="/api/auth/device"){
   if(!browserPostAllowed(request))return error("Same-origin JSON POST required",403);
   let input;try{input=await payload(request);}catch(e){return error("Invalid device request",400);}
   const label=String(input.label||"iPhone").trim().replace(/[\x00-\x1f]/g,"").slice(0,64)||"iPhone";
-  const count=await env.DB.prepare("SELECT COUNT(*) AS count FROM rt_devices WHERE owner_email=? AND revoked_at IS NULL").bind(email).first();
+  const count=await env.DB.prepare("SELECT COUNT(*) AS count FROM even_devices WHERE owner_email=? AND revoked_at IS NULL").bind(email).first();
   if(Number(count?.count||0)>=10)return error("Ten active devices maximum; revoke one first",429);
   const token=secureRandomHex(),deviceId=crypto.randomUUID(),at=new Date().toISOString();
-  await env.DB.prepare("INSERT OR IGNORE INTO rt_users(email,created_at) VALUES(?,?)").bind(email,at).run();
-  await env.DB.prepare("INSERT INTO rt_devices(token_hash,device_id,owner_email,label,created_at) VALUES(?,?,?,?,?)").bind(await digest(token),deviceId,email,label,at).run();
+  await env.DB.prepare("INSERT OR IGNORE INTO even_users(email,created_at) VALUES(?,?)").bind(email,at).run();
+  await env.DB.prepare("INSERT INTO even_devices(token_hash,device_id,owner_email,label,created_at) VALUES(?,?,?,?,?)").bind(await digest(token),deviceId,email,label,at).run();
   return reply({ok:true,email,token,deviceId,label,createdAt:at});
  }
  if(path==="/api/auth/welcomed"){
   if(!browserPostAllowed(request))return error("Same-origin JSON POST required",403);
-  await env.DB.prepare("UPDATE rt_release_emails SET welcomed_at=? WHERE email=? AND welcomed_at IS NULL").bind(new Date().toISOString(),email).run();
+  await env.DB.prepare("UPDATE even_release_emails SET welcomed_at=? WHERE email=? AND welcomed_at IS NULL").bind(new Date().toISOString(),email).run();
   return reply({ok:true});
  }
  if(path==="/api/auth/revoke"){
@@ -108,7 +108,7 @@ async function authApi(request,env,ctx,path){
   let input;try{input=await payload(request);}catch(e){return error("Invalid request");}
   const deviceId=String(input.deviceId||"");
   if(!/^[\w-]{12,80}$/.test(deviceId))return error("Invalid device identifier");
-  const result=await env.DB.prepare("UPDATE rt_devices SET revoked_at=? WHERE device_id=? AND owner_email=? AND revoked_at IS NULL").bind(new Date().toISOString(),deviceId,email).run();
+  const result=await env.DB.prepare("UPDATE even_devices SET revoked_at=? WHERE device_id=? AND owner_email=? AND revoked_at IS NULL").bind(new Date().toISOString(),deviceId,email).run();
   return reply({ok:true,revoked:!!result.meta?.changes});
  }
  return error("Not found",404);
@@ -129,7 +129,7 @@ async function loadShortcutRelease(env){
 async function recordSyncFailure(env,dev,code){
  const allowed=new Set(["invalid_body","invalid_kind","no_valid_records"]);
  if(!allowed.has(code))return;
- await env.DB.prepare("UPDATE rt_devices SET last_attempt_at=?,last_error_code=? WHERE device_id=? AND owner_email=? AND revoked_at IS NULL")
+ await env.DB.prepare("UPDATE even_devices SET last_attempt_at=?,last_error_code=? WHERE device_id=? AND owner_email=? AND revoked_at IS NULL")
   .bind(new Date().toISOString(),code,dev.id,dev.owner).run();
 }
 
@@ -144,8 +144,8 @@ const NO_VALID_RECORDS="No valid records. Check date, metric values, and event s
 async function enabledEvents(env,owner,events){
  const names=[...new Set(events.map(e=>e.calendar).filter(Boolean))];
  if(!names.length)return events;
- await env.DB.batch(names.map(name=>env.DB.prepare("INSERT OR IGNORE INTO rt_calendars(owner_email,name) VALUES(?,?)").bind(owner,name)));
- const off=await env.DB.prepare("SELECT name FROM rt_calendars WHERE owner_email=? AND enabled=0").bind(owner).all();
+ await env.DB.batch(names.map(name=>env.DB.prepare("INSERT OR IGNORE INTO even_calendars(owner_email,name) VALUES(?,?)").bind(owner,name)));
+ const off=await env.DB.prepare("SELECT name FROM even_calendars WHERE owner_email=? AND enabled=0").bind(owner).all();
  const disabled=new Set((off.results||[]).map(c=>c.name));
  return events.filter(e=>!disabled.has(e.calendar));
 }
@@ -163,20 +163,20 @@ function localTime(timeZone,now){
 // Reminders carry no payload, so no personal data passes through the push service.
 async function sendPush(key,endpoint,now){
  const encoder=new TextEncoder(),text=value=>base64url(encoder.encode(JSON.stringify(value)));
- const unsigned=text({typ:"JWT",alg:"ES256"})+"."+text({aud:new URL(endpoint).origin,exp:Math.floor(now.getTime()/1000)+43200,sub:"https://rage-tracker.bishvili.workers.dev"});
+ const unsigned=text({typ:"JWT",alg:"ES256"})+"."+text({aud:new URL(endpoint).origin,exp:Math.floor(now.getTime()/1000)+43200,sub:"https://even.bishvili.workers.dev"});
  const signingKey=await crypto.subtle.importKey("jwk",{kty:"EC",crv:"P-256",d:key.d,x:key.x,y:key.y},{name:"ECDSA",namedCurve:"P-256"},false,["sign"]);
  const signature=new Uint8Array(await crypto.subtle.sign({name:"ECDSA",hash:"SHA-256"},signingKey,encoder.encode(unsigned)));
  return fetch(endpoint,{method:"POST",headers:{"Authorization":`vapid t=${unsigned}.${base64url(signature)}, k=${pushPublicKey(key)}`,"TTL":"3600","Urgency":"normal"}});
 }
 async function sendReminders(env,now=new Date()){
  const key=pushKey(env);if(!key)return;
- const due=await env.DB.prepare("SELECT s.endpoint,s.remind_at,s.time_zone,s.last_sent_day FROM rt_push_subscriptions s JOIN rt_devices d ON d.device_id=s.device_id WHERE d.revoked_at IS NULL").bind().all();
+ const due=await env.DB.prepare("SELECT s.endpoint,s.remind_at,s.time_zone,s.last_sent_day FROM even_push_subscriptions s JOIN even_devices d ON d.device_id=s.device_id WHERE d.revoked_at IS NULL").bind().all();
  for(const sub of due.results||[]){
   const local=localTime(sub.time_zone,now),[hour,minute]=sub.remind_at.split(":").map(Number),target=hour*60+minute;
   if(sub.last_sent_day===local.day||local.minutes<target||local.minutes>=target+60)continue;
   const sent=await sendPush(key,sub.endpoint,now);
-  if(sent.status===404||sent.status===410)await env.DB.prepare("DELETE FROM rt_push_subscriptions WHERE endpoint=?").bind(sub.endpoint).run();
-  else if(sent.ok)await env.DB.prepare("UPDATE rt_push_subscriptions SET last_sent_day=? WHERE endpoint=?").bind(local.day,sub.endpoint).run();
+  if(sent.status===404||sent.status===410)await env.DB.prepare("DELETE FROM even_push_subscriptions WHERE endpoint=?").bind(sub.endpoint).run();
+  else if(sent.ok)await env.DB.prepare("UPDATE even_push_subscriptions SET last_sent_day=? WHERE endpoint=?").bind(local.day,sub.endpoint).run();
  }
 }
 async function syncApi(request,env,path){
@@ -188,7 +188,7 @@ async function syncApi(request,env,path){
   let input;try{input=await payload(request);}catch(e){return error("Invalid release request");}
   const link=String(input?.link||"").trim();
   if(!ICLOUD_SHORTCUT.test(link))return error("A valid Shortcut link is required");
-  const started=await fetch("https://api.github.com/repos/Bishvili/rage-tracker/actions/workflows/routinehub-publish.yml/dispatches",{method:"POST",headers:{"Authorization":"Bearer "+env.GITHUB_API_KEY,"Accept":"application/vnd.github+json","Content-Type":"application/json","User-Agent":"rage-tracker","X-GitHub-Api-Version":"2022-11-28"},body:JSON.stringify({ref:"main",inputs:{icloud_link:link}})});
+  const started=await fetch("https://api.github.com/repos/Bishvili/even/actions/workflows/routinehub-publish.yml/dispatches",{method:"POST",headers:{"Authorization":"Bearer "+env.GITHUB_API_KEY,"Accept":"application/vnd.github+json","Content-Type":"application/json","User-Agent":"even","X-GitHub-Api-Version":"2022-11-28"},body:JSON.stringify({ref:"main",inputs:{icloud_link:link}})});
   return started.status===204?reply({ok:true}):error("Publishing couldn't start",502);
  }
  if(path==="/api/push/key"&&request.method==="GET"){const key=pushKey(env);return reply({ok:true,key:key?pushPublicKey(key):null});}
@@ -197,32 +197,32 @@ async function syncApi(request,env,path){
   const endpoint=pushEndpoint(input?.endpoint),remindAt=String(input?.remindAt||""),timeZone=String(input?.timeZone||"");
   if(!endpoint||!REMIND_AT.test(remindAt))return error("Invalid reminder request");
   try{localTime(timeZone,new Date());}catch(e){return error("Invalid reminder request");}
-  await env.DB.prepare("INSERT INTO rt_push_subscriptions(endpoint,owner_email,device_id,remind_at,time_zone,created_at) VALUES(?,?,?,?,?,?) ON CONFLICT(endpoint) DO UPDATE SET owner_email=excluded.owner_email,device_id=excluded.device_id,remind_at=excluded.remind_at,time_zone=excluded.time_zone,last_sent_day=NULL").bind(endpoint,owner,dev.id,remindAt,timeZone,new Date().toISOString()).run();
+  await env.DB.prepare("INSERT INTO even_push_subscriptions(endpoint,owner_email,device_id,remind_at,time_zone,created_at) VALUES(?,?,?,?,?,?) ON CONFLICT(endpoint) DO UPDATE SET owner_email=excluded.owner_email,device_id=excluded.device_id,remind_at=excluded.remind_at,time_zone=excluded.time_zone,last_sent_day=NULL").bind(endpoint,owner,dev.id,remindAt,timeZone,new Date().toISOString()).run();
   return reply({ok:true});
  }
  if(path==="/api/push/unsubscribe"&&request.method==="POST"){
   let input;try{input=await payload(request);}catch(e){return error("Invalid reminder request");}
-  await env.DB.prepare("DELETE FROM rt_push_subscriptions WHERE endpoint=? AND owner_email=?").bind(String(input?.endpoint||""),owner).run();
+  await env.DB.prepare("DELETE FROM even_push_subscriptions WHERE endpoint=? AND owner_email=?").bind(String(input?.endpoint||""),owner).run();
   return reply({ok:true});
  }
  if(path==="/api/calendars"&&request.method==="GET"){
-  const r=await env.DB.prepare("SELECT name,enabled FROM rt_calendars WHERE owner_email=? ORDER BY name").bind(owner).all();
+  const r=await env.DB.prepare("SELECT name,enabled FROM even_calendars WHERE owner_email=? ORDER BY name").bind(owner).all();
   return reply({ok:true,calendars:(r.results||[]).map(c=>({name:c.name,enabled:!!c.enabled}))});
  }
  if(path==="/api/calendars"&&request.method==="POST"){
   let input;try{input=await payload(request);}catch(e){return error("Invalid calendar request");}
   const name=String(input?.name||"");
   if(!name||name.length>100||typeof input.enabled!=="boolean")return error("Invalid calendar request");
-  const updated=await env.DB.prepare("UPDATE rt_calendars SET enabled=? WHERE owner_email=? AND name=?").bind(input.enabled?1:0,owner,name).run();
+  const updated=await env.DB.prepare("UPDATE even_calendars SET enabled=? WHERE owner_email=? AND name=?").bind(input.enabled?1:0,owner,name).run();
   if(!updated.meta?.changes)return error("Calendar not found",404);
   return reply({ok:true});
  }
  if(path==="/api/profile"&&request.method==="GET")return reply({ok:true,email:owner,deviceId:dev.id});
  if(path==="/api/sync/status"&&request.method==="GET"){
   const [device,h,c]=await Promise.all([
-   env.DB.prepare("SELECT last_used_at,last_attempt_at,last_error_code,shortcut_version FROM rt_devices WHERE device_id=? AND owner_email=? AND revoked_at IS NULL").bind(dev.id,owner).first(),
-   env.DB.prepare("SELECT COUNT(*) AS count FROM rt_health_metrics WHERE owner_email=?").bind(owner).first(),
-   env.DB.prepare("SELECT COUNT(*) AS count FROM rt_calendar_events WHERE owner_email=?").bind(owner).first()
+   env.DB.prepare("SELECT last_used_at,last_attempt_at,last_error_code,shortcut_version FROM even_devices WHERE device_id=? AND owner_email=? AND revoked_at IS NULL").bind(dev.id,owner).first(),
+   env.DB.prepare("SELECT COUNT(*) AS count FROM even_health_metrics WHERE owner_email=?").bind(owner).first(),
+   env.DB.prepare("SELECT COUNT(*) AS count FROM even_calendar_events WHERE owner_email=?").bind(owner).first()
   ]);
   if(!device)return error("This device was revoked",401);
   return reply({ok:true,credentialValid:true,deviceId:dev.id,lastDataUploadAt:device.last_used_at||null,
@@ -242,15 +242,15 @@ async function syncApi(request,env,path){
   const clientVersion=String(body?.shortcutVersion||"").trim();
   if(!/^\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(clientVersion))return error("A valid Shortcut version is required",400);
   const at=new Date().toISOString();
-  await env.DB.prepare("UPDATE rt_devices SET last_attempt_at=?,last_error_code=NULL,shortcut_version=? WHERE device_id=? AND owner_email=? AND revoked_at IS NULL")
+  await env.DB.prepare("UPDATE even_devices SET last_attempt_at=?,last_error_code=NULL,shortcut_version=? WHERE device_id=? AND owner_email=? AND revoked_at IS NULL")
    .bind(at,clientVersion,dev.id,owner).run();
   return reply({ok:true,connected:true,state:"connected",shortcutVersion:clientVersion,receivedAt:at});
  }
 
  if(path==="/api/pull"&&request.method==="GET"){
   const [health,events]=await Promise.all([
-   env.DB.prepare("SELECT day,metric,value FROM rt_health_metrics WHERE owner_email=? ORDER BY day DESC LIMIT 3000").bind(owner).all(),
-   env.DB.prepare("SELECT event_id,start_time,end_time,title,category FROM rt_calendar_events WHERE owner_email=? AND (calendar IS NULL OR calendar NOT IN (SELECT name FROM rt_calendars WHERE owner_email=? AND enabled=0)) ORDER BY start_time DESC LIMIT 1200").bind(owner,owner).all()
+   env.DB.prepare("SELECT day,metric,value FROM even_health_metrics WHERE owner_email=? ORDER BY day DESC LIMIT 3000").bind(owner).all(),
+   env.DB.prepare("SELECT event_id,start_time,end_time,title,category FROM even_calendar_events WHERE owner_email=? AND (calendar IS NULL OR calendar NOT IN (SELECT name FROM even_calendars WHERE owner_email=? AND enabled=0)) ORDER BY start_time DESC LIMIT 1200").bind(owner,owner).all()
   ]);
   const grouped={};for(const h of health.results||[]){
    if(!grouped[h.day])grouped[h.day]={date:h.day,source:"shortcut"};
@@ -271,7 +271,7 @@ async function syncApi(request,env,path){
    if(!day||!/^(Z|[+-]\d{2}:\d{2})$/.test(offset)||!Number.isFinite(started.getTime())||Date.now()-started.getTime()>21600000)return error("Invalid calendar sync details");
    const from=new Date(day+"T00:00:00"+offset);
    const to=new Date(from.getTime()+86400000);
-   const result=await env.DB.prepare("DELETE FROM rt_calendar_events WHERE owner_email=? AND start_time>=? AND start_time<? AND updated_at<?").bind(owner,from.toISOString(),to.toISOString(),started.toISOString()).run();
+   const result=await env.DB.prepare("DELETE FROM even_calendar_events WHERE owner_email=? AND start_time>=? AND start_time<? AND updated_at<?").bind(owner,from.toISOString(),to.toISOString(),started.toISOString()).run();
    return reply({ok:true,state:"reconciled",removed:result.meta?.changes||0});
   }
   if(!["health","calendar","batch"].includes(kind)){
@@ -288,30 +288,30 @@ async function syncApi(request,env,path){
    return error(NO_VALID_RECORDS);
   }
   const at=new Date().toISOString(),statements=[];
-  metrics.forEach(x=>statements.push(env.DB.prepare("INSERT INTO rt_health_metrics(owner_email,day,metric,value,updated_at) VALUES(?,?,?,?,?) ON CONFLICT(owner_email,day,metric) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at").bind(owner,x.day,x.metric,x.value,at)));
+  metrics.forEach(x=>statements.push(env.DB.prepare("INSERT INTO even_health_metrics(owner_email,day,metric,value,updated_at) VALUES(?,?,?,?,?) ON CONFLICT(owner_email,day,metric) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at").bind(owner,x.day,x.metric,x.value,at)));
   for(const e of events){
    const eventId=(await digest(e.start+"|"+e.end+"|"+e.title)).slice(0,40);
-   statements.push(env.DB.prepare("INSERT INTO rt_calendar_events(owner_email,event_id,start_time,end_time,title,category,calendar,updated_at) VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(owner_email,event_id) DO UPDATE SET title=excluded.title,category=excluded.category,calendar=excluded.calendar,updated_at=excluded.updated_at").bind(owner,eventId,e.start,e.end,e.title,e.category,e.calendar,at));
+   statements.push(env.DB.prepare("INSERT INTO even_calendar_events(owner_email,event_id,start_time,end_time,title,category,calendar,updated_at) VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(owner_email,event_id) DO UPDATE SET title=excluded.title,category=excluded.category,calendar=excluded.calendar,updated_at=excluded.updated_at").bind(owner,eventId,e.start,e.end,e.title,e.category,e.calendar,at));
   }
   for(let i=0;i<statements.length;i+=50)await env.DB.batch(statements.slice(i,i+50));
   const claimedVersion=String(input.shortcutVersion||"").trim();
   const clientVersion=/^\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(claimedVersion)?claimedVersion:null;
-  await env.DB.prepare("UPDATE rt_devices SET last_used_at=?,last_attempt_at=?,last_error_code=NULL,shortcut_version=COALESCE(?,shortcut_version) WHERE device_id=? AND owner_email=? AND revoked_at IS NULL")
+  await env.DB.prepare("UPDATE even_devices SET last_used_at=?,last_attempt_at=?,last_error_code=NULL,shortcut_version=COALESCE(?,shortcut_version) WHERE device_id=? AND owner_email=? AND revoked_at IS NULL")
     .bind(at,at,clientVersion,dev.id,owner).run();
   return reply({ok:true,state:"accepted",receivedAt:at,kind,healthMetrics:metrics.length,calendarEvents:events.length,shortcutVersion:clientVersion});
  }
  if(path==="/api/erase"&&request.method==="POST"){
   await env.DB.batch([
-   env.DB.prepare("DELETE FROM rt_health_metrics WHERE owner_email=?").bind(owner),
-   env.DB.prepare("DELETE FROM rt_calendar_events WHERE owner_email=?").bind(owner),
-   env.DB.prepare("DELETE FROM rt_calendars WHERE owner_email=?").bind(owner)
+   env.DB.prepare("DELETE FROM even_health_metrics WHERE owner_email=?").bind(owner),
+   env.DB.prepare("DELETE FROM even_calendar_events WHERE owner_email=?").bind(owner),
+   env.DB.prepare("DELETE FROM even_calendars WHERE owner_email=?").bind(owner)
   ]);
   return reply({ok:true,erased:true,email:owner});
  }
  return error("Not found",404);
 }
 async function api(request,env,ctx,path){
- if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:"Rage Tracker",version:"1.16.0",sync:"email-access"});
+ if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:"Even",version:"2.0.0",sync:"email-access"});
  if(path.startsWith("/api/auth/"))return authApi(request,env,ctx,path);
  return syncApi(request,env,path);
 }

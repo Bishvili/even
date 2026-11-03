@@ -1,6 +1,6 @@
-# Rage Tracker — Engineering Guide
+# Even — Engineering Guide
 
-This file is the operating guide for changes to the Rage Tracker codebase. Follow it before editing the UI, Worker, database, tests, or deployment configuration.
+This file is the operating guide for changes to the Even codebase. Follow it before editing the UI, Worker, database, tests, or deployment configuration.
 
 ## Onboarding a new developer
 
@@ -11,7 +11,7 @@ The first time someone points you at this repository, before starting other work
 | Dependency | Needed for | Required? |
 | --- | --- | --- |
 | `.agents/skills/ios-pwa-frontend/SKILL.md` | All UI and copy changes. It ships with this repository, so there is nothing to install. Read it directly. | Yes |
-| GitHub access to `Bishvili/rage-tracker` with push rights | Code changes, running workflows, reading build results | Yes |
+| GitHub access to `Bishvili/even` with push rights | Code changes, running workflows, reading build results | Yes |
 | Cloudflare connection with access to the Bishvili account | Checking the Worker and querying the D1 database | Recommended |
 | RoutineHub connection | Reading the account's listings. It cannot add a version to an existing Shortcut, so releases use the GitHub workflow. | Optional |
 | An iPhone with the Shortcuts app | Testing the Shortcut and creating iCloud links, which nothing else can do | For Shortcut work |
@@ -22,20 +22,20 @@ No other skill is required. Compiling and signing the Shortcut happens in GitHub
 
 The repository owner grants these, using the new developer's own accounts:
 
-1. **GitHub:** add them as a collaborator on `Bishvili/rage-tracker` with write access.
+1. **GitHub:** add them as a collaborator on `Bishvili/even` with write access.
 2. **Cloudflare:** invite them to the Bishvili account with access to Workers, KV, and D1. Pushes deploy through Workers Builds, so this is not needed just to deploy.
 3. **App sign-in:** to let them use Sync, add their email to the Cloudflare Access policy and to the `APPROVED_SYNC_EMAILS` Worker secret. Sign-in fails until both include it.
-4. **Releases:** add their email to the `rt_release_emails` D1 table. Set `display_name` to welcome them on first sign-in with a guide to improving the site.
+4. **Releases:** add their email to the `even_release_emails` D1 table. Set `display_name` to welcome them on first sign-in with a guide to improving the site.
 5. **RoutineHub:** releases use the `ROUTINEHUB_API_KEY` repository secret, so they can publish through the workflow without their own key. Only share the listing's RoutineHub account deliberately.
 
 ### Developer steps
 
 1. **Connect GitHub** in Claude, and confirm push access without writing anything: listing the repository's collaborators shows their role (`write`, `maintain`, or `admin`), and GitHub only returns that list to accounts with push access. Do not create or push a branch to test access. All work goes to `main`; if a session starts on another branch, switch to `main` before committing.
-2. **Connect Cloudflare** in Claude and select the Bishvili account. It should list one Worker, `rage-tracker`. The older Workers Bindings server is deprecated in favor of `https://mcp.cloudflare.com/mcp`.
+2. **Connect Cloudflare** in Claude and select the Bishvili account. It should list one Worker, `even`. The older Workers Bindings server is deprecated in favor of `https://mcp.cloudflare.com/mcp`.
 3. **Optionally connect RoutineHub** using an API key from their own RoutineHub account, under **Settings → API**. It will only show listings that account owns. In cloud sessions, add it as a Claude connector, because `routinehub.co` is not on the default network allowlist.
 4. **Run the tests:** `node --test tests/*.test.cjs`.
-5. **To release Shortcuts:** in Rage Tracker → **Sync**, use **Set Up Release Helper**, then **Run Release Helper**. The card appears for accounts listed in `rt_release_emails`, and **Improve This Site with Claude** opens a new session on this repository that starts with this onboarding. See [RoutineHub releases](shortcuts/ROUTINEHUB_RELEASE.md).
-6. **To test Sync:** generate their own device key in Rage Tracker → **Sync**. Keys belong to one account, so never reuse someone else's.
+5. **To release Shortcuts:** in Even → **Sync**, use **Set Up Release Helper**, then **Run Release Helper**. The card appears for accounts listed in `even_release_emails`, and **Improve This Site with Claude** opens a new session on this repository that starts with this onboarding. See [RoutineHub releases](shortcuts/ROUTINEHUB_RELEASE.md).
+6. **To test Sync:** generate their own device key in Even → **Sync**. Keys belong to one account, so never reuse someone else's.
 
 ### What to know before changing anything
 
@@ -49,7 +49,7 @@ The repository owner grants these, using the new developer's own accounts:
 
 **Working mode:** iterate quickly. Commit directly to `main`, without feature branches, waiting on CI, or approval steps. The interface should still look and read like a finished App Store app.
 
-Rage Tracker, shown to people as **Even**, is an iPhone-first, installable progressive web app for quick mood check-ins and useful context from calendars and selected health metrics. Hold the interface to the finish, consistency, speed, and restraint of a popular App Store app, while remaining truthful about web-platform capabilities.
+Even is an iPhone-first, installable progressive web app for quick mood check-ins and useful context from calendars and selected health metrics. Hold the interface to the finish, consistency, speed, and restraint of a popular App Store app, while remaining truthful about web-platform capabilities.
 
 - A check-in should take seconds. The interface must work while offline.
 - Personal mood check-ins and notes are local to the device unless a future feature explicitly changes this with consent.
@@ -92,7 +92,7 @@ Current UI is plain JavaScript and CSS. Do not rewrite it merely to adopt a fram
 **Read .agents/skills/ios-pwa-frontend/SKILL.md for every UI or interaction change.**
 
 - Design for installed iPhone use first, then support Safari tabs, iPad, desktop, and narrower accessibility settings.
-- Follow the platform's navigation, safe-area, typography, touch, keyboard, sheet, and focus conventions while retaining a distinct Rage Tracker identity.
+- Follow the platform's navigation, safe-area, typography, touch, keyboard, sheet, and focus conventions while retaining a distinct Even identity.
 - Prefer system fonts and a small set of coherent design tokens. Use existing, accessible icon and component libraries where they reduce work, not to create dependency bloat.
 - Make loading, success, failure, offline, empty, permission-denied, and disconnected states first-class.
 - Preserve accessibility, reduced-motion settings, dark-mode legibility, Dynamic Type/text scaling, and comfortable minimum touch targets.

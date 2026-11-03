@@ -1,8 +1,8 @@
 (function () {
 "use strict";
-var VERSION = "1.16.0";
+var VERSION = "2.0.0";
 var SHORTCUT_PAGE = "https://routinehub.co/shortcut/26978/";
-var STORAGE_KEY = "rage-tracker:v1";
+var STORAGE_KEY = "even:v1";
 var MOOD_NAMES = ["","Rough","Low","Okay","Good","Great"];
 var MOOD_EMOJI = ["","😣","😕","😐","🙂","😄"];
 var ENERGY_NAMES = ["","Very low","Low","Medium","High","Very high"];
@@ -40,7 +40,7 @@ function navigate(view){if(!["checkin","insights","sources","sync","settings"].i
  if(location.hash!=="#"+view)history.replaceState(null,"","#"+view);
  window.scrollTo(0,0);render();
 }
-function refreshCoach(){if(globalThis.RageCoach&&globalThis.RageCoach.render)globalThis.RageCoach.render({moods:state.moods,events:state.events,health:state.health,reflections:state.reflections,scope:insightScope});}
+function refreshCoach(){if(globalThis.EvenCoach&&globalThis.EvenCoach.render)globalThis.EvenCoach.render({moods:state.moods,events:state.events,health:state.health,reflections:state.reflections,scope:insightScope});}
 function render(){
  $("date-label").textContent=formatPrettyDate(now()).toUpperCase();
  $("current-time").textContent=formatTime(now());
@@ -349,14 +349,14 @@ async function importCalendar(file){
  }catch(e){toast("Could not import the calendar file.");}
 }
 function exportBackup(){
- var data={app:"Rage Tracker",version:VERSION,account:state.syncOwnerEmail||null,exportedAt:new Date().toISOString(),moods:state.moods,health:state.health,events:state.events,reflections:state.reflections};
+ var data={app:"Even",version:VERSION,account:state.syncOwnerEmail||null,exportedAt:new Date().toISOString(),moods:state.moods,health:state.health,events:state.events,reflections:state.reflections};
  var blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"}),url=URL.createObjectURL(blob),a=document.createElement("a");
  a.href=url;a.download="even-backup-"+dateKey(now())+".json";document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(url);},2000);
  toast("Backup downloaded. Store it securely; it is not encrypted.");
 }
 async function restoreBackup(file){
  if(!file||file.size>7e6){toast("Select a backup under 7 MB.");return;}
- try{var data=JSON.parse(await file.text());if(data.app!=="Rage Tracker"||!Array.isArray(data.moods)||!Array.isArray(data.health)||!Array.isArray(data.events))throw Error("Not a backup");
+ try{var data=JSON.parse(await file.text());if((data.app!=="Even"&&data.app!=="Rage Tracker")||!Array.isArray(data.moods)||!Array.isArray(data.health)||!Array.isArray(data.events))throw Error("Not a backup");
  if(data.account&&state.syncOwnerEmail&&data.account!==state.syncOwnerEmail)throw Error("This backup belongs to another account");
  if(!confirm("Replace locally saved mood, health and calendar data with this backup? Your sync pairing will remain."))return;
  state.reflections=Array.isArray(data.reflections)?data.reflections.slice(-200):[];
@@ -495,9 +495,9 @@ async function checkShortcutUpload(silent){
   if(data.deviceId!==state.deviceId)throw Error("The server returned a different device.");
   shortcutStatus=data;
   if(!silent){
-   if(data.lastErrorCode)renderSyncDiagnostic(syncErrorLabel(data.lastErrorCode)+" Run Rage Tracker Sync again.","error");
+   if(data.lastErrorCode)renderSyncDiagnostic(syncErrorLabel(data.lastErrorCode)+" Run Even Sync again.","error");
    else if(data.lastDataUploadAt)renderSyncDiagnostic("Connected. Last upload "+formatDate(data.lastDataUploadAt)+" at "+formatTime(data.lastDataUploadAt)+". Tap Sync now to bring it in.","success");
-   else renderSyncDiagnostic("Connected, but no data has arrived yet. Run Rage Tracker Sync.","error");
+   else renderSyncDiagnostic("Connected, but no data has arrived yet. Run Even Sync.","error");
   }
  }catch(err){
   if(!silent)renderSyncDiagnostic(err.message||"Couldn’t check the connection. Try again.","error");
@@ -562,9 +562,9 @@ async function revokeDevice(id){
  }catch(e){toast(e.message||"Could not revoke the device.");}
 }
 var shortcutRunPending=false;
-function runShortcut(){shortcutRunPending=true;window.location.href="shortcuts://run-shortcut?name=Rage%20Tracker%20Sync&input=text&text="+encodeURIComponent("Bearer "+state.token);}
+function runShortcut(){shortcutRunPending=true;window.location.href="shortcuts://run-shortcut?name=Even%20Sync&input=text&text="+encodeURIComponent("Bearer "+state.token);}
 function syncNow(){
- if(state.token&&confirm("Run Rage Tracker Sync first to send today’s data?"))runShortcut();
+ if(state.token&&confirm("Run Even Sync first to send today’s data?"))runShortcut();
  else pull(false);
 }
 async function pull(silent){
@@ -638,6 +638,6 @@ function init(){
  document.addEventListener("visibilitychange",function(){if(!document.hidden){refreshAuth();if(state.token){loadShortcutRelease();loadCalendars();checkShortcutUpload(true);if(shortcutRunPending){shortcutRunPending=false;pull(false);}else if(!state.lastSync||Date.now()-state.lastSync>900000)pull(true);}}});
  if("serviceWorker" in navigator){window.addEventListener("load",function(){navigator.serviceWorker.register("/sw.js").catch(function(){});});}
 }
-globalThis.RageTracker={refreshCoach:refreshCoach,addReflection:function(r){state.reflections.push(r);if(persist())render();},toast:toast,formatTime:formatTime,deviceToken:function(){return state.token;}};
+globalThis.EvenApp={refreshCoach:refreshCoach,addReflection:function(r){state.reflections.push(r);if(persist())render();},toast:toast,formatTime:formatTime,deviceToken:function(){return state.token;}};
 init();
 })();

@@ -1,8 +1,8 @@
 // Home Screen install prompt and daily check-in reminders.
 (function(){
- var app=window.RageTracker,toast=app.toast;
+ var app=window.EvenApp,toast=app.toast;
  function $(id){return document.getElementById(id);}
- var SETTINGS_KEY="rage-tracker-reminder",NUDGE_GAP=3*24*60*60*1000;
+ var SETTINGS_KEY="even-reminder",NUDGE_GAP=3*24*60*60*1000;
  var settings=readSettings(),installEvent=null;
 
  function readSettings(){try{return Object.assign({on:false,time:"08:30",nudgedAt:0},JSON.parse(localStorage.getItem(SETTINGS_KEY)||"{}"));}catch(e){return{on:false,time:"08:30",nudgedAt:0};}}

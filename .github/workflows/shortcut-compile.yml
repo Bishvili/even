@@ -52,13 +52,13 @@ jobs:
         run: |
           git clone --depth 1 --branch v2.3.0 https://github.com/electrikmilk/cherri.git /tmp/cherri-source
           (cd /tmp/cherri-source && go build -trimpath -o /tmp/cherri-compiler .)
-      - name: Compile Rage Tracker Sync without remote signing
+      - name: Compile Even Sync without remote signing
         run: |
-          /tmp/cherri-compiler shortcuts/rage-tracker-sync.cherri --debug --skip-sign --output=/tmp/rage-tracker-compiled.shortcut
+          /tmp/cherri-compiler shortcuts/even-sync.cherri --debug --skip-sign --output=/tmp/even-compiled.shortcut
       - name: Verify generated Shortcut plist and conditional values
         run: |
           find . -type f -name '*.plist' -print
-          PLIST="$(find . -type f -name 'Rage Tracker Sync.plist' -print -quit)"
+          PLIST="$(find . -type f -name 'Even Sync.plist' -print -quit)"
           test -n "$PLIST"
           test -s "$PLIST"
           python3 scripts/check-shortcut-conditions.py "$PLIST"
