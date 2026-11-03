@@ -1,6 +1,6 @@
 (function () {
 "use strict";
-var VERSION = "1.12.4";
+var VERSION = "1.12.5";
 var SHORTCUT_PAGE = "https://routinehub.co/shortcut/26978/";
 var STORAGE_KEY = "rage-tracker:v1";
 var MOOD_NAMES = ["","Rough","Low","Okay","Good","Great"];
@@ -73,7 +73,7 @@ function renderSources(){
  var all=hs.concat(cs).filter(function(x){return !isNaN(new Date(x.ts).getTime());}).sort(function(a,b){return new Date(b.ts)-new Date(a.ts);});
  $("context-count").textContent=all.length+" items";
  $("context-list").innerHTML=all.length?all.slice(0,12).map(function(x){
- if(x.kind==="health"){var h=x.h, summary=[h.sleepHours!=null?h.sleepHours+"h sleep":"",h.steps!=null?h.steps.toLocaleString()+" steps":"",h.hrv!=null?h.hrv+"ms HRV":""].filter(Boolean).join(" · ");
+ if(x.kind==="health"){var h=x.h, summary=[h.sleepHours!=null?Math.round(h.sleepHours*10)/10+"h sleep":"",h.steps!=null?h.steps.toLocaleString()+" steps":"",h.hrv!=null?Math.round(h.hrv)+" ms HRV":"",h.restingHR!=null?Math.round(h.restingHR)+" bpm resting":"",h.workoutMin!=null?Math.round(h.workoutMin)+" min exercise":""].filter(Boolean).join(" · ");
  return '<div class="entry"><span class="entry-emoji">♥</span><div class="entry-main"><strong>Health · '+esc(h.date)+'</strong><small>'+esc(summary||"Health day")+(h.demo?" · DEMO":"")+'</small></div><button class="entry-delete" aria-label="Delete health day" data-delete-health="'+esc(h.date)+'">×</button></div>';}
  var e=x.e;
  return '<div class="entry"><span class="entry-emoji">▦</span><div class="entry-main"><strong>'+esc(e.title||"Calendar event")+'</strong><small>'+esc(formatDate(e.start)+" "+formatTime(e.start)+" · "+e.category+(e.demo?" · DEMO":""))+'</small></div><button class="entry-delete" aria-label="Delete calendar event" data-delete-event="'+esc(e.id)+'">×</button></div>';
@@ -106,7 +106,7 @@ function renderSync(){
  var canInstall=paired&&accountMatches&&navigator.onLine;
  var publishedRelease=release&&release.url&&release.verified?release:null;
  install.hidden=!canInstall;
- $("run-shortcut").hidden=!paired||mismatch||!shortcutStatus||!shortcutStatus.installedShortcutVersion||compareVersions(shortcutStatus.installedShortcutVersion,"2.3.3")<0;
+ $("run-shortcut").hidden=!paired||mismatch||!!(shortcutStatus&&shortcutStatus.installedShortcutVersion&&compareVersions(shortcutStatus.installedShortcutVersion,"2.3.3")<0);
  if(canInstall){install.href=publishedRelease?publishedRelease.url:SHORTCUT_PAGE;install.removeAttribute("aria-disabled");install.removeAttribute("tabindex");}
  else{install.removeAttribute("href");install.setAttribute("aria-disabled","true");install.setAttribute("tabindex","-1");}
  $("shortcut-release-version").textContent=shortcutStatus&&shortcutStatus.installedShortcutVersion?"Connected · v"+shortcutStatus.installedShortcutVersion:"Not connected";
@@ -446,7 +446,7 @@ async function setCalendar(name,box){
  try{
   var r=await fetch("/api/calendars",{method:"POST",headers:{"Authorization":"Bearer "+state.token,"Content-Type":"application/json"},body:JSON.stringify({name:name,enabled:enabled}),cache:"no-store"});
   if(!r.ok)throw Error("Calendar not updated");
-  pull(true);
+  toast(name+(enabled?" is on.":" is off."));pull(true);
  }catch(e){box.checked=!enabled;toast("Couldn’t update that calendar.");}
  finally{box.disabled=false;}
 }
@@ -544,6 +544,12 @@ async function revokeDevice(id){
   await refreshAuth();render();toast("Device key revoked. Personal records remain on this iPhone.");
  }catch(e){toast(e.message||"Could not revoke the device.");}
 }
+var shortcutRunPending=false;
+function runShortcut(){shortcutRunPending=true;window.location.href="shortcuts://run-shortcut?name=Rage%20Tracker%20Sync&input=text&text="+encodeURIComponent("Bearer "+state.token);}
+function syncNow(){
+ if(state.token&&confirm("Run Rage Tracker Sync first to send today’s data?"))runShortcut();
+ else pull(false);
+}
 async function pull(silent){
  if(!state.token){if(!silent)toast("Sign in and generate a device key first.");return;}
  var button=$("pull-button");button.disabled=true;button.textContent="Syncing…";
@@ -553,7 +559,8 @@ async function pull(silent){
   if(r.status===401){state.token="";state.deviceId="";shortcutStatus=null;shortcutRelease=null;persist();render();throw Error("Device key expired or revoked. Sign in to reconnect.");}
   if(!r.ok)throw Error(body.error||"Sync failed");
   if(!body.email||body.email!==state.syncOwnerEmail)throw Error("Account mismatch. Nothing was imported.");
-  var h=0,e=0;(body.health||[]).forEach(function(x){var v=normalizeHealth(x,"shortcut");if(v){upsertHealth(v);h++;}});
+  var serverHealth=body.health||[];if(serverHealth.length<600)state.health=state.health.filter(function(x){return x.source!=="shortcut";});
+  var h=0,e=0;serverHealth.forEach(function(x){var v=normalizeHealth(x,"shortcut");if(v){upsertHealth(v);h++;}});
   (body.events||[]).forEach(function(x){var v=normalizeEvent(x,"shortcut");if(v){upsertEvent(v);e++;}});
   var serverEvents=body.events||[],serverIds={},oldest=null;
   serverEvents.forEach(function(x){serverIds[x.id]=true;if(!oldest||x.start<oldest)oldest=x.start;});
@@ -593,7 +600,7 @@ function init(){
  $("install-shortcut").addEventListener("click",function(e){if(!state.token||!shortcutRelease||!this.href){e.preventDefault();toast("Connect your device to open the current Shortcut.");}});
  $("check-shortcut-upload").addEventListener("click",function(){checkShortcutUpload(false);});
  $("device-list").addEventListener("click",function(e){var b=e.target.closest("[data-revoke-device]");if(b)revokeDevice(b.dataset.revokeDevice);});
- $("pull-button").addEventListener("click",function(){pull(false);});
+ $("pull-button").addEventListener("click",syncNow);$("run-shortcut").addEventListener("click",function(event){event.preventDefault();runShortcut();});
  $("unpair-button").addEventListener("click",function(){if(state.deviceId)revokeDevice(state.deviceId);});
  document.querySelectorAll("[data-copy]").forEach(function(b){b.addEventListener("click",function(){
   if(b.dataset.copy==="token"&&authEmail&&authEmail!==state.syncOwnerEmail){
@@ -609,7 +616,7 @@ function init(){
  if(navigator.onLine)refreshAuth();
  if(state.token&&navigator.onLine){loadShortcutRelease();loadCalendars();checkShortcutUpload(true);pull(true);}
  window.addEventListener("online",function(){refreshAuth();if(state.token){loadShortcutRelease();loadCalendars();checkShortcutUpload(true);pull(true);}});
- document.addEventListener("visibilitychange",function(){if(!document.hidden){refreshAuth();if(state.token){loadShortcutRelease();loadCalendars();checkShortcutUpload(true);if(!state.lastSync||Date.now()-state.lastSync>900000)pull(true);}}});
+ document.addEventListener("visibilitychange",function(){if(!document.hidden){refreshAuth();if(state.token){loadShortcutRelease();loadCalendars();checkShortcutUpload(true);if(shortcutRunPending){shortcutRunPending=false;pull(false);}else if(!state.lastSync||Date.now()-state.lastSync>900000)pull(true);}}});
  if("serviceWorker" in navigator){window.addEventListener("load",function(){navigator.serviceWorker.register("/sw.js").catch(function(){});});}
 }
 init();

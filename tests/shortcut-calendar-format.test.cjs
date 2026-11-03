@@ -33,6 +33,6 @@ test("Health data normalizes grouped step totals before uploading",()=>{
 });
 
 test("the device handshake and every upload report the Shortcut version",()=>{
- assert.equal((source.match(/"shortcutVersion": "2\.3\.8"/g)||[]).length,8);
- assert.match(source,/\/api\/shortcut\/release\?current=2\.3\.8/);
+ assert.equal((source.match(/"shortcutVersion": "2\.3\.9"/g)||[]).length,8);
+ assert.match(source,/\/api\/shortcut\/release\?current=2\.3\.9/);
 });

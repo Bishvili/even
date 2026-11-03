@@ -33,6 +33,7 @@ test("API returns text outcomes and release requires verification",()=>{
 test("Shortcut checks explicit typed values",()=>{
  const cond=[...shortcut.matchAll(/^\s*if ([^\n]+)\{$/gm)].map(x=>x[1].trim());
  assert.deepEqual(cond,[
+  'providedKeyCount == 0',
   'savedKeyMatchCount == 0',
   'connectionStatus != "connected"',
   'retryStatus != "connected"',
