@@ -77,6 +77,7 @@ Read the relevant files before changing behavior:
 | Application UI and analysis | index.html, app.js, styles.css | Check-ins, client-side state, calendar/health insights |
 | Install and offline support | manifest.webmanifest, sw.js, icon assets | Home Screen integration, cache management |
 | Install prompt and reminders | reminders.js, sw.js | Home Screen prompt, daily check-in reminders |
+| Coaching | coach.js | Stress outlook, patterns, daily brief, reset exercise |
 | Edge API | worker/index.js | Authentication boundaries, device credentials, ingestion and retrieval |
 | Data model | db/schema.sql | D1 owner-scoped health, calendar, user, and device records |
 | Cloud configuration | wrangler.jsonc | Worker, KV assets, and D1 bindings |

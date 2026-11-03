@@ -5,7 +5,7 @@
  var SETTINGS_KEY="rage-tracker-reminder",NUDGE_GAP=3*24*60*60*1000;
  var settings=readSettings(),installEvent=null;
 
- function readSettings(){try{return Object.assign({on:false,time:"20:00",nudgedAt:0},JSON.parse(localStorage.getItem(SETTINGS_KEY)||"{}"));}catch(e){return{on:false,time:"20:00",nudgedAt:0};}}
+ function readSettings(){try{return Object.assign({on:false,time:"08:30",nudgedAt:0},JSON.parse(localStorage.getItem(SETTINGS_KEY)||"{}"));}catch(e){return{on:false,time:"08:30",nudgedAt:0};}}
  function saveSettings(){try{localStorage.setItem(SETTINGS_KEY,JSON.stringify(settings));}catch(e){}}
  function isInstalled(){return window.navigator.standalone===true||window.matchMedia("(display-mode: standalone)").matches;}
  function isIOS(){return /iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);}

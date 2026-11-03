@@ -1,6 +1,6 @@
-const CACHE="rage-tracker-shell-v1.14.1";const SHELL=["/","/index.html","/styles.css","/app.js","/reminders.js","/manifest.webmanifest","/icon.svg","/icon-192.png","/icon-512.png"];
+const BRIEF="rage-tracker-brief";const CACHE="rage-tracker-shell-v1.15.0";const SHELL=["/","/index.html","/styles.css","/app.js","/reminders.js","/coach.js","/manifest.webmanifest","/icon.svg","/icon-192.png","/icon-512.png"];
 self.addEventListener("install",event=>{event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(SHELL)).then(()=>self.skipWaiting()));});
-self.addEventListener("activate",event=>{event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));});
+self.addEventListener("activate",event=>{event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE&&k!==BRIEF).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));});
 self.addEventListener("fetch",event=>{
  const request=event.request;const url=new URL(request.url);
  if(request.method!=="GET"||url.origin!==self.location.origin||url.pathname.startsWith("/api/"))return;
@@ -10,7 +10,11 @@ self.addEventListener("fetch",event=>{
  return cached||online;
  }));
 });
-self.addEventListener("push",event=>{event.waitUntil(self.registration.showNotification("Rage Tracker",{body:"How are you feeling?",icon:"/icon-192.png",tag:"check-in"}));});
+function todaysBrief(){
+ const now=new Date(),day=now.getFullYear()+"-"+String(now.getMonth()+1).padStart(2,"0")+"-"+String(now.getDate()).padStart(2,"0");
+ return caches.open(BRIEF).then(c=>c.match("/brief")).then(r=>r?r.json():{}).then(b=>b[day]||"How are you feeling?").catch(()=>"How are you feeling?");
+}
+self.addEventListener("push",event=>{event.waitUntil(todaysBrief().then(body=>self.registration.showNotification("Rage Tracker",{body,icon:"/icon-192.png",tag:"check-in"})));});
 self.addEventListener("notificationclick",event=>{
  event.notification.close();
  event.waitUntil(self.clients.matchAll({type:"window",includeUncontrolled:true}).then(windows=>{

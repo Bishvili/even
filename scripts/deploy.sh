@@ -5,7 +5,7 @@ set -eu
 NAMESPACE_ID=df672457613b47759360416439d0c7f1
 WRANGLER="npx --yes wrangler@4"
 
-for file in index.html styles.css app.js reminders.js sw.js manifest.webmanifest icon.svg; do
+for file in index.html styles.css app.js reminders.js coach.js sw.js manifest.webmanifest icon.svg; do
   $WRANGLER kv key put "asset:$file" --path "$file" --namespace-id "$NAMESPACE_ID" --remote
 done
 

@@ -16,6 +16,7 @@
   <title>Rage Tracker · Find your patterns</title>
   <script src="/app.js" defer></script>
   <script src="/reminders.js" defer></script>
+  <script src="/coach.js" defer></script>
 </head>
 <body>
  <div class="app">
@@ -33,6 +34,12 @@
     <div class="intro">
      <h1 id="checkin-title">How are you <em>feeling?</em></h1>
     </div>
+    <section class="today-brief" aria-labelledby="today-title">
+     <h2 id="today-title">Today</h2>
+     <p id="today-brief-text"></p>
+     <button type="button" class="btn secondary" id="open-reset">Take a minute</button>
+    </section>
+    <div class="hard-stretch" id="hard-stretch" role="note" hidden>It’s been a hard few days. Talking to someone can help. <a href="#settings" data-go="settings">Find support</a></div>
     <div class="card mood-card">
      <div class="card-top"><span class="mini-heading">RIGHT NOW</span><span class="muted" id="current-time">—</span></div>
      <div class="mood-grid" role="group" aria-label="Choose your mood">
@@ -41,6 +48,10 @@
       <button class="mood-choice" type="button" data-mood="3" aria-pressed="false"><span class="mood-emoji">😐</span><span>Okay</span></button>
       <button class="mood-choice" type="button" data-mood="4" aria-pressed="false"><span class="mood-emoji">🙂</span><span>Good</span></button>
       <button class="mood-choice" type="button" data-mood="5" aria-pressed="false"><span class="mood-emoji">😄</span><span>Great</span></button>
+     </div>
+     <div class="field-row"><span>Stress <span class="hint">optional</span></span></div>
+     <div class="stress-grid" role="group" aria-label="Choose your stress level">
+      <button type="button" class="tag" data-stress="1" aria-pressed="false">Calm</button><button type="button" class="tag" data-stress="2" aria-pressed="false">Mild</button><button type="button" class="tag" data-stress="3" aria-pressed="false">Some</button><button type="button" class="tag" data-stress="4" aria-pressed="false">High</button><button type="button" class="tag" data-stress="5" aria-pressed="false">Very high</button>
      </div>
      <div class="field-row"><label for="energy">Energy level <span class="hint">optional</span></label><span id="energy-label" class="field-value">3 · Medium</span></div>
      <input type="range" id="energy" min="1" max="5" step="1" value="3" aria-label="Energy from one to five">
@@ -76,6 +87,10 @@
      <span>All values here are fictional. Compare moods before and after calendar events, then switch to My data for your real patterns.</span>
     </div>
     <div class="range-switch" role="group" aria-label="Time range"><button data-days="7">7 days</button><button data-days="30" class="selected">30 days</button><button data-days="90">90 days</button></div>
+    <div class="section-heading"><h2>Your week</h2><span class="muted">Based on your stress ratings</span></div>
+    <div class="card" id="week-outlook"></div>
+    <div class="section-heading"><h2>What tends to go with stress</h2></div>
+    <div class="card" id="stress-patterns"></div>
     <div class="card insight-hero">
      <div class="mini-heading">MOOD OVER TIME</div>
      <div class="insight-score"><strong id="insight-average">—</strong><span id="insight-samples">No check-ins yet</span></div>
@@ -219,16 +234,23 @@
    <section id="view-settings" class="view" aria-labelledby="settings-title">
     <h1 class="page-title" id="settings-title">Settings</h1>
     <section class="card" aria-labelledby="reminder-title">
-     <h2 id="reminder-title">Daily reminder</h2>
+     <h2 id="reminder-title">Daily brief and reminder</h2>
      <p class="muted" id="reminder-note"></p>
      <div class="calendar-list">
-      <label class="calendar-row"><span>Remind me to check in</span><input type="checkbox" role="switch" id="reminder-toggle"></label>
+      <label class="calendar-row"><span>Send my brief and check-in reminder</span><input type="checkbox" role="switch" id="reminder-toggle"></label>
       <label class="calendar-row"><span>Time</span><input type="time" id="reminder-time"></label>
      </div>
     </section>
     <div class="card"><h2>Your local data</h2><p class="muted">Mood check-ins, notes and locally imported health/calendar data stay in this app's storage on this device. Clearing site data or deleting the Home Screen app may erase them.</p><div class="settings-meta" id="storage-summary"></div><button class="btn secondary full" id="backup-button">Download backup</button><label class="file-label">Restore from backup <input type="file" id="restore-input" accept="application/json,.json"></label><button class="btn danger full" id="erase-local">Erase all data on this device</button></div>
     
-    <div class="card"><h2>About the insights</h2><p class="muted">Comparisons need at least 3 check-ins in each group. Mood data is subjective and gaps can skew results. Nothing here is a diagnosis or proves a cause.</p><p class="muted">Version <span id="version">1.14.1</span> · No ads or analytics</p></div>
+    <section class="card" id="support" aria-labelledby="support-title">
+     <h2 id="support-title">Need support?</h2>
+     <p class="muted">If you’re thinking about hurting yourself or someone else, or just need to talk, help is available. This app can’t respond in a crisis. In immediate danger, call 911. US services:</p>
+     <a class="btn secondary full" href="tel:988">Call 988 Lifeline</a>
+     <a class="btn secondary full" href="sms:988">Text 988 Lifeline</a>
+     <a class="btn subtle full" href="tel:18007997233">Call the Domestic Violence Hotline</a>
+    </section>
+    <div class="card"><h2>About the insights</h2><p class="muted">Comparisons need at least 3 check-ins in each group. Mood data is subjective and gaps can skew results. Nothing here is a diagnosis or proves a cause.</p><p class="muted">Version <span id="version">1.15.0</span> · No ads or analytics</p></div>
     <div class="card"><h2>Explore a sample month</h2><p class="muted">See 28 days of fictional check-ins and events. They stay separate from your own data and are never uploaded.</p><button class="btn secondary full" id="demo-button">Load 28-day calendar demo</button><button class="btn subtle full" id="clear-demo-button">Remove demo data</button></div>
    </section>
   </main>
@@ -252,6 +274,13 @@
    <a class="btn primary full" id="welcome-improve" target="_blank" rel="noopener noreferrer">Improve This Site with Claude <span aria-hidden="true">↗</span></a>
    <button type="button" class="btn subtle full" id="welcome-close">Maybe later</button>
    <p class="muted welcome-note">You’ll find this anytime in Sync, under Developer tools.</p>
+  </dialog>
+  <dialog class="welcome reset" id="reset-dialog" aria-labelledby="reset-title">
+   <h2 id="reset-title">Take a minute</h2>
+   <div class="breath-circle" id="breath-circle" data-step="0" aria-hidden="true"></div>
+   <p class="breath-label" id="breath-label" role="status"></p>
+   <p class="muted">Four slow rounds. If it feels uncomfortable, breathe normally and stop.</p>
+   <button type="button" class="btn secondary full" id="close-reset">Done</button>
   </dialog>
   <aside class="install-nudge" id="install-nudge" aria-label="Install Rage Tracker" hidden>
    <p id="install-nudge-text"></p>
