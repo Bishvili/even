@@ -96,8 +96,8 @@ test("every accepted upload is acknowledged and versioned",()=>{
  assert.match(source,/getValue\(healthResponse, "state"\)/);
  assert.match(source,/if eventStatus != "accepted"/);
  assert.match(source,/if healthStatus != "accepted"/);
- assert.match(source,/shortcutVersion": "2\.3\.7"/);
- assert.match(source,/\/api\/shortcut\/release\?current=2\.3\.7/);
+ assert.match(source,/shortcutVersion": "2\.3\.8"/);
+ assert.match(source,/\/api\/shortcut\/release\?current=2\.3\.8/);
  assert.match(source,/showNotification\("Synced \{@acceptedCount\} items\. Skipped \{@skippedCalendarCount\} calendar events\."/);
  assert.doesNotMatch(source,/\bnothing\(\)/);
  assert.doesNotMatch(source,/Bearer [a-f0-9]{64}/i);
@@ -112,16 +112,21 @@ test("conditional comparisons use explicit typed text instead of Boolean values"
   'retryStatus != "connected"',
   'eventStatus != "accepted"',
   'eventError == "No valid records. Check date, metric values, and event start/end formats"',
-  'sampleCount >= 1',
+  'savedTypesLength == 0',
+  'totalSteps >= 1',
   'healthStatus != "accepted"',
+  'restingChosen >= 1',
   'restingValue >= 1',
   'restingStatus == "accepted"',
+  'hrvChosen >= 1',
   'hrvValue >= 1',
   'hrvStatus == "accepted"',
+  'exerciseChosen >= 1',
   'exerciseValue >= 1',
   'workoutStatus == "accepted"',
   'updateStatus == "new_release"',
   'choice == "Install update"',
+  'sleepChosen >= 1',
   'stageCount >= 1',
   '@sleepMinutes >= 1',
   'sleepStatus == "accepted"'

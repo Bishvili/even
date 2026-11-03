@@ -1,6 +1,6 @@
 (function () {
 "use strict";
-var VERSION = "1.12.1";
+var VERSION = "1.12.2";
 var SHORTCUT_PAGE = "https://routinehub.co/shortcut/26978/";
 var STORAGE_KEY = "rage-tracker:v1";
 var MOOD_NAMES = ["","Rough","Low","Okay","Good","Great"];
@@ -423,6 +423,33 @@ function syncErrorLabel(code){
  };
  return reasons[code]||"The last upload didn’t go through.";
 }
+async function loadCalendars(){
+ var card=$("calendar-card"),list=$("calendar-list");
+ card.hidden=!state.token;
+ if(!state.token||!navigator.onLine)return;
+ try{
+  var r=await fetch("/api/calendars",{headers:{"Authorization":"Bearer "+state.token},cache:"no-store"});
+  if(!r.ok)throw Error("Calendars unavailable");
+  var calendars=(await r.json()).calendars||[];
+  list.textContent="";
+  if(!calendars.length){var empty=document.createElement("p");empty.className="muted";empty.textContent="Calendars appear here after they sync an event.";list.appendChild(empty);return;}
+  calendars.forEach(function(calendar){
+   var row=document.createElement("label"),name=document.createElement("span"),box=document.createElement("input");
+   row.className="calendar-row";name.textContent=calendar.name;box.type="checkbox";box.checked=calendar.enabled;
+   box.addEventListener("change",function(){setCalendar(calendar.name,box);});
+   row.appendChild(name);row.appendChild(box);list.appendChild(row);
+  });
+ }catch(e){list.textContent="";var failed=document.createElement("p");failed.className="muted";failed.textContent="Couldn’t load your calendars.";list.appendChild(failed);}
+}
+async function setCalendar(name,box){
+ var enabled=box.checked;box.disabled=true;
+ try{
+  var r=await fetch("/api/calendars",{method:"POST",headers:{"Authorization":"Bearer "+state.token,"Content-Type":"application/json"},body:JSON.stringify({name:name,enabled:enabled}),cache:"no-store"});
+  if(!r.ok)throw Error("Calendar not updated");
+  if(!enabled)pull(true);
+ }catch(e){box.checked=!enabled;toast("Couldn’t update that calendar.");}
+ finally{box.disabled=false;}
+}
 function renderSyncDiagnostic(message,type){
  var el=$("shortcut-sync-diagnostic");
  el.hidden=!message;
@@ -503,7 +530,7 @@ async function issueDevice(){
   if(result.email!==authEmail)throw Error("Account identity changed; key not saved");
   state.syncOwnerEmail=authEmail;state.deviceId=result.deviceId;state.token=result.token;state.pairedAt=Date.now();state.lastSync=null;
   if(!persist())return;
-  await refreshAuth();await loadShortcutRelease();await checkShortcutUpload(true);render();toast("Device key created for "+authEmail+". Copy it into Shortcuts.");
+  await refreshAuth();await loadShortcutRelease();await loadCalendars();await checkShortcutUpload(true);render();toast("Device key created for "+authEmail+". Copy it into Shortcuts.");
  }catch(e){toast(e.message||"Could not connect this device.");}
  finally{button.disabled=false;button.textContent="Generate my device key";}
 }
@@ -548,7 +575,7 @@ async function eraseRemote(){
 }
 function init(){
  $("health-date").value=dateKey(now());var start=new Date();start.setMinutes(0,0,0);start.setHours(start.getHours()+1);var end=new Date(start);end.setHours(end.getHours()+1);$("cal-start").value=localDateTime(start);$("cal-end").value=localDateTime(end);
- document.querySelectorAll("[data-go]").forEach(function(b){b.addEventListener("click",function(ev){ev.preventDefault();navigate(b.dataset.go);if(b.dataset.go==="sync"){refreshAuth();loadShortcutRelease();checkShortcutUpload(true);}});});
+ document.querySelectorAll("[data-go]").forEach(function(b){b.addEventListener("click",function(ev){ev.preventDefault();navigate(b.dataset.go);if(b.dataset.go==="sync"){refreshAuth();loadShortcutRelease();loadCalendars();checkShortcutUpload(true);}});});
  document.querySelectorAll("[data-mood]").forEach(function(b){b.addEventListener("click",function(){selectMood(Number(b.dataset.mood));});});
  document.querySelectorAll("[data-tag]").forEach(function(b){b.setAttribute("aria-pressed","false");b.addEventListener("click",function(){var s=b.dataset.tag;selectedTags.has(s)?selectedTags.delete(s):selectedTags.add(s);b.classList.toggle("selected",selectedTags.has(s));b.setAttribute("aria-pressed",String(selectedTags.has(s)));});});
  $("energy").addEventListener("input",setEnergyText);$("save-mood").addEventListener("click",handleMoodSave);
@@ -580,9 +607,9 @@ function init(){
  $("demo-button").addEventListener("click",demo);$("clear-demo-button").addEventListener("click",clearDemo);
  setEnergyText();navigate(location.hash.slice(1)||"checkin");
  if(navigator.onLine)refreshAuth();
- if(state.token&&navigator.onLine){loadShortcutRelease();checkShortcutUpload(true);pull(true);}
- window.addEventListener("online",function(){refreshAuth();if(state.token){loadShortcutRelease();checkShortcutUpload(true);pull(true);}});
- document.addEventListener("visibilitychange",function(){if(!document.hidden){refreshAuth();if(state.token){loadShortcutRelease();checkShortcutUpload(true);if(!state.lastSync||Date.now()-state.lastSync>900000)pull(true);}}});
+ if(state.token&&navigator.onLine){loadShortcutRelease();loadCalendars();checkShortcutUpload(true);pull(true);}
+ window.addEventListener("online",function(){refreshAuth();if(state.token){loadShortcutRelease();loadCalendars();checkShortcutUpload(true);pull(true);}});
+ document.addEventListener("visibilitychange",function(){if(!document.hidden){refreshAuth();if(state.token){loadShortcutRelease();loadCalendars();checkShortcutUpload(true);if(!state.lastSync||Date.now()-state.lastSync>900000)pull(true);}}});
  if("serviceWorker" in navigator){window.addEventListener("load",function(){navigator.serviceWorker.register("/sw.js").catch(function(){});});}
 }
 init();

@@ -16,7 +16,7 @@ function harness({verified=false}={}){
  const runtime={crypto:webcrypto,TextEncoder,Response,URL,atob,Uint8Array,console,async fetch(url,init){dispatches.push({url,init});return new Response(null,{status:204});}};
  vm.runInNewContext(loaded,runtime,{timeout:2500,filename:"worker/index.js"});
  const allowed=["owner-a@example.com","owner-b@example.com"];
- const rows={users:new Map(),devices:new Map(),health:new Map(),events:new Map()};
+ const rows={calendars:new Map(),users:new Map(),devices:new Map(),health:new Map(),events:new Map()};
  const release=JSON.stringify({version:"1.0.0",url:"https://www.icloud.com/shortcuts/82109f53491f4d95a0a8b8437c4090f2",publishedAt:"2026-11-01",notes:"First shared release",verified});
  const env={GITHUB_API_KEY:"server-only",APPROVED_SYNC_EMAILS:JSON.stringify(allowed),ASSETS:{async get(key){return key==="config:shortcut:latest"?release:null;}},DB:{
   prepare(sql){return{bind(...args){return {
@@ -30,6 +30,8 @@ function harness({verified=false}={}){
     throw new Error("Unexpected first: "+sql);
    },
    async all(){
+    if(sql.startsWith("SELECT name FROM rt_calendars"))return{results:[...rows.calendars.values()].filter(c=>c.owner===args[0]&&!c.enabled)};
+    if(sql.startsWith("SELECT name,enabled FROM rt_calendars"))return{results:[...rows.calendars.values()].filter(c=>c.owner===args[0])};
     if(sql.includes("SELECT device_id,label,created_at"))return{results:[...rows.devices.values()].filter(d=>d.owner_email===args[0]).map(d=>({device_id:d.device_id,label:d.label,created_at:d.created_at,last_used_at:d.last_used_at,revoked_at:d.revoked_at}))};
     if(sql.includes("SELECT day,metric,value FROM rt_health_metrics"))return{results:[...rows.health.values()].filter(d=>d.owner===args[0]).map(d=>({day:d.day,metric:d.metric,value:d.value}))};
     if(sql.includes("SELECT event_id,start_time,end_time"))return{results:[...rows.events.values()].filter(d=>d.owner===args[0]).map(d=>({event_id:d.id,start_time:d.start_time,end_time:d.end_time,title:d.title,category:d.category}))};
@@ -42,7 +44,11 @@ function harness({verified=false}={}){
     if(sql.startsWith("UPDATE rt_devices SET last_attempt_at")){for(const d of rows.devices.values())if(d.device_id===args[2]&&d.owner_email===args[3]&&!d.revoked_at){d.last_attempt_at=args[0];if(sql.includes("last_error_code=NULL,shortcut_version=?")){d.last_error_code=null;d.shortcut_version=args[1];}else d.last_error_code=args[1];}return{meta:{changes:1}};}
     if(sql.startsWith("UPDATE rt_devices SET last_used_at")){for(const d of rows.devices.values())if(d.device_id===args[3]&&d.owner_email===args[4]&&!d.revoked_at){d.last_used_at=args[0];d.last_attempt_at=args[1];d.last_error_code=null;d.shortcut_version=args[2]||d.shortcut_version;}return{meta:{changes:1}};}
     if(sql.startsWith("INSERT INTO rt_health_metrics")){rows.health.set(args[0]+"|"+args[1]+"|"+args[2],{owner:args[0],day:args[1],metric:args[2],value:args[3]});return{meta:{changes:1}};}
-    if(sql.startsWith("INSERT INTO rt_calendar_events")){rows.events.set(args[0]+"|"+args[1],{owner:args[0],id:args[1],start_time:args[2],end_time:args[3],title:args[4],category:args[5]});return{meta:{changes:1}};}
+    if(sql.startsWith("INSERT OR IGNORE INTO rt_calendars")){const k=args[0]+"|"+args[1];if(!rows.calendars.has(k))rows.calendars.set(k,{owner:args[0],name:args[1],enabled:1});return{meta:{changes:1}};}
+    if(sql.startsWith("UPDATE rt_calendars")){const c=rows.calendars.get(args[1]+"|"+args[2]);if(c)c.enabled=args[0];return{meta:{changes:c?1:0}};}
+    if(sql.startsWith("DELETE FROM rt_calendars")){for(const [k,c] of rows.calendars)if(c.owner===args[0])rows.calendars.delete(k);return{meta:{changes:1}};}
+    if(sql.includes("AND calendar=?")){for(const [k,d] of rows.events)if(d.owner===args[0]&&d.calendar===args[1])rows.events.delete(k);return{meta:{changes:1}};}
+    if(sql.startsWith("INSERT INTO rt_calendar_events")){rows.events.set(args[0]+"|"+args[1],{owner:args[0],id:args[1],start_time:args[2],end_time:args[3],title:args[4],category:args[5],calendar:args[6]});return{meta:{changes:1}};}
     if(sql.startsWith("DELETE FROM rt_health_metrics")){for(const [k,d] of rows.health)if(d.owner===args[0])rows.health.delete(k);return{meta:{changes:1}};}
     if(sql.includes("updated_at<?")){let changes=0;for(const [k,d] of rows.events)if(d.owner===args[0]&&d.start>=args[1]&&d.start<args[2]&&d.updated<args[3]){rows.events.delete(k);changes++;}return{meta:{changes}};}
     if(sql.startsWith("DELETE FROM rt_calendar_events")){for(const [k,d] of rows.events)if(d.owner===args[0])rows.events.delete(k);return{meta:{changes:1}};}
@@ -87,6 +93,26 @@ test("only release accounts with a valid device can start publishing",async()=>{
  assert.equal(dispatches.length,1);
  assert.equal(JSON.parse(dispatches[0].init.body).inputs.icloud_link,link);
  assert.doesNotMatch(JSON.stringify(started.data),/server-only/);
+});
+test("turned-off calendars are owner-scoped, purge stored events, and skip new ones",async()=>{
+ const{call,ctx,rows}=harness();
+ const a=await call("/api/auth/device",{method:"POST",body:{label:"A"},context:ctx("owner-a@example.com")});
+ const b=await call("/api/auth/device",{method:"POST",body:{label:"B"},context:ctx("owner-b@example.com")});
+ const A={Authorization:"Bearer "+a.data.token},B={Authorization:"Bearer "+b.data.token};
+ const event=calendar=>({kind:"calendar",title:"Private",calendar,start:"2026-11-03T10:00:00Z",end:"2026-11-03T11:00:00Z"});
+ await call("/api/ingest",{method:"POST",body:event("Work"),headers:A});
+ await call("/api/ingest",{method:"POST",body:event("Work"),headers:B});
+ assert.deepEqual((await call("/api/calendars",{headers:A})).data.calendars.map(c=>[c.name,c.enabled]),[["Work",true]]);
+ assert.equal((await call("/api/calendars",{headers:{}})).status,401);
+ assert.equal((await call("/api/calendars",{method:"POST",body:{name:"Nope",enabled:false},headers:A})).status,404);
+ assert.equal((await call("/api/calendars",{method:"POST",body:{name:"Work",enabled:"no"},headers:A})).status,400);
+ assert.equal((await call("/api/calendars",{method:"POST",body:{name:"Work",enabled:false},headers:A})).status,200);
+ assert.equal([...rows.events.values()].filter(e=>e.owner==="owner-a@example.com").length,0);
+ assert.equal([...rows.events.values()].filter(e=>e.owner==="owner-b@example.com").length,1);
+ const skipped=await call("/api/ingest",{method:"POST",body:event("Work"),headers:A});
+ assert.equal(skipped.data.state,"skipped");
+ assert.equal([...rows.events.values()].filter(e=>e.owner==="owner-a@example.com").length,0);
+ assert.equal((await call("/api/calendars",{headers:B})).data.calendars[0].enabled,true);
 });
 test("owner A data cannot be read or erased by owner B",async()=>{
  const{call,ctx}=harness();

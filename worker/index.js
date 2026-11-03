@@ -73,7 +73,7 @@ function readEvent(x){
  if(!Number.isFinite(start.getTime())||!Number.isFinite(end.getTime())||end<=start||end-start>172800000)return null;
  const title=String(x.title||"Calendar event").trim().slice(0,100)||"Calendar event";
  const category=CATS.includes(x.category)?x.category:classifyCalendarTitle(title);
- return {start:start.toISOString(),end:end.toISOString(),title,category};
+ return {start:start.toISOString(),end:end.toISOString(),title,category,calendar:String(x.calendar||"").trim().slice(0,100)||null};
 }
 async function authApi(request,env,ctx,path){
  const email=await authIdentity(request,env,ctx);
@@ -133,6 +133,16 @@ function semverNewer(latest,installed){
  for(let i=0;i<3;i++)if(a[i]!==b[i])return a[i]>b[i];
  return false;
 }
+const NO_VALID_RECORDS="No valid records. Check date, metric values, and event start/end formats";
+// Remembers each calendar it sees, then drops events from calendars the owner turned off.
+async function enabledEvents(env,owner,events){
+ const names=[...new Set(events.map(e=>e.calendar).filter(Boolean))];
+ if(!names.length)return events;
+ await env.DB.batch(names.map(name=>env.DB.prepare("INSERT OR IGNORE INTO rt_calendars(owner_email,name) VALUES(?,?)").bind(owner,name)));
+ const off=await env.DB.prepare("SELECT name FROM rt_calendars WHERE owner_email=? AND enabled=0").bind(owner).all();
+ const disabled=new Set((off.results||[]).map(c=>c.name));
+ return events.filter(e=>!disabled.has(e.calendar));
+}
 async function syncApi(request,env,path){
  const dev=await validDevice(request,env);
  if(!dev)return error("A valid non-revoked device key is required",401);
@@ -144,6 +154,19 @@ async function syncApi(request,env,path){
   if(!ICLOUD_SHORTCUT.test(link))return error("A valid Shortcut link is required");
   const started=await fetch("https://api.github.com/repos/Bishvili/rage-tracker/actions/workflows/routinehub-publish.yml/dispatches",{method:"POST",headers:{"Authorization":"Bearer "+env.GITHUB_API_KEY,"Accept":"application/vnd.github+json","Content-Type":"application/json","User-Agent":"rage-tracker","X-GitHub-Api-Version":"2022-11-28"},body:JSON.stringify({ref:"main",inputs:{icloud_link:link}})});
   return started.status===204?reply({ok:true}):error("Publishing couldn't start",502);
+ }
+ if(path==="/api/calendars"&&request.method==="GET"){
+  const r=await env.DB.prepare("SELECT name,enabled FROM rt_calendars WHERE owner_email=? ORDER BY name").bind(owner).all();
+  return reply({ok:true,calendars:(r.results||[]).map(c=>({name:c.name,enabled:!!c.enabled}))});
+ }
+ if(path==="/api/calendars"&&request.method==="POST"){
+  let input;try{input=await payload(request);}catch(e){return error("Invalid calendar request");}
+  const name=String(input?.name||"");
+  if(!name||name.length>100||typeof input.enabled!=="boolean")return error("Invalid calendar request");
+  const updated=await env.DB.prepare("UPDATE rt_calendars SET enabled=? WHERE owner_email=? AND name=?").bind(input.enabled?1:0,owner,name).run();
+  if(!updated.meta?.changes)return error("Calendar not found",404);
+  if(!input.enabled)await env.DB.prepare("DELETE FROM rt_calendar_events WHERE owner_email=? AND calendar=?").bind(owner,name).run();
+  return reply({ok:true});
  }
  if(path==="/api/profile"&&request.method==="GET")return reply({ok:true,email:owner,deviceId:dev.id});
  if(path==="/api/sync/status"&&request.method==="GET"){
@@ -208,16 +231,18 @@ async function syncApi(request,env,path){
   const healthInput=kind==="batch"?(Array.isArray(input.health)?input.health.slice(0,75):[]):kind==="health"?(Array.isArray(input.days)?input.days.slice(0,75):[input]):[];
   const eventInput=kind==="batch"?(Array.isArray(input.events)?input.events.slice(0,125):[]):kind==="calendar"?(Array.isArray(input.events)?input.events.slice(0,125):[input]):[];
   const metrics=healthInput.flatMap(readHealth);
-  const events=eventInput.map(readEvent).filter(Boolean);
+  const received=eventInput.map(readEvent).filter(Boolean);
+  const events=await enabledEvents(env,owner,received);
+  if(!metrics.length&&received.length&&!events.length)return reply({ok:true,state:"skipped",error:NO_VALID_RECORDS});
   if(!metrics.length&&!events.length){
    await recordSyncFailure(env,dev,"no_valid_records");
-   return error("No valid records. Check date, metric values, and event start/end formats");
+   return error(NO_VALID_RECORDS);
   }
   const at=new Date().toISOString(),statements=[];
   metrics.forEach(x=>statements.push(env.DB.prepare("INSERT INTO rt_health_metrics(owner_email,day,metric,value,updated_at) VALUES(?,?,?,?,?) ON CONFLICT(owner_email,day,metric) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at").bind(owner,x.day,x.metric,x.value,at)));
   for(const e of events){
    const eventId=(await digest(e.start+"|"+e.end+"|"+e.title)).slice(0,40);
-   statements.push(env.DB.prepare("INSERT INTO rt_calendar_events(owner_email,event_id,start_time,end_time,title,category,updated_at) VALUES(?,?,?,?,?,?,?) ON CONFLICT(owner_email,event_id) DO UPDATE SET title=excluded.title,category=excluded.category,updated_at=excluded.updated_at").bind(owner,eventId,e.start,e.end,e.title,e.category,at));
+   statements.push(env.DB.prepare("INSERT INTO rt_calendar_events(owner_email,event_id,start_time,end_time,title,category,calendar,updated_at) VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(owner_email,event_id) DO UPDATE SET title=excluded.title,category=excluded.category,calendar=excluded.calendar,updated_at=excluded.updated_at").bind(owner,eventId,e.start,e.end,e.title,e.category,e.calendar,at));
   }
   for(let i=0;i<statements.length;i+=50)await env.DB.batch(statements.slice(i,i+50));
   const claimedVersion=String(input.shortcutVersion||"").trim();
@@ -229,14 +254,15 @@ async function syncApi(request,env,path){
  if(path==="/api/erase"&&request.method==="POST"){
   await env.DB.batch([
    env.DB.prepare("DELETE FROM rt_health_metrics WHERE owner_email=?").bind(owner),
-   env.DB.prepare("DELETE FROM rt_calendar_events WHERE owner_email=?").bind(owner)
+   env.DB.prepare("DELETE FROM rt_calendar_events WHERE owner_email=?").bind(owner),
+   env.DB.prepare("DELETE FROM rt_calendars WHERE owner_email=?").bind(owner)
   ]);
   return reply({ok:true,erased:true,email:owner});
  }
  return error("Not found",404);
 }
 async function api(request,env,ctx,path){
- if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:"Rage Tracker",version:"1.12.1",sync:"email-access"});
+ if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:"Rage Tracker",version:"1.12.2",sync:"email-access"});
  if(path.startsWith("/api/auth/"))return authApi(request,env,ctx,path);
  return syncApi(request,env,path);
 }

@@ -9,10 +9,10 @@
 
 // Filters are passed as references because Cherri rewrites nested action parameters.
 #ref todayEventsFilter eyJWYWx1ZSI6eyJXRkFjdGlvblBhcmFtZXRlckZpbHRlclByZWZpeCI6MSwiV0ZDb250ZW50UHJlZGljYXRlQm91bmRlZERhdGUiOmZhbHNlLCJXRkFjdGlvblBhcmFtZXRlckZpbHRlclRlbXBsYXRlcyI6W3siQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjEwMDIsIlByb3BlcnR5IjoiU3RhcnQgRGF0ZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJOdW1iZXIiOiI3IiwiVW5pdCI6MTZ9fV19LCJXRlNlcmlhbGl6YXRpb25UeXBlIjoiV0ZDb250ZW50UHJlZGljYXRlVGFibGVUZW1wbGF0ZSJ9
-#ref stepsFilter eyJWYWx1ZSI6eyJXRkFjdGlvblBhcmFtZXRlckZpbHRlclByZWZpeCI6MSwiV0ZDb250ZW50UHJlZGljYXRlQm91bmRlZERhdGUiOmZhbHNlLCJXRkFjdGlvblBhcmFtZXRlckZpbHRlclRlbXBsYXRlcyI6W3siQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjQsIlByb3BlcnR5IjoiVHlwZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IlN0ZXBzIiwiV0ZTZXJpYWxpemF0aW9uVHlwZSI6IldGU3RyaW5nU3Vic3RpdHV0YWJsZVN0YXRlIn19fSx7IkJvdW5kZWQiOnRydWUsIk9wZXJhdG9yIjoxMDAxLCJQcm9wZXJ0eSI6IlN0YXJ0IERhdGUiLCJSZW1vdmFibGUiOmZhbHNlLCJWYWx1ZXMiOnsiTnVtYmVyIjoiMSIsIlVuaXQiOjE2fX1dfSwiV0ZTZXJpYWxpemF0aW9uVHlwZSI6IldGQ29udGVudFByZWRpY2F0ZVRhYmxlVGVtcGxhdGUifQ==
-#ref restingFilter eyJWYWx1ZSI6eyJXRkFjdGlvblBhcmFtZXRlckZpbHRlclByZWZpeCI6MSwiV0ZDb250ZW50UHJlZGljYXRlQm91bmRlZERhdGUiOmZhbHNlLCJXRkFjdGlvblBhcmFtZXRlckZpbHRlclRlbXBsYXRlcyI6W3siQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjQsIlByb3BlcnR5IjoiVHlwZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IlJlc3RpbmcgSGVhcnQgUmF0ZSIsIldGU2VyaWFsaXphdGlvblR5cGUiOiJXRlN0cmluZ1N1YnN0aXR1dGFibGVTdGF0ZSJ9fX0seyJCb3VuZGVkIjp0cnVlLCJPcGVyYXRvciI6MTAwMSwiUHJvcGVydHkiOiJTdGFydCBEYXRlIiwiUmVtb3ZhYmxlIjpmYWxzZSwiVmFsdWVzIjp7Ik51bWJlciI6IjEiLCJVbml0IjoxNn19XX0sIldGU2VyaWFsaXphdGlvblR5cGUiOiJXRkNvbnRlbnRQcmVkaWNhdGVUYWJsZVRlbXBsYXRlIn0=
-#ref hrvFilter eyJWYWx1ZSI6eyJXRkFjdGlvblBhcmFtZXRlckZpbHRlclByZWZpeCI6MSwiV0ZDb250ZW50UHJlZGljYXRlQm91bmRlZERhdGUiOmZhbHNlLCJXRkFjdGlvblBhcmFtZXRlckZpbHRlclRlbXBsYXRlcyI6W3siQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjQsIlByb3BlcnR5IjoiVHlwZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IkhlYXJ0IFJhdGUgVmFyaWFiaWxpdHkiLCJXRlNlcmlhbGl6YXRpb25UeXBlIjoiV0ZTdHJpbmdTdWJzdGl0dXRhYmxlU3RhdGUifX19LHsiQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjEwMDEsIlByb3BlcnR5IjoiU3RhcnQgRGF0ZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJOdW1iZXIiOiIxIiwiVW5pdCI6MTZ9fV19LCJXRlNlcmlhbGl6YXRpb25UeXBlIjoiV0ZDb250ZW50UHJlZGljYXRlVGFibGVUZW1wbGF0ZSJ9
-#ref exerciseFilter eyJWYWx1ZSI6eyJXRkFjdGlvblBhcmFtZXRlckZpbHRlclByZWZpeCI6MSwiV0ZDb250ZW50UHJlZGljYXRlQm91bmRlZERhdGUiOmZhbHNlLCJXRkFjdGlvblBhcmFtZXRlckZpbHRlclRlbXBsYXRlcyI6W3siQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjQsIlByb3BlcnR5IjoiVHlwZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IkV4ZXJjaXNlIE1pbnV0ZXMiLCJXRlNlcmlhbGl6YXRpb25UeXBlIjoiV0ZTdHJpbmdTdWJzdGl0dXRhYmxlU3RhdGUifX19LHsiQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjEwMDEsIlByb3BlcnR5IjoiU3RhcnQgRGF0ZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJOdW1iZXIiOiIxIiwiVW5pdCI6MTZ9fV19LCJXRlNlcmlhbGl6YXRpb25UeXBlIjoiV0ZDb250ZW50UHJlZGljYXRlVGFibGVUZW1wbGF0ZSJ9
+#ref stepsFilter eyJWYWx1ZSI6eyJXRkFjdGlvblBhcmFtZXRlckZpbHRlclByZWZpeCI6MSwiV0ZDb250ZW50UHJlZGljYXRlQm91bmRlZERhdGUiOmZhbHNlLCJXRkFjdGlvblBhcmFtZXRlckZpbHRlclRlbXBsYXRlcyI6W3siQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjQsIlByb3BlcnR5IjoiVHlwZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IlN0ZXBzIiwiV0ZTZXJpYWxpemF0aW9uVHlwZSI6IldGU3RyaW5nU3Vic3RpdHV0YWJsZVN0YXRlIn19fSx7IkJvdW5kZWQiOnRydWUsIk9wZXJhdG9yIjoxMDAxLCJQcm9wZXJ0eSI6IlN0YXJ0IERhdGUiLCJSZW1vdmFibGUiOmZhbHNlLCJWYWx1ZXMiOnsiTnVtYmVyIjoiMzAiLCJVbml0IjoxNn19XX0sIldGU2VyaWFsaXphdGlvblR5cGUiOiJXRkNvbnRlbnRQcmVkaWNhdGVUYWJsZVRlbXBsYXRlIn0=
+#ref restingFilter eyJWYWx1ZSI6eyJXRkFjdGlvblBhcmFtZXRlckZpbHRlclByZWZpeCI6MSwiV0ZDb250ZW50UHJlZGljYXRlQm91bmRlZERhdGUiOmZhbHNlLCJXRkFjdGlvblBhcmFtZXRlckZpbHRlclRlbXBsYXRlcyI6W3siQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjQsIlByb3BlcnR5IjoiVHlwZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IlJlc3RpbmcgSGVhcnQgUmF0ZSIsIldGU2VyaWFsaXphdGlvblR5cGUiOiJXRlN0cmluZ1N1YnN0aXR1dGFibGVTdGF0ZSJ9fX0seyJCb3VuZGVkIjp0cnVlLCJPcGVyYXRvciI6MTAwMSwiUHJvcGVydHkiOiJTdGFydCBEYXRlIiwiUmVtb3ZhYmxlIjpmYWxzZSwiVmFsdWVzIjp7Ik51bWJlciI6IjMwIiwiVW5pdCI6MTZ9fV19LCJXRlNlcmlhbGl6YXRpb25UeXBlIjoiV0ZDb250ZW50UHJlZGljYXRlVGFibGVUZW1wbGF0ZSJ9
+#ref hrvFilter eyJWYWx1ZSI6eyJXRkFjdGlvblBhcmFtZXRlckZpbHRlclByZWZpeCI6MSwiV0ZDb250ZW50UHJlZGljYXRlQm91bmRlZERhdGUiOmZhbHNlLCJXRkFjdGlvblBhcmFtZXRlckZpbHRlclRlbXBsYXRlcyI6W3siQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjQsIlByb3BlcnR5IjoiVHlwZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IkhlYXJ0IFJhdGUgVmFyaWFiaWxpdHkiLCJXRlNlcmlhbGl6YXRpb25UeXBlIjoiV0ZTdHJpbmdTdWJzdGl0dXRhYmxlU3RhdGUifX19LHsiQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjEwMDEsIlByb3BlcnR5IjoiU3RhcnQgRGF0ZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJOdW1iZXIiOiIzMCIsIlVuaXQiOjE2fX1dfSwiV0ZTZXJpYWxpemF0aW9uVHlwZSI6IldGQ29udGVudFByZWRpY2F0ZVRhYmxlVGVtcGxhdGUifQ==
+#ref exerciseFilter eyJWYWx1ZSI6eyJXRkFjdGlvblBhcmFtZXRlckZpbHRlclByZWZpeCI6MSwiV0ZDb250ZW50UHJlZGljYXRlQm91bmRlZERhdGUiOmZhbHNlLCJXRkFjdGlvblBhcmFtZXRlckZpbHRlclRlbXBsYXRlcyI6W3siQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjQsIlByb3BlcnR5IjoiVHlwZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IkV4ZXJjaXNlIE1pbnV0ZXMiLCJXRlNlcmlhbGl6YXRpb25UeXBlIjoiV0ZTdHJpbmdTdWJzdGl0dXRhYmxlU3RhdGUifX19LHsiQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjEwMDEsIlByb3BlcnR5IjoiU3RhcnQgRGF0ZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJOdW1iZXIiOiIzMCIsIlVuaXQiOjE2fX1dfSwiV0ZTZXJpYWxpemF0aW9uVHlwZSI6IldGQ29udGVudFByZWRpY2F0ZVRhYmxlVGVtcGxhdGUifQ==
 #ref sleepFilter eyJWYWx1ZSI6eyJXRkFjdGlvblBhcmFtZXRlckZpbHRlclByZWZpeCI6MSwiV0ZDb250ZW50UHJlZGljYXRlQm91bmRlZERhdGUiOmZhbHNlLCJXRkFjdGlvblBhcmFtZXRlckZpbHRlclRlbXBsYXRlcyI6W3siQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjQsIlByb3BlcnR5IjoiVHlwZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IlNsZWVwIiwiV0ZTZXJpYWxpemF0aW9uVHlwZSI6IldGU3RyaW5nU3Vic3RpdHV0YWJsZVN0YXRlIn19fSx7IkJvdW5kZWQiOnRydWUsIk9wZXJhdG9yIjoxMDAxLCJQcm9wZXJ0eSI6IlN0YXJ0IERhdGUiLCJSZW1vdmFibGUiOmZhbHNlLCJWYWx1ZXMiOnsiTnVtYmVyIjoiMSIsIlVuaXQiOjE2fX1dfSwiV0ZTZXJpYWxpemF0aW9uVHlwZSI6IldGQ29udGVudFByZWRpY2F0ZVRhYmxlVGVtcGxhdGUifQ==
 
 // The device key lives in a file outside this Shortcut, in On My iPhone so it works without iCloud Drive.
@@ -21,6 +21,10 @@
 action 'is.workflow.actions.file.createfolder' createKeyFolder(&variable location: 'WFFolder') {"WFFilePath":"Rage Tracker"}
 
 action 'is.workflow.actions.documentpicker.open' readSavedDeviceKey(&variable folder: 'WFFile'): text {"WFGetFilePath":"rage-tracker-device-key.txt","WFFileErrorIfNotFound":false,"WFShowFilePicker":false}
+
+action 'is.workflow.actions.documentpicker.open' readSavedHealthTypes(&variable folder: 'WFFile'): text {"WFGetFilePath":"rage-tracker-health-types.txt","WFFileErrorIfNotFound":false,"WFShowFilePicker":false}
+
+action 'is.workflow.actions.documentpicker.save' saveHealthTypes(variable types: 'WFInput', &variable folder: 'WFFolder') {"WFFileDestinationPath":"rage-tracker-health-types.txt","WFSaveFileOverwrite":true,"WFAskWhereToSave":false}
 
 action 'is.workflow.actions.documentpicker.save' saveDeviceKey(variable key: 'WFInput', &variable folder: 'WFFolder') {"WFFileDestinationPath":"rage-tracker-device-key.txt","WFSaveFileOverwrite":true,"WFAskWhereToSave":false}
 
@@ -35,7 +39,7 @@ if savedKeyMatchCount == 0 {
 
 // Verify the connection and record the Shortcut's version, even if no health samples are available.
 const handshakeRaw = jsonRequest("https://rage-tracker.bishvili.workers.dev/api/shortcut/hello", "POST", {
-    "shortcutVersion": "2.3.7"
+    "shortcutVersion": "2.3.8"
 }, {"Authorization": "{@credential}"})
 const handshake = getDictionary(handshakeRaw)
 const connectionStatusValue = getValue(handshake, "state")
@@ -43,7 +47,7 @@ const connectionStatus = getText(connectionStatusValue)
 if connectionStatus != "connected" {
     @credential = prompt("That key didn't work. Paste your device key from Rage Tracker > Sync")
     const retryRaw = jsonRequest("https://rage-tracker.bishvili.workers.dev/api/shortcut/hello", "POST", {
-        "shortcutVersion": "2.3.7"
+        "shortcutVersion": "2.3.8"
     }, {"Authorization": "{@credential}"})
     const retry = getDictionary(retryRaw)
     const retryStatusValue = getValue(retry, "state")
@@ -60,8 +64,9 @@ saveDeviceKey(@credential, keyFolder)
 // Collect only events starting today.
 action 'is.workflow.actions.filter.calendarevents' findEvents(&variable filter: 'WFContentItemFilter'): array {"WFContentItemLimitEnabled":true,"WFContentItemLimitNumber":30,"WFContentItemSortProperty":"Start Date","WFContentItemSortOrder":"Oldest First"}
 
-// Daily groups give Health's own totals, and filling missing days stops an empty type from ending the run.
-// The newest group is today. A result limit would apply before grouping and return a single sample.
+// Daily groups over 30 days give Health's own totals, and a quiet day doesn't end the run.
+// The newest group is usually today, so each value is sent under its group's own date.
+// A result limit would apply before grouping and return a single sample.
 action 'is.workflow.actions.filter.health.quantity' findLatestDay(&variable filter: 'WFContentItemFilter'): array {"WFHKSampleFilteringGroupBy":"Day","WFHKSampleFilteringFillMissing":true,"WFContentItemSortProperty":"Start Date","WFContentItemSortOrder":"Latest First"}
 
 action 'is.workflow.actions.filter.health.quantity' findSamples(&variable filter: 'WFContentItemFilter'): array {"WFContentItemSortProperty":"Start Date","WFContentItemSortOrder":"Oldest First"}
@@ -82,6 +87,7 @@ action 'is.workflow.actions.statistics' sumValues(variable values: 'Input'): num
 const events = findEvents(todayEventsFilter)
 for event in events {
     const title = getEventDetail(@event, "Title")
+    const calendarName = getEventDetail(@event, "Calendar")
     const startDate = getEventDetail(@event, "Start Date")
     const endDate = getEventDetail(@event, "End Date")
     const startISO = formatTimestamp(startDate, "Custom", "None", "yyyy-MM-dd'T'HH:mm:ssZZZZZ")
@@ -89,8 +95,9 @@ for event in events {
 
     const eventBody = formRequest("https://rage-tracker.bishvili.workers.dev/api/ingest", "POST", {
         "kind": "calendar",
-        "shortcutVersion": "2.3.7",
+        "shortcutVersion": "2.3.8",
         "title": "{title}",
+        "calendar": "{calendarName}",
         "start": "{startISO}",
         "end": "{endISO}"
     }, {"Authorization": "{@credential}"})
@@ -125,20 +132,32 @@ formRequest("https://rage-tracker.bishvili.workers.dev/api/ingest", "POST", {
     "startedAt": "{syncStarted}"
 }, {"Authorization": "{@credential}"})
 
+// Find Health Samples ends the run when a type has never had samples, so each iPhone chooses what it can read.
+const savedTypesFile = readSavedHealthTypes(keyFolder)
+@healthTypes = getText(savedTypesFile)
+const savedTypesLength = count(@healthTypes, "Characters")
+if savedTypesLength == 0 {
+    const typeOptions = list("Resting heart rate", "Heart rate variability", "Exercise minutes", "Sleep", "None of these")
+    const chosenTypes = chooseFromList(typeOptions, "Which Health data does this iPhone have?", true)
+    @healthTypes = getText(chosenTypes)
+    saveHealthTypes(@healthTypes, keyFolder)
+}
+
 const stepDays = findLatestDay(stepsFilter)
 const samples = getFirstItem(stepDays)
-const sampleCount = count(samples)
-if sampleCount >= 1 {
-    const values = getStepValues(samples)
-    const totalSteps = sumValues(values)
+const stepDate = getSampleStart(samples)
+const stepDay = formatDate(stepDate, "Custom", "yyyy-MM-dd")
+const values = getStepValues(samples)
+const totalSteps = sumValues(values)
+if totalSteps >= 1 {
     const totalStepsText = getText(totalSteps)
     const normalizedSteps = replaceText('(?<=\d)[,\s](?=\d{3}(?:\D|$))', "", totalStepsText, true, true)
     // Keep only the number, because the text form of a Health value can include a unit.
     const stepsValue = replaceText('^\D*(\d+(?:\.\d+)?)[\s\S]*$', "$1", normalizedSteps, true, true)
     const healthBody = formRequest("https://rage-tracker.bishvili.workers.dev/api/ingest", "POST", {
         "kind": "health",
-        "shortcutVersion": "2.3.7",
-        "date": "{day}",
+        "shortcutVersion": "2.3.8",
+        "date": "{stepDay}",
         "steps": "{stepsValue}"
     }, {"Authorization": "{@credential}"})
     const healthResponse = getDictionary(healthBody)
@@ -154,64 +173,82 @@ if sampleCount >= 1 {
 }
 
 // A metric with no data today is left out, never sent as zero.
-const restingDays = findLatestDay(restingFilter)
-const restingSamples = getFirstItem(restingDays)
-const restingValue = getDailyNumber(restingSamples)
-if restingValue >= 1 {
-    const restingBody = formRequest("https://rage-tracker.bishvili.workers.dev/api/ingest", "POST", {
-        "kind": "health",
-        "shortcutVersion": "2.3.7",
-        "date": "{day}",
-        "restingHR": "{restingValue}"
-    }, {"Authorization": "{@credential}"})
-    const restingResponse = getDictionary(restingBody)
-    const restingStatusValue = getValue(restingResponse, "state")
-    const restingStatus = getText(restingStatusValue)
-    if restingStatus == "accepted" {
-        @acceptedCount += 1
+const restingChoice = matchText('Resting', @healthTypes)
+const restingChosen = count(restingChoice)
+if restingChosen >= 1 {
+    const restingDays = findLatestDay(restingFilter)
+    const restingSamples = getFirstItem(restingDays)
+    const restingDate = getSampleStart(restingSamples)
+    const restingDay = formatDate(restingDate, "Custom", "yyyy-MM-dd")
+    const restingValue = getDailyNumber(restingSamples)
+    if restingValue >= 1 {
+        const restingBody = formRequest("https://rage-tracker.bishvili.workers.dev/api/ingest", "POST", {
+            "kind": "health",
+            "shortcutVersion": "2.3.8",
+            "date": "{restingDay}",
+            "restingHR": "{restingValue}"
+        }, {"Authorization": "{@credential}"})
+        const restingResponse = getDictionary(restingBody)
+        const restingStatusValue = getValue(restingResponse, "state")
+        const restingStatus = getText(restingStatusValue)
+        if restingStatus == "accepted" {
+            @acceptedCount += 1
+        }
     }
 }
 
-const hrvDays = findLatestDay(hrvFilter)
-const hrvSamples = getFirstItem(hrvDays)
-const hrvValue = getDailyNumber(hrvSamples)
-if hrvValue >= 1 {
-    const hrvBody = formRequest("https://rage-tracker.bishvili.workers.dev/api/ingest", "POST", {
-        "kind": "health",
-        "shortcutVersion": "2.3.7",
-        "date": "{day}",
-        "hrv": "{hrvValue}"
-    }, {"Authorization": "{@credential}"})
-    const hrvResponse = getDictionary(hrvBody)
-    const hrvStatusValue = getValue(hrvResponse, "state")
-    const hrvStatus = getText(hrvStatusValue)
-    if hrvStatus == "accepted" {
-        @acceptedCount += 1
+const hrvChoice = matchText('variability', @healthTypes)
+const hrvChosen = count(hrvChoice)
+if hrvChosen >= 1 {
+    const hrvDays = findLatestDay(hrvFilter)
+    const hrvSamples = getFirstItem(hrvDays)
+    const hrvDate = getSampleStart(hrvSamples)
+    const hrvDay = formatDate(hrvDate, "Custom", "yyyy-MM-dd")
+    const hrvValue = getDailyNumber(hrvSamples)
+    if hrvValue >= 1 {
+        const hrvBody = formRequest("https://rage-tracker.bishvili.workers.dev/api/ingest", "POST", {
+            "kind": "health",
+            "shortcutVersion": "2.3.8",
+            "date": "{hrvDay}",
+            "hrv": "{hrvValue}"
+        }, {"Authorization": "{@credential}"})
+        const hrvResponse = getDictionary(hrvBody)
+        const hrvStatusValue = getValue(hrvResponse, "state")
+        const hrvStatus = getText(hrvStatusValue)
+        if hrvStatus == "accepted" {
+            @acceptedCount += 1
+        }
     }
 }
 
-const exerciseDays = findLatestDay(exerciseFilter)
-const exerciseSamples = getFirstItem(exerciseDays)
-const exerciseValue = getDailyNumber(exerciseSamples)
-if exerciseValue >= 1 {
-    const workoutBody = formRequest("https://rage-tracker.bishvili.workers.dev/api/ingest", "POST", {
-        "kind": "health",
-        "shortcutVersion": "2.3.7",
-        "date": "{day}",
-        "workoutMin": "{exerciseValue}"
-    }, {"Authorization": "{@credential}"})
-    const workoutResponse = getDictionary(workoutBody)
-    const workoutStatusValue = getValue(workoutResponse, "state")
-    const workoutStatus = getText(workoutStatusValue)
-    if workoutStatus == "accepted" {
-        @acceptedCount += 1
+const exerciseChoice = matchText('Exercise', @healthTypes)
+const exerciseChosen = count(exerciseChoice)
+if exerciseChosen >= 1 {
+    const exerciseDays = findLatestDay(exerciseFilter)
+    const exerciseSamples = getFirstItem(exerciseDays)
+    const exerciseDate = getSampleStart(exerciseSamples)
+    const exerciseDay = formatDate(exerciseDate, "Custom", "yyyy-MM-dd")
+    const exerciseValue = getDailyNumber(exerciseSamples)
+    if exerciseValue >= 1 {
+        const workoutBody = formRequest("https://rage-tracker.bishvili.workers.dev/api/ingest", "POST", {
+            "kind": "health",
+            "shortcutVersion": "2.3.8",
+            "date": "{exerciseDay}",
+            "workoutMin": "{exerciseValue}"
+        }, {"Authorization": "{@credential}"})
+        const workoutResponse = getDictionary(workoutBody)
+        const workoutStatusValue = getValue(workoutResponse, "state")
+        const workoutStatus = getText(workoutStatusValue)
+        if workoutStatus == "accepted" {
+            @acceptedCount += 1
+        }
     }
 }
 
 showNotification("Synced {@acceptedCount} items. Skipped {@skippedCalendarCount} calendar events.", "Rage Tracker")
 
 // Offer an update after syncing; the user approves installation in Apple Shortcuts.
-const releaseBody = downloadURL("https://rage-tracker.bishvili.workers.dev/api/shortcut/release?current=2.3.7", {"Authorization": "{@credential}"})
+const releaseBody = downloadURL("https://rage-tracker.bishvili.workers.dev/api/shortcut/release?current=2.3.8", {"Authorization": "{@credential}"})
 const releaseInfo = getDictionary(releaseBody)
 const updateStatusValue = getValue(releaseInfo, "updateStatus")
 const updateStatus = getText(updateStatusValue)
@@ -226,34 +263,38 @@ if updateStatus == "new_release" {
     }
 }
 
-// Sleep runs last because Find Health Samples stops the Shortcut when a type has no samples.
+// Sleep runs last because a night with no samples ends the run.
 // Count only time asleep, not time in bed or awake.
-@sleepMinutes = 0
-const sleepSamples = findSamples(sleepFilter)
-for sleepSample in sleepSamples {
-    const stageValue = getSampleValue(@sleepSample)
-    const stageText = getText(stageValue)
-    const stageMatches = matchText('(?i)asleep', stageText)
-    const stageCount = count(stageMatches)
-    if stageCount >= 1 {
-        const sleepStart = getSampleStart(@sleepSample)
-        const sleepEnd = getSampleEnd(@sleepSample)
-        const stageMinutes = minutesSince(sleepEnd, sleepStart)
-        @sleepMinutes += stageMinutes
+const sleepChoice = matchText('Sleep', @healthTypes)
+const sleepChosen = count(sleepChoice)
+if sleepChosen >= 1 {
+    @sleepMinutes = 0
+    const sleepSamples = findSamples(sleepFilter)
+    for sleepSample in sleepSamples {
+        const stageValue = getSampleValue(@sleepSample)
+        const stageText = getText(stageValue)
+        const stageMatches = matchText('(?i)asleep', stageText)
+        const stageCount = count(stageMatches)
+        if stageCount >= 1 {
+            const sleepStart = getSampleStart(@sleepSample)
+            const sleepEnd = getSampleEnd(@sleepSample)
+            const stageMinutes = minutesSince(sleepEnd, sleepStart)
+            @sleepMinutes += stageMinutes
+        }
     }
-}
-if @sleepMinutes >= 1 {
-    const sleepHours = @sleepMinutes / 60
-    const sleepBody = formRequest("https://rage-tracker.bishvili.workers.dev/api/ingest", "POST", {
-        "kind": "health",
-        "shortcutVersion": "2.3.7",
-        "date": "{day}",
-        "sleepHours": "{sleepHours}"
-    }, {"Authorization": "{@credential}"})
-    const sleepResponse = getDictionary(sleepBody)
-    const sleepStatusValue = getValue(sleepResponse, "state")
-    const sleepStatus = getText(sleepStatusValue)
-    if sleepStatus == "accepted" {
-        @acceptedCount += 1
+    if @sleepMinutes >= 1 {
+        const sleepHours = @sleepMinutes / 60
+        const sleepBody = formRequest("https://rage-tracker.bishvili.workers.dev/api/ingest", "POST", {
+            "kind": "health",
+            "shortcutVersion": "2.3.8",
+            "date": "{day}",
+            "sleepHours": "{sleepHours}"
+        }, {"Authorization": "{@credential}"})
+        const sleepResponse = getDictionary(sleepBody)
+        const sleepStatusValue = getValue(sleepResponse, "state")
+        const sleepStatus = getText(sleepStatusValue)
+        if sleepStatus == "accepted" {
+            @acceptedCount += 1
+        }
     }
 }

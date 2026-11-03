@@ -17,7 +17,7 @@ from pathlib import Path
 EXPECTED_TEXT = collections.Counter(
     {"connected": 2, "accepted": 6, "No valid records. Check date, metric values, and event start/end formats": 1, "new_release": 1, "Install update": 1}
 )
-EXPECTED_NUMBER = [0, 1, 1, 1, 1, 1, 1]
+EXPECTED_NUMBER = [0, 0] + [1] * 10
 
 
 def unwrap_text(value):
@@ -124,7 +124,7 @@ def check_connection_and_steps(document, actions) -> None:
             if actual != expected_type:
                 raise AssertionError(f"Expected filter type {expected_type}, found {actual}")
 
-    reads = by_id("is.workflow.actions.documentpicker.open")
+    reads = [a for a in by_id("is.workflow.actions.documentpicker.open") if a.get("WFWorkflowActionParameters", {}).get("WFGetFilePath") == KEY_FILE]
     if len(reads) != 1:
         raise AssertionError(f"Expected one saved-key read, found {len(reads)}")
     read = reads[0].get("WFWorkflowActionParameters", {})
@@ -139,7 +139,7 @@ def check_connection_and_steps(document, actions) -> None:
     if (read.get("WFGetFilePath"), read.get("WFFileErrorIfNotFound"), read.get("WFShowFilePicker")) != (KEY_FILE, False, False):
         raise AssertionError("Saved-key read must use the key path without a picker or a missing-file error")
 
-    saves = by_id("is.workflow.actions.documentpicker.save")
+    saves = [a for a in by_id("is.workflow.actions.documentpicker.save") if a.get("WFWorkflowActionParameters", {}).get("WFFileDestinationPath") == KEY_FILE]
     if len(saves) != 1:
         raise AssertionError(f"Expected one saved-key write, found {len(saves)}")
     save = saves[0].get("WFWorkflowActionParameters", {})
@@ -203,8 +203,8 @@ def check(plist_path: Path) -> None:
             observed.append({"action": index, "kind": kind, "value": value, "operator": operator})
 
     print(json.dumps({"plist": str(plist_path), "conditions": observed}, indent=2))
-    if len(observed) != 18:
-        raise AssertionError(f"Expected eighteen If comparisons, found {len(observed)}")
+    if len(observed) != 23:
+        raise AssertionError(f"Expected twenty-three If comparisons, found {len(observed)}")
 
     missing = [row for row in observed if row["kind"] == "missing" or row["value"] == ""]
     if missing:
@@ -218,7 +218,7 @@ def check(plist_path: Path) -> None:
         raise AssertionError(f"Expected numeric thresholds 0 and 1, got {numbers}")
     check_calendar_timestamps(actions)
     check_connection_and_steps(document, actions)
-    print("All eighteen If comparisons have explicit, expected right-hand values.")
+    print("All twenty-three If comparisons have explicit, expected right-hand values.")
 
 
 if __name__ == "__main__":

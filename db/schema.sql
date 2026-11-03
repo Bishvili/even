@@ -30,10 +30,17 @@ CREATE TABLE IF NOT EXISTS rt_calendar_events (
   end_time TEXT NOT NULL,
   title TEXT NOT NULL,
   category TEXT NOT NULL,
+  calendar TEXT,
   updated_at TEXT NOT NULL,
   PRIMARY KEY (owner_email, event_id)
 );
 CREATE INDEX IF NOT EXISTS rt_calendar_owner_start ON rt_calendar_events(owner_email, start_time);
 CREATE TABLE IF NOT EXISTS rt_release_emails (
   email TEXT PRIMARY KEY
+);
+CREATE TABLE IF NOT EXISTS rt_calendars (
+  owner_email TEXT NOT NULL REFERENCES rt_users(email),
+  name TEXT NOT NULL,
+  enabled INTEGER NOT NULL DEFAULT 1,
+  PRIMARY KEY (owner_email, name)
 );

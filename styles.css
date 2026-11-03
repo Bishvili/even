@@ -98,3 +98,4 @@
 input:not([type=range]):not([type=file]),textarea,select{font-size:16px;max-width:100%}
 input[type=date],input[type=datetime-local]{-webkit-appearance:none;appearance:none;display:block;min-height:48px;text-align:left}
 input::-webkit-date-and-time-value{text-align:left}
+.calendar-list{margin-top:10px}.calendar-row{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:44px;border-top:1px solid #eff2ed;font-size:14px;overflow-wrap:anywhere}.calendar-row:first-child{border-top:0}.calendar-row input{width:22px;height:22px;flex:none;accent-color:#28685b}
