@@ -17,7 +17,7 @@ from pathlib import Path
 EXPECTED_TEXT = collections.Counter(
     {"connected": 2, "accepted": 6, "No valid records. Check date, metric values, and event start/end formats": 1, "new_release": 1, "Install update": 1}
 )
-EXPECTED_NUMBER = [0, 0] + [1] * 10
+EXPECTED_NUMBER = [0] + [1] * 11 + [1440]
 
 
 def unwrap_text(value):
@@ -111,7 +111,7 @@ def check_connection_and_steps(document, actions) -> None:
     if any("runworkflow" in a.get("WFWorkflowActionIdentifier", "") for a in actions):
         raise AssertionError("Rage Tracker Sync must not depend on another Shortcut")
 
-    for finder, count, types in (("is.workflow.actions.filter.calendarevents", 1, [None]), ("is.workflow.actions.filter.health.quantity", 5, ["Steps", "Resting Heart Rate", "Heart Rate Variability", "Exercise Minutes", "Sleep"])):
+    for finder, count, types in (("is.workflow.actions.filter.calendarevents", 1, [None]), ("is.workflow.actions.filter.health.quantity", 6, ["Steps", "Steps", "Resting Heart Rate", "Heart Rate Variability", "Exercise Minutes", "Sleep"])):
         found = by_id(finder)
         if len(found) != count:
             raise AssertionError(f"Expected {count} {finder} actions, found {len(found)}")
@@ -203,8 +203,8 @@ def check(plist_path: Path) -> None:
             observed.append({"action": index, "kind": kind, "value": value, "operator": operator})
 
     print(json.dumps({"plist": str(plist_path), "conditions": observed}, indent=2))
-    if len(observed) != 23:
-        raise AssertionError(f"Expected twenty-three If comparisons, found {len(observed)}")
+    if len(observed) != 24:
+        raise AssertionError(f"Expected twenty-four If comparisons, found {len(observed)}")
 
     missing = [row for row in observed if row["kind"] == "missing" or row["value"] == ""]
     if missing:
@@ -218,7 +218,7 @@ def check(plist_path: Path) -> None:
         raise AssertionError(f"Expected numeric thresholds 0 and 1, got {numbers}")
     check_calendar_timestamps(actions)
     check_connection_and_steps(document, actions)
-    print("All twenty-three If comparisons have explicit, expected right-hand values.")
+    print("All twenty-four If comparisons have explicit, expected right-hand values.")
 
 
 if __name__ == "__main__":

@@ -1,6 +1,6 @@
 (function () {
 "use strict";
-var VERSION = "1.12.2";
+var VERSION = "1.12.3";
 var SHORTCUT_PAGE = "https://routinehub.co/shortcut/26978/";
 var STORAGE_KEY = "rage-tracker:v1";
 var MOOD_NAMES = ["","Rough","Low","Okay","Good","Great"];
@@ -446,7 +446,7 @@ async function setCalendar(name,box){
  try{
   var r=await fetch("/api/calendars",{method:"POST",headers:{"Authorization":"Bearer "+state.token,"Content-Type":"application/json"},body:JSON.stringify({name:name,enabled:enabled}),cache:"no-store"});
   if(!r.ok)throw Error("Calendar not updated");
-  if(!enabled)pull(true);
+  pull(true);
  }catch(e){box.checked=!enabled;toast("Couldn’t update that calendar.");}
  finally{box.disabled=false;}
 }
@@ -557,7 +557,7 @@ async function pull(silent){
   (body.events||[]).forEach(function(x){var v=normalizeEvent(x,"shortcut");if(v){upsertEvent(v);e++;}});
   var serverEvents=body.events||[],serverIds={},oldest=null;
   serverEvents.forEach(function(x){serverIds[x.id]=true;if(!oldest||x.start<oldest)oldest=x.start;});
-  if(oldest)state.events=state.events.filter(function(x){return x.source!=="shortcut"||x.start<oldest||serverIds[x.id];});
+  var complete=serverEvents.length<1200;state.events=state.events.filter(function(x){return x.source!=="shortcut"||serverIds[x.id]||(!complete&&x.start<oldest);});
   state.lastSync=Date.now();persist();render();if(!silent)toast("Synced "+h+" health days and "+e+" calendar events for "+state.syncOwnerEmail+".");
   checkShortcutUpload(true);
  }catch(e){if(!silent)toast(e.message||"Sync unavailable. Local data is unchanged.");}

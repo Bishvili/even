@@ -165,7 +165,6 @@ async function syncApi(request,env,path){
   if(!name||name.length>100||typeof input.enabled!=="boolean")return error("Invalid calendar request");
   const updated=await env.DB.prepare("UPDATE rt_calendars SET enabled=? WHERE owner_email=? AND name=?").bind(input.enabled?1:0,owner,name).run();
   if(!updated.meta?.changes)return error("Calendar not found",404);
-  if(!input.enabled)await env.DB.prepare("DELETE FROM rt_calendar_events WHERE owner_email=? AND calendar=?").bind(owner,name).run();
   return reply({ok:true});
  }
  if(path==="/api/profile"&&request.method==="GET")return reply({ok:true,email:owner,deviceId:dev.id});
@@ -201,7 +200,7 @@ async function syncApi(request,env,path){
  if(path==="/api/pull"&&request.method==="GET"){
   const [health,events]=await Promise.all([
    env.DB.prepare("SELECT day,metric,value FROM rt_health_metrics WHERE owner_email=? ORDER BY day DESC LIMIT 3000").bind(owner).all(),
-   env.DB.prepare("SELECT event_id,start_time,end_time,title,category FROM rt_calendar_events WHERE owner_email=? ORDER BY start_time DESC LIMIT 1200").bind(owner).all()
+   env.DB.prepare("SELECT event_id,start_time,end_time,title,category FROM rt_calendar_events WHERE owner_email=? AND (calendar IS NULL OR calendar NOT IN (SELECT name FROM rt_calendars WHERE owner_email=? AND enabled=0)) ORDER BY start_time DESC LIMIT 1200").bind(owner,owner).all()
   ]);
   const grouped={};for(const h of health.results||[]){
    if(!grouped[h.day])grouped[h.day]={date:h.day,source:"shortcut"};
@@ -262,7 +261,7 @@ async function syncApi(request,env,path){
  return error("Not found",404);
 }
 async function api(request,env,ctx,path){
- if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:"Rage Tracker",version:"1.12.2",sync:"email-access"});
+ if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:"Rage Tracker",version:"1.12.3",sync:"email-access"});
  if(path.startsWith("/api/auth/"))return authApi(request,env,ctx,path);
  return syncApi(request,env,path);
 }

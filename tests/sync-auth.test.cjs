@@ -34,7 +34,7 @@ function harness({verified=false}={}){
     if(sql.startsWith("SELECT name,enabled FROM rt_calendars"))return{results:[...rows.calendars.values()].filter(c=>c.owner===args[0])};
     if(sql.includes("SELECT device_id,label,created_at"))return{results:[...rows.devices.values()].filter(d=>d.owner_email===args[0]).map(d=>({device_id:d.device_id,label:d.label,created_at:d.created_at,last_used_at:d.last_used_at,revoked_at:d.revoked_at}))};
     if(sql.includes("SELECT day,metric,value FROM rt_health_metrics"))return{results:[...rows.health.values()].filter(d=>d.owner===args[0]).map(d=>({day:d.day,metric:d.metric,value:d.value}))};
-    if(sql.includes("SELECT event_id,start_time,end_time"))return{results:[...rows.events.values()].filter(d=>d.owner===args[0]).map(d=>({event_id:d.id,start_time:d.start_time,end_time:d.end_time,title:d.title,category:d.category}))};
+    if(sql.includes("SELECT event_id,start_time,end_time"))return{results:[...rows.events.values()].filter(d=>d.owner===args[0]&&!(rows.calendars.get(d.owner+"|"+d.calendar)&&!rows.calendars.get(d.owner+"|"+d.calendar).enabled)).map(d=>({event_id:d.id,start_time:d.start_time,end_time:d.end_time,title:d.title,category:d.category}))};
     throw new Error("Unexpected all: "+sql);
    },
    async run(){
@@ -47,7 +47,6 @@ function harness({verified=false}={}){
     if(sql.startsWith("INSERT OR IGNORE INTO rt_calendars")){const k=args[0]+"|"+args[1];if(!rows.calendars.has(k))rows.calendars.set(k,{owner:args[0],name:args[1],enabled:1});return{meta:{changes:1}};}
     if(sql.startsWith("UPDATE rt_calendars")){const c=rows.calendars.get(args[1]+"|"+args[2]);if(c)c.enabled=args[0];return{meta:{changes:c?1:0}};}
     if(sql.startsWith("DELETE FROM rt_calendars")){for(const [k,c] of rows.calendars)if(c.owner===args[0])rows.calendars.delete(k);return{meta:{changes:1}};}
-    if(sql.includes("AND calendar=?")){for(const [k,d] of rows.events)if(d.owner===args[0]&&d.calendar===args[1])rows.events.delete(k);return{meta:{changes:1}};}
     if(sql.startsWith("INSERT INTO rt_calendar_events")){rows.events.set(args[0]+"|"+args[1],{owner:args[0],id:args[1],start_time:args[2],end_time:args[3],title:args[4],category:args[5],calendar:args[6]});return{meta:{changes:1}};}
     if(sql.startsWith("DELETE FROM rt_health_metrics")){for(const [k,d] of rows.health)if(d.owner===args[0])rows.health.delete(k);return{meta:{changes:1}};}
     if(sql.includes("updated_at<?")){let changes=0;for(const [k,d] of rows.events)if(d.owner===args[0]&&d.start>=args[1]&&d.start<args[2]&&d.updated<args[3]){rows.events.delete(k);changes++;}return{meta:{changes}};}
@@ -94,7 +93,7 @@ test("only release accounts with a valid device can start publishing",async()=>{
  assert.equal(JSON.parse(dispatches[0].init.body).inputs.icloud_link,link);
  assert.doesNotMatch(JSON.stringify(started.data),/server-only/);
 });
-test("turned-off calendars are owner-scoped, purge stored events, and skip new ones",async()=>{
+test("turned-off calendars are owner-scoped, reversible, and skip new events",async()=>{
  const{call,ctx,rows}=harness();
  const a=await call("/api/auth/device",{method:"POST",body:{label:"A"},context:ctx("owner-a@example.com")});
  const b=await call("/api/auth/device",{method:"POST",body:{label:"B"},context:ctx("owner-b@example.com")});
@@ -107,11 +106,12 @@ test("turned-off calendars are owner-scoped, purge stored events, and skip new o
  assert.equal((await call("/api/calendars",{method:"POST",body:{name:"Nope",enabled:false},headers:A})).status,404);
  assert.equal((await call("/api/calendars",{method:"POST",body:{name:"Work",enabled:"no"},headers:A})).status,400);
  assert.equal((await call("/api/calendars",{method:"POST",body:{name:"Work",enabled:false},headers:A})).status,200);
- assert.equal([...rows.events.values()].filter(e=>e.owner==="owner-a@example.com").length,0);
- assert.equal([...rows.events.values()].filter(e=>e.owner==="owner-b@example.com").length,1);
+ assert.equal((await call("/api/pull",{headers:A})).data.events.length,0);
+ assert.equal((await call("/api/pull",{headers:B})).data.events.length,1);
  const skipped=await call("/api/ingest",{method:"POST",body:event("Work"),headers:A});
  assert.equal(skipped.data.state,"skipped");
- assert.equal([...rows.events.values()].filter(e=>e.owner==="owner-a@example.com").length,0);
+ await call("/api/calendars",{method:"POST",body:{name:"Work",enabled:true},headers:A});
+ assert.equal((await call("/api/pull",{headers:A})).data.events.length,1);
  assert.equal((await call("/api/calendars",{headers:B})).data.calendars[0].enabled,true);
 });
 test("owner A data cannot be read or erased by owner B",async()=>{

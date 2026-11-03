@@ -13,7 +13,8 @@
 #ref restingFilter eyJWYWx1ZSI6eyJXRkFjdGlvblBhcmFtZXRlckZpbHRlclByZWZpeCI6MSwiV0ZDb250ZW50UHJlZGljYXRlQm91bmRlZERhdGUiOmZhbHNlLCJXRkFjdGlvblBhcmFtZXRlckZpbHRlclRlbXBsYXRlcyI6W3siQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjQsIlByb3BlcnR5IjoiVHlwZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IlJlc3RpbmcgSGVhcnQgUmF0ZSIsIldGU2VyaWFsaXphdGlvblR5cGUiOiJXRlN0cmluZ1N1YnN0aXR1dGFibGVTdGF0ZSJ9fX0seyJCb3VuZGVkIjp0cnVlLCJPcGVyYXRvciI6MTAwMSwiUHJvcGVydHkiOiJTdGFydCBEYXRlIiwiUmVtb3ZhYmxlIjpmYWxzZSwiVmFsdWVzIjp7Ik51bWJlciI6IjMwIiwiVW5pdCI6MTZ9fV19LCJXRlNlcmlhbGl6YXRpb25UeXBlIjoiV0ZDb250ZW50UHJlZGljYXRlVGFibGVUZW1wbGF0ZSJ9
 #ref hrvFilter eyJWYWx1ZSI6eyJXRkFjdGlvblBhcmFtZXRlckZpbHRlclByZWZpeCI6MSwiV0ZDb250ZW50UHJlZGljYXRlQm91bmRlZERhdGUiOmZhbHNlLCJXRkFjdGlvblBhcmFtZXRlckZpbHRlclRlbXBsYXRlcyI6W3siQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjQsIlByb3BlcnR5IjoiVHlwZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IkhlYXJ0IFJhdGUgVmFyaWFiaWxpdHkiLCJXRlNlcmlhbGl6YXRpb25UeXBlIjoiV0ZTdHJpbmdTdWJzdGl0dXRhYmxlU3RhdGUifX19LHsiQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjEwMDEsIlByb3BlcnR5IjoiU3RhcnQgRGF0ZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJOdW1iZXIiOiIzMCIsIlVuaXQiOjE2fX1dfSwiV0ZTZXJpYWxpemF0aW9uVHlwZSI6IldGQ29udGVudFByZWRpY2F0ZVRhYmxlVGVtcGxhdGUifQ==
 #ref exerciseFilter eyJWYWx1ZSI6eyJXRkFjdGlvblBhcmFtZXRlckZpbHRlclByZWZpeCI6MSwiV0ZDb250ZW50UHJlZGljYXRlQm91bmRlZERhdGUiOmZhbHNlLCJXRkFjdGlvblBhcmFtZXRlckZpbHRlclRlbXBsYXRlcyI6W3siQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjQsIlByb3BlcnR5IjoiVHlwZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IkV4ZXJjaXNlIE1pbnV0ZXMiLCJXRlNlcmlhbGl6YXRpb25UeXBlIjoiV0ZTdHJpbmdTdWJzdGl0dXRhYmxlU3RhdGUifX19LHsiQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjEwMDEsIlByb3BlcnR5IjoiU3RhcnQgRGF0ZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJOdW1iZXIiOiIzMCIsIlVuaXQiOjE2fX1dfSwiV0ZTZXJpYWxpemF0aW9uVHlwZSI6IldGQ29udGVudFByZWRpY2F0ZVRhYmxlVGVtcGxhdGUifQ==
-#ref sleepFilter eyJWYWx1ZSI6eyJXRkFjdGlvblBhcmFtZXRlckZpbHRlclByZWZpeCI6MSwiV0ZDb250ZW50UHJlZGljYXRlQm91bmRlZERhdGUiOmZhbHNlLCJXRkFjdGlvblBhcmFtZXRlckZpbHRlclRlbXBsYXRlcyI6W3siQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjQsIlByb3BlcnR5IjoiVHlwZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IlNsZWVwIiwiV0ZTZXJpYWxpemF0aW9uVHlwZSI6IldGU3RyaW5nU3Vic3RpdHV0YWJsZVN0YXRlIn19fSx7IkJvdW5kZWQiOnRydWUsIk9wZXJhdG9yIjoxMDAxLCJQcm9wZXJ0eSI6IlN0YXJ0IERhdGUiLCJSZW1vdmFibGUiOmZhbHNlLCJWYWx1ZXMiOnsiTnVtYmVyIjoiMSIsIlVuaXQiOjE2fX1dfSwiV0ZTZXJpYWxpemF0aW9uVHlwZSI6IldGQ29udGVudFByZWRpY2F0ZVRhYmxlVGVtcGxhdGUifQ==
+#ref sleepFilter eyJWYWx1ZSI6eyJXRkFjdGlvblBhcmFtZXRlckZpbHRlclByZWZpeCI6MSwiV0ZDb250ZW50UHJlZGljYXRlQm91bmRlZERhdGUiOmZhbHNlLCJXRkFjdGlvblBhcmFtZXRlckZpbHRlclRlbXBsYXRlcyI6W3siQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjQsIlByb3BlcnR5IjoiVHlwZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IlNsZWVwIiwiV0ZTZXJpYWxpemF0aW9uVHlwZSI6IldGU3RyaW5nU3Vic3RpdHV0YWJsZVN0YXRlIn19fSx7IkJvdW5kZWQiOnRydWUsIk9wZXJhdG9yIjoxMDAxLCJQcm9wZXJ0eSI6IlN0YXJ0IERhdGUiLCJSZW1vdmFibGUiOmZhbHNlLCJWYWx1ZXMiOnsiTnVtYmVyIjoiMzAiLCJVbml0IjoxNn19XX0sIldGU2VyaWFsaXphdGlvblR5cGUiOiJXRkNvbnRlbnRQcmVkaWNhdGVUYWJsZVRlbXBsYXRlIn0=
+#ref recentTypesFilter eyJWYWx1ZSI6eyJXRkFjdGlvblBhcmFtZXRlckZpbHRlclByZWZpeCI6MCwiV0ZDb250ZW50UHJlZGljYXRlQm91bmRlZERhdGUiOmZhbHNlLCJXRkFjdGlvblBhcmFtZXRlckZpbHRlclRlbXBsYXRlcyI6W3siQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjQsIlByb3BlcnR5IjoiVHlwZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IlN0ZXBzIiwiV0ZTZXJpYWxpemF0aW9uVHlwZSI6IldGU3RyaW5nU3Vic3RpdHV0YWJsZVN0YXRlIn19fSx7IkJvdW5kZWQiOnRydWUsIk9wZXJhdG9yIjo0LCJQcm9wZXJ0eSI6IlR5cGUiLCJSZW1vdmFibGUiOmZhbHNlLCJWYWx1ZXMiOnsiRW51bWVyYXRpb24iOnsiVmFsdWUiOiJSZXN0aW5nIEhlYXJ0IFJhdGUiLCJXRlNlcmlhbGl6YXRpb25UeXBlIjoiV0ZTdHJpbmdTdWJzdGl0dXRhYmxlU3RhdGUifX19LHsiQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjQsIlByb3BlcnR5IjoiVHlwZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IkhlYXJ0IFJhdGUgVmFyaWFiaWxpdHkiLCJXRlNlcmlhbGl6YXRpb25UeXBlIjoiV0ZTdHJpbmdTdWJzdGl0dXRhYmxlU3RhdGUifX19LHsiQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjQsIlByb3BlcnR5IjoiVHlwZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IkV4ZXJjaXNlIE1pbnV0ZXMiLCJXRlNlcmlhbGl6YXRpb25UeXBlIjoiV0ZTdHJpbmdTdWJzdGl0dXRhYmxlU3RhdGUifX19LHsiQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjQsIlByb3BlcnR5IjoiVHlwZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IlNsZWVwIiwiV0ZTZXJpYWxpemF0aW9uVHlwZSI6IldGU3RyaW5nU3Vic3RpdHV0YWJsZVN0YXRlIn19fV19LCJXRlNlcmlhbGl6YXRpb25UeXBlIjoiV0ZDb250ZW50UHJlZGljYXRlVGFibGVUZW1wbGF0ZSJ9
 
 // The device key lives in a file outside this Shortcut, in On My iPhone so it works without iCloud Drive.
 #ref onMyIPhone eyJkaXNwbGF5TmFtZSI6Ik9uIE15IGlQaG9uZSIsImZpbGVuYW1lIjoiRmlsZSBQcm92aWRlciBTdG9yYWdlIiwiZmlsZUxvY2F0aW9uIjp7IldGRmlsZUxvY2F0aW9uVHlwZSI6IkxvY2FsU3RvcmFnZSIsInJlbGF0aXZlU3VicGF0aCI6IiJ9fQ==
@@ -21,10 +22,6 @@
 action 'is.workflow.actions.file.createfolder' createKeyFolder(&variable location: 'WFFolder') {"WFFilePath":"Rage Tracker"}
 
 action 'is.workflow.actions.documentpicker.open' readSavedDeviceKey(&variable folder: 'WFFile'): text {"WFGetFilePath":"rage-tracker-device-key.txt","WFFileErrorIfNotFound":false,"WFShowFilePicker":false}
-
-action 'is.workflow.actions.documentpicker.open' readSavedHealthTypes(&variable folder: 'WFFile'): text {"WFGetFilePath":"rage-tracker-health-types.txt","WFFileErrorIfNotFound":false,"WFShowFilePicker":false}
-
-action 'is.workflow.actions.documentpicker.save' saveHealthTypes(variable types: 'WFInput', &variable folder: 'WFFolder') {"WFFileDestinationPath":"rage-tracker-health-types.txt","WFSaveFileOverwrite":true,"WFAskWhereToSave":false}
 
 action 'is.workflow.actions.documentpicker.save' saveDeviceKey(variable key: 'WFInput', &variable folder: 'WFFolder') {"WFFileDestinationPath":"rage-tracker-device-key.txt","WFSaveFileOverwrite":true,"WFAskWhereToSave":false}
 
@@ -69,7 +66,12 @@ action 'is.workflow.actions.filter.calendarevents' findEvents(&variable filter: 
 // A result limit would apply before grouping and return a single sample.
 action 'is.workflow.actions.filter.health.quantity' findLatestDay(&variable filter: 'WFContentItemFilter'): array {"WFHKSampleFilteringGroupBy":"Day","WFHKSampleFilteringFillMissing":true,"WFContentItemSortProperty":"Start Date","WFContentItemSortOrder":"Latest First"}
 
-action 'is.workflow.actions.filter.health.quantity' findSamples(&variable filter: 'WFContentItemFilter'): array {"WFContentItemSortProperty":"Start Date","WFContentItemSortOrder":"Oldest First"}
+action 'is.workflow.actions.filter.health.quantity' findSamples(&variable filter: 'WFContentItemFilter'): array {"WFContentItemLimitEnabled":true,"WFContentItemLimitNumber":60,"WFContentItemSortProperty":"Start Date","WFContentItemSortOrder":"Latest First"}
+
+// The newest samples of any type. A filter can't both match several types and limit dates, so a result limit bounds it.
+action 'is.workflow.actions.filter.health.quantity' findRecentSamples(&variable filter: 'WFContentItemFilter'): array {"WFContentItemLimitEnabled":true,"WFContentItemLimitNumber":1000,"WFContentItemSortProperty":"Start Date","WFContentItemSortOrder":"Latest First"}
+
+action 'is.workflow.actions.properties.health.quantity' getSampleTypes(variable samples: 'WFInput'): array {"WFContentItemPropertyName":"Type"}
 
 action 'is.workflow.actions.properties.health.quantity' getStepValues(variable samples: 'WFInput'): array {"WFContentItemPropertyName":"Value"}
 
@@ -132,50 +134,48 @@ formRequest("https://rage-tracker.bishvili.workers.dev/api/ingest", "POST", {
     "startedAt": "{syncStarted}"
 }, {"Authorization": "{@credential}"})
 
-// Find Health Samples ends the run when a type has never had samples, so each iPhone chooses what it can read.
-const savedTypesFile = readSavedHealthTypes(keyFolder)
-@healthTypes = getText(savedTypesFile)
-const savedTypesLength = count(@healthTypes, "Characters")
-if savedTypesLength == 0 {
-    const typeOptions = list("Resting heart rate", "Heart rate variability", "Exercise minutes", "Sleep", "None of these")
-    const chosenTypes = chooseFromList(typeOptions, "Which Health data does this iPhone have?", true)
-    @healthTypes = getText(chosenTypes)
-    saveHealthTypes(@healthTypes, keyFolder)
-}
+// Find Health Samples ends the run when a type has no samples, so check which types have recent data first.
+const recentSamples = findRecentSamples(recentTypesFilter)
+const recentTypeValues = getSampleTypes(recentSamples)
+const recentTypes = getText(recentTypeValues)
 
-const stepDays = findLatestDay(stepsFilter)
-const samples = getFirstItem(stepDays)
-const stepDate = getSampleStart(samples)
-const stepDay = formatDate(stepDate, "Custom", "yyyy-MM-dd")
-const values = getStepValues(samples)
-const totalSteps = sumValues(values)
-if totalSteps >= 1 {
-    const totalStepsText = getText(totalSteps)
-    const normalizedSteps = replaceText('(?<=\d)[,\s](?=\d{3}(?:\D|$))', "", totalStepsText, true, true)
-    // Keep only the number, because the text form of a Health value can include a unit.
-    const stepsValue = replaceText('^\D*(\d+(?:\.\d+)?)[\s\S]*$', "$1", normalizedSteps, true, true)
-    const healthBody = formRequest("https://rage-tracker.bishvili.workers.dev/api/ingest", "POST", {
-        "kind": "health",
-        "shortcutVersion": "2.3.8",
-        "date": "{stepDay}",
-        "steps": "{stepsValue}"
-    }, {"Authorization": "{@credential}"})
-    const healthResponse = getDictionary(healthBody)
-    const healthStatusValue = getValue(healthResponse, "state")
-    const healthStatus = getText(healthStatusValue)
-    if healthStatus != "accepted" {
-        const healthErrorValue = getValue(healthResponse, "error")
-        const healthError = getText(healthErrorValue)
-        alert("Your steps didn't sync. {healthError}", "Sync stopped")
-        stop()
+const stepsMatches = matchText('(?i)steps', recentTypes)
+const stepsAvailable = count(stepsMatches)
+if stepsAvailable >= 1 {
+    const stepDays = findLatestDay(stepsFilter)
+    const samples = getFirstItem(stepDays)
+    const stepDate = getSampleStart(samples)
+    const stepDay = formatDate(stepDate, "Custom", "yyyy-MM-dd")
+    const values = getStepValues(samples)
+    const totalSteps = sumValues(values)
+    if totalSteps >= 1 {
+        const totalStepsText = getText(totalSteps)
+        const normalizedSteps = replaceText('(?<=\d)[,\s](?=\d{3}(?:\D|$))', "", totalStepsText, true, true)
+        // Keep only the number, because the text form of a Health value can include a unit.
+        const stepsValue = replaceText('^\D*(\d+(?:\.\d+)?)[\s\S]*$', "$1", normalizedSteps, true, true)
+        const healthBody = formRequest("https://rage-tracker.bishvili.workers.dev/api/ingest", "POST", {
+            "kind": "health",
+            "shortcutVersion": "2.3.8",
+            "date": "{stepDay}",
+            "steps": "{stepsValue}"
+        }, {"Authorization": "{@credential}"})
+        const healthResponse = getDictionary(healthBody)
+        const healthStatusValue = getValue(healthResponse, "state")
+        const healthStatus = getText(healthStatusValue)
+        if healthStatus != "accepted" {
+            const healthErrorValue = getValue(healthResponse, "error")
+            const healthError = getText(healthErrorValue)
+            alert("Your steps didn't sync. {healthError}", "Sync stopped")
+            stop()
+        }
+        @acceptedCount += 1
     }
-    @acceptedCount += 1
 }
 
 // A metric with no data today is left out, never sent as zero.
-const restingChoice = matchText('Resting', @healthTypes)
-const restingChosen = count(restingChoice)
-if restingChosen >= 1 {
+const restingMatches = matchText('(?i)Resting', recentTypes)
+const restingAvailable = count(restingMatches)
+if restingAvailable >= 1 {
     const restingDays = findLatestDay(restingFilter)
     const restingSamples = getFirstItem(restingDays)
     const restingDate = getSampleStart(restingSamples)
@@ -197,9 +197,9 @@ if restingChosen >= 1 {
     }
 }
 
-const hrvChoice = matchText('variability', @healthTypes)
-const hrvChosen = count(hrvChoice)
-if hrvChosen >= 1 {
+const hrvMatches = matchText('(?i)Variability', recentTypes)
+const hrvAvailable = count(hrvMatches)
+if hrvAvailable >= 1 {
     const hrvDays = findLatestDay(hrvFilter)
     const hrvSamples = getFirstItem(hrvDays)
     const hrvDate = getSampleStart(hrvSamples)
@@ -221,9 +221,9 @@ if hrvChosen >= 1 {
     }
 }
 
-const exerciseChoice = matchText('Exercise', @healthTypes)
-const exerciseChosen = count(exerciseChoice)
-if exerciseChosen >= 1 {
+const exerciseMatches = matchText('(?i)Exercise', recentTypes)
+const exerciseAvailable = count(exerciseMatches)
+if exerciseAvailable >= 1 {
     const exerciseDays = findLatestDay(exerciseFilter)
     const exerciseSamples = getFirstItem(exerciseDays)
     const exerciseDate = getSampleStart(exerciseSamples)
@@ -263,23 +263,26 @@ if updateStatus == "new_release" {
     }
 }
 
-// Sleep runs last because a night with no samples ends the run.
+// Count only sleep from the last 24 hours.
 // Count only time asleep, not time in bed or awake.
-const sleepChoice = matchText('Sleep', @healthTypes)
-const sleepChosen = count(sleepChoice)
-if sleepChosen >= 1 {
+const sleepMatches = matchText('(?i)Sleep', recentTypes)
+const sleepAvailable = count(sleepMatches)
+if sleepAvailable >= 1 {
     @sleepMinutes = 0
     const sleepSamples = findSamples(sleepFilter)
     for sleepSample in sleepSamples {
-        const stageValue = getSampleValue(@sleepSample)
-        const stageText = getText(stageValue)
-        const stageMatches = matchText('(?i)asleep', stageText)
-        const stageCount = count(stageMatches)
-        if stageCount >= 1 {
-            const sleepStart = getSampleStart(@sleepSample)
-            const sleepEnd = getSampleEnd(@sleepSample)
-            const stageMinutes = minutesSince(sleepEnd, sleepStart)
-            @sleepMinutes += stageMinutes
+        const sleepStart = getSampleStart(@sleepSample)
+        const sleepAge = minutesSince(today, sleepStart)
+        if sleepAge <= 1440 {
+            const stageValue = getSampleValue(@sleepSample)
+            const stageText = getText(stageValue)
+            const stageMatches = matchText('(?i)asleep', stageText)
+            const stageCount = count(stageMatches)
+            if stageCount >= 1 {
+                const sleepEnd = getSampleEnd(@sleepSample)
+                const stageMinutes = minutesSince(sleepEnd, sleepStart)
+                @sleepMinutes += stageMinutes
+            }
         }
     }
     if @sleepMinutes >= 1 {
