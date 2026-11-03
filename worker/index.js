@@ -84,7 +84,8 @@ async function authApi(request,env,ctx,path){
  }
  if(path==="/api/auth/me"&&request.method==="GET"){
   const r=await env.DB.prepare("SELECT device_id,label,created_at,last_used_at,last_attempt_at,last_error_code,shortcut_version,revoked_at FROM rt_devices WHERE owner_email=? ORDER BY created_at DESC LIMIT 30").bind(email).all();
-  return reply({ok:true,email,canRelease:await canRelease(env,email),devices:(r.results||[]).map(d=>({id:d.device_id,label:d.label,createdAt:d.created_at,lastUsedAt:d.last_used_at,lastAttemptAt:d.last_attempt_at,lastErrorCode:d.last_error_code,shortcutVersion:d.shortcut_version,revoked:!!d.revoked_at}))});
+  const welcome=await env.DB.prepare("SELECT display_name FROM rt_release_emails WHERE email=? AND display_name IS NOT NULL AND welcomed_at IS NULL").bind(email).first();
+  return reply({ok:true,email,canRelease:await canRelease(env,email),welcomeName:welcome?.display_name||null,devices:(r.results||[]).map(d=>({id:d.device_id,label:d.label,createdAt:d.created_at,lastUsedAt:d.last_used_at,lastAttemptAt:d.last_attempt_at,lastErrorCode:d.last_error_code,shortcutVersion:d.shortcut_version,revoked:!!d.revoked_at}))});
  }
  if(path==="/api/auth/device"){
   if(!browserPostAllowed(request))return error("Same-origin JSON POST required",403);
@@ -96,6 +97,11 @@ async function authApi(request,env,ctx,path){
   await env.DB.prepare("INSERT OR IGNORE INTO rt_users(email,created_at) VALUES(?,?)").bind(email,at).run();
   await env.DB.prepare("INSERT INTO rt_devices(token_hash,device_id,owner_email,label,created_at) VALUES(?,?,?,?,?)").bind(await digest(token),deviceId,email,label,at).run();
   return reply({ok:true,email,token,deviceId,label,createdAt:at});
+ }
+ if(path==="/api/auth/welcomed"){
+  if(!browserPostAllowed(request))return error("Same-origin JSON POST required",403);
+  await env.DB.prepare("UPDATE rt_release_emails SET welcomed_at=? WHERE email=? AND welcomed_at IS NULL").bind(new Date().toISOString(),email).run();
+  return reply({ok:true});
  }
  if(path==="/api/auth/revoke"){
   if(!browserPostAllowed(request))return error("Same-origin JSON POST required",403);
@@ -305,7 +311,7 @@ async function syncApi(request,env,path){
  return error("Not found",404);
 }
 async function api(request,env,ctx,path){
- if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:"Rage Tracker",version:"1.14.0",sync:"email-access"});
+ if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:"Rage Tracker",version:"1.14.1",sync:"email-access"});
  if(path.startsWith("/api/auth/"))return authApi(request,env,ctx,path);
  return syncApi(request,env,path);
 }

@@ -25,7 +25,7 @@ The repository owner grants these, using the new developer's own accounts:
 1. **GitHub:** add them as a collaborator on `Bishvili/rage-tracker` with write access.
 2. **Cloudflare:** invite them to the Bishvili account with access to Workers, KV, and D1. Pushes deploy through Workers Builds, so this is not needed just to deploy.
 3. **App sign-in:** to let them use Sync, add their email to the Cloudflare Access policy and to the `APPROVED_SYNC_EMAILS` Worker secret. Sign-in fails until both include it.
-4. **Releases:** add their email to the `rt_release_emails` D1 table.
+4. **Releases:** add their email to the `rt_release_emails` D1 table. Set `display_name` to welcome them on first sign-in with a guide to improving the site.
 5. **RoutineHub:** releases use the `ROUTINEHUB_API_KEY` repository secret, so they can publish through the workflow without their own key. Only share the listing's RoutineHub account deliberately.
 
 ### Developer steps

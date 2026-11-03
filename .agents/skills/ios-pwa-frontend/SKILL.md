@@ -85,11 +85,15 @@ Spacing and shape:
 
 ## Screen-level direction
 
+### All tabs
+- Use a plain page title and start with the content. No slogans, eyebrows or intro paragraphs outside Check-in.
+- Put manual entry, rarely used tools and account management behind a disclosure, keeping required privacy facts visible.
+
 ### Check-in
 - Open on the mood selection, not an onboarding wall.
 - One prominent mood control, optional energy and context tags, then an obvious Save action.
 - Confirm success without blocking the next action. Prevent accidental duplicate saves and clarify when data is stored locally.
-- Avoid guilt-creating streak language or rewarding a user for reporting a certain mood.
+- A plain current-streak count is fine. Keep it neutral: no guilt when it resets, and no rewards for reporting a certain mood.
 
 ### Insights
 - Lead with one question or pattern at a time, then supporting sample counts, baseline, timeframe, and comparison details.

@@ -1,6 +1,6 @@
 (function () {
 "use strict";
-var VERSION = "1.14.0";
+var VERSION = "1.14.1";
 var SHORTCUT_PAGE = "https://routinehub.co/shortcut/26978/";
 var STORAGE_KEY = "rage-tracker:v1";
 var MOOD_NAMES = ["","Rough","Low","Okay","Good","Great"];
@@ -499,6 +499,16 @@ async function checkShortcutUpload(silent){
   shortcutStatusLoading=false;button.disabled=false;button.textContent="Test connection";renderSync();
  }
 }
+function showWelcome(name){
+ var dialog=$("welcome-dialog");if(dialog.open)return;
+ $("welcome-title").textContent="Welcome, "+name+"!";
+ $("welcome-improve").href=$("improve-site").href;
+ dialog.showModal();
+}
+function closeWelcome(){
+ $("welcome-dialog").close();
+ fetch("/api/auth/welcomed",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:"{}",cache:"no-store"}).catch(function(){});
+}
 async function refreshAuth(){
  if(authChecking||!navigator.onLine)return;
  authChecking=true;
@@ -506,7 +516,7 @@ async function refreshAuth(){
   var r=await fetch("/api/auth/me",{credentials:"same-origin",cache:"no-store",headers:{"Accept":"application/json"}});
   if(!r.ok||r.redirected||!(r.headers.get("content-type")||"").includes("application/json"))throw Error("No active login");
   var data=await r.json();if(!data.ok||!data.email)throw Error("Identity unavailable");
-  authEmail=String(data.email).toLowerCase();authDevices=Array.isArray(data.devices)?data.devices:[];authCanRelease=data.canRelease===true;
+  authEmail=String(data.email).toLowerCase();authDevices=Array.isArray(data.devices)?data.devices:[];authCanRelease=data.canRelease===true;if(data.welcomeName)showWelcome(data.welcomeName);
  }catch(e){authEmail="";authDevices=[];authCanRelease=false;}
  finally{authChecking=false;renderSync();}
 }
@@ -601,6 +611,7 @@ function init(){
  $("install-shortcut").addEventListener("click",function(e){if(!state.token||!shortcutRelease||!this.href){e.preventDefault();toast("Connect your device to open the current Shortcut.");}});
  $("check-shortcut-upload").addEventListener("click",function(){checkShortcutUpload(false);});
  $("device-list").addEventListener("click",function(e){var b=e.target.closest("[data-revoke-device]");if(b)revokeDevice(b.dataset.revokeDevice);});
+ $("welcome-close").addEventListener("click",closeWelcome);$("welcome-improve").addEventListener("click",closeWelcome);
  $("pull-button").addEventListener("click",syncNow);$("run-shortcut").addEventListener("click",function(event){event.preventDefault();runShortcut();});
  $("unpair-button").addEventListener("click",function(){if(state.deviceId)revokeDevice(state.deviceId);});
  document.querySelectorAll("[data-copy]").forEach(function(b){b.addEventListener("click",function(){

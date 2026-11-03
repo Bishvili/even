@@ -21,6 +21,7 @@ function harness({verified=false}={}){
  const env={GITHUB_API_KEY:"server-only",APPROVED_SYNC_EMAILS:JSON.stringify(allowed),ASSETS:{async get(key){return key==="config:shortcut:latest"?release:null;}},DB:{
   prepare(sql){return{bind(...args){return {
    async first(){
+    if(sql.includes("SELECT display_name"))return args[0]==="owner-a@example.com"&&!rows.welcomed?{display_name:"Ada"}:null;
     if(sql.includes("FROM rt_release_emails"))return args[0]==="owner-a@example.com"?{allowed:1}:null;
     if(sql.includes("SELECT device_id,owner_email,revoked_at"))return rows.devices.get(args[0])||null;
     if(sql.includes("SELECT last_used_at,last_attempt_at,last_error_code,shortcut_version")){const d=[...rows.devices.values()].find(d=>d.device_id===args[0]&&d.owner_email===args[1]&&!d.revoked_at);return d||null;}
@@ -49,6 +50,7 @@ function harness({verified=false}={}){
     if(sql.startsWith("UPDATE rt_push_subscriptions")){rows.subs.get(args[1]).last_sent_day=args[0];return{meta:{changes:1}};}
     if(sql.startsWith("DELETE FROM rt_push_subscriptions WHERE endpoint=? AND owner_email=?")){const s=rows.subs.get(args[0]);if(s&&s.owner===args[1])rows.subs.delete(args[0]);return{meta:{changes:1}};}
     if(sql.startsWith("DELETE FROM rt_push_subscriptions"))  {rows.subs.delete(args[0]);return{meta:{changes:1}};}
+    if(sql.startsWith("UPDATE rt_release_emails")){if(args[1]==="owner-a@example.com")rows.welcomed=true;return{meta:{changes:1}};}
     if(sql.startsWith("INSERT OR IGNORE INTO rt_calendars")){const k=args[0]+"|"+args[1];if(!rows.calendars.has(k))rows.calendars.set(k,{owner:args[0],name:args[1],enabled:1});return{meta:{changes:1}};}
     if(sql.startsWith("UPDATE rt_calendars")){const c=rows.calendars.get(args[1]+"|"+args[2]);if(c)c.enabled=args[0];return{meta:{changes:c?1:0}};}
     if(sql.startsWith("DELETE FROM rt_calendars")){for(const [k,c] of rows.calendars)if(c.owner===args[0])rows.calendars.delete(k);return{meta:{changes:1}};}
@@ -146,6 +148,18 @@ test("reminders are validated, owner-scoped, sent once a day, and stop when a de
  await call("/api/auth/revoke",{method:"POST",body:{deviceId:a.data.deviceId},context:ctx("owner-a@example.com")});
  await send("2026-11-05T04:05:00Z");
  assert.equal(dispatches.length,1);
+});
+test("the first sign-in welcome is per account and stops once seen",async()=>{
+ const{call,ctx}=harness();
+ const a=ctx("owner-a@example.com"),b=ctx("owner-b@example.com");
+ assert.equal((await call("/api/auth/me",{context:a})).data.welcomeName,"Ada");
+ assert.equal((await call("/api/auth/me",{context:b})).data.welcomeName,null);
+ assert.equal((await call("/api/auth/welcomed",{method:"POST",body:{}})).status,401);
+ assert.equal((await call("/api/auth/welcomed",{method:"POST",body:{},context:b})).status,200);
+ assert.equal((await call("/api/auth/me",{context:a})).data.welcomeName,"Ada");
+ assert.equal((await call("/api/auth/welcomed",{method:"POST",body:{},headers:{Origin:"https://evil.example"},context:a})).status,403);
+ assert.equal((await call("/api/auth/welcomed",{method:"POST",body:{},context:a})).status,200);
+ assert.equal((await call("/api/auth/me",{context:a})).data.welcomeName,null);
 });
 test("owner A data cannot be read or erased by owner B",async()=>{
  const{call,ctx}=harness();
