@@ -4,7 +4,7 @@ This file is the operating guide for changes to the Rage Tracker codebase. Follo
 
 ## Onboarding a new developer
 
-When someone new starts working on this repository, or a tool, permission, or account below is missing, walk them through this section one step at a time. Check each step with a read-only call where you can, and say plainly which steps only the repository owner can do. Never ask anyone to paste a key or token into a chat, a commit, or an issue.
+The first time someone points you at this repository, before starting other work, check which connections below this session has and help them add what's missing. Search the connector registry and offer each connector as a card when those tools are available; otherwise tell them where to add it in Claude's settings. When someone new starts working on this repository, or a tool, permission, or account below is missing, walk them through this section one step at a time. Check each step with a read-only call where you can, and say plainly which steps only the repository owner can do. Never ask anyone to paste a key or token into a chat, a commit, or an issue.
 
 ### What the project depends on
 

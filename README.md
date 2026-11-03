@@ -2,6 +2,10 @@
 
 Live app: https://rage-tracker.bishvili.workers.dev
 
+## Developing
+
+New to the project? Point Claude at this repository and it will guide you through setup, or follow [Onboarding a new developer](AGENTS.md#onboarding-a-new-developer).
+
 ## What works
 
 Install from Safari > Share > Add to Home Screen. Mood check-ins, energy, tags and notes stay on your iPhone. Explore time-of-day, activities, sleep and calendar context correlations. This is observational, not medical advice.
