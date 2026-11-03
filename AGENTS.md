@@ -2,6 +2,48 @@
 
 This file is the operating guide for changes to the Rage Tracker codebase. Follow it before editing the UI, Worker, database, tests, or deployment configuration.
 
+## Onboarding a new developer
+
+When someone new starts working on this repository, or a tool, permission, or account below is missing, walk them through this section one step at a time. Check each step with a read-only call where you can, and say plainly which steps only the repository owner can do. Never ask anyone to paste a key or token into a chat, a commit, or an issue.
+
+### What the project depends on
+
+| Dependency | Needed for | Required? |
+| --- | --- | --- |
+| `.agents/skills/ios-pwa-frontend/SKILL.md` | All UI and copy changes. It ships with this repository, so there is nothing to install. Read it directly. | Yes |
+| GitHub access to `Bishvili/rage-tracker` with push rights | Code changes, running workflows, reading build results | Yes |
+| Cloudflare connection with access to the Bishvili account | Checking the Worker and querying the D1 database | Recommended |
+| RoutineHub connection | Reading the account's listings. It cannot add a version to an existing Shortcut, so releases use the GitHub workflow. | Optional |
+| An iPhone with the Shortcuts app | Testing the Shortcut and creating iCloud links, which nothing else can do | For Shortcut work |
+
+No other skill is required. Compiling and signing the Shortcut happens in GitHub Actions, so Cherri does not need to be installed locally.
+
+### Owner steps
+
+The repository owner grants these, using the new developer's own accounts:
+
+1. **GitHub:** add them as a collaborator on `Bishvili/rage-tracker` with write access.
+2. **Cloudflare:** invite them to the Bishvili account with access to Workers, KV, and D1. Pushes deploy through Workers Builds, so this is not needed just to deploy.
+3. **App sign-in:** to let them use Sync, add their email to the Cloudflare Access policy and to the `APPROVED_SYNC_EMAILS` Worker secret. Sign-in fails until both include it.
+4. **RoutineHub:** releases use the `ROUTINEHUB_API_KEY` repository secret, so they can publish through the workflow without their own key. Only share the listing's RoutineHub account deliberately.
+
+### Developer steps
+
+1. **Connect GitHub** in Claude, and confirm `Bishvili/rage-tracker` is listed with push access.
+2. **Connect Cloudflare** in Claude and select the Bishvili account. It should list one Worker, `rage-tracker`. The older Workers Bindings server is deprecated in favor of `https://mcp.cloudflare.com/mcp`.
+3. **Optionally connect RoutineHub** using an API key from their own RoutineHub account, under **Settings → API**. It will only show listings that account owns. In cloud sessions, add it as a Claude connector, because `routinehub.co` is not on the default network allowlist.
+4. **Run the tests:** `node --test tests/*.test.cjs`.
+5. **To release Shortcuts:** create a fine-grained GitHub token limited to this repository with **Actions: Read and write**, then install [Rage Tracker Release](https://github.com/Bishvili/rage-tracker/releases/download/shortcut-latest/Rage-Tracker-Release.shortcut) and paste the token when asked. Never share that configured Shortcut. See [RoutineHub releases](shortcuts/ROUTINEHUB_RELEASE.md).
+6. **To test Sync:** generate their own device key in Rage Tracker → **Sync**. Keys belong to one account, so never reuse someone else's.
+
+### What to know before changing anything
+
+- Pushes to `main` go straight to the live app, with no staging. Sign-in, data deletion, and database changes need extra care.
+- D1 holds real personal Health and Calendar records. Query only what the task needs, and do not copy values into chats, commits, or issues. Never change or delete records without the owner's approval.
+- Cherri rewrites nested dictionaries in custom action parameters into a format iOS ignores, and the action then silently falls back to its defaults. Pass nested values such as filters and folders as `#ref` values, and extend `scripts/check-shortcut-conditions.py` to check the compiled plist.
+- Only an iPhone can prove Shortcut behavior. Open the action in the Shortcuts editor to confirm what iOS actually understood.
+- The Shortcut's key file must stay in On My iPhone: the Shortcuts folder in iCloud Drive does not exist when iCloud Drive is off.
+
 ## Product and quality bar
 
 **Working mode:** iterate quickly. Commit directly to `main`, without feature branches, waiting on CI, or approval steps. The interface should still look and read like a finished App Store app.
