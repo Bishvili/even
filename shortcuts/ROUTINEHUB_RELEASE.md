@@ -6,7 +6,7 @@ Rage Tracker Sync is listed at [#26978](https://routinehub.co/shortcut/26978/). 
 
 1. Save a RoutineHub developer API key as the `ROUTINEHUB_API_KEY` repository secret.
 2. Save a fine-grained GitHub token limited to this repository, with **Actions: Read and write**, as the `GITHUB_API_KEY` Worker secret.
-3. Add the part of the publisher's email before the @ to the `rt_release_accounts` D1 table. Their account must also be approved for sign-in.
+3. Add the publisher's email to the `rt_release_emails` D1 table. Their account must also be approved for sign-in.
 4. On that iPhone, sign in to Rage Tracker → **Sync**, tap **Set Up Release Helper**, and run Rage Tracker Sync once so the device key is saved. The helper holds no credentials.
 
 ## Publish a version

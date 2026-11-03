@@ -25,7 +25,7 @@ The repository owner grants these, using the new developer's own accounts:
 1. **GitHub:** add them as a collaborator on `Bishvili/rage-tracker` with write access.
 2. **Cloudflare:** invite them to the Bishvili account with access to Workers, KV, and D1. Pushes deploy through Workers Builds, so this is not needed just to deploy.
 3. **App sign-in:** to let them use Sync, add their email to the Cloudflare Access policy and to the `APPROVED_SYNC_EMAILS` Worker secret. Sign-in fails until both include it.
-4. **Releases:** add the part of their email before the @ to the `rt_release_accounts` D1 table.
+4. **Releases:** add their email to the `rt_release_emails` D1 table.
 5. **RoutineHub:** releases use the `ROUTINEHUB_API_KEY` repository secret, so they can publish through the workflow without their own key. Only share the listing's RoutineHub account deliberately.
 
 ### Developer steps
@@ -34,7 +34,7 @@ The repository owner grants these, using the new developer's own accounts:
 2. **Connect Cloudflare** in Claude and select the Bishvili account. It should list one Worker, `rage-tracker`. The older Workers Bindings server is deprecated in favor of `https://mcp.cloudflare.com/mcp`.
 3. **Optionally connect RoutineHub** using an API key from their own RoutineHub account, under **Settings → API**. It will only show listings that account owns. In cloud sessions, add it as a Claude connector, because `routinehub.co` is not on the default network allowlist.
 4. **Run the tests:** `node --test tests/*.test.cjs`.
-5. **To release Shortcuts:** in Rage Tracker → **Sync**, use **Set Up Release Helper**, then **Run Release Helper**. The card appears for accounts listed in `rt_release_accounts`. See [RoutineHub releases](shortcuts/ROUTINEHUB_RELEASE.md).
+5. **To release Shortcuts:** in Rage Tracker → **Sync**, use **Set Up Release Helper**, then **Run Release Helper**. The card appears for accounts listed in `rt_release_emails`. See [RoutineHub releases](shortcuts/ROUTINEHUB_RELEASE.md).
 6. **To test Sync:** generate their own device key in Rage Tracker → **Sync**. Keys belong to one account, so never reuse someone else's.
 
 ### What to know before changing anything

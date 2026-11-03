@@ -21,7 +21,7 @@ function harness({verified=false}={}){
  const env={GITHUB_API_KEY:"server-only",APPROVED_SYNC_EMAILS:JSON.stringify(allowed),ASSETS:{async get(key){return key==="config:shortcut:latest"?release:null;}},DB:{
   prepare(sql){return{bind(...args){return {
    async first(){
-    if(sql.includes("FROM rt_release_accounts"))return args[0]==="owner-a"?{allowed:1}:null;
+    if(sql.includes("FROM rt_release_emails"))return args[0]==="owner-a@example.com"?{allowed:1}:null;
     if(sql.includes("SELECT device_id,owner_email,revoked_at"))return rows.devices.get(args[0])||null;
     if(sql.includes("SELECT last_used_at,last_attempt_at,last_error_code,shortcut_version")){const d=[...rows.devices.values()].find(d=>d.device_id===args[0]&&d.owner_email===args[1]&&!d.revoked_at);return d||null;}
     if(sql.includes("SELECT COUNT(*) AS count FROM rt_health_metrics"))return{count:[...rows.health.values()].filter(d=>d.owner===args[0]).length};

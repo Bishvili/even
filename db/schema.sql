@@ -34,6 +34,6 @@ CREATE TABLE IF NOT EXISTS rt_calendar_events (
   PRIMARY KEY (owner_email, event_id)
 );
 CREATE INDEX IF NOT EXISTS rt_calendar_owner_start ON rt_calendar_events(owner_email, start_time);
-CREATE TABLE IF NOT EXISTS rt_release_accounts (
-  account TEXT PRIMARY KEY
+CREATE TABLE IF NOT EXISTS rt_release_emails (
+  email TEXT PRIMARY KEY
 );
