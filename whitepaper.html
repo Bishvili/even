@@ -54,6 +54,7 @@
   <tr><td>Heart and activity</td><td>Resting and average heart rate, heart rate variability, steps, exercise minutes</td><td>Apple Health</td><td>Account and iPhone</td></tr>
   <tr><td>Calendar</td><td>Today’s events: title, time, calendar name and a category. Calendars can be turned off.</td><td>iPhone Calendar</td><td>Account and iPhone</td></tr>
   <tr><td>Alarms</td><td>Name, time and repeat days</td><td>iPhone Clock</td><td>Account and iPhone</td></tr>
+  <tr><td>Breathing exercises</td><td>When each one was started</td><td>The app</td><td>This iPhone only</td></tr>
   <tr><td>Weekly reflection</td><td>Four questions on temper, recovery and rest, shown as a 0 to 100 score. Written for the app and not a validated scale.</td><td>Self-report</td><td>This iPhone only</td></tr>
  </tbody>
 </table></div>
@@ -86,6 +87,7 @@
   <tr><td>Do certain events go with stress?</td><td>Compares check-ins during an event or up to 90 minutes after it with all others. At least 3 in each group.</td></tr>
   <tr><td>Does short sleep go with stress?</td><td>Compares days after under 6.5 hours of sleep with other days. At least 3 in each group.</td></tr>
   <tr><td>Do early alarms go with stress?</td><td>Compares days with a first alarm before 7 AM with days with a later one. At least 3 in each group.</td></tr>
+  <tr><td>What goes with feeling better?</td><td>Compares lower stress, better mood and more energy for sleep of 7 hours or more, 6,000 or more steps, a workout, the 2 hours after a breathing exercise, and activities such as rest, exercise or time outdoors. Needs at least 5 check-ins each way and a 0.4 point difference.</td></tr>
   <tr><td>When is it shown?</td><td>Patterns appear at a difference of 0.3 points. A prompt needs at least 0.4.</td></tr>
  </tbody>
 </table></div>
@@ -140,8 +142,21 @@
 <ul>
  <li><strong>A breathing exercise.</strong> Four rounds of four-second inhale, hold, exhale and hold, which is under 4 breaths a minute, and about a minute in all. Reviews link slow breathing with changes in heart rate variability and with relaxation, though studies are small and varied [3]. The app says to breathe normally and stop if it feels uncomfortable.</li>
  <li><strong>A sleep target.</strong> In the evening, the app works back from tomorrow’s alarm using the person’s usual recent sleep, or 8 hours when there’s too little data. That sits within the 7 to 9 hours recommended for most adults [5]. Sleep loss has been shown experimentally to heighten negative responses to mild stressors [4], which is why sleep is a central signal here.</li>
+ <li><strong>Something from their own history.</strong> If workouts have tended to go with lower stress and there’s been none today, the app suggests some movement. A check-in with high stress, low mood or low energy in the last 6 hours steers the choice toward what has gone with relief from that. The wording stays at “tended to”, and the counts are one tap away.</li>
  <li><strong>A plain next step.</strong> The first screen lists up to three things to do, such as “take a minute” or “sync now”, each with its reason where there is one.</li>
 </ul>
+
+<h2>Garmin, Peloton and other apps</h2>
+<p>Even reads Apple Health, so an app that shares with Apple Health needs no separate connection. Apple Health is the recommended route because it adds one consent screen and no new accounts. Direct connections add cost and more companies holding the data.</p>
+<div class="table"><table>
+ <thead><tr><th>App</th><th>Through Apple Health</th><th>Not available this way</th><th>Direct connection</th></tr></thead>
+ <tbody>
+  <tr><td>Garmin</td><td>Writes data to Apple Health, reportedly including steps and heart rate. Other categories should be checked on the phone.</td><td>Garmin’s own scores, such as Body Battery and its stress score</td><td>Possible through its developer program, which reopened in October 2026. Needs approval and has limits and terms to review.</td></tr>
+  <tr><td>Peloton</td><td>Sends workouts to Apple Health when its write access is on</td><td>Advanced ride metrics such as power</td><td>No official public route found</td></tr>
+  <tr><td>Hume Health</td><td>Hume reads from Apple Health. Its help pages don’t say whether body measurements are written back.</td><td>Possibly body composition</td><td>No public route found</td></tr>
+ </tbody>
+</table></div>
+<p class="note">Workouts recorded by another app may not count toward exercise minutes, which is the measure Even reads today. Until that’s confirmed on a phone, the Exercise tag on a check-in is a reliable way to record them. This assessment reflects published information in November 2026, and these services can change.</p>
 
 <h2>Safety</h2>
 <ul>
@@ -158,10 +173,12 @@
   <tr><td>Very small samples</td><td>Three entries per group is enough to display a pattern, and far too few to be confident in it. Counts are shown so readers can judge.</td></tr>
   <tr><td>Many comparisons</td><td>Tags, event types, weekdays, sleep and alarms are all checked with no correction for multiple comparisons, so some patterns will be chance.</td></tr>
   <tr><td>Confounding</td><td>Short sleep, early alarms and busy days often coincide. The comparisons consider one factor at a time.</td></tr>
+  <tr><td>Direction of effect</td><td>Exercise may lift mood, or feeling well may make exercise more likely. Daily totals can’t separate the two, or show whether a workout came before or after a check-in.</td></tr>
   <tr><td>Who checks in, and when</td><td>People may record more on bad days, or stop when struggling. Prompted entries may also differ from unprompted ones. Self-monitoring can itself change mood [1].</td></tr>
   <tr><td>Expectation</td><td>Being told a hard moment is coming could raise anxiety in some people. This has not been measured in Even, and the prompts can be turned off.</td></tr>
   <tr><td>Missing data</td><td>Sync needs the person’s iPhone, unlocked. Calendar data covers only the current day, and old alarms aren’t kept unless a sync recorded them that day.</td></tr>
-  <tr><td>Wearable accuracy</td><td>Sleep and heart measures come from consumer devices and vary by device. Alarms that were skipped once may still appear.</td></tr>
+  <tr><td>Wearable accuracy</td><td>Sleep and heart measures come from consumer devices and vary by device. Wearing two devices can overstate sleep, because sleep records are added together. Alarms that were skipped once may still appear.</td></tr>
+  <tr><td>Energy ratings</td><td>The energy slider starts in the middle, so an untouched rating counts as average and can hide a real difference.</td></tr>
   <tr><td>Delivery</td><td>iPhone settings such as Focus can hold back or hide notifications, and the app can’t tell whether one was seen.</td></tr>
   <tr><td>No outcome data</td><td>Even has not been evaluated for whether it reduces stress or improves wellbeing.</td></tr>
  </tbody>

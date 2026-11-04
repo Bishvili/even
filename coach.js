@@ -52,8 +52,8 @@
   return rows.filter(function(r){return r&&r.gap>=0.3;}).sort(function(a,b){return b.gap-a.gap;}).slice(0,5);
  }
 
- function brief(day){
-  if(day.level==="harder")return day.name+"s have tended to be harder for you. "+DEFAULT_ACTION;
+ function brief(day,helper){
+  if(day.level==="harder")return day.name+"s have tended to be harder for you. "+(helper?helper.tip:DEFAULT_ACTION);
   if(day.level==="easier")return day.name+"s have tended to be easier for you. A good day to keep some of that calm.";
   if(day.level==="typical")return day.name+"s have tended to be about average for you.";
   return "Keep checking in. A few more "+day.name+"s will show your pattern.";
@@ -189,6 +189,67 @@
   return times;
  }
 
+ // What has tended to go with feeling better. Many things are compared, so this asks for more check-ins than a stress pattern.
+ var HELP_SAMPLES=5,HELP_GAP=0.4,RESET_WINDOW_MS=7200000;
+ var HELP_METRICS=[{key:"stress",direction:-1,name:"lower stress"},{key:"score",direction:1,name:"better mood"},{key:"energy",direction:1,name:"more energy"}];
+ var HELP_ACTIVITIES=[["Exercise","moving","Fit in some movement."],["Outdoors","being outdoors","Get outside for a few minutes."],["Rest","rest","Take a real break."],["Social","time with people","Reach out to someone."],["Family","time with family","Make time for family."]];
+ function helpFactors(events,health,resets,now){
+  var days={},today=localDay(now);
+  health.forEach(function(h){days[h.date]=h;});
+  function dayFactor(id,label,tip,key,met){
+   return{id:id,label:label,tip:tip,test:function(m){var h=days[localDay(m.ts)];return h&&Number.isFinite(h[key])?met(h[key]):null;},done:!!days[today]&&Number.isFinite(days[today][key])&&met(days[today][key])};
+  }
+  var factors=[
+   dayFactor("sleep","After 7 or more hours of sleep","Protect your sleep tonight.","sleepHours",function(v){return v>=7;}),
+   dayFactor("steps","On days with 6,000 or more steps","Go for a walk.","steps",function(v){return v>=6000;}),
+   dayFactor("workout","On days with a workout","Fit in some movement.","workoutMin",function(v){return v>0;})
+  ];
+  var resetTimes=(resets||[]).map(function(at){return Date.parse(at);}).filter(Number.isFinite);
+  factors.push({id:"reset",label:"In the 2 hours after a breathing exercise",tip:"Take a minute.",action:"reset",
+   test:function(m){var t=Date.parse(m.ts);return resetTimes.some(function(at){return t>=at&&t-at<=RESET_WINDOW_MS;});},
+   done:resetTimes.some(function(at){return localDay(at)===today;})});
+  HELP_ACTIVITIES.forEach(function(item){
+   var tag=item[0],spans=events.filter(function(e){return e.category===tag;}).map(function(e){return[new Date(e.start).getTime(),new Date(e.end).getTime()+NEAR_EVENT_MS];});
+   factors.push({id:"tag:"+tag,label:"When you’ve tagged "+item[1],tip:item[2],test:function(m){return(m.tags||[]).indexOf(tag)>=0;},done:false,tag:tag});
+   if(spans.length)factors.push({id:"event:"+tag,label:"Around "+tag.toLowerCase()+" events",tip:item[2],test:function(m){var t=Date.parse(m.ts);return spans.some(function(s){return t>=s[0]&&t<=s[1];});},
+    done:events.some(function(e){return e.category===tag&&localDay(e.start)===today;})});
+  });
+  return factors;
+ }
+ function whatHelps(moods,events,health,resets,today){
+  var now=new Date(today),rows=[];
+  helpFactors(events,health,resets,now).forEach(function(factor){
+   if(factor.tag)factor.done=moods.some(function(m){return localDay(m.ts)===localDay(now)&&(m.tags||[]).indexOf(factor.tag)>=0;});
+   var effects=[];
+   HELP_METRICS.forEach(function(metric){
+    var yes=[],no=[];
+    moods.forEach(function(m){
+     var value=m[metric.key];if(!Number.isInteger(value)||value<1||value>5)return;
+     var met=factor.test(m);if(met===null)return;(met?yes:no).push(value);
+    });
+    if(yes.length<HELP_SAMPLES||no.length<HELP_SAMPLES)return;
+    var gap=(mean(yes)-mean(no))*metric.direction;
+    if(gap>=HELP_GAP)effects.push({metric:metric.key,name:metric.name,gap:gap,withCount:yes.length,withoutCount:no.length});
+   });
+   if(effects.length){effects.sort(function(a,b){return b.gap-a.gap;});rows.push({id:factor.id,label:factor.label,tip:factor.tip,action:factor.action,done:factor.done,effects:effects});}
+  });
+  return rows.sort(function(a,b){return b.effects[0].gap-a.effects[0].gap;}).slice(0,5);
+ }
+ function helpEvidence(effect){return effect.gap.toFixed(1)+" points, from "+effect.withCount+" check-ins compared with "+effect.withoutCount+". A pattern, not proof of cause.";}
+ function helpSentence(row,effect){return row.label+", you’ve tended to report "+effect.name+".";}
+ // Something that has gone with feeling better and hasn't happened yet today, fitted to how the person last felt.
+ function helpAction(data,now){
+  var helps=whatHelps(data.moods,data.events,data.health,data.resets,now).filter(function(row){return !row.done;});
+  var cutoff=now.getTime()-6*3600000,latest=data.moods.filter(function(m){return Date.parse(m.ts)>=cutoff&&Date.parse(m.ts)<=now.getTime();}).sort(function(a,b){return Date.parse(b.ts)-Date.parse(a.ts);})[0];
+  var wanted=!latest?null:latest.stress>=4?"stress":latest.score<=2?"score":latest.energy<=2?"energy":null;
+  var lead={stress:"You noted high stress.",score:"You noted a low mood.",energy:"You noted low energy."};
+  function usable(row){return row.id==="sleep"?now.getHours()>=18:now.getHours()<19||row.id==="reset";}
+  var pick=null,effect=null;
+  if(wanted)helps.some(function(row){var match=row.effects.filter(function(e){return e.metric===wanted;})[0];if(match&&usable(row)){pick=row;effect=match;return true;}return false;});
+  if(!pick){pick=helps.filter(usable)[0];effect=pick&&pick.effects[0];wanted=null;}
+  if(!pick)return null;
+  return{text:(wanted?lead[wanted]+" ":"")+pick.tip+" "+helpSentence(pick,effect),why:helpEvidence(effect),action:pick.action,label:pick.action?"Take a minute":undefined};
+ }
  var ANTICIPATE_GAP=0.4,MAX_ANTICIPATED_A_DAY=2,ANTICIPATE_DAYS=7;
  var PART_STARTS=[["morning",480,"morning"],["midday",690,"midday"],["afternoon",840,"afternoon"],["evening",1020,"evening"]];
  function clockLabel(date){return new Date(date).toLocaleTimeString([],{hour:"numeric",minute:"2-digit"});}
@@ -241,6 +302,8 @@
    var midMorning=new Date(now);midMorning.setHours(0,from+180,0,0);
    add(midMorning,"A short night. Those days have tended to be harder for you, so protect a break today.",evidence(sleepRow));
   }
+  var helper=whatHelps(moods,events,health,prefs.resets,now).filter(function(row){return row.id!=="sleep";})[0];
+  if(helper)found.forEach(function(item){item.why+=" "+helpSentence(helper,helper.effects[0]);});
   found.sort(function(a,b){return a.at<b.at?-1:1;});
   var kept=[],perDay={};
   found.forEach(function(item){
@@ -252,17 +315,19 @@
  }
  // The next few useful things to do, most time-sensitive first.
  function nextActions(data,today,prefs){
-  var now=new Date(today),actions=[],ahead=anticipate(data.moods,data.events,data.health,now,prefs).filter(function(a){return localDay(a.at)===localDay(now);})[0];
+  var now=new Date(today),actions=[],ahead=anticipate(data.moods,data.events,data.health,now,Object.assign({},prefs,{resets:data.resets})).filter(function(a){return localDay(a.at)===localDay(now);})[0];
   if(ahead)actions.push({text:ahead.message,why:ahead.why,action:"reset",label:"Take a minute"});
   var alarmBed=bedtimeForAlarm(data.alarms,data.health,now);
   if(alarmBed&&now.getHours()>=17){
    var name=alarmBed.alarm.label?" (“"+alarmBed.alarm.label+"”)":"";
    actions.push({text:"Your alarm"+name+" is at "+minuteLabel(alarmBed.alarm.timeMin)+" tomorrow. For your usual sleep, be in bed by "+minuteLabel(minutesOf(alarmBed.bed))+"."});
   }
+  var help=helpAction(data,now);
+  if(help)actions.push(help);
   if(data.connected&&(!data.lastUpload||now.getTime()-new Date(data.lastUpload).getTime()>20*3600000))actions.push({text:"Sync now to bring in last night’s sleep and today’s calendar.",action:"sync",label:"Run Even Sync"});
   return actions.slice(0,3);
  }
- var api={anticipate:anticipate,nextActions:nextActions,bedtimeForAlarm:bedtimeForAlarm,morningAlarm:morningAlarm,alarmsOn:alarmsOn,smartPlan:smartPlan,bedtimeReminder:bedtimeReminder,smartTimes:smartTimes,repeatTimes:repeatTimes,outlook:outlook,patterns:patterns,brief:brief,hardStretch:hardStretch,steadiness:steadiness,reflectionDue:reflectionDue,REFLECTION:REFLECTION};
+ var api={whatHelps:whatHelps,anticipate:anticipate,nextActions:nextActions,bedtimeForAlarm:bedtimeForAlarm,morningAlarm:morningAlarm,alarmsOn:alarmsOn,smartPlan:smartPlan,bedtimeReminder:bedtimeReminder,smartTimes:smartTimes,repeatTimes:repeatTimes,outlook:outlook,patterns:patterns,brief:brief,hardStretch:hardStretch,steadiness:steadiness,reflectionDue:reflectionDue,REFLECTION:REFLECTION};
  root.EvenCoach=api;
  if(typeof document==="undefined"||!root.EvenApp)return;
 
@@ -272,21 +337,22 @@
  function $(id){return document.getElementById(id);}
  function element(tag,className,text){var e=document.createElement(tag);if(className)e.className=className;if(text!==undefined)e.textContent=text;return e;}
 
- function openReset(){if(!$("reset-dialog").open){$("reset-dialog").showModal();startBreathing();}}
- function saveBriefs(days){
+ function openReset(){if(!$("reset-dialog").open){$("reset-dialog").showModal();startBreathing();root.EvenApp.logReset();}}
+ function saveBriefs(days,helper){
   if(!("caches" in root))return;
-  var body={};days.forEach(function(d){if(d.level!=="unknown")body[d.date]=brief(d);});
+  var body={};days.forEach(function(d){if(d.level!=="unknown")body[d.date]=brief(d,helper);});
   caches.open(BRIEF_CACHE).then(function(cache){return cache.put("/brief",new Response(JSON.stringify(body)));}).catch(function(){});
  }
  function renderToday(data){
   var personal=data.moods.filter(function(m){return !m.demo;}),now=new Date(),days=outlook(personal,now);
-  $("today-brief-text").textContent=brief(days[0]);
+  var real=function(x){return !x.demo;},helper=whatHelps(personal,data.events.filter(real),data.health.filter(real),data.resets,now).filter(function(row){return row.id!=="sleep";})[0];
+  $("today-brief-text").textContent=brief(days[0],helper);
   $("hard-stretch").hidden=!hardStretch(personal,now);
-  saveBriefs(days);
+  saveBriefs(days,helper);
   renderActions(data,personal,now);
  }
  function renderActions(data,personal,now){
-  var box=$("next-actions"),actions=nextActions({moods:personal,events:data.events.filter(function(e){return !e.demo;}),health:data.health.filter(function(h){return !h.demo;}),alarms:data.alarms,connected:data.connected,lastUpload:data.lastUpload},now,data.notifyPrefs);
+  var box=$("next-actions"),actions=nextActions({moods:personal,events:data.events.filter(function(e){return !e.demo;}),health:data.health.filter(function(h){return !h.demo;}),alarms:data.alarms,resets:data.resets,connected:data.connected,lastUpload:data.lastUpload},now,data.notifyPrefs);
   box.textContent="";box.hidden=!actions.length;
   actions.forEach(function(item){
    var row=element("div","next-action"),text=element("div");
@@ -317,6 +383,18 @@
    row.appendChild(text);row.appendChild(element("span","outlook-level","+"+r.gap.toFixed(1)+" stress"));
    list.appendChild(row);
   });
+ }
+ function renderHelps(moods,events,health,resets){
+  var list=$("what-helps"),rows=whatHelps(moods,events,health,resets,new Date());list.textContent="";
+  if(!rows.length){list.appendChild(element("p","muted","Keep checking in with stress, energy and tags. This fills in after a few weeks."));return;}
+  rows.forEach(function(r){
+   var effect=r.effects[0],row=element("div","outlook-row"),text=element("div");
+   text.appendChild(element("strong","",r.label));
+   text.appendChild(element("small","",effect.withCount+" check-ins with, "+effect.withoutCount+" without"));
+   row.appendChild(text);row.appendChild(element("span","outlook-level",effect.gap.toFixed(1)+" points "+effect.name));
+   list.appendChild(row);
+  });
+  list.appendChild(element("p","muted","A pattern in your check-ins, not proof of cause."));
  }
  function renderReflections(reflections){
   var list=$("reflection-history"),rows=reflections.slice(-6).reverse();list.textContent="";
@@ -372,6 +450,7 @@
   var scoped=function(x){return !!x.demo===(data.scope==="demo");};
   renderOutlook(data.moods.filter(scoped));
   renderPatterns(data.moods.filter(scoped),data.events.filter(scoped),data.health.filter(scoped));
+  renderHelps(data.moods.filter(scoped),data.events.filter(scoped),data.health.filter(scoped),data.scope==="demo"?[]:data.resets);
  }
  api.render=render;
  api.openReset=openReset;

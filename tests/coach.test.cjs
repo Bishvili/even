@@ -165,3 +165,39 @@ test("next actions offer a stale sync and tomorrow's alarm in the evening",()=>{
  assert.equal(actions[1].action,"sync");
  assert.deepEqual(nextActions({moods:[],events:[],health:[],alarms:[],connected:false},evening,{from:"07:00",to:"22:00"}),[]);
 });
+
+const {whatHelps}=globalThis.EvenCoach;
+test("what tends to help needs five check-ins each way and names the better outcome",()=>{
+ const now=new Date("2026-11-09T09:00:00");
+ const iso=d=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+ const moods=[],health=[];
+ for(let n=1;n<=12;n++){
+  const day=hours(now,-n,12),active=n%2===0;
+  moods.push({ts:day.toISOString(),stress:active?2:4,score:3,energy:3,tags:[]});
+  health.push({date:iso(day),workoutMin:active?30:0});
+ }
+ const rows=whatHelps(moods,[],health,[],now);
+ assert.equal(rows[0].id,"workout");
+ assert.equal(rows[0].effects[0].name,"lower stress");
+ assert.equal(rows[0].effects[0].gap,2);
+ assert.equal(rows[0].done,false);
+ assert.deepEqual(whatHelps(moods.slice(0,8),[],health,[],now),[]);
+ const done=whatHelps(moods,[],health.concat({date:iso(now),workoutMin:20}),[],now);
+ assert.equal(done[0].done,true);
+ const action=nextActions({moods,events:[],health,alarms:[],resets:[],connected:false},now,{from:"07:00",to:"22:00"});
+ assert.match(action[0].text,/Fit in some movement/);
+ assert.match(action[0].text,/lower stress/);
+ assert.match(action[0].why,/not proof of cause/);
+});
+test("a recent hard check-in is matched with what has gone with relief, and breathing can be measured",()=>{
+ const now=new Date("2026-11-09T10:00:00"),moods=[],resets=[];
+ for(let n=1;n<=12;n++){
+  const day=hours(now,-n,12),calm=n%2===0;
+  if(calm)resets.push(hours(now,-n,11).toISOString());
+  moods.push({ts:day.toISOString(),stress:calm?2:4,score:3,energy:3,tags:[]});
+ }
+ moods.push({ts:hours(now,0,9).toISOString(),stress:5,score:3,energy:3,tags:[]});
+ const action=nextActions({moods,events:[],health:[],alarms:[],resets,connected:false},now,{from:"07:00",to:"22:00"})[0];
+ assert.match(action.text,/^You noted high stress\. Take a minute\./);
+ assert.equal(action.action,"reset");
+});
