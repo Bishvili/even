@@ -26,7 +26,7 @@
   if(!canPush())blocked=isIOS()&&!isInstalled()?"Add Even to your Home Screen to turn on reminders.":"This browser can’t show reminders.";
   else if(!app.deviceToken())blocked="Sign in under Sync to turn on reminders.";
   else if(Notification.permission==="denied")blocked="Notifications are off. Turn them on in Settings.";
-  blockedReason=blocked;toggle.checked=!blocked&&settings.on;
+  blockedReason=blocked;toggle.disabled=false;toggle.checked=!blocked&&settings.on;
   $("reminder-time").value=settings.time;
   note.textContent=blocked||"Your reminder time and time zone are saved to your account.";
  }

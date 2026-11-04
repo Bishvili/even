@@ -1,6 +1,6 @@
 (function () {
 "use strict";
-var VERSION = "2.0.5";
+var VERSION = "2.0.6";
 var SHORTCUT_PAGE = "https://routinehub.co/shortcut/26978/";
 var STORAGE_KEY = "even:v1";
 var MOOD_NAMES = ["","Rough","Low","Okay","Good","Great"];
@@ -597,18 +597,21 @@ async function eraseRemote(){
  if(!confirm("Permanently delete Health and Calendar sync records for "+state.syncOwnerEmail+" only? Local records on this iPhone will remain."))return;
  try{var r=await fetch("/api/erase",{method:"POST",headers:{"Authorization":"Bearer "+state.token},cache:"no-store"});if(!r.ok)throw Error("Delete failed");toast("Synced data erased.");}catch(e){toast("Could not delete cloud data.");}
 }
+var swRegistration=null;
+function checkForUpdate(){if(swRegistration)swRegistration.update().catch(function(){});}
+function refresh(){checkForUpdate();pull(false);}
 function hasDraft(){return !!selectedMood||!!selectedStress||selectedTags.size>0||!!$("mood-note").value.trim();}
 function watchForUpdates(){
  if(!("serviceWorker" in navigator))return;
- var wasControlled=!!navigator.serviceWorker.controller,updateReady=false,registration=null;
- window.addEventListener("load",function(){navigator.serviceWorker.register("/sw.js").then(function(r){registration=r;}).catch(function(){});});
+ var wasControlled=!!navigator.serviceWorker.controller,updateReady=false;
+ window.addEventListener("load",function(){navigator.serviceWorker.register("/sw.js").then(function(r){swRegistration=r;}).catch(function(){});});
  navigator.serviceWorker.addEventListener("controllerchange",function(){
   if(!wasControlled){wasControlled=true;return;}
   updateReady=true;
   if(document.hidden&&!hasDraft())window.location.reload();else $("update-banner").hidden=false;
  });
  document.addEventListener("visibilitychange",function(){
-  if(!document.hidden){if(registration)registration.update().catch(function(){});return;}
+  if(!document.hidden){checkForUpdate();return;}
   if(updateReady&&!hasDraft())window.location.reload();
  });
  $("apply-update").addEventListener("click",function(){window.location.reload();});
@@ -635,6 +638,14 @@ function init(){
  $("check-shortcut-upload").addEventListener("click",function(){checkShortcutUpload(false);});
  $("device-list").addEventListener("click",function(e){var b=e.target.closest("[data-revoke-device]");if(b)revokeDevice(b.dataset.revokeDevice);});
  $("welcome-close").addEventListener("click",closeWelcome);$("welcome-improve").addEventListener("click",closeWelcome);
+ var navTouch=null;
+ document.querySelector(".bottom-nav").addEventListener("touchstart",function(ev){var t=ev.changedTouches[0];navTouch={x:t.clientX,y:t.clientY};},{passive:true});
+ document.querySelector(".bottom-nav").addEventListener("touchend",function(ev){
+  // A tap during momentum scrolling only stops the scroll and produces no click.
+  var item=ev.target.closest("[data-go]"),t=ev.changedTouches[0];
+  if(!item||!navTouch||Math.abs(t.clientX-navTouch.x)>12||Math.abs(t.clientY-navTouch.y)>12)return;
+  ev.preventDefault();item.click();
+ });
  $("pull-button").addEventListener("click",syncNow);$("run-shortcut").addEventListener("click",function(event){event.preventDefault();runShortcut();});
  $("unpair-button").addEventListener("click",function(){if(state.deviceId)revokeDevice(state.deviceId);});
  document.querySelectorAll("[data-copy]").forEach(function(b){b.addEventListener("click",function(){
@@ -654,6 +665,6 @@ function init(){
  document.addEventListener("visibilitychange",function(){if(!document.hidden){refreshAuth();if(state.token){loadShortcutRelease();loadCalendars();checkShortcutUpload(true);if(shortcutRunPending){shortcutRunPending=false;pull(false);}else if(!state.lastSync||Date.now()-state.lastSync>900000)pull(true);}}});
  watchForUpdates();
 }
-globalThis.EvenApp={refreshCoach:refreshCoach,addReflection:function(r){state.reflections.push(r);if(persist())render();},toast:toast,formatTime:formatTime,deviceToken:function(){return state.token;}};
+globalThis.EvenApp={refresh:refresh,runShortcut:runShortcut,refreshCoach:refreshCoach,addReflection:function(r){state.reflections.push(r);if(persist())render();},toast:toast,formatTime:formatTime,deviceToken:function(){return state.token;}};
 init();
 })();
