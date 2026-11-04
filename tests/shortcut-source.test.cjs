@@ -40,10 +40,10 @@ test("the device key is read from its file, checked by the server, and saved onl
 
 test("every comparison is typed text or a number, never a Boolean",()=>{
  assert.deepEqual(conditions(sync),[
-  'providedKeyCount == 0','savedKeyMatchCount == 0','connectionStatus != "connected"','calendarStatus != "accepted"',
-  'stepsAvailable >= 1','totalSteps >= 1','restingAvailable >= 1','restingValue >= 1','hrvAvailable >= 1','hrvValue >= 1',
-  'exerciseAvailable >= 1','exerciseValue >= 1','sleepAvailable >= 1','historyState == "needed"','stageCount >= 1',
-  '@healthFields >= 1','healthStatus != "accepted"','updateStatus == "new_release"','syncedState != "sent"'
+  'providedKeyCount == 0','savedKeyMatchCount == 0','connectionStatus != "connected"','syncCalendar == "on"','todayOffCount == 0','upcomingOffCount == 0','calendarStatus != "accepted"',
+  'syncSteps == "on"','stepsAvailable >= 1','totalSteps >= 1','syncRestingHR == "on"','restingAvailable >= 1','restingValue >= 1','syncHrv == "on"','hrvAvailable >= 1','hrvValue >= 1',
+  'syncWorkout == "on"','exerciseAvailable >= 1','exerciseValue >= 1','syncSleep == "on"','sleepAvailable >= 1','historyState == "needed"','stageCount >= 1',
+  '@healthFields >= 1','healthStatus != "accepted"','updateStatus == "new_release"','syncAlarms == "on"','syncedState != "sent"'
  ]);
  for(const source of [sync,helper])assert.doesNotMatch(source,/if\s+@?\w+\s*(==|!=)\s*(true|false)/);
  for(const name of ["connectionStatus","calendarStatus","healthStatus","updateStatus"])

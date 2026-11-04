@@ -8,7 +8,7 @@ New to the project? Point Claude at this repository and it will guide you throug
 
 ## What works
 
-Install from Safari > Share > Add to Home Screen. Mood check-ins, energy, tags and notes stay on your iPhone. Explore time-of-day, activities, sleep and calendar context correlations. This is observational, not medical advice.
+Install from Safari > Share > Add to Home Screen. Mood check-ins, energy, tags and notes stay on your device unless you turn on check-in sync. Explore time-of-day, activities, sleep and calendar context correlations. This is observational, not medical advice.
 
 ## Calendar-linked mood insights (v1.2.0)
 
@@ -67,6 +67,6 @@ Static files currently live in Cloudflare Workers KV with keys of the form asset
 
 ## Privacy
 
-Reminder times, time zone and the time of each check-in are stored server-side so reminders can be sent. Check-in contents stay on the device.
+Reminder times, time zone and the time of each check-in are stored server-side so reminders can be sent. Check-in contents stay on the device unless you turn on check-in sync, which stores them in your account until you turn it off or erase synced data.
 
 No ads or external analytics scripts. Backups are unencrypted JSON. Cloudflare stores only the fields sent through Shortcuts. If the PWA is removed or browser storage is cleared, local data can be lost. Apple Shortcut actions and automatic execution vary by iOS version. Calendar ICS timezone handling is approximate; verify imported event times.

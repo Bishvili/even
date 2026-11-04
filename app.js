@@ -1,6 +1,6 @@
 (function () {
 "use strict";
-var VERSION = "2.9.0";
+var VERSION = "2.10.0";
 var SHORTCUT_PAGE = "https://routinehub.co/shortcut/26978/";
 var STORAGE_KEY = "even:v1";
 var MOOD_NAMES = ["","Rough","Low","Okay","Good","Great"];
@@ -13,11 +13,11 @@ var state = readState();
 var authEmail = "", authDevices = [], authChecking = false, authCanRelease = false, authHelper = "";
 var shortcutRelease = null, shortcutStatus = null, shortcutStatusLoading = false;
 function $(id){ return document.getElementById(id); }
-function emptyState(){ return {moods:[],health:[],events:[],reflections:[],alarms:[],resets:[],token:"",deviceId:"",syncOwnerEmail:"",pairedAt:null,lastSync:null}; }
+function emptyState(){ return {moods:[],health:[],events:[],reflections:[],alarms:[],resets:[],moodSync:false,deletedMoods:[],token:"",deviceId:"",syncOwnerEmail:"",pairedAt:null,lastSync:null}; }
 function readState(){
  try { var raw=JSON.parse(localStorage.getItem(STORAGE_KEY)||"null"); if(!raw || typeof raw!=="object")return emptyState();
  var owner=typeof raw.syncOwnerEmail==="string"?raw.syncOwnerEmail.toLowerCase():"",deviceId=typeof raw.deviceId==="string"?raw.deviceId:"";
- return {moods:Array.isArray(raw.moods)?raw.moods.slice(-6000):[],health:Array.isArray(raw.health)?raw.health.slice(-1200):[],events:Array.isArray(raw.events)?raw.events.slice(-2000):[],reflections:Array.isArray(raw.reflections)?raw.reflections.slice(-200):[],alarms:Array.isArray(raw.alarms)?raw.alarms.slice(0,40):[],resets:Array.isArray(raw.resets)?raw.resets.slice(-500):[],token:owner&&deviceId&&typeof raw.token==="string"?raw.token:"",deviceId:deviceId,syncOwnerEmail:owner,pairedAt:raw.pairedAt||null,lastSync:raw.lastSync||null};
+ return {moods:Array.isArray(raw.moods)?raw.moods.slice(-6000):[],health:Array.isArray(raw.health)?raw.health.slice(-1200):[],events:Array.isArray(raw.events)?raw.events.slice(-2000):[],reflections:Array.isArray(raw.reflections)?raw.reflections.slice(-200):[],alarms:Array.isArray(raw.alarms)?raw.alarms.slice(0,40):[],resets:Array.isArray(raw.resets)?raw.resets.slice(-500):[],moodSync:raw.moodSync===true,deletedMoods:Array.isArray(raw.deletedMoods)?raw.deletedMoods.slice(-500):[],token:owner&&deviceId&&typeof raw.token==="string"?raw.token:"",deviceId:deviceId,syncOwnerEmail:owner,pairedAt:raw.pairedAt||null,lastSync:raw.lastSync||null};
  } catch(e){return emptyState();}
 }
 function persist(){ try{localStorage.setItem(STORAGE_KEY,JSON.stringify(state));return true;}catch(e){toast("Storage is full. Export a backup and free device storage.");return false;} }
@@ -155,11 +155,12 @@ function renderDevices(){
  if(!authDevices.length){el.innerHTML=blank("No devices yet.");return;}
  el.innerHTML=authDevices.map(function(d){
   var revoked=!!d.revoked,own=d.id===state.deviceId;
-  return '<div class="device-row"><div class="device-row-main"><strong>'+esc(d.label||"iPhone")+(own?" · This device":"")+'</strong><small>'+esc(d.revoked?"Revoked":d.lastUsedAt?"Used "+formatDate(d.lastUsedAt):"Not used yet")+'</small></div>'+(revoked?'<span class="muted">Revoked</span>':'<button class="small-action" type="button" data-revoke-device="'+esc(d.id)+'">Revoke</button>')+'</div>';
+  return '<div class="device-row"><div class="device-row-main"><strong>'+esc(d.label||"iPhone")+(own?" · This device":"")+'</strong><small>'+esc(d.revoked?"Revoked":d.lastUsedAt?"Used "+formatDate(d.lastUsedAt):"Not used yet")+'</small></div>'+(revoked?'<span class="muted">Revoked</span>':'<button class="icon-action" type="button" data-rename-device="'+esc(d.id)+'" aria-label="Rename '+esc(d.label||"device")+'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4Z"/><path d="m13.5 6.5 4 4"/></svg></button><button class="small-action" type="button" data-revoke-device="'+esc(d.id)+'">Revoke</button>')+'</div>';
  }).join("");
 }
 
 function renderSettings(){
+ renderMoodSync();
  $("demo-button").textContent=hasDemoData()?"Refresh the calendar demo":"Load 28-day calendar demo";
  $("storage-summary").textContent=state.moods.length+" mood check-ins · "+state.health.length+" health days · "+state.events.length+" calendar events";
  $("version").textContent=VERSION;
@@ -282,11 +283,104 @@ function drawHealth(moods,health){
 function selectMood(n){selectedMood=n;document.querySelectorAll("[data-mood]").forEach(function(b){b.setAttribute("aria-pressed",String(Number(b.dataset.mood)===n));});$("save-mood").disabled=!selectedMood;}
 function setEnergyText(){$("energy-label").textContent=$("energy").value+" · "+ENERGY_NAMES[Number($("energy").value)];}
 function selectStress(n){selectedStress=n;document.querySelectorAll("[data-stress]").forEach(function(b){var on=Number(b.dataset.stress)===n;b.classList.toggle("selected",on);b.setAttribute("aria-pressed",String(on));});}
+// Check-ins sync only when the account has turned it on. Each device uploads what the account lacks and removes what another device deleted.
+var moodSyncing=false;
+function renderMoodSync(){var box=$("mood-sync-toggle");if(box)box.checked=state.moodSync;$("mood-sync-card").hidden=!state.token;}
+async function moodRequest(body){
+ var r=await fetch("/api/moods",{method:"POST",headers:{"Authorization":"Bearer "+state.token,"Content-Type":"application/json"},body:JSON.stringify(body),cache:"no-store"});
+ if(!r.ok)throw Error("Check-ins didn’t sync");
+}
+async function syncMoods(){
+ if(!state.token||!navigator.onLine||moodSyncing)return;
+ moodSyncing=true;
+ try{
+  var r=await fetch("/api/moods",{headers:{"Authorization":"Bearer "+state.token},cache:"no-store"});
+  if(!r.ok)return;
+  var body=await r.json();
+  if(!body.email||body.email!==state.syncOwnerEmail)return;
+  state.moodSync=body.enabled===true;
+  if(!state.moodSync){state.deletedMoods=[];persist();renderMoodSync();return;}
+  var pending=state.deletedMoods.slice();
+  for(var i=0;i<pending.length;i+=100)await moodRequest({deleted:pending.slice(i,i+100)});
+  state.deletedMoods=state.deletedMoods.filter(function(id){return pending.indexOf(id)<0;});
+  var gone={},remote={},local={};
+  body.deleted.concat(pending).forEach(function(id){gone[id]=true;});
+  body.moods.forEach(function(m){remote[m.id]=true;});
+  state.moods=state.moods.filter(function(m){return m.demo||!gone[m.id];});
+  state.moods.forEach(function(m){local[m.id]=true;});
+  body.moods.forEach(function(m){
+   if(local[m.id]||gone[m.id])return;
+   var item={id:m.id,ts:m.ts,score:m.score,energy:m.energy||3,tags:m.tags||[],note:m.note||""};
+   if(m.stress)item.stress=m.stress;
+   state.moods.push(item);
+  });
+  state.moods.sort(function(a,b){return new Date(a.ts)-new Date(b.ts);});
+  persist();render();
+  var missing=state.moods.filter(function(m){return !m.demo&&!remote[m.id];});
+  for(var n=0;n<missing.length;n+=100)await moodRequest({moods:missing.slice(n,n+100)});
+ }catch(e){}
+ finally{moodSyncing=false;}
+}
+async function setMoodSync(box){
+ var enabled=box.checked;
+ if(!enabled&&!confirm("Remove your check-ins and notes from your account? They stay on this device and any others that already have them.")){box.checked=true;return;}
+ box.disabled=true;
+ try{
+  var r=await fetch("/api/moods/settings",{method:"POST",headers:{"Authorization":"Bearer "+state.token,"Content-Type":"application/json"},body:JSON.stringify({enabled:enabled}),cache:"no-store"});
+  if(!r.ok)throw Error();
+  state.moodSync=enabled;persist();
+  toast(enabled?"Check-ins now sync across your devices.":"Check-ins removed from your account.");
+  if(enabled)syncMoods();
+ }catch(e){box.checked=!enabled;toast("Couldn’t change that. Check your connection and try again.");}
+ box.disabled=false;
+}
+var SYNC_SETTING_NAMES={calendar:"Calendar events",sleep:"Sleep",steps:"Steps",restingHR:"Resting heart rate",hrv:"Heart rate variability",workout:"Exercise minutes",alarms:"Alarms"};
+async function loadSyncSettings(){
+ var list=$("sync-settings");
+ if(!state.token||!navigator.onLine)return;
+ try{
+  var r=await fetch("/api/sync/settings",{headers:{"Authorization":"Bearer "+state.token},cache:"no-store"});
+  if(!r.ok)throw Error();
+  var settings=(await r.json()).settings||{};
+  list.textContent="";
+  Object.keys(SYNC_SETTING_NAMES).forEach(function(kind){
+   var row=document.createElement("label"),name=document.createElement("span"),box=document.createElement("input");
+   row.className="calendar-row";name.textContent=SYNC_SETTING_NAMES[kind];box.type="checkbox";box.setAttribute("role","switch");box.checked=settings[kind]!==false;
+   box.addEventListener("change",function(){setSyncSetting(kind,box);});
+   row.appendChild(name);row.appendChild(box);list.appendChild(row);
+  });
+ }catch(e){list.textContent="";var failed=document.createElement("p");failed.className="muted";failed.textContent="Couldn’t load your choices.";list.appendChild(failed);}
+}
+async function setSyncSetting(kind,box){
+ var enabled=box.checked;box.disabled=true;
+ try{
+  var r=await fetch("/api/sync/settings",{method:"POST",headers:{"Authorization":"Bearer "+state.token,"Content-Type":"application/json"},body:JSON.stringify({kind:kind,enabled:enabled}),cache:"no-store"});
+  if(!r.ok)throw Error();
+ }catch(e){box.checked=!enabled;toast("Couldn’t change that. Check your connection and try again.");}
+ box.disabled=false;
+}
+function openRenameDevice(id){
+ var device=authDevices.filter(function(d){return d.id===id;})[0];if(!device)return;
+ var dialog=$("rename-device-dialog");dialog.dataset.device=id;$("rename-device-input").value=device.label||"";dialog.showModal();
+}
+async function renameDevice(ev){
+ ev.preventDefault();
+ var dialog=$("rename-device-dialog"),label=$("rename-device-input").value.trim();
+ if(!label){toast("Enter a name for this device.");return;}
+ var save=$("rename-device-save");save.disabled=true;
+ try{
+  var r=await fetch("/api/auth/device/rename",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({deviceId:dialog.dataset.device,label:label}),cache:"no-store"});
+  if(!r.ok)throw Error();
+  dialog.close();await refreshAuth();render();toast("Device renamed.");
+ }catch(e){toast("Couldn’t rename this device. Check your connection and try again.");}
+ save.disabled=false;
+}
+function thisDeviceName(){var ua=navigator.userAgent;return /iPhone/.test(ua)?"iPhone":/iPad/.test(ua)||(/Macintosh/.test(ua)&&navigator.maxTouchPoints>1)?"iPad":/Macintosh/.test(ua)?"Mac":/Windows/.test(ua)?"Windows computer":"Device";}
 function handleMoodSave(){
  if(!selectedMood)return;
  state.moods.push({id:newId(),ts:new Date().toISOString(),score:selectedMood,energy:Number($("energy").value),tags:Array.from(selectedTags),note:$("mood-note").value.trim().slice(0,400)});
  if(selectedStress)state.moods[state.moods.length-1].stress=selectedStress;
- if(!persist())return;selectMood(0);selectStress(0);selectedTags.clear();document.querySelectorAll("[data-tag]").forEach(function(b){b.classList.remove("selected");b.setAttribute("aria-pressed","false");});$("mood-note").value="";$("energy").value="3";setEnergyText();render();toast("Check-in saved. Thanks for checking in.");if(globalThis.EvenReminders)globalThis.EvenReminders.checkedIn();
+ if(!persist())return;selectMood(0);selectStress(0);selectedTags.clear();document.querySelectorAll("[data-tag]").forEach(function(b){b.classList.remove("selected");b.setAttribute("aria-pressed","false");});$("mood-note").value="";$("energy").value="3";setEnergyText();render();toast("Check-in saved. Thanks for checking in.");if(globalThis.EvenReminders)globalThis.EvenReminders.checkedIn();syncMoods();
 }
 function normalizeHealth(h,source){
  if(!h||typeof h!=="object")return null;
@@ -560,12 +654,12 @@ async function issueDevice(){
  if(!accountSafe(authEmail))return;
  var button=$("issue-device");button.disabled=true;button.textContent="Connecting…";
  try{
-  var r=await fetch("/api/auth/device",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json","Accept":"application/json"},body:JSON.stringify({label:"My iPhone"}),cache:"no-store"});
+  var r=await fetch("/api/auth/device",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json","Accept":"application/json"},body:JSON.stringify({label:"My "+thisDeviceName()}),cache:"no-store"});
   var result=await r.json();if(!r.ok||!result.token)throw Error(result.error||"Could not connect this iPhone");
   if(result.email!==authEmail)throw Error("Account identity changed; key not saved");
   state.syncOwnerEmail=authEmail;state.deviceId=result.deviceId;state.token=result.token;state.pairedAt=Date.now();state.lastSync=null;
   if(!persist())return;
-  await refreshAuth();await loadShortcutRelease();await loadCalendars();await checkShortcutUpload(true);render();toast("This iPhone is connected.");
+  await refreshAuth();await loadShortcutRelease();await loadCalendars();await checkShortcutUpload(true);render();toast("This "+thisDeviceName()+" is connected.");
  }catch(e){toast(e.message||"Could not connect this device.");}
  finally{button.disabled=false;button.textContent="Connect this iPhone";}
 }
@@ -619,8 +713,8 @@ async function pull(silent){
 
 async function eraseRemote(){
  if(!state.token){toast("Connect this device first.");return;}
- if(!confirm("Permanently delete Health and Calendar sync records for "+state.syncOwnerEmail+" only? Local records on this iPhone will remain."))return;
- try{var r=await fetch("/api/erase",{method:"POST",headers:{"Authorization":"Bearer "+state.token},cache:"no-store"});if(!r.ok)throw Error("Delete failed");toast("Synced data erased.");}catch(e){toast("Could not delete cloud data.");}
+ if(!confirm("Permanently delete everything synced for "+state.syncOwnerEmail+", including any synced check-ins? This can’t be undone. Records on this device remain, and check-in sync turns off."))return;
+ try{var r=await fetch("/api/erase",{method:"POST",headers:{"Authorization":"Bearer "+state.token},cache:"no-store"});if(!r.ok)throw Error("Delete failed");state.moodSync=false;state.deletedMoods=[];persist();render();toast("Synced data erased.");}catch(e){toast("Could not delete cloud data.");}
 }
 var swRegistration=null;
 function checkForUpdate(){if(swRegistration)swRegistration.update().catch(function(){});}
@@ -643,7 +737,7 @@ function watchForUpdates(){
 }
 function init(){
  $("health-date").value=dateKey(now());var start=new Date();start.setMinutes(0,0,0);start.setHours(start.getHours()+1);var end=new Date(start);end.setHours(end.getHours()+1);$("cal-start").value=localDateTime(start);$("cal-end").value=localDateTime(end);
- document.querySelectorAll("[data-go]").forEach(function(b){b.addEventListener("click",function(ev){ev.preventDefault();navigate(b.dataset.go);if(b.dataset.go==="sync"){refreshAuth();loadShortcutRelease();loadCalendars();checkShortcutUpload(true);}});});
+ document.querySelectorAll("[data-go]").forEach(function(b){b.addEventListener("click",function(ev){ev.preventDefault();navigate(b.dataset.go);if(b.dataset.go==="sync"){refreshAuth();loadShortcutRelease();loadCalendars();loadSyncSettings();syncMoods();checkShortcutUpload(true);}});});
  document.querySelectorAll("[data-mood]").forEach(function(b){b.addEventListener("click",function(){selectMood(Number(b.dataset.mood));});});
  document.querySelectorAll("[data-tag]").forEach(function(b){b.setAttribute("aria-pressed","false");b.addEventListener("click",function(){var s=b.dataset.tag;selectedTags.has(s)?selectedTags.delete(s):selectedTags.add(s);b.classList.toggle("selected",selectedTags.has(s));b.setAttribute("aria-pressed",String(selectedTags.has(s)));});});
  document.querySelectorAll("[data-stress]").forEach(function(b){b.addEventListener("click",function(){var n=Number(b.dataset.stress);selectStress(selectedStress===n?0:n);});});
@@ -651,7 +745,7 @@ function init(){
  $("health-form").addEventListener("submit",handleHealthForm);$("calendar-form").addEventListener("submit",handleCalendarForm);
  $("health-import").addEventListener("change",function(ev){importHealth(ev.target.files[0]);ev.target.value="";});
  $("calendar-import").addEventListener("change",function(ev){importCalendar(ev.target.files[0]);ev.target.value="";});
- $("recent-list").addEventListener("click",function(ev){var b=ev.target.closest("[data-delete-mood]");if(b&&confirm("Delete this mood check-in?")){state.moods=state.moods.filter(function(x){return x.id!==b.dataset.deleteMood;});persist();render();}});
+ $("recent-list").addEventListener("click",function(ev){var b=ev.target.closest("[data-delete-mood]");if(b&&confirm("Delete this mood check-in?")){state.moods=state.moods.filter(function(x){return x.id!==b.dataset.deleteMood;});if(state.moodSync)state.deletedMoods.push(b.dataset.deleteMood);persist();render();syncMoods();}});
  $("context-list").addEventListener("click",function(ev){var b=ev.target.closest("[data-delete-health]");if(b&&confirm("Delete this health day?")){state.health=state.health.filter(function(x){return x.date!==b.dataset.deleteHealth;});persist();render();}
  b=ev.target.closest("[data-delete-event]");if(b&&confirm("Delete this event?")){state.events=state.events.filter(function(x){return x.id!==b.dataset.deleteEvent;});persist();render();}});
  document.querySelectorAll("[data-days]").forEach(function(b){b.addEventListener("click",function(){insightDays=Number(b.dataset.days);document.querySelectorAll("[data-days]").forEach(function(x){x.classList.toggle("selected",x===b);});renderInsights();});});
@@ -661,7 +755,7 @@ function init(){
  $("refresh-devices").addEventListener("click",refreshAuth);
  $("install-shortcut").addEventListener("click",function(e){if(!state.token||!shortcutRelease||!this.href){e.preventDefault();toast("Connect your device to open the current Shortcut.");}});
  $("check-shortcut-upload").addEventListener("click",function(){checkShortcutUpload(false);});
- $("device-list").addEventListener("click",function(e){var b=e.target.closest("[data-revoke-device]");if(b)revokeDevice(b.dataset.revokeDevice);});
+ $("device-list").addEventListener("click",function(e){var b=e.target.closest("[data-revoke-device]");if(b)revokeDevice(b.dataset.revokeDevice);});$("device-list").addEventListener("click",function(e){var b=e.target.closest("[data-rename-device]");if(b)openRenameDevice(b.dataset.renameDevice);});$("rename-device-form").addEventListener("submit",renameDevice);$("rename-device-cancel").addEventListener("click",function(){$("rename-device-dialog").close();});$("mood-sync-toggle").addEventListener("change",function(){setMoodSync(this);});
  // An installed app can't save downloads, so hand this one to Safari.
  if(navigator.standalone===true)["whitepaper-link","welcome-paper"].forEach(function(id){$(id).href="x-safari-https://"+location.host+"/whitepaper.html";});
  $("run-sync-now").addEventListener("click",function(){$("run-sync-dialog").close();runShortcut();});$("run-sync-later").addEventListener("click",function(){$("run-sync-dialog").close();});$("welcome-close").addEventListener("click",closeWelcome);$("welcome-improve").addEventListener("click",closeWelcome);
@@ -681,13 +775,13 @@ function init(){
  $("demo-button").addEventListener("click",demo);$("clear-demo-button").addEventListener("click",clearDemo);
  setEnergyText();navigate(location.hash.slice(1)||"checkin");
  if(navigator.onLine)refreshAuth();
- if(state.token&&navigator.onLine){loadShortcutRelease();loadCalendars();checkShortcutUpload(true);}
- window.addEventListener("online",function(){refreshAuth();if(state.token){loadShortcutRelease();loadCalendars();checkShortcutUpload(true);syncIfNewUpload();}});
- document.addEventListener("visibilitychange",function(){if(!document.hidden){refreshAuth();if(state.token){loadShortcutRelease();loadCalendars();checkShortcutUpload(true);if(shortcutRunPending){shortcutRunPending=false;if($("run-sync-dialog").open)$("run-sync-dialog").close();pull(false);}else syncIfNewUpload();}}});
+ if(state.token&&navigator.onLine){loadShortcutRelease();loadCalendars();loadSyncSettings();syncMoods();checkShortcutUpload(true);}
+ window.addEventListener("online",function(){refreshAuth();if(state.token){loadShortcutRelease();loadCalendars();loadSyncSettings();syncMoods();checkShortcutUpload(true);syncIfNewUpload();}});
+ document.addEventListener("visibilitychange",function(){if(!document.hidden){refreshAuth();if(state.token){loadShortcutRelease();loadCalendars();loadSyncSettings();syncMoods();checkShortcutUpload(true);if(shortcutRunPending){shortcutRunPending=false;if($("run-sync-dialog").open)$("run-sync-dialog").close();pull(false);}else syncIfNewUpload();}}});
  watchForUpdates();
  window.addEventListener("load",handleNotificationAction);
  if(new URLSearchParams(location.search).get("auth")==="denied"){history.replaceState(null,"","/#sync");navigate("sync");toast("This email isn’t on the list yet. Ask the person who invited you.");}
- if(new URLSearchParams(location.search).get("sync")==="1"){history.replaceState(null,"","/#sync");navigate("sync");if(state.token)pull(false);}
+ if(new URLSearchParams(location.search).get("sync")==="1"){history.replaceState(null,"","/#checkin");navigate("checkin");if(state.token)pull(false);}
  else syncIfNewUpload();
 }
 // A notification can open the app to a specific action.

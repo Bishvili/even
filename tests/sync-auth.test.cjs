@@ -26,6 +26,8 @@ function harness({verified=false,buildVersion="2.8.0",helperBuild="2.0.0",source
  const env={GITHUB_API_KEY:"server-only",APPROVED_SYNC_EMAILS:JSON.stringify(allowed),ASSETS:{async get(key){return {"config:shortcut:latest":release,"config:helper:latest":helperLink&&JSON.stringify(helperLink),"config:shortcut:source":sourceVersions&&JSON.stringify(sourceVersions)}[key]||null;}},DB:{
   prepare(sql){return{bind(...args){return {
    async first(){
+    if(sql.startsWith("SELECT sync_off FROM even_users"))return (rows.userFields?.get(args[0]))||null;
+    if(sql.startsWith("SELECT mood_sync FROM even_users"))return (rows.userFields?.get(args[0]))||null;
     if(sql.includes("FROM even_approved_emails WHERE email"))return rows.approved.has(args[0])?{allowed:1}:null;
     if(sql.includes("SELECT display_name"))return args[0]==="owner-a@example.com"&&!rows.welcomed?{display_name:"Ada"}:null;
     if(sql.startsWith("SELECT endpoint,p256dh,auth FROM even_push_subscriptions")){return [...rows.subs.values()].find(x=>x.device_id===args[0]&&x.owner===args[1])||null;}
@@ -41,7 +43,8 @@ function harness({verified=false,buildVersion="2.8.0",helperBuild="2.0.0",source
    async all(){
     if(sql.startsWith("SELECT email FROM even_approved_emails"))return{results:[...rows.approved.keys()].map(email=>({email}))};
     if(sql.startsWith("SELECT email,display_name FROM even_release_emails"))return{results:[{email:"owner-a@example.com",display_name:"Ada"}]};
-    if(sql.startsWith("SELECT email FROM even_users"))return{results:[...rows.users.keys()].map(email=>({email}))};
+    if(sql.startsWith("SELECT email,name FROM even_users"))return{results:[...rows.users.keys()].map(email=>({email,name:(rows.userFields?.get(email)||{}).name}))};
+    if(sql.startsWith("SELECT id,ts,score"))return{results:(rows.moods||[]).filter(m=>m.owner===args[0])};
     if(sql.startsWith("SELECT s.endpoint"))return{results:[...rows.subs.values()].filter(s=>[...rows.devices.values()].some(d=>d.device_id===s.device_id&&!d.revoked_at))};
     if(sql.startsWith("SELECT name FROM even_calendars"))return{results:[...rows.calendars.values()].filter(c=>c.owner===args[0]&&!c.enabled)};
     if(sql.startsWith("SELECT name,enabled FROM even_calendars"))return{results:[...rows.calendars.values()].filter(c=>c.owner===args[0])};
@@ -59,6 +62,21 @@ function harness({verified=false,buildVersion="2.8.0",helperBuild="2.0.0",source
     if(sql.startsWith("UPDATE even_devices SET last_used_at")){for(const d of rows.devices.values())if(d.device_id===args[3]&&d.owner_email===args[4]&&!d.revoked_at){d.last_used_at=args[0];d.last_attempt_at=args[1];d.last_error_code=null;d.shortcut_version=args[2]||d.shortcut_version;}return{meta:{changes:1}};}
     if(sql.startsWith("DELETE FROM even_alarms")){rows.alarms=(rows.alarms||[]).filter(x=>x.owner!==args[0]);return{meta:{changes:1}};}
     if(sql.startsWith("INSERT INTO even_alarms")){(rows.alarms=rows.alarms||[]).push({owner:args[0],time_min:args[2],days:args[3],enabled:args[4],label:args[5]});return{meta:{changes:1}};}
+    if(sql.startsWith("UPDATE even_users")){
+     const u=(rows.userFields=rows.userFields||new Map());const email=args[args.length>2?1:1];const row=u.get(email)||{};
+     if(sql.includes("SET name"))row.name=args[0];if(sql.includes("SET sync_off"))row.sync_off=args[0];
+     if(sql.includes("SET mood_sync=?"))row.mood_sync=args[0];if(sql.includes("SET mood_sync=0")){u.set(args[0],{...(u.get(args[0])||{}),mood_sync:0});return{meta:{changes:1}};}
+     u.set(email,row);return{meta:{changes:1}};
+    }
+    if(sql.startsWith("DELETE FROM even_moods")){rows.moods=(rows.moods||[]).filter(m=>m.owner!==args[0]);return{meta:{changes:1}};}
+    if(sql.startsWith("INSERT INTO even_moods")){
+     rows.moods=rows.moods||[];const existing=rows.moods.find(m=>m.owner===args[0]&&m.id===args[1]);
+     if(sql.includes("deleted_at) VALUES")){if(existing){Object.assign(existing,{score:null,note:null,deleted_at:args[4]});}else rows.moods.push({owner:args[0],id:args[1],ts:args[2],deleted_at:args[4]});}
+     else if(!existing)rows.moods.push({owner:args[0],id:args[1],ts:args[2],score:args[3],energy:args[4],stress:args[5],tags:args[6],note:args[7]});
+     else if(!existing.deleted_at)Object.assign(existing,{score:args[3],note:args[7]});
+     return{meta:{changes:1}};
+    }
+    if(sql.startsWith("UPDATE even_devices SET label")){let changes=0;for(const d of rows.devices.values())if(d.device_id===args[1]&&d.owner_email===args[2]&&!d.revoked_at){d.label=args[0];changes++;}return{meta:{changes}};}
     if(sql.startsWith("INSERT INTO even_health_metrics")){rows.health.set(args[0]+"|"+args[1]+"|"+args[2],{owner:args[0],day:args[1],metric:args[2],value:args[3]});return{meta:{changes:1}};}
     if(sql.startsWith("INSERT INTO even_push_subscriptions")){rows.subs.set(args[0],{endpoint:args[0],owner:args[1],device_id:args[2],mode:args[3],times:args[4],time_zone:args[5],p256dh:args[7],auth:args[8],bedtime_at:args[9],brief_at:args[10],hard_at:args[11],weekends:args[12],sync_at:args[13],stress_times:args[14],last_sent_day:null,last_sent_target:null,last_check_in_at:null});return{meta:{changes:1}};}
     if(sql.startsWith("INSERT OR IGNORE INTO even_approved_emails")){rows.approved.set(args[0],args[1]);return{meta:{changes:1}};}
@@ -85,7 +103,7 @@ function harness({verified=false,buildVersion="2.8.0",helperBuild="2.0.0",source
  }};
  const aud="b15746656eee885f25c4f4b0605491289c01776b8710cc8339fb507f4574f745";
  const base="https://even.bishvili.workers.dev";
- function ctx(email,audience=aud){return{access:{aud:audience,async getIdentity(){return{email};}}};}
+ function ctx(email,audience=aud,name){return{access:{aud:audience,async getIdentity(){return{email,name};}}};}
  async function call(route,{method="GET",body,headers={},context}={}){
   const h=new Headers(headers);
   if(body!==undefined){h.set("Content-Type","application/json");if(!h.has("Origin"))h.set("Origin",base);}
@@ -635,4 +653,69 @@ test("every error carries a stable code",async()=>{
  assert.equal((await call("/api/nothing-here",{headers:A})).data.code,"not_found");
  const source=fs.readFileSync(path.join(__dirname,"..","worker","index.js"),"utf8");
  assert.doesNotMatch(source,/\berror\((?:"[^"]*"|NO_VALID_RECORDS)(?:,\d{3})?\)/);
+});
+
+test("check-ins sync only after opting in, stay with their owner, honor deletes, and leave with an erase",async()=>{
+ const{call,ctx}=harness();
+ const a=await call("/api/auth/device",{method:"POST",body:{label:"A"},context:ctx("owner-a@example.com")});
+ const b=await call("/api/auth/device",{method:"POST",body:{label:"B"},context:ctx("owner-b@example.com")});
+ const A={Authorization:"Bearer "+a.data.token},B={Authorization:"Bearer "+b.data.token};
+ const mood={id:"m1",ts:"2026-11-04T10:00:00Z",score:4,energy:3,stress:2,tags:["Rest"],note:"private"};
+ assert.equal((await call("/api/moods",{method:"POST",headers:A,body:{moods:[mood]}})).status,409);
+ assert.equal((await call("/api/moods",{headers:A})).data.enabled,false);
+ assert.equal((await call("/api/moods")).status,401);
+ assert.equal((await call("/api/moods/settings",{method:"POST",headers:A,body:{enabled:"yes"}})).status,400);
+ await call("/api/moods/settings",{method:"POST",headers:A,body:{enabled:true}});
+ assert.equal((await call("/api/moods",{method:"POST",headers:A,body:{moods:[mood,{id:"bad",ts:"nope",score:9}]}})).data.saved,1);
+ const read=await call("/api/moods",{headers:A});
+ assert.equal(read.data.moods[0].note,"private");
+ assert.deepEqual([...read.data.moods[0].tags],["Rest"]);
+ assert.equal((await call("/api/moods",{headers:B})).data.moods.length,0);
+ assert.equal((await call("/api/moods",{method:"POST",headers:B,body:{moods:[mood]}})).status,409);
+ await call("/api/moods",{method:"POST",headers:A,body:{deleted:["m1"]}});
+ const after=await call("/api/moods",{headers:A});
+ assert.equal(after.data.moods.length,0);
+ assert.deepEqual([...after.data.deleted],["m1"]);
+ await call("/api/moods",{method:"POST",headers:A,body:{moods:[mood]}});
+ assert.equal((await call("/api/moods",{headers:A})).data.moods.length,0);
+ await call("/api/moods",{method:"POST",headers:A,body:{moods:[{...mood,id:"m2"}]}});
+ await call("/api/erase",{method:"POST",headers:A});
+ assert.equal((await call("/api/moods",{headers:A})).data.enabled,false);
+ await call("/api/moods/settings",{method:"POST",headers:A,body:{enabled:true}});
+ assert.equal((await call("/api/moods",{headers:A})).data.moods.length,0);
+});
+test("sync settings reach the Shortcut, apply on arrival, and belong to one owner",async()=>{
+ const{call,ctx,rows}=harness();
+ const a=await call("/api/auth/device",{method:"POST",body:{label:"A"},context:ctx("owner-a@example.com")});
+ const b=await call("/api/auth/device",{method:"POST",body:{label:"B"},context:ctx("owner-b@example.com")});
+ const A={Authorization:"Bearer "+a.data.token},B={Authorization:"Bearer "+b.data.token};
+ const hello=headers=>call("/api/shortcut/hello",{method:"POST",body:{shortcutVersion:"3.1.0"},headers});
+ assert.equal((await hello(A)).data.syncSteps,"on");
+ assert.equal((await hello(A)).data.calendarsOff,"(?!)");
+ assert.equal((await call("/api/sync/settings",{method:"POST",headers:A,body:{kind:"banana",enabled:false}})).status,400);
+ for(const kind of ["steps","alarms"])await call("/api/sync/settings",{method:"POST",headers:A,body:{kind,enabled:false}});
+ assert.equal((await hello(A)).data.syncSteps,"off");
+ assert.equal((await hello(B)).data.syncSteps,"on");
+ assert.equal((await call("/api/sync/settings",{headers:A})).data.settings.alarms,false);
+ assert.equal((await call("/api/ingest",{method:"POST",headers:A,body:{kind:"health",date:"2026-11-04",steps:"5000",hrv:"40"}})).status,200);
+ assert.equal(rows.health.has("owner-a@example.com|2026-11-04|steps"),false);
+ assert.equal(rows.health.has("owner-a@example.com|2026-11-04|hrv"),true);
+ assert.equal((await call("/api/ingest",{method:"POST",headers:A,body:{kind:"alarms",date:"2026-11-04",alarms:"\u241e06:30\u241fMonday\u241fYes\u241fGym"}})).data.skipped,true);
+ assert.equal((await call("/api/pull",{headers:A})).data.alarms.length,0);
+});
+test("devices can be renamed only by their owner, and sign-in names label testers",async()=>{
+ const{call,ctx,rows}=harness();
+ const a=await call("/api/auth/device",{method:"POST",body:{label:"My iPhone"},context:ctx("owner-a@example.com")});
+ const id=a.data.deviceId;
+ assert.equal((await call("/api/auth/device/rename",{method:"POST",body:{deviceId:id,label:" Work Mac "},context:ctx("owner-a@example.com")})).data.label,"Work Mac");
+ assert.equal((await call("/api/auth/device/rename",{method:"POST",body:{deviceId:id,label:"Mine"},context:ctx("owner-b@example.com")})).status,404);
+ assert.equal((await call("/api/auth/device/rename",{method:"POST",body:{deviceId:id,label:"  "},context:ctx("owner-a@example.com")})).status,400);
+ assert.equal([...rows.devices.values()].find(d=>d.device_id===id).label,"Work Mac");
+ await call("/api/auth/testers",{method:"POST",body:{email:"new@example.com"},context:ctx("owner-a@example.com")});
+ const b=await call("/api/auth/device",{method:"POST",body:{label:"B"},context:ctx("owner-b@example.com")});
+ assert.ok(b.data.deviceId);
+ await call("/api/auth/me",{context:ctx("owner-b@example.com",undefined,"Sam Lee")});
+ const listed=(await call("/api/auth/testers",{context:ctx("owner-a@example.com")})).data.testers;
+ assert.equal(listed.find(t=>t.email==="owner-b@example.com").name,"Sam Lee");
+ assert.equal(listed.find(t=>t.email==="owner-a@example.com").name,"Ada");
 });

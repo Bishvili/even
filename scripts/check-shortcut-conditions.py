@@ -18,8 +18,8 @@ import sys
 from pathlib import Path
 
 
-SYNC_TEXT = collections.Counter({"connected": 1, "accepted": 2, "needed": 1, "new_release": 1, "sent": 1})
-SYNC_NUMBERS = [0, 0] + [1] * 11
+SYNC_TEXT = collections.Counter({"on": 7, "connected": 1, "accepted": 2, "needed": 1, "new_release": 1, "sent": 1})
+SYNC_NUMBERS = [0, 0, 0, 0] + [1] * 11
 HELPER_TEXT = collections.Counter({
     "Even Sync": 2, "Even Release": 1, "update": 1, "share": 1, "install": 1, "building": 1,
     "ahead": 1, "current": 2, "publish": 1, "Publish": 1,

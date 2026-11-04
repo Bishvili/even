@@ -76,7 +76,7 @@
      <label class="note-label" for="mood-note">Add a note <span class="hint">optional</span></label>
      <textarea id="mood-note" rows="2" maxlength="400" placeholder="What’s on your mind?"></textarea>
      <button class="btn primary full" id="save-mood" disabled>Save check-in <span aria-hidden="true">↗</span></button>
-     <p class="privacy-micro">🔒 Mood notes stay on this device.</p>
+     <p class="privacy-micro">🔒 Mood notes stay on this device unless you sync check-ins.</p>
     </div>
     <div class="quick-stats">
      <div><small>TODAY</small><strong id="stat-today">0</strong><span>check-ins</span></div>
@@ -226,9 +226,17 @@
      </details>
     </section>
     
-    <section class="card" id="calendar-card" aria-labelledby="calendars-title" hidden>
-     <h2 id="calendars-title">Calendars</h2>
-     <p class="muted">Even Sync still reads calendars you turn off, but their events aren’t saved. Turning one back on saves its events from the next sync.</p>
+    <section class="card" id="mood-sync-card" aria-labelledby="mood-sync-title" hidden>
+     <h2 id="mood-sync-title">Check-ins on your devices</h2>
+     <p class="muted">Saves your check-ins and notes to your account, so a check-in from your computer appears on your iPhone. Sign in to Even on each device.</p>
+     <div class="calendar-list"><label class="calendar-row"><span>Sync check-ins</span><input type="checkbox" role="switch" id="mood-sync-toggle"></label></div>
+    </section>
+    <section class="card" id="calendar-card" aria-labelledby="sync-settings-title" hidden>
+     <h2 id="sync-settings-title">What Even Sync sends</h2>
+     <p class="muted">Even Sync checks these each time it runs. Turning one off stops new data, and what’s already saved stays until you erase it.</p>
+     <div id="sync-settings" class="calendar-list"></div>
+     <h3 class="plan-heading" id="calendars-title">Calendars</h3>
+     <p class="muted">Even Sync skips calendars you turn off, and their saved events are hidden.</p>
      <div id="calendar-list" class="calendar-list"></div>
     </section>
     <details class="card disclosure" id="device-details"><summary>Devices and data</summary>
@@ -238,7 +246,7 @@
     </div>
     <button type="button" class="btn subtle full" id="erase-remote">Erase synced data</button>
     </details>
-    <div class="help-note"><strong>Privacy</strong><p>Mood check-ins stay on this iPhone. Health data, calendar events and alarms you sync are sent over an encrypted connection and stored in your private account. They aren’t end-to-end encrypted. You can revoke a device or erase synced data at any time.</p></div>
+    <div class="help-note"><strong>Privacy</strong><p>Mood check-ins stay on this iPhone unless you turn on check-in sync, which saves them and their notes to your account. Health data, calendar events and alarms you sync are sent over an encrypted connection and stored in your private account. They aren’t end-to-end encrypted. You can revoke a device or erase synced data at any time.</p></div>
     
     
     
@@ -266,7 +274,7 @@
        <label class="calendar-row"><span>From</span><input type="time" id="reminder-from"></label>
        <label class="calendar-row"><span>Until</span><input type="time" id="reminder-to"></label>
       </div>
-      <label class="calendar-row" id="reminder-count-row"><span>Notifications a day</span><select id="reminder-count"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option></select></label>
+      <label class="calendar-row" id="reminder-count-row"><span>Notifications a day</span><select id="reminder-count"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option>7</option><option>8</option></select></label>
       <label class="calendar-row" id="reminder-every-row"><span>Every</span><select id="reminder-every"><option value="1">1 hour</option><option value="2">2 hours</option><option value="3">3 hours</option><option value="4">4 hours</option><option value="6">6 hours</option></select></label>
       <div id="reminder-tune">
        <label class="calendar-row"><span>Hardest part of the day</span><select id="reminder-hardest"><option value="morning">Morning</option><option value="midday">Midday</option><option value="afternoon">Afternoon</option><option value="evening">Evening</option><option value="varies">It varies</option></select></label>
@@ -281,7 +289,7 @@
      </div>
      <button type="button" class="btn subtle full" id="intake-retake">Answer the questions again</button>
     </section>
-    <div class="card"><h2>Your local data</h2><p class="muted">Mood check-ins, notes and locally imported health/calendar data stay in this app's storage on this device. Clearing site data or deleting the Home Screen app may erase them.</p><div class="settings-meta" id="storage-summary"></div><button class="btn secondary full" id="backup-button">Download backup</button><label class="file-label">Restore from backup <input type="file" id="restore-input" accept="application/json,.json"></label><button class="btn danger full" id="erase-local">Erase all data on this device</button></div>
+    <div class="card"><h2>Your local data</h2><p class="muted">Mood check-ins, notes and locally imported health and calendar data are kept in this app’s storage on this device. Check-ins and notes also go to your account if you turn on check-in sync. Clearing site data or deleting the Home Screen app may erase them.</p><div class="settings-meta" id="storage-summary"></div><button class="btn secondary full" id="backup-button">Download backup</button><label class="file-label">Restore from backup <input type="file" id="restore-input" accept="application/json,.json"></label><button class="btn danger full" id="erase-local">Erase all data on this device</button></div>
     
     <section class="card" id="support" aria-labelledby="support-title">
      <h2 id="support-title">Need support?</h2>
@@ -292,13 +300,12 @@
     </section>
     <section class="card" id="release-card" aria-labelledby="release-title" hidden>
      <h2 id="release-title">Developer tools</h2>
-     <p class="muted">Change this site, or install and publish Shortcut builds.</p>
-     <a class="btn primary full" id="improve-site" href="https://claude.ai/code/new?repo=Bishvili%2Feven&branch=main&q=Help%20me%20get%20set%20up%20to%20improve%20Even%2C%20one%20step%20at%20a%20time%20and%20in%20plain%20language.%20Follow%20the%20onboarding%20section%20of%20AGENTS.md%3A%20check%20which%20connections%20I%20already%20have%2C%20then%20offer%20each%20missing%20one%20as%20a%20card%20I%20can%20approve.%20Don%27t%20ask%20me%20for%20any%20keys.%20Run%20the%20tests%2C%20and%20read%20the%20frontend%20guide%20and%20whitepaper.html%20so%20you%20know%20how%20the%20app%20behaves.%20Then%20ask%20what%20I%27d%20like%20to%20change.%20Before%20you%20push%20anything%2C%20tell%20me%20in%20a%20sentence%20what%20will%20change%20for%20people%20using%20the%20app%2C%20because%20pushes%20go%20live%20right%20away." target="_blank" rel="noopener noreferrer">Improve This Site with Claude <span aria-hidden="true">↗</span></a>
-     <h2 class="tester-heading">Testers</h2>
+          <h3 class="dev-heading">Testers</h3>
      <p class="muted">Add someone’s email to invite them.</p>
      <form id="tester-form"><input id="tester-email" type="email" autocomplete="off" autocapitalize="none" placeholder="name@example.com" aria-label="Tester email" required><button type="submit" class="btn secondary" id="add-tester">Add</button></form>
      <div id="tester-list" class="calendar-list"></div>
      <button type="button" class="btn secondary full" id="share-even">Share Even</button>
+     <h3 class="dev-heading">Shortcuts</h3>
      <details class="shortcut-advanced"><summary>How the Shortcuts work</summary><div>
       <p><strong>Even Sync</strong> is what everyone installs. It sends Health and calendar data. Running it from this app connects it, so there’s no key to copy.</p>
       <p><strong>Even Release</strong> is for developers. It holds no credentials, and only approved accounts can publish.</p>
@@ -306,8 +313,11 @@
      </div></details>
      <a class="btn secondary full" id="setup-helper" target="_blank" rel="noopener noreferrer" hidden>Set Up Release Helper <span aria-hidden="true">↗</span></a>
      <a class="btn secondary full" href="shortcuts://run-shortcut?name=Even%20Release">Run Release Helper <span aria-hidden="true">↗</span></a>
+     <h3 class="dev-heading">Change Even</h3>
+     <p class="muted">Start a session on this site’s code.</p>
+     <a class="btn primary full" id="improve-site" href="https://claude.ai/code/new?repo=Bishvili%2Feven&branch=main&q=Help%20me%20get%20set%20up%20to%20improve%20Even%2C%20one%20step%20at%20a%20time%20and%20in%20plain%20language.%20Follow%20the%20onboarding%20section%20of%20AGENTS.md%3A%20check%20which%20connections%20I%20already%20have%2C%20then%20offer%20each%20missing%20one%20as%20a%20card%20I%20can%20approve.%20Don%27t%20ask%20me%20for%20any%20keys.%20Run%20the%20tests%2C%20and%20read%20the%20frontend%20guide%20and%20whitepaper.html%20so%20you%20know%20how%20the%20app%20behaves.%20Then%20ask%20what%20I%27d%20like%20to%20change.%20Before%20you%20push%20anything%2C%20tell%20me%20in%20a%20sentence%20what%20will%20change%20for%20people%20using%20the%20app%2C%20because%20pushes%20go%20live%20right%20away." target="_blank" rel="noopener noreferrer">Improve This Site with Claude <span aria-hidden="true">↗</span></a>
     </section>
-    <div class="card"><h2>About the insights</h2><p class="muted">Comparisons need at least 3 check-ins in each group. Mood data is subjective and gaps can skew results. Nothing here is a diagnosis or proves a cause.</p><a class="btn subtle full" id="whitepaper-link" href="/whitepaper.html" target="_blank" rel="noopener">How Even works <span aria-hidden="true">↗</span></a><p class="muted">Version <span id="version">2.9.0</span> · No ads or analytics</p></div>
+    <div class="card"><h2>About the insights</h2><p class="muted">Comparisons need at least 3 check-ins in each group. Mood data is subjective and gaps can skew results. Nothing here is a diagnosis or proves a cause.</p><a class="btn subtle full" id="whitepaper-link" href="/whitepaper.html" target="_blank" rel="noopener">How Even works <span aria-hidden="true">↗</span></a><p class="muted">Version <span id="version">2.10.0</span> · No ads or analytics</p></div>
     <div class="card"><h2>Explore a sample month</h2><p class="muted">See 28 days of fictional check-ins and events. They stay separate from your own data and are never uploaded.</p><button class="btn secondary full" id="demo-button">Load 28-day calendar demo</button><button class="btn subtle full" id="clear-demo-button">Remove demo data</button></div>
    </section>
   </main>
@@ -343,6 +353,14 @@
    <a class="btn primary full" id="welcome-improve" target="_blank" rel="noopener noreferrer">Improve This Site with Claude <span aria-hidden="true">↗</span></a>
    <button type="button" class="btn subtle full" id="welcome-close">Maybe later</button>
    <p class="muted welcome-note">You’ll find this anytime in Settings, under Developer tools.</p>
+  </dialog>
+  <dialog class="welcome" id="rename-device-dialog" aria-labelledby="rename-device-title">
+   <h2 id="rename-device-title">Rename device</h2>
+   <form id="rename-device-form">
+    <input id="rename-device-input" type="text" maxlength="64" autocomplete="off" aria-label="Device name" required>
+    <button type="submit" class="btn primary full" id="rename-device-save">Save</button>
+    <button type="button" class="btn subtle full" id="rename-device-cancel">Cancel</button>
+   </form>
   </dialog>
   <dialog class="welcome" id="run-sync-dialog" aria-labelledby="run-sync-title">
    <h2 id="run-sync-title">Run Even Sync</h2>

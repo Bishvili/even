@@ -83,7 +83,7 @@ Only an iPhone proves iOS behavior, and each round trip costs the owner time. Be
 - Health data can't be read while the iPhone is locked.
 - Clock alarm details exist only as variable properties, whose names can differ across iOS versions. Confirm in the Shortcuts editor and in Even → **Sources** that names, times and on/off state arrive. Keep alarms at the end of the run, because an error there can't be caught.
 - Clients check an error's `code`, never its message. Even Sync 2.9.0 still matches the skipped-event message (`NO_VALID_RECORDS` in `worker/index.js`) word for word, so keep that message until 2.9.0 is out of use.
-- Even Sync sends every calendar's events, with titles, and the app decides which calendars are kept. Don't filter calendars in the Shortcut.
+- Even Sync follows the settings the handshake returns: `sync…` values for each kind of data, and `calendarsOff`, a pattern of turned-off calendars. Older versions ignore them, so the Worker also applies them on arrival.
 - A run makes five requests: the handshake, today's and tomorrow's events, all Health measures, alarms, and the final notification. Every request is a round trip from the phone, often on cellular or inside an automation, so add fields to one of these instead of adding requests.
 - The Worker accepts both Even Sync 2.9.0's one-at-a-time uploads and 3.0.0's batches. Remove the old paths once 3.0.0 is the only version in use (#35).
 - Sleep arrives as asleep intervals that the Worker merges per night, so two wearables count once. A batch that reached its sample limit leaves its oldest night alone, because that night may be cut off. Even Sync 2.9.0 still adds up the last 24 hours.
@@ -117,7 +117,7 @@ Only an iPhone proves iOS behavior, and each round trip costs the owner time. Be
 Even is an iPhone-first, installable progressive web app for quick mood check-ins and useful context from calendars and selected health metrics. Hold the interface to the finish, consistency, speed, and restraint of a popular App Store app, while remaining truthful about web-platform capabilities.
 
 - A check-in should take seconds. The interface must work while offline.
-- Personal mood check-ins and notes are local to the device unless a future feature explicitly changes this with consent.
+- Personal mood check-ins and notes stay on the device unless the person turns on check-in sync, which is off by default and belongs to their account.
 - Cloud-synced Health and Calendar records are private to their verified owner.
 - Correlations are exploratory. Show sample counts, time windows, missing-data limitations, and appropriate uncertainty; never suggest causation or provide medical diagnoses.
 - Fictional demo data must be clearly marked, reproducible, and fully isolated from real data and personal summary statistics.
@@ -127,7 +127,8 @@ Even is an iPhone-first, installable progressive web app for quick mood check-in
 - The plan of record is #16, with the Shortcut plan in #36 and the data-context plan in #37. Read them and the open issues before starting work, follow their order, and update the ticket when the scope changes.
 - Write tickets with **Problem**, **Evidence** (permalinks to lines), **Proposed fix**, **Acceptance criteria**, **Tests** and **Rollout notes**. Start each title with P0 (wrong now, or a data or privacy risk), P1 (trust, accuracy or first impression) or P2 (foundations). Never copy personal values into a ticket: use code references and aggregate counts.
 - The owner has decided the following. Don't reopen them without asking:
-  - Even Sync sends every calendar's events, with titles, and titles are stored. Which calendars are kept is managed in the app, and events from turned-off calendars are discarded when they arrive (#24).
+  - Even Sync reads the calendars and data kinds left on in the app, and skips the rest. Titles of synced events are stored. The Worker discards anything turned off that still arrives.
+  - Check-ins and notes can sync through the account, as an opt-in that is off by default. Erasing synced data removes them and turns it off.
   - Removing a tester deletes their synced data. Planned in #22.
   - Sources and Sync become one **Data** tab, leaving four tabs. Planned in #27; until it ships, this guide's references to Even → **Sync** and **Sources** stay correct.
   - Resting heart rate becomes personal recovery context, compared with the person's own usual level (planned in #37). Average heart rate is no longer collected.
@@ -193,7 +194,7 @@ Current UI is plain JavaScript and CSS. Do not rewrite it merely to adopt a fram
 2. Restrict issuance and revocation of device credentials to the verified owner. Use cryptographically random device tokens, store only hashes server-side, support revocation, and do not log or embed tokens.
 3. Every read, write, export, and delete of cloud data must be scoped to the derived account owner on the server. Test cross-user isolation and revocation.
 4. Keep the email allowlist in Cloudflare secrets or private D1 tables and all credentials in Cloudflare secrets, never checked into the public repository or served in production assets.
-5. Treat calendar titles and Health metrics as sensitive personal data. Collect only what a feature uses, avoid third-party trackers, redact logs, and use HTTPS. By the owner's decision, Even Sync reads every calendar and titles are stored; people choose which calendars are kept in the app, and the privacy text must say so plainly.
+5. Treat calendar titles and Health metrics as sensitive personal data. Collect only what a feature uses, avoid third-party trackers, redact logs, and use HTTPS. Even Sync skips what people turn off in the app, titles of synced events are stored, and the privacy text must say so plainly.
 6. Avoid claiming end-to-end encryption, clinical-grade reliability, automatic Apple Health permissions, or sync capabilities the product does not implement.
 7. Provide explicit data deletion, safe export, and account-switching behavior. Do not silently combine local data from two accounts. Every way an account loses access must leave its synced data deleted or deletable.
 
@@ -203,18 +204,19 @@ What Even holds and where it goes. Write every privacy statement from this table
 
 | Data | Comes from | On the iPhone | In the account | Used for |
 | --- | --- | --- | --- | --- |
-| Mood, optional stress, energy (saved as 3 when untouched), tags, notes | Check-ins | Yes | No | Insights, coaching and notification times. Notes are only displayed. |
+| Mood, optional stress, energy (saved as 3 when untouched), tags, notes | Check-ins | Yes | Only with check-in sync on, as readable text. A deleted check-in leaves only its ID, so other devices can remove it. | Insights, coaching and notification times. Notes are only displayed. |
 | Weekly reflections and breathing sessions | The app | Yes | No | Insights. Breathing also feeds what tends to help. |
 | Health days and events added by hand or imported | Sources | Yes | No | Insights and coaching |
 | Steps, exercise minutes, sleep hours, HRV | Even Sync, from Apple Health. Sleep arrives as asleep intervals from recent nights, up to a month on the first sync | Yes | Yes | Insights and coaching. HRV: Insights only. |
 | Bedtimes | Worked out from the sleep intervals | Yes | Yes | Bedtime estimate and wind-down |
 | Resting heart rate | Even Sync, from Apple Health | Yes | Yes | Shown in Sources only (#37) |
 | Average heart rate | Even Sync 2.9.0 only | No | No: discarded on arrival | Nothing |
-| Today's and tomorrow's calendar events: title, start, end, calendar name | Even Sync reads every calendar (2.9.0 reads today only); the Worker adds a category | Yes, without the calendar name | Yes, except events from turned-off calendars, which are discarded on arrival | Insights, coaching and nudges before events |
+| Today's and tomorrow's calendar events: title, start, end, calendar name | Even Sync reads calendars left on (2.9.0 reads today only, 3.0.0 reads all); the Worker adds a category | Yes, without the calendar name | Yes, except events from turned-off calendars, which are discarded on arrival | Insights, coaching and nudges before events |
 | Calendar names and on/off state | Even Sync and the app | No | Yes | Calendar settings |
+| What Even Sync sends, and whether check-ins sync | The app | Yes | Yes | Followed by Even Sync and the Worker |
 | Alarms: time, repeat days, on/off, name | Even Sync, from Clock | Yes | Yes, plus each synced day's first morning alarm | Brief, wind-down, next steps and the early-alarm pattern |
 | Notification settings and answers | The app | Yes, including each message's text | Times and their kinds, time zone, weekends, sync reminder time, times of expected harder moments, latest check-in time, push subscription and delivery status | Sending notifications |
-| Account and devices | Sign-in and Even Sync | Account email, device ID and credential | Email; each device's label, dates, last error and Shortcut version; only a hash of each credential | Sync status and access |
+| Account and devices | Sign-in and Even Sync | Account email, device ID and credential | Email; the name from sign-in, if any, shown to developer accounts; each device's label, dates, last error and Shortcut version; only a hash of each credential | Sync status and access |
 | Testers and release accounts | Developer tools and the owner | No | Email, who added them, display name | Who can sign in and publish |
 
 Backups are unencrypted JSON files that people save themselves. Outside services: Cloudflare hosts the app and sends sign-in codes, Apple's push service carries encrypted notifications, Resend sends invitation emails, and releases send the public Shortcut link to GitHub and RoutineHub.

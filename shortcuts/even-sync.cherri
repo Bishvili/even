@@ -45,7 +45,7 @@ if providedKeyCount == 0 {
 // Verify the connection and record the Shortcut's version, even if no health samples are available.
 // The reply also says whether a newer version is ready.
 const handshakeRaw = jsonRequest("https://even.bishvili.workers.dev/api/shortcut/hello", "POST", {
-    "shortcutVersion": "3.0.0"
+    "shortcutVersion": "3.1.0"
 }, {"Authorization": "{@credential}"})
 const handshake = getDictionary(handshakeRaw)
 const connectionStatusValue = getValue(handshake, "state")
@@ -58,6 +58,24 @@ if connectionStatus != "connected" {
 // Save only a key the server accepted, so a failed attempt cannot replace a working one.
 saveDeviceKey(@credential, keyFolder)
 
+// What to sync is set in the app and arrives with the handshake, so it needs no extra request.
+const syncCalendarValue = getValue(handshake, "syncCalendar")
+const syncCalendar = getText(syncCalendarValue)
+const syncSleepValue = getValue(handshake, "syncSleep")
+const syncSleep = getText(syncSleepValue)
+const syncStepsValue = getValue(handshake, "syncSteps")
+const syncSteps = getText(syncStepsValue)
+const syncRestingHRValue = getValue(handshake, "syncRestingHR")
+const syncRestingHR = getText(syncRestingHRValue)
+const syncHrvValue = getValue(handshake, "syncHrv")
+const syncHrv = getText(syncHrvValue)
+const syncWorkoutValue = getValue(handshake, "syncWorkout")
+const syncWorkout = getText(syncWorkoutValue)
+const syncAlarmsValue = getValue(handshake, "syncAlarms")
+const syncAlarms = getText(syncAlarmsValue)
+const calendarsOffValue = getValue(handshake, "calendarsOff")
+const calendarsOff = getText(calendarsOffValue)
+
 // Each upload that's accepted counts once, for the final notification.
 @acceptedCount = 0
 const today = currentDate()
@@ -68,6 +86,7 @@ const utcOffset = formatDate(today, "Custom", "ZZZZZ")
 // Records and fields use separator characters, because a title can contain almost anything else.
 action 'is.workflow.actions.filter.calendarevents' findEvents(&variable filter: 'WFContentItemFilter'): array {"WFContentItemLimitEnabled":true,"WFContentItemLimitNumber":60,"WFContentItemSortProperty":"Start Date","WFContentItemSortOrder":"Oldest First"}
 
+if syncCalendar == "on" {
 @eventRecords = ""
 const todayEvents = findEvents(todayEventsFilter)
 for event in todayEvents {
@@ -77,7 +96,11 @@ for event in todayEvents {
     const endDate = getEventDetail(@event, "End Date")
     const startISO = formatTimestamp(startDate, "Custom", "None", "yyyy-MM-dd'T'HH:mm:ssZZZZZ")
     const endISO = formatTimestamp(endDate, "Custom", "None", "yyyy-MM-dd'T'HH:mm:ssZZZZZ")
-    @eventRecords = "{@eventRecords}␞{startISO}␟{endISO}␟{calendarName}␟{title}"
+    const todayOff = matchText("{calendarsOff}", calendarName)
+    const todayOffCount = count(todayOff)
+    if todayOffCount == 0 {
+        @eventRecords = "{@eventRecords}␞{startISO}␟{endISO}␟{calendarName}␟{title}"
+    }
 }
 
 // The next two days repeat the rest of today; the server counts each event once and keeps only today and tomorrow.
@@ -89,12 +112,16 @@ for upcomingEvent in upcomingEvents {
     const upcomingEnd = getEventDetail(@upcomingEvent, "End Date")
     const upcomingStartISO = formatTimestamp(upcomingStart, "Custom", "None", "yyyy-MM-dd'T'HH:mm:ssZZZZZ")
     const upcomingEndISO = formatTimestamp(upcomingEnd, "Custom", "None", "yyyy-MM-dd'T'HH:mm:ssZZZZZ")
-    @eventRecords = "{@eventRecords}␞{upcomingStartISO}␟{upcomingEndISO}␟{upcomingCalendar}␟{upcomingTitle}"
+    const upcomingOff = matchText("{calendarsOff}", upcomingCalendar)
+    const upcomingOffCount = count(upcomingOff)
+    if upcomingOffCount == 0 {
+        @eventRecords = "{@eventRecords}␞{upcomingStartISO}␟{upcomingEndISO}␟{upcomingCalendar}␟{upcomingTitle}"
+    }
 }
 
 const calendarBody = formRequest("https://even.bishvili.workers.dev/api/ingest", "POST", {
     "kind": "calendar_days",
-    "shortcutVersion": "3.0.0",
+    "shortcutVersion": "3.1.0",
     "date": "{day}",
     "utcOffset": "{utcOffset}",
     "events": "{@eventRecords}"
@@ -109,6 +136,7 @@ if calendarStatus != "accepted" {
     showNotification("Your calendar didn't sync. {calendarError}", "Even Sync")
 } else {
     @acceptedCount += 1
+}
 }
 
 // Daily groups over 30 days give Health's own totals, and a quiet day doesn't end the run.
@@ -155,6 +183,7 @@ const recentSamples = findRecentSamples(recentTypesFilter)
 const recentTypeValues = getSampleTypes(recentSamples)
 const recentTypes = getText(recentTypeValues)
 
+if syncSteps == "on" {
 const stepsMatches = matchText('(?i)steps', recentTypes)
 const stepsAvailable = count(stepsMatches)
 if stepsAvailable >= 1 {
@@ -174,7 +203,9 @@ if stepsAvailable >= 1 {
         @healthFields += 1
     }
 }
+}
 
+if syncRestingHR == "on" {
 const restingMatches = matchText('(?i)Resting', recentTypes)
 const restingAvailable = count(restingMatches)
 if restingAvailable >= 1 {
@@ -189,7 +220,9 @@ if restingAvailable >= 1 {
         @healthFields += 1
     }
 }
+}
 
+if syncHrv == "on" {
 const hrvMatches = matchText('(?i)Variability', recentTypes)
 const hrvAvailable = count(hrvMatches)
 if hrvAvailable >= 1 {
@@ -204,7 +237,9 @@ if hrvAvailable >= 1 {
         @healthFields += 1
     }
 }
+}
 
+if syncWorkout == "on" {
 const exerciseMatches = matchText('(?i)Exercise', recentTypes)
 const exerciseAvailable = count(exerciseMatches)
 if exerciseAvailable >= 1 {
@@ -219,9 +254,11 @@ if exerciseAvailable >= 1 {
         @healthFields += 1
     }
 }
+}
 
 // Each asleep sample goes up as its start and end. The server merges overlapping samples from more than one device
 // and files each night under the morning it ends, so time in bed, awake time and naps don't count.
+if syncSleep == "on" {
 const sleepMatches = matchText('(?i)Sleep', recentTypes)
 const sleepAvailable = count(sleepMatches)
 if sleepAvailable >= 1 {
@@ -250,11 +287,12 @@ if sleepAvailable >= 1 {
     }
     @healthFields += 1
 }
+}
 
 if @healthFields >= 1 {
     const healthBody = formRequest("https://even.bishvili.workers.dev/api/ingest", "POST", {
         "kind": "health",
-        "shortcutVersion": "3.0.0",
+        "shortcutVersion": "3.1.0",
         "date": "{day}",
         "steps": "{@stepsField}",
         "stepsDate": "{@stepsDay}",
@@ -290,6 +328,7 @@ if updateStatus == "new_release" {
 
 // Alarms come last, because Shortcuts can't catch an error and the earlier data is already saved.
 // Their details are only available as variable properties. Separators are unlikely in a label and survive multi-line repeats.
+if syncAlarms == "on" {
 @alarmRecords = ""
 const alarms = getAlarms()
 for alarm in alarms {
@@ -298,10 +337,11 @@ for alarm in alarms {
 }
 formRequest("https://even.bishvili.workers.dev/api/ingest", "POST", {
     "kind": "alarms",
-    "shortcutVersion": "3.0.0",
+    "shortcutVersion": "3.1.0",
     "date": "{day}",
     "alarms": "{@alarmRecords}"
 }, {"Authorization": "{@credential}"})
+}
 
 // A push opens the app and brings the data in. Without notifications on, fall back to a plain notification.
 const syncedRaw = jsonRequest("https://even.bishvili.workers.dev/api/push/synced", "POST", {

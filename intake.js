@@ -40,7 +40,7 @@
   }},
   {title:"Which part of the day is usually hardest?",body:function(box){box.appendChild(choices(HARDEST,"hardest","intake-choices"));}},
   {title:"What would help?",hint:"Check-in reminders are always included.",body:function(box){box.appendChild(switchRow("Morning brief","brief"));box.appendChild(switchRow("Wind-down before bed","windDown"));box.appendChild(switchRow("A nudge before harder moments","stressNudges"));box.appendChild(switchRow("A reminder to sync","syncReminder"));}},
-  {title:"How many notifications a day?",body:function(box){box.appendChild(choices([[1,"1"],[2,"2"],[3,"3"],[4,"4"]],"count","range-switch"));box.appendChild(switchRow("Send on weekends","weekends"));}},
+  {title:"How many notifications a day?",body:function(box){box.appendChild(choices([[1,"1"],[2,"2"],[3,"3"],[4,"4"],[5,"5"],[6,"6"],[7,"7"],[8,"8"]],"count","range-switch count-choices"));box.appendChild(switchRow("Send on weekends","weekends"));}},
   {title:"Here’s your day",hint:"Your answers stay on this device. Your account gets only the times and what each one is for.",body:function(box){options.preview(answers,box);}}
  ];
  function readTimes(){document.querySelectorAll("#intake-body [data-answer]").forEach(function(input){if(input.value)answers[input.dataset.answer]=input.value;});}

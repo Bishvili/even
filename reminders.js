@@ -5,7 +5,7 @@
  var SETTINGS_KEY="even-reminder",NUDGE_GAP=3*24*60*60*1000;
  var blockedReason="",syncError="",settings=readSettings(),installEvent=null;
 
- function defaults(){return{on:false,mode:"smart",from:"09:00",to:"21:00",count:2,times:["09:00"],every:2,nudgedAt:0,hardest:"varies",brief:true,windDown:true,weekends:true,stressNudges:true,syncReminder:true,syncAt:"",intakeDone:false,intakeDismissed:false};}
+ function defaults(){return{on:false,mode:"smart",from:"09:00",to:"21:00",count:5,times:["09:00"],every:2,nudgedAt:0,hardest:"varies",brief:true,windDown:true,weekends:true,stressNudges:true,syncReminder:true,syncAt:"",intakeDone:false,intakeDismissed:false};}
  function readSettings(){try{return Object.assign(defaults(),JSON.parse(localStorage.getItem(SETTINGS_KEY)||"{}"));}catch(e){return defaults();}}
  function saveSettings(){try{localStorage.setItem(SETTINGS_KEY,JSON.stringify(settings));}catch(e){}}
  function isInstalled(){return window.navigator.standalone===true||window.matchMedia("(display-mode: standalone)").matches;}
@@ -50,7 +50,7 @@
   else if(!app.deviceToken())blocked="Sign in under Sync to turn on notifications.";
   else if(Notification.permission==="denied")blocked="Notifications are off. Turn them on in Settings.";
   blockedReason=blocked;toggle.disabled=false;toggle.checked=!blocked&&settings.on;
-  note.textContent=blocked||syncError||"Your notification times, time zone and check-in times are saved to your account. What you write stays here.";
+  note.textContent=blocked||syncError||"Your notification times, time zone and check-in times are saved to your account. What you write stays here unless you sync check-ins.";
   $("intake-card").hidden=Boolean(blocked)||settings.intakeDone||settings.intakeDismissed;
   renderSchedule();
  }
@@ -131,7 +131,7 @@
  }
  function openIntake(skipLabel,onSkip){
   var turningOn=!settings.on&&!blockedReason;
-  globalThis.EvenIntake.open({from:settings.from,to:settings.to,hardest:settings.hardest,brief:settings.brief,windDown:settings.windDown,weekends:settings.weekends,stressNudges:settings.stressNudges,syncReminder:settings.syncReminder,count:Math.min(settings.count,4)},{
+  globalThis.EvenIntake.open({from:settings.from,to:settings.to,hardest:settings.hardest,brief:settings.brief,windDown:settings.windDown,weekends:settings.weekends,stressNudges:settings.stressNudges,syncReminder:settings.syncReminder,count:settings.count},{
    skipLabel:skipLabel,finishLabel:turningOn?"Turn on notifications":"Save",
    preview:function(values,box){
     var plan=planFor(values),list=document.createElement("div"),left=leftOutNote(plan);

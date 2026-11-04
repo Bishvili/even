@@ -1,1 +1,1 @@
-Syncs faster, brings in tomorrow's events, and counts sleep correctly when you wear more than one device.
+Follows the choices you make in Even about which data and calendars to sync.

@@ -47,9 +47,9 @@
 <div class="table"><table>
  <thead><tr><th>Signal</th><th>Detail</th><th>Source</th><th>Stored</th></tr></thead>
  <tbody>
-  <tr><td>Mood</td><td>Five levels, Rough to Great</td><td>Self-report</td><td>This iPhone only</td></tr>
-  <tr><td>Stress</td><td>Optional, 1 to 5</td><td>Self-report</td><td>This iPhone only</td></tr>
-  <tr><td>Notes and tags</td><td>Free text and labels</td><td>Self-report</td><td>This iPhone only</td></tr>
+  <tr><td>Mood</td><td>Five levels, Rough to Great</td><td>Self-report</td><td>This iPhone, plus the account if check-in sync is on</td></tr>
+  <tr><td>Stress</td><td>Optional, 1 to 5</td><td>Self-report</td><td>This iPhone, plus the account if check-in sync is on</td></tr>
+  <tr><td>Notes and tags</td><td>Free text and labels</td><td>Self-report</td><td>This iPhone, plus the account if check-in sync is on</td></tr>
   <tr><td>Sleep</td><td>Hours asleep and bedtime</td><td>Apple Health</td><td>Account and iPhone</td></tr>
   <tr><td>Heart and activity</td><td>Resting heart rate, heart rate variability, steps, exercise minutes</td><td>Apple Health</td><td>Account and iPhone</td></tr>
   <tr><td>Calendar</td><td>Today’s and tomorrow’s events: title, time, calendar name and a category. Events from calendars the person turns off are discarded when they arrive.</td><td>iPhone Calendar</td><td>Account and iPhone</td></tr>
@@ -58,24 +58,24 @@
   <tr><td>Weekly reflection</td><td>Four questions on temper, recovery and rest, shown as a 0 to 100 score. Written for the app and not a validated scale.</td><td>Self-report</td><td>This iPhone only</td></tr>
  </tbody>
 </table></div>
-<p class="note">Health values are read by an Apple Shortcut when it runs. The app can’t read Apple Health directly, and the iPhone must be unlocked for the Shortcut to read it.</p>
+<p class="note">People choose in the app which kinds of data and which calendars the Shortcut sends. Health values are read by an Apple Shortcut when it runs. The app can’t read Apple Health directly, and the iPhone must be unlocked for the Shortcut to read it.</p>
 
 <figure>
- <div class="scroll"><svg viewBox="0 0 720 340" role="img" aria-label="Health, calendar and clock data pass through a Shortcut to the private account, then to the app. Mood entries stay in the app. Only notification times go to the account, which sends notifications back.">
+ <div class="scroll"><svg viewBox="0 0 720 340" role="img" aria-label="Health, calendar and clock data pass through a Shortcut to the private account, then to the app. Mood entries stay in the app unless the person turns on check-in sync. Only notification times go to the account, which sends notifications back.">
   <defs><marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="head" d="M0 0L10 5L0 10Z"/></marker></defs>
   <rect class="band" x="10" y="10" width="480" height="320" rx="14"/><text class="small" x="26" y="34">The person’s iPhone</text>
   <rect class="band" x="530" y="10" width="180" height="320" rx="14"/><text class="small" x="546" y="34">Private account</text>
   <rect class="box" x="30" y="50" width="130" height="86" rx="10"/><text class="strong" x="44" y="76">Apple apps</text><text class="small" x="44" y="98">Health, Calendar,</text><text class="small" x="44" y="116">Clock</text>
   <rect class="box" x="210" y="50" width="130" height="86" rx="10"/><text class="strong" x="224" y="76">Even Sync</text><text class="small" x="224" y="98">Runs when the</text><text class="small" x="224" y="116">person allows it</text>
   <rect class="soft" x="550" y="50" width="140" height="86" rx="10"/><text class="strong" x="564" y="76">Synced records</text><text class="small" x="564" y="98">Tied to one</text><text class="small" x="564" y="116">verified owner</text>
-  <rect class="sun" x="210" y="200" width="250" height="110" rx="10"/><text class="strong ontext" x="226" y="228">Even app</text><text class="small ontext" x="226" y="250">Mood, stress and notes stay here.</text><text class="small ontext" x="226" y="268">All comparisons and wording</text><text class="small ontext" x="226" y="286">are worked out here.</text>
+  <rect class="sun" x="210" y="200" width="250" height="110" rx="10"/><text class="strong ontext" x="226" y="228">Even app</text><text class="small ontext" x="226" y="250">Mood, stress and notes start here.</text><text class="small ontext" x="226" y="268">All comparisons and wording</text><text class="small ontext" x="226" y="286">are worked out here.</text>
   <rect class="soft" x="550" y="200" width="140" height="110" rx="10"/><text class="strong" x="564" y="228">Notification</text><text class="strong" x="564" y="248">schedule</text><text class="small" x="564" y="270">Times only, plus the</text><text class="small" x="564" y="288">last check-in time</text>
   <path class="wire" marker-end="url(#a2)" d="M160 93H208"/><path class="wire" marker-end="url(#a2)" d="M340 93H548"/>
   <path class="wire" marker-end="url(#a2)" d="M620 136V168H400V198"/><text class="small" x="440" y="162">synced records come back</text>
   <path class="wire" marker-end="url(#a2)" d="M460 240H548"/><text class="small" x="470" y="232">times</text>
   <path class="wire" marker-end="url(#a2)" d="M550 285H462"/><text class="small" x="466" y="304">alerts</text>
  </svg></div>
- <figcaption><strong>Figure 2.</strong> Where information goes. The account never receives what the person writes or their mood and stress ratings.</figcaption>
+ <figcaption><strong>Figure 2.</strong> Where information goes. Check-ins and notes reach the account only if the person turns on check-in sync, which lets a check-in made on one device appear on another. It is off by default.</figcaption>
 </figure>
 
 <h2>How a pattern is found</h2>
@@ -186,9 +186,9 @@
 
 <h2>Privacy</h2>
 <ul>
- <li>Mood, stress, notes and reflections stay on the iPhone. If the app is deleted without a backup, they’re gone.</li>
+ <li>Mood, stress and notes stay on the device unless the person turns on check-in sync. With it on, they’re stored in the account as readable text, and erasing synced data removes them and turns sync off. Reflections always stay on the device. If the app is deleted with sync off and no backup, this data is gone.</li>
  <li>Synced records are limited to the verified account that owns them, and each person can erase them from the app.</li>
- <li>Data travels over encrypted connections. It is not end-to-end encrypted, so the service’s operators could technically access synced records, including calendar titles and alarm names.</li>
+ <li>Data travels over encrypted connections. It is not end-to-end encrypted, so the service’s operators could technically access synced records, including calendar titles, alarm names and any synced check-ins and notes.</li>
  <li>The app has no ads or analytics. It is not a covered clinical record system, and should not hold information a clinic would be required to protect.</li>
 </ul>
 

@@ -76,6 +76,24 @@ function firstAlarm(alarms,day){
  const times=alarms.filter(a=>a.enabled!==0&&a.timeMin<720&&(!a.days.length||a.days.includes(weekday))).map(a=>a.timeMin);
  return times.length?Math.min(...times):null;
 }
+const SYNC_KINDS=["calendar","sleep","steps","restingHR","hrv","workout","alarms"];
+const METRIC_KINDS={sleepHours:"sleep",bedtimeMin:"sleep",steps:"steps",restingHR:"restingHR",hrv:"hrv",workoutMin:"workout"};
+async function syncOff(env,owner){
+ const row=await env.DB.prepare("SELECT sync_off FROM even_users WHERE email=?").bind(owner).first();
+ try{return new Set(JSON.parse(row?.sync_off||"[]"));}catch(e){return new Set();}
+}
+// Matches only turned-off calendars. With none off, it matches nothing.
+async function calendarsOffPattern(env,owner){
+ const off=await env.DB.prepare("SELECT name FROM even_calendars WHERE owner_email=? AND enabled=0").bind(owner).all();
+ const names=(off.results||[]).map(c=>c.name.replace(/[\\^$.*+?()[\]{}|]/g,"\\$&"));
+ return names.length?"^(?:"+names.join("|")+")$":"(?!)";
+}
+function readMood(x){
+ const id=String(x?.id||""),ts=new Date(x?.ts),scale=value=>Number.isInteger(value)&&value>=1&&value<=5?value:null;
+ if(!id||id.length>80||!Number.isFinite(ts.getTime())||scale(x.score)===null)return null;
+ const tags=Array.isArray(x.tags)?x.tags.slice(0,12).map(t=>String(t).slice(0,40)):[];
+ return{id,ts:ts.toISOString(),score:x.score,energy:scale(x.energy),stress:scale(x.stress),tags:JSON.stringify(tags),note:String(x.note||"").slice(0,400)};
+}
 function dateOnly(value){
  const day=String(value||"").trim();if(!/^\d{4}-\d{2}-\d{2}$/.test(day))return null;
  const parsed=new Date(day+"T12:00:00Z");
@@ -198,6 +216,11 @@ async function authApi(request,env,ctx,path){
   return new Response(null,{status:303,headers:{...SECURITY,"Cache-Control":"no-store","Location":url.origin+"/?auth=ready#sync"}});
  }
  if(path==="/api/auth/me"&&request.method==="GET"){
+  // Sign-in may supply a name. Testers are listed by it.
+  try{
+   const name=String((await ctx.access.getIdentity())?.name||"").trim().slice(0,80);
+   if(name)await env.DB.prepare("UPDATE even_users SET name=? WHERE email=? AND (name IS NULL OR name<>?)").bind(name,email,name).run();
+  }catch(e){}
   const r=await env.DB.prepare("SELECT device_id,label,created_at,last_used_at,last_attempt_at,last_error_code,shortcut_version,revoked_at FROM even_devices WHERE owner_email=? ORDER BY created_at DESC LIMIT 30").bind(email).all();
   const welcome=await env.DB.prepare("SELECT display_name FROM even_release_emails WHERE email=? AND display_name IS NOT NULL AND welcomed_at IS NULL").bind(email).first();
   const release=await canRelease(env,email);
@@ -220,12 +243,12 @@ async function authApi(request,env,ctx,path){
    const [added,developers,users]=await Promise.all([
     env.DB.prepare("SELECT email FROM even_approved_emails").bind().all(),
     env.DB.prepare("SELECT email,display_name FROM even_release_emails").bind().all(),
-    env.DB.prepare("SELECT email FROM even_users").bind().all()
+    env.DB.prepare("SELECT email,name FROM even_users").bind().all()
    ]);
-   const removable=new Set((added.results||[]).map(r=>r.email)),names=new Map((developers.results||[]).map(r=>[r.email,r.display_name])),signedIn=new Set((users.results||[]).map(r=>r.email));
+   const removable=new Set((added.results||[]).map(r=>r.email)),signInNames=new Map((users.results||[]).map(r=>[r.email,r.name])),names=new Map((developers.results||[]).map(r=>[r.email,r.display_name])),signedIn=new Set((users.results||[]).map(r=>r.email));
    ownerEmails(env).forEach(owner=>removable.delete(owner));
    const everyone=[...new Set([...ownerEmails(env),...names.keys(),...(added.results||[]).map(r=>r.email)])].sort();
-   return reply({ok:true,testers:everyone.map(address=>({email:address,name:names.get(address)||null,signedIn:signedIn.has(address),removable:removable.has(address)}))});
+   return reply({ok:true,testers:everyone.map(address=>({email:address,name:names.get(address)||signInNames.get(address)||null,signedIn:signedIn.has(address),removable:removable.has(address)}))});
   }
   if(!browserPostAllowed(request))return error("This request isn't allowed.",403,"same_origin_required");
   let input;try{input=await payload(request);}catch(e){return error("Even couldn't read that request.",400,"invalid_body");}
@@ -249,6 +272,16 @@ async function authApi(request,env,ctx,path){
   if(!browserPostAllowed(request))return error("This request isn't allowed.",403,"same_origin_required");
   await env.DB.prepare("UPDATE even_release_emails SET welcomed_at=? WHERE email=? AND welcomed_at IS NULL").bind(new Date().toISOString(),email).run();
   return reply({ok:true});
+ }
+ if(path==="/api/auth/device/rename"){
+  if(!browserPostAllowed(request))return error("This request isn't allowed.",403,"same_origin_required");
+  let input;try{input=await payload(request);}catch(e){return error("Even couldn't read that request.",400,"invalid_body");}
+  const deviceId=String(input.deviceId||""),label=String(input.label||"").trim().replace(/[\x00-\x1f]/g,"").slice(0,64);
+  if(!/^[\w-]{12,80}$/.test(deviceId))return error("Invalid device identifier",400,"invalid_device");
+  if(!label)return error("Enter a name for this device.",400,"invalid_label");
+  const result=await env.DB.prepare("UPDATE even_devices SET label=? WHERE device_id=? AND owner_email=? AND revoked_at IS NULL").bind(label,deviceId,email).run();
+  if(!result.meta?.changes)return error("Device not found",404,"device_not_found");
+  return reply({ok:true,label});
  }
  if(path==="/api/auth/revoke"){
   if(!browserPostAllowed(request))return error("This request isn't allowed.",403,"same_origin_required");
@@ -502,6 +535,48 @@ async function syncApi(request,env,path){
   if(!updated.meta?.changes)return error("Calendar not found",404,"calendar_not_found");
   return reply({ok:true});
  }
+ if(path==="/api/sync/settings"&&request.method==="GET"){
+  const off=await syncOff(env,owner);
+  return reply({ok:true,settings:Object.fromEntries(SYNC_KINDS.map(kind=>[kind,!off.has(kind)]))});
+ }
+ if(path==="/api/sync/settings"&&request.method==="POST"){
+  let input;try{input=await payload(request);}catch(e){return error("Even couldn't read that request.",400,"invalid_body");}
+  if(!SYNC_KINDS.includes(input?.kind)||typeof input.enabled!=="boolean")return error("Even couldn't read that setting.",400,"invalid_setting");
+  const off=await syncOff(env,owner);
+  if(input.enabled)off.delete(input.kind);else off.add(input.kind);
+  await env.DB.prepare("UPDATE even_users SET sync_off=? WHERE email=?").bind(JSON.stringify([...off]),owner).run();
+  return reply({ok:true});
+ }
+ if(path==="/api/moods/settings"&&request.method==="POST"){
+  let input;try{input=await payload(request);}catch(e){return error("Even couldn't read that request.",400,"invalid_body");}
+  if(typeof input?.enabled!=="boolean")return error("Even couldn't read that setting.",400,"invalid_setting");
+  const statements=[env.DB.prepare("UPDATE even_users SET mood_sync=? WHERE email=?").bind(input.enabled?1:0,owner)];
+  if(!input.enabled)statements.push(env.DB.prepare("DELETE FROM even_moods WHERE owner_email=?").bind(owner));
+  await env.DB.batch(statements);
+  return reply({ok:true,enabled:input.enabled});
+ }
+ if(path==="/api/moods"&&request.method==="GET"){
+  const user=await env.DB.prepare("SELECT mood_sync FROM even_users WHERE email=?").bind(owner).first();
+  if(!user?.mood_sync)return reply({ok:true,email:owner,enabled:false,moods:[],deleted:[]});
+  const rows=await env.DB.prepare("SELECT id,ts,score,energy,stress,tags,note,deleted_at FROM even_moods WHERE owner_email=? ORDER BY ts DESC LIMIT 8000").bind(owner).all();
+  const live=(rows.results||[]).filter(m=>!m.deleted_at);
+  return reply({ok:true,email:owner,enabled:true,
+   moods:live.map(m=>{let tags=[];try{tags=JSON.parse(m.tags||"[]");}catch(e){}return{id:m.id,ts:m.ts,score:m.score,energy:m.energy,stress:m.stress,tags,note:m.note||""};}),
+   deleted:(rows.results||[]).filter(m=>m.deleted_at).map(m=>m.id)});
+ }
+ if(path==="/api/moods"&&request.method==="POST"){
+  let input;try{input=await payload(request);}catch(e){return error("Even couldn't read that request.",400,"invalid_body");}
+  const user=await env.DB.prepare("SELECT mood_sync FROM even_users WHERE email=?").bind(owner).first();
+  if(!user?.mood_sync)return error("Turn on check-in sync first.",409,"mood_sync_off");
+  const moods=(Array.isArray(input?.moods)?input.moods.slice(0,100):[]).map(readMood).filter(Boolean);
+  const deleted=(Array.isArray(input?.deleted)?input.deleted.slice(0,100):[]).map(String).filter(id=>id&&id.length<=80);
+  const at=new Date().toISOString(),statements=[];
+  moods.forEach(m=>statements.push(env.DB.prepare("INSERT INTO even_moods(owner_email,id,ts,score,energy,stress,tags,note,updated_at) VALUES(?,?,?,?,?,?,?,?,?) ON CONFLICT(owner_email,id) DO UPDATE SET ts=excluded.ts,score=excluded.score,energy=excluded.energy,stress=excluded.stress,tags=excluded.tags,note=excluded.note,updated_at=excluded.updated_at WHERE even_moods.deleted_at IS NULL").bind(owner,m.id,m.ts,m.score,m.energy,m.stress,m.tags,m.note,at)));
+  // A deleted check-in keeps only its ID, so other devices can remove their copy.
+  deleted.forEach(id=>statements.push(env.DB.prepare("INSERT INTO even_moods(owner_email,id,ts,updated_at,deleted_at) VALUES(?,?,?,?,?) ON CONFLICT(owner_email,id) DO UPDATE SET score=NULL,energy=NULL,stress=NULL,tags=NULL,note=NULL,updated_at=excluded.updated_at,deleted_at=excluded.deleted_at").bind(owner,id,at,at,at)));
+  if(statements.length)await env.DB.batch(statements);
+  return reply({ok:true,saved:moods.length,deleted:deleted.length});
+ }
  if(path==="/api/sync/status"&&request.method==="GET"){
   const [device,h,c]=await Promise.all([
    env.DB.prepare("SELECT last_used_at,last_attempt_at,last_error_code,shortcut_version FROM even_devices WHERE device_id=? AND owner_email=? AND revoked_at IS NULL").bind(dev.id,owner).first(),
@@ -531,7 +606,9 @@ async function syncApi(request,env,path){
   const nights=await env.DB.prepare("SELECT COUNT(*) AS count FROM even_health_metrics WHERE owner_email=? AND metric='bedtimeMin'").bind(owner).first();
   // Even Sync 3 learns about a new version here, so it needs no separate request.
   const release=await loadShortcutRelease(env),updateAvailable=!!release&&release.verified&&semverNewer(release.version,clientVersion);
-  return reply({ok:true,connected:true,state:"connected",shortcutVersion:clientVersion,receivedAt:at,sleepHistory:Number(nights?.count||0)<3?"needed":"complete",updateStatus:updateAvailable?"new_release":"current"});
+  // Even Sync reads its settings here, so they take effect with no extra request.
+  const off=await syncOff(env,owner),settings=Object.fromEntries(SYNC_KINDS.map(kind=>["sync"+kind[0].toUpperCase()+kind.slice(1),off.has(kind)?"off":"on"]));
+  return reply({ok:true,connected:true,state:"connected",shortcutVersion:clientVersion,receivedAt:at,sleepHistory:Number(nights?.count||0)<3?"needed":"complete",updateStatus:updateAvailable?"new_release":"current",...settings,calendarsOff:await calendarsOffPattern(env,owner)});
  }
 
  if(path==="/api/pull"&&request.method==="GET"){
@@ -554,6 +631,9 @@ async function syncApi(request,env,path){
    await recordSyncFailure(env,dev,"invalid_body");return error("Even couldn't read this upload.",400,"invalid_body");
   }
   const kind=String(input.kind||"").toLowerCase();
+  // Older Shortcuts ignore the settings, so they're applied here too.
+  const off=await syncOff(env,owner);
+  if((off.has("calendar")&&["calendar","calendar_days","calendar_complete"].includes(kind))||(off.has("alarms")&&kind==="alarms"))return reply({ok:true,state:"accepted",skipped:true});
   if(kind==="calendar_complete"){
    const day=dateOnly(input.date),offset=String(input.utcOffset||"").trim(),started=new Date(input.startedAt);
    if(!day||!UTC_OFFSET.test(offset)||!Number.isFinite(started.getTime())||Date.now()-started.getTime()>21600000)return error("Invalid calendar sync details",400,"invalid_calendar_details");
@@ -589,8 +669,9 @@ async function syncApi(request,env,path){
   }
   const healthInput=kind==="batch"?(Array.isArray(input.health)?input.health.slice(0,75):[]):kind==="health"?(Array.isArray(input.days)?input.days.slice(0,75):[input]):[];
   const eventInput=kind==="batch"?(Array.isArray(input.events)?input.events.slice(0,125):[]):kind==="calendar"?(Array.isArray(input.events)?input.events.slice(0,125):[input]):[];
-  const metrics=healthInput.flatMap(readHealth);
-  const received=eventInput.map(readEvent).filter(Boolean);
+  const allMetrics=healthInput.flatMap(readHealth),metrics=allMetrics.filter(x=>!off.has(METRIC_KINDS[x.metric]));
+  if(allMetrics.length&&!metrics.length&&!eventInput.length)return reply({ok:true,state:"accepted",skipped:true});
+  const received=off.has("calendar")?[]:eventInput.map(readEvent).filter(Boolean);
   const events=await enabledEvents(env,owner,received);
   if(!metrics.length&&received.length&&!events.length)return reply({ok:true,state:"skipped",error:NO_VALID_RECORDS});
   // Nothing new to keep, such as average heart rate from an older Shortcut, isn't a failed upload.
@@ -611,14 +692,16 @@ async function syncApi(request,env,path){
    env.DB.prepare("DELETE FROM even_health_metrics WHERE owner_email=?").bind(owner),
    env.DB.prepare("DELETE FROM even_calendar_events WHERE owner_email=?").bind(owner),
    env.DB.prepare("DELETE FROM even_calendars WHERE owner_email=?").bind(owner),
-   env.DB.prepare("DELETE FROM even_alarms WHERE owner_email=?").bind(owner)
+   env.DB.prepare("DELETE FROM even_alarms WHERE owner_email=?").bind(owner),
+   env.DB.prepare("DELETE FROM even_moods WHERE owner_email=?").bind(owner),
+   env.DB.prepare("UPDATE even_users SET mood_sync=0 WHERE email=?").bind(owner)
   ]);
   return reply({ok:true,erased:true,email:owner});
  }
  return error("Not found",404,"not_found");
 }
 async function api(request,env,ctx,path){
- if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:"Even",version:"2.9.0",sync:"email-access"});
+ if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:"Even",version:"2.10.0",sync:"email-access"});
  if(path.startsWith("/api/auth/"))return authApi(request,env,ctx,path);
  return syncApi(request,env,path);
 }

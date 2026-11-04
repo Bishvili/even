@@ -1,6 +1,9 @@
 CREATE TABLE IF NOT EXISTS even_users (
   email TEXT PRIMARY KEY,
-  created_at TEXT NOT NULL
+  created_at TEXT NOT NULL,
+  name TEXT,
+  mood_sync INTEGER NOT NULL DEFAULT 0,
+  sync_off TEXT
 );
 CREATE TABLE IF NOT EXISTS even_devices (
   token_hash TEXT PRIMARY KEY,
@@ -83,4 +86,17 @@ CREATE TABLE IF NOT EXISTS even_alarms (
   label TEXT,
   updated_at TEXT NOT NULL,
   PRIMARY KEY(owner_email,position)
+);
+CREATE TABLE IF NOT EXISTS even_moods (
+  owner_email TEXT NOT NULL REFERENCES even_users(email),
+  id TEXT NOT NULL,
+  ts TEXT NOT NULL,
+  score INTEGER,
+  energy INTEGER,
+  stress INTEGER,
+  tags TEXT,
+  note TEXT,
+  updated_at TEXT NOT NULL,
+  deleted_at TEXT,
+  PRIMARY KEY(owner_email,id)
 );
