@@ -46,7 +46,7 @@ function harness({verified=false}={}){
     if(sql.startsWith("UPDATE even_devices SET last_attempt_at")){for(const d of rows.devices.values())if(d.device_id===args[2]&&d.owner_email===args[3]&&!d.revoked_at){d.last_attempt_at=args[0];if(sql.includes("last_error_code=NULL,shortcut_version=?")){d.last_error_code=null;d.shortcut_version=args[1];}else d.last_error_code=args[1];}return{meta:{changes:1}};}
     if(sql.startsWith("UPDATE even_devices SET last_used_at")){for(const d of rows.devices.values())if(d.device_id===args[3]&&d.owner_email===args[4]&&!d.revoked_at){d.last_used_at=args[0];d.last_attempt_at=args[1];d.last_error_code=null;d.shortcut_version=args[2]||d.shortcut_version;}return{meta:{changes:1}};}
     if(sql.startsWith("INSERT INTO even_health_metrics")){rows.health.set(args[0]+"|"+args[1]+"|"+args[2],{owner:args[0],day:args[1],metric:args[2],value:args[3]});return{meta:{changes:1}};}
-    if(sql.startsWith("INSERT INTO even_push_subscriptions")){rows.subs.set(args[0],{endpoint:args[0],owner:args[1],device_id:args[2],remind_at:args[3],time_zone:args[4],last_sent_day:null});return{meta:{changes:1}};}
+    if(sql.startsWith("INSERT INTO even_push_subscriptions")){rows.subs.set(args[0],{endpoint:args[0],owner:args[1],device_id:args[2],remind_at:args[3],time_zone:args[4],p256dh:args[6],auth:args[7],last_sent_day:null});return{meta:{changes:1}};}
     if(sql.includes("SET last_push_status"))return{meta:{changes:1}};
     if(sql.startsWith("UPDATE even_push_subscriptions")){rows.subs.get(args[1]).last_sent_day=args[0];return{meta:{changes:1}};}
     if(sql.startsWith("DELETE FROM even_push_subscriptions WHERE endpoint=? AND owner_email=?")){const s=rows.subs.get(args[0]);if(s&&s.owner===args[1])rows.subs.delete(args[0]);return{meta:{changes:1}};}
@@ -129,7 +129,10 @@ test("reminders are validated, owner-scoped, sent once a day, and stop when a de
  const a=await call("/api/auth/device",{method:"POST",body:{label:"A"},context:ctx("owner-a@example.com")});
  const b=await call("/api/auth/device",{method:"POST",body:{label:"B"},context:ctx("owner-b@example.com")});
  const A={Authorization:"Bearer "+a.data.token},B={Authorization:"Bearer "+b.data.token};
- const endpoint="https://web.push.apple.com/abc",good={endpoint,remindAt:"20:00",timeZone:"America/Los_Angeles"};
+ const device=await webcrypto.subtle.generateKey({name:"ECDH",namedCurve:"P-256"},true,["deriveBits"]);
+ const devicePublic=new Uint8Array(await webcrypto.subtle.exportKey("raw",device.publicKey)),authSecret=webcrypto.getRandomValues(new Uint8Array(16));
+ const endpoint="https://web.push.apple.com/abc",good={endpoint,remindAt:"20:00",timeZone:"America/Los_Angeles",keys:{p256dh:Buffer.from(devicePublic).toString("base64url"),auth:Buffer.from(authSecret).toString("base64url")}};
+ assert.equal((await call("/api/push/subscribe",{method:"POST",body:{...good,keys:{}},headers:A})).status,400);
  assert.equal((await call("/api/push/subscribe",{method:"POST",body:good})).status,401);
  assert.equal((await call("/api/push/subscribe",{method:"POST",body:{...good,endpoint:"https://attacker.example/x"},headers:A})).status,400);
  assert.equal((await call("/api/push/subscribe",{method:"POST",body:{...good,remindAt:"25:00"},headers:A})).status,400);
@@ -144,7 +147,16 @@ test("reminders are validated, owner-scoped, sent once a day, and stop when a de
  await send("2026-11-04T04:20:00Z");
  assert.equal(dispatches.length,1);
  assert.equal(dispatches[0].url,endpoint);
- assert.equal(dispatches[0].init.body,undefined);
+ const message=dispatches[0].init.body,salt=message.slice(0,16),sender=message.slice(21,86);
+ const hkdf=async(saltBytes,ikm,info,length)=>new Uint8Array(await webcrypto.subtle.deriveBits({name:"HKDF",hash:"SHA-256",salt:saltBytes,info},await webcrypto.subtle.importKey("raw",ikm,"HKDF",false,["deriveBits"]),length*8));
+ const peer=await webcrypto.subtle.importKey("raw",sender,{name:"ECDH",namedCurve:"P-256"},false,[]);
+ const shared=new Uint8Array(await webcrypto.subtle.deriveBits({name:"ECDH",public:peer},device.privateKey,256));
+ const ikm=await hkdf(authSecret,shared,Buffer.concat([Buffer.from("WebPush: info\0"),devicePublic,sender]),32);
+ const cek=await hkdf(salt,ikm,Buffer.from("Content-Encoding: aes128gcm\0"),16),nonce=await hkdf(salt,ikm,Buffer.from("Content-Encoding: nonce\0"),12);
+ const plain=new Uint8Array(await webcrypto.subtle.decrypt({name:"AES-GCM",iv:nonce},await webcrypto.subtle.importKey("raw",cek,"AES-GCM",false,["decrypt"]),message.slice(86)));
+ assert.equal(plain[plain.length-1],2);
+ assert.equal(JSON.parse(Buffer.from(plain.slice(0,-1)).toString()).notification.title,"Even");
+ assert.equal(dispatches[0].init.headers["Content-Encoding"],"aes128gcm");
  assert.match(dispatches[0].init.headers.Authorization,/^vapid t=[\w-]+\.[\w-]+\.[\w-]+, k=[\w-]+$/);
  await call("/api/auth/revoke",{method:"POST",body:{deviceId:a.data.deviceId},context:ctx("owner-a@example.com")});
  await send("2026-11-05T04:05:00Z");

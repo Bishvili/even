@@ -1,25 +1,27 @@
 // Pull down to refresh, or keep pulling to run Even Sync.
 (function(){
- var app=globalThis.EvenApp,REFRESH_AT=70,RUN_AT=170;
- var indicator=document.getElementById("pull-indicator"),label=document.getElementById("pull-label"),meter=document.getElementById("pull-meter");
+ var app=globalThis.EvenApp,REFRESH_AT=80,RUN_AT=300,MAX_SHIFT=150,RING=75.4;
+ var indicator=document.getElementById("pull-indicator"),label=document.getElementById("pull-label"),ring=document.getElementById("pull-ring");
+ var page=[document.querySelector(".topbar"),document.getElementById("main")];
  var startX=0,startY=0,distance=0,tracking=false,pulling=false;
 
- function stage(){return distance>=RUN_AT?"run":distance>=REFRESH_AT?"refresh":"pull";}
  function canRun(){return !!app.deviceToken();}
+ function stage(){return distance>=RUN_AT&&canRun()?"run":distance>=REFRESH_AT?"refresh":"pull";}
+ function shift(value,settling){page.forEach(function(part){part.classList.toggle("pull-settling",settling);part.style.transform=value?"translateY("+value+"px)":"";});}
  function paint(){
-  var current=stage();
-  label.textContent=current==="run"&&canRun()?"Release to run Even Sync":current==="pull"?"Pull to refresh":canRun()?"Release to refresh, or keep pulling to run Even Sync":"Release to refresh";
-  meter.style.transform="scaleX("+Math.min(distance/RUN_AT,1)+")";
-  indicator.style.transform="translate(-50%,"+Math.min(distance,RUN_AT)*0.5+"px)";
-  indicator.classList.toggle("ready",current!=="pull");
-  indicator.classList.toggle("run",current==="run"&&canRun());
+  var current=stage(),limit=canRun()?RUN_AT:REFRESH_AT;
+  label.textContent=current==="run"?"Release to run Even Sync":current==="refresh"?(canRun()?"Release to refresh. Keep pulling to run Even Sync.":"Release to refresh"):"Pull to refresh";
+  ring.style.strokeDashoffset=String(RING*(1-Math.min(distance/limit,1)));
+  indicator.classList.toggle("run",current==="run");
+  indicator.style.opacity=String(Math.min(distance/40,1));
+  shift(Math.min(distance*0.5,MAX_SHIFT),false);
  }
- function reset(){tracking=false;pulling=false;distance=0;indicator.hidden=true;indicator.style.transform="";}
+ function reset(){tracking=false;pulling=false;distance=0;indicator.hidden=true;indicator.classList.remove("run");shift(0,true);}
  function eligible(event){
   return event.touches.length===1&&window.scrollY<=0&&!document.querySelector("dialog[open]")&&!event.target.closest("input,textarea,select,.bottom-nav");
  }
  document.addEventListener("touchstart",function(event){
-  reset();
+  tracking=false;
   if(!eligible(event))return;
   tracking=true;startX=event.touches[0].clientX;startY=event.touches[0].clientY;
  },{passive:true});
@@ -34,8 +36,8 @@
  document.addEventListener("touchend",function(){
   if(!pulling){tracking=false;return;}
   var current=stage();reset();
-  if(current==="run"&&canRun())app.runShortcut();
-  else if(current!=="pull")app.refresh();
+  if(current==="run")app.runShortcut();
+  else if(current==="refresh")app.refresh();
  });
- document.addEventListener("touchcancel",reset);
+ document.addEventListener("touchcancel",function(){if(pulling)reset();tracking=false;});
 })();

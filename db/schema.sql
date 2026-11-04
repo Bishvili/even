@@ -54,5 +54,7 @@ CREATE TABLE IF NOT EXISTS even_push_subscriptions (
   time_zone TEXT NOT NULL,
   last_sent_day TEXT,
   last_push_status INTEGER,
+  p256dh TEXT,
+  auth TEXT,
   created_at TEXT NOT NULL
 );

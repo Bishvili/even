@@ -160,27 +160,47 @@ function localTime(timeZone,now){
  const parts=Object.fromEntries(new Intl.DateTimeFormat("en-CA",{timeZone,hourCycle:"h23",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit"}).formatToParts(now).map(p=>[p.type,p.value]));
  return{day:`${parts.year}-${parts.month}-${parts.day}`,minutes:Number(parts.hour)*60+Number(parts.minute)};
 }
-// Reminders carry no payload, so no personal data passes through the push service.
-async function sendPush(key,endpoint,now){
+// RFC 8291 message encryption. Only the push recipient can read the payload.
+async function hkdf(salt,ikm,info,length){
+ const key=await crypto.subtle.importKey("raw",ikm,"HKDF",false,["deriveBits"]);
+ return new Uint8Array(await crypto.subtle.deriveBits({name:"HKDF",hash:"SHA-256",salt,info},key,length*8));
+}
+function concat(...parts){const out=new Uint8Array(parts.reduce((n,p)=>n+p.length,0));let at=0;for(const p of parts){out.set(p,at);at+=p.length;}return out;}
+async function encryptPush(text,p256dh,auth){
+ const encoder=new TextEncoder(),receiver=fromBase64url(p256dh);
+ const pair=await crypto.subtle.generateKey({name:"ECDH",namedCurve:"P-256"},true,["deriveBits"]);
+ const sender=new Uint8Array(await crypto.subtle.exportKey("raw",pair.publicKey));
+ const peer=await crypto.subtle.importKey("raw",receiver,{name:"ECDH",namedCurve:"P-256"},false,[]);
+ const shared=new Uint8Array(await crypto.subtle.deriveBits({name:"ECDH",public:peer},pair.privateKey,256));
+ const ikm=await hkdf(fromBase64url(auth),shared,concat(encoder.encode("WebPush: info\0"),receiver,sender),32);
+ const salt=crypto.getRandomValues(new Uint8Array(16));
+ const cek=await hkdf(salt,ikm,encoder.encode("Content-Encoding: aes128gcm\0"),16);
+ const nonce=await hkdf(salt,ikm,encoder.encode("Content-Encoding: nonce\0"),12);
+ const aes=await crypto.subtle.importKey("raw",cek,"AES-GCM",false,["encrypt"]);
+ const cipher=new Uint8Array(await crypto.subtle.encrypt({name:"AES-GCM",iv:nonce},aes,concat(encoder.encode(text),new Uint8Array([2]))));
+ return concat(salt,new Uint8Array([0,0,16,0,sender.length]),sender,cipher);
+}
+const REMINDER_PAYLOAD=JSON.stringify({web_push:8030,mutable:true,notification:{title:"Even",body:"How are you feeling?",navigate:"https://even.bishvili.workers.dev/#checkin"}});
+async function sendPush(key,sub,now){
  const encoder=new TextEncoder(),text=value=>base64url(encoder.encode(JSON.stringify(value)));
- const unsigned=text({typ:"JWT",alg:"ES256"})+"."+text({aud:new URL(endpoint).origin,exp:Math.floor(now.getTime()/1000)+43200,sub:"https://even.bishvili.workers.dev"});
+ const unsigned=text({typ:"JWT",alg:"ES256"})+"."+text({aud:new URL(sub.endpoint).origin,exp:Math.floor(now.getTime()/1000)+43200,sub:"https://even.bishvili.workers.dev"});
  const signingKey=await crypto.subtle.importKey("jwk",{kty:"EC",crv:"P-256",d:key.d,x:key.x,y:key.y},{name:"ECDSA",namedCurve:"P-256"},false,["sign"]);
  const signature=new Uint8Array(await crypto.subtle.sign({name:"ECDSA",hash:"SHA-256"},signingKey,encoder.encode(unsigned)));
- return fetch(endpoint,{method:"POST",headers:{"Authorization":`vapid t=${unsigned}.${base64url(signature)}, k=${pushPublicKey(key)}`,"TTL":"3600","Urgency":"normal"}});
+ return fetch(sub.endpoint,{method:"POST",body:await encryptPush(REMINDER_PAYLOAD,sub.p256dh,sub.auth),headers:{"Authorization":`vapid t=${unsigned}.${base64url(signature)}, k=${pushPublicKey(key)}`,"Content-Encoding":"aes128gcm","Content-Type":"application/octet-stream","TTL":"3600","Urgency":"high"}});
 }
-async function deliverPush(env,key,endpoint,now){
- const sent=await sendPush(key,endpoint,now);
+async function deliverPush(env,key,sub,now){
+ const sent=await sendPush(key,sub,now);const endpoint=sub.endpoint;
  if(sent.status===404||sent.status===410)await env.DB.prepare("DELETE FROM even_push_subscriptions WHERE endpoint=?").bind(endpoint).run();
  else await env.DB.prepare("UPDATE even_push_subscriptions SET last_push_status=? WHERE endpoint=?").bind(sent.status,endpoint).run();
  return sent;
 }
 async function sendReminders(env,now=new Date()){
  const key=pushKey(env);if(!key)return;
- const due=await env.DB.prepare("SELECT s.endpoint,s.remind_at,s.time_zone,s.last_sent_day FROM even_push_subscriptions s JOIN even_devices d ON d.device_id=s.device_id WHERE d.revoked_at IS NULL").bind().all();
+ const due=await env.DB.prepare("SELECT s.endpoint,s.p256dh,s.auth,s.remind_at,s.time_zone,s.last_sent_day FROM even_push_subscriptions s JOIN even_devices d ON d.device_id=s.device_id WHERE d.revoked_at IS NULL AND s.p256dh IS NOT NULL").bind().all();
  for(const sub of due.results||[]){
   const local=localTime(sub.time_zone,now),[hour,minute]=sub.remind_at.split(":").map(Number),target=hour*60+minute;
   if(sub.last_sent_day===local.day||local.minutes<target||local.minutes>=target+60)continue;
-  const sent=await deliverPush(env,key,sub.endpoint,now);
+  const sent=await deliverPush(env,key,sub,now);
   if(sent.ok)await env.DB.prepare("UPDATE even_push_subscriptions SET last_sent_day=? WHERE endpoint=?").bind(local.day,sub.endpoint).run();
  }
 }
@@ -200,9 +220,11 @@ async function syncApi(request,env,path){
  if(path==="/api/push/subscribe"&&request.method==="POST"){
   let input;try{input=await payload(request);}catch(e){return error("Invalid reminder request");}
   const endpoint=pushEndpoint(input?.endpoint),remindAt=String(input?.remindAt||""),timeZone=String(input?.timeZone||"");
+  const p256dh=String(input?.keys?.p256dh||""),auth=String(input?.keys?.auth||"");
+  try{if(fromBase64url(p256dh).length!==65||fromBase64url(auth).length!==16)return error("Invalid reminder request");}catch(e){return error("Invalid reminder request");}
   if(!endpoint||!REMIND_AT.test(remindAt))return error("Invalid reminder request");
   try{localTime(timeZone,new Date());}catch(e){return error("Invalid reminder request");}
-  await env.DB.prepare("INSERT INTO even_push_subscriptions(endpoint,owner_email,device_id,remind_at,time_zone,created_at) VALUES(?,?,?,?,?,?) ON CONFLICT(endpoint) DO UPDATE SET owner_email=excluded.owner_email,device_id=excluded.device_id,remind_at=excluded.remind_at,time_zone=excluded.time_zone,last_sent_day=NULL").bind(endpoint,owner,dev.id,remindAt,timeZone,new Date().toISOString()).run();
+  await env.DB.prepare("INSERT INTO even_push_subscriptions(endpoint,owner_email,device_id,remind_at,time_zone,created_at,p256dh,auth) VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(endpoint) DO UPDATE SET p256dh=excluded.p256dh,auth=excluded.auth,owner_email=excluded.owner_email,device_id=excluded.device_id,remind_at=excluded.remind_at,time_zone=excluded.time_zone,last_sent_day=CASE WHEN even_push_subscriptions.remind_at=excluded.remind_at THEN even_push_subscriptions.last_sent_day END").bind(endpoint,owner,dev.id,remindAt,timeZone,new Date().toISOString(),p256dh,auth).run();
   return reply({ok:true});
  }
  if(path==="/api/push/unsubscribe"&&request.method==="POST"){
@@ -316,7 +338,7 @@ async function syncApi(request,env,path){
  return error("Not found",404);
 }
 async function api(request,env,ctx,path){
- if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:"Even",version:"2.0.6",sync:"email-access"});
+ if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:"Even",version:"2.0.7",sync:"email-access"});
  if(path.startsWith("/api/auth/"))return authApi(request,env,ctx,path);
  return syncApi(request,env,path);
 }

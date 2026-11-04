@@ -39,7 +39,7 @@
   if(!key)throw Error("Reminders aren’t available right now.");
   var registration=await navigator.serviceWorker.ready;
   var subscription=await registration.pushManager.getSubscription()||await registration.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:keyBytes(key)});
-  var saved=await fetch("/api/push/subscribe",{method:"POST",headers:deviceHeaders(),cache:"no-store",body:JSON.stringify({endpoint:subscription.endpoint,remindAt:settings.time,timeZone:Intl.DateTimeFormat().resolvedOptions().timeZone})});
+  var saved=await fetch("/api/push/subscribe",{method:"POST",headers:deviceHeaders(),cache:"no-store",body:JSON.stringify({endpoint:subscription.endpoint,keys:subscription.toJSON().keys,remindAt:settings.time,timeZone:Intl.DateTimeFormat().resolvedOptions().timeZone})});
   if(!saved.ok)throw Error("Couldn’t save your reminder.");
  }
  async function unsubscribe(){
@@ -74,4 +74,6 @@
  });
  document.addEventListener("visibilitychange",function(){if(!document.hidden)renderReminder();});
  renderNudge();renderReminder();
+ // Keep the saved reminder in step with this device's push credentials.
+ if(settings.on&&canPush()&&app.deviceToken()&&Notification.permission==="granted")subscribe().catch(function(){});
 })();
