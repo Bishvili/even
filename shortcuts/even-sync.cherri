@@ -11,10 +11,11 @@
 #ref todayEventsFilter eyJWYWx1ZSI6eyJXRkFjdGlvblBhcmFtZXRlckZpbHRlclByZWZpeCI6MSwiV0ZDb250ZW50UHJlZGljYXRlQm91bmRlZERhdGUiOmZhbHNlLCJXRkFjdGlvblBhcmFtZXRlckZpbHRlclRlbXBsYXRlcyI6W3siQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjEwMDIsIlByb3BlcnR5IjoiU3RhcnQgRGF0ZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJOdW1iZXIiOiI3IiwiVW5pdCI6MTZ9fV19LCJXRlNlcmlhbGl6YXRpb25UeXBlIjoiV0ZDb250ZW50UHJlZGljYXRlVGFibGVUZW1wbGF0ZSJ9
 #ref stepsFilter eyJWYWx1ZSI6eyJXRkFjdGlvblBhcmFtZXRlckZpbHRlclByZWZpeCI6MSwiV0ZDb250ZW50UHJlZGljYXRlQm91bmRlZERhdGUiOmZhbHNlLCJXRkFjdGlvblBhcmFtZXRlckZpbHRlclRlbXBsYXRlcyI6W3siQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjQsIlByb3BlcnR5IjoiVHlwZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IlN0ZXBzIiwiV0ZTZXJpYWxpemF0aW9uVHlwZSI6IldGU3RyaW5nU3Vic3RpdHV0YWJsZVN0YXRlIn19fSx7IkJvdW5kZWQiOnRydWUsIk9wZXJhdG9yIjoxMDAxLCJQcm9wZXJ0eSI6IlN0YXJ0IERhdGUiLCJSZW1vdmFibGUiOmZhbHNlLCJWYWx1ZXMiOnsiTnVtYmVyIjoiMzAiLCJVbml0IjoxNn19XX0sIldGU2VyaWFsaXphdGlvblR5cGUiOiJXRkNvbnRlbnRQcmVkaWNhdGVUYWJsZVRlbXBsYXRlIn0=
 #ref restingFilter eyJWYWx1ZSI6eyJXRkFjdGlvblBhcmFtZXRlckZpbHRlclByZWZpeCI6MSwiV0ZDb250ZW50UHJlZGljYXRlQm91bmRlZERhdGUiOmZhbHNlLCJXRkFjdGlvblBhcmFtZXRlckZpbHRlclRlbXBsYXRlcyI6W3siQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjQsIlByb3BlcnR5IjoiVHlwZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IlJlc3RpbmcgSGVhcnQgUmF0ZSIsIldGU2VyaWFsaXphdGlvblR5cGUiOiJXRlN0cmluZ1N1YnN0aXR1dGFibGVTdGF0ZSJ9fX0seyJCb3VuZGVkIjp0cnVlLCJPcGVyYXRvciI6MTAwMSwiUHJvcGVydHkiOiJTdGFydCBEYXRlIiwiUmVtb3ZhYmxlIjpmYWxzZSwiVmFsdWVzIjp7Ik51bWJlciI6IjMwIiwiVW5pdCI6MTZ9fV19LCJXRlNlcmlhbGl6YXRpb25UeXBlIjoiV0ZDb250ZW50UHJlZGljYXRlVGFibGVUZW1wbGF0ZSJ9
+#ref heartRateFilter eyJWYWx1ZSI6eyJXRkFjdGlvblBhcmFtZXRlckZpbHRlclByZWZpeCI6MSwiV0ZDb250ZW50UHJlZGljYXRlQm91bmRlZERhdGUiOmZhbHNlLCJXRkFjdGlvblBhcmFtZXRlckZpbHRlclRlbXBsYXRlcyI6W3siQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjQsIlByb3BlcnR5IjoiVHlwZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IkhlYXJ0IFJhdGUiLCJXRlNlcmlhbGl6YXRpb25UeXBlIjoiV0ZTdHJpbmdTdWJzdGl0dXRhYmxlU3RhdGUifX19LHsiQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjEwMDEsIlByb3BlcnR5IjoiU3RhcnQgRGF0ZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJOdW1iZXIiOiIzMCIsIlVuaXQiOjE2fX1dfSwiV0ZTZXJpYWxpemF0aW9uVHlwZSI6IldGQ29udGVudFByZWRpY2F0ZVRhYmxlVGVtcGxhdGUifQ==
 #ref hrvFilter eyJWYWx1ZSI6eyJXRkFjdGlvblBhcmFtZXRlckZpbHRlclByZWZpeCI6MSwiV0ZDb250ZW50UHJlZGljYXRlQm91bmRlZERhdGUiOmZhbHNlLCJXRkFjdGlvblBhcmFtZXRlckZpbHRlclRlbXBsYXRlcyI6W3siQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjQsIlByb3BlcnR5IjoiVHlwZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IkhlYXJ0IFJhdGUgVmFyaWFiaWxpdHkiLCJXRlNlcmlhbGl6YXRpb25UeXBlIjoiV0ZTdHJpbmdTdWJzdGl0dXRhYmxlU3RhdGUifX19LHsiQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjEwMDEsIlByb3BlcnR5IjoiU3RhcnQgRGF0ZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJOdW1iZXIiOiIzMCIsIlVuaXQiOjE2fX1dfSwiV0ZTZXJpYWxpemF0aW9uVHlwZSI6IldGQ29udGVudFByZWRpY2F0ZVRhYmxlVGVtcGxhdGUifQ==
 #ref exerciseFilter eyJWYWx1ZSI6eyJXRkFjdGlvblBhcmFtZXRlckZpbHRlclByZWZpeCI6MSwiV0ZDb250ZW50UHJlZGljYXRlQm91bmRlZERhdGUiOmZhbHNlLCJXRkFjdGlvblBhcmFtZXRlckZpbHRlclRlbXBsYXRlcyI6W3siQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjQsIlByb3BlcnR5IjoiVHlwZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IkV4ZXJjaXNlIE1pbnV0ZXMiLCJXRlNlcmlhbGl6YXRpb25UeXBlIjoiV0ZTdHJpbmdTdWJzdGl0dXRhYmxlU3RhdGUifX19LHsiQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjEwMDEsIlByb3BlcnR5IjoiU3RhcnQgRGF0ZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJOdW1iZXIiOiIzMCIsIlVuaXQiOjE2fX1dfSwiV0ZTZXJpYWxpemF0aW9uVHlwZSI6IldGQ29udGVudFByZWRpY2F0ZVRhYmxlVGVtcGxhdGUifQ==
 #ref sleepFilter eyJWYWx1ZSI6eyJXRkFjdGlvblBhcmFtZXRlckZpbHRlclByZWZpeCI6MSwiV0ZDb250ZW50UHJlZGljYXRlQm91bmRlZERhdGUiOmZhbHNlLCJXRkFjdGlvblBhcmFtZXRlckZpbHRlclRlbXBsYXRlcyI6W3siQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjQsIlByb3BlcnR5IjoiVHlwZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IlNsZWVwIiwiV0ZTZXJpYWxpemF0aW9uVHlwZSI6IldGU3RyaW5nU3Vic3RpdHV0YWJsZVN0YXRlIn19fSx7IkJvdW5kZWQiOnRydWUsIk9wZXJhdG9yIjoxMDAxLCJQcm9wZXJ0eSI6IlN0YXJ0IERhdGUiLCJSZW1vdmFibGUiOmZhbHNlLCJWYWx1ZXMiOnsiTnVtYmVyIjoiMzAiLCJVbml0IjoxNn19XX0sIldGU2VyaWFsaXphdGlvblR5cGUiOiJXRkNvbnRlbnRQcmVkaWNhdGVUYWJsZVRlbXBsYXRlIn0=
-#ref recentTypesFilter eyJWYWx1ZSI6eyJXRkFjdGlvblBhcmFtZXRlckZpbHRlclByZWZpeCI6MCwiV0ZDb250ZW50UHJlZGljYXRlQm91bmRlZERhdGUiOmZhbHNlLCJXRkFjdGlvblBhcmFtZXRlckZpbHRlclRlbXBsYXRlcyI6W3siQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjQsIlByb3BlcnR5IjoiVHlwZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IlN0ZXBzIiwiV0ZTZXJpYWxpemF0aW9uVHlwZSI6IldGU3RyaW5nU3Vic3RpdHV0YWJsZVN0YXRlIn19fSx7IkJvdW5kZWQiOnRydWUsIk9wZXJhdG9yIjo0LCJQcm9wZXJ0eSI6IlR5cGUiLCJSZW1vdmFibGUiOmZhbHNlLCJWYWx1ZXMiOnsiRW51bWVyYXRpb24iOnsiVmFsdWUiOiJSZXN0aW5nIEhlYXJ0IFJhdGUiLCJXRlNlcmlhbGl6YXRpb25UeXBlIjoiV0ZTdHJpbmdTdWJzdGl0dXRhYmxlU3RhdGUifX19LHsiQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjQsIlByb3BlcnR5IjoiVHlwZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IkhlYXJ0IFJhdGUgVmFyaWFiaWxpdHkiLCJXRlNlcmlhbGl6YXRpb25UeXBlIjoiV0ZTdHJpbmdTdWJzdGl0dXRhYmxlU3RhdGUifX19LHsiQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjQsIlByb3BlcnR5IjoiVHlwZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IkV4ZXJjaXNlIE1pbnV0ZXMiLCJXRlNlcmlhbGl6YXRpb25UeXBlIjoiV0ZTdHJpbmdTdWJzdGl0dXRhYmxlU3RhdGUifX19LHsiQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjQsIlByb3BlcnR5IjoiVHlwZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IlNsZWVwIiwiV0ZTZXJpYWxpemF0aW9uVHlwZSI6IldGU3RyaW5nU3Vic3RpdHV0YWJsZVN0YXRlIn19fV19LCJXRlNlcmlhbGl6YXRpb25UeXBlIjoiV0ZDb250ZW50UHJlZGljYXRlVGFibGVUZW1wbGF0ZSJ9
+#ref recentTypesFilter eyJWYWx1ZSI6eyJXRkFjdGlvblBhcmFtZXRlckZpbHRlclByZWZpeCI6MCwiV0ZDb250ZW50UHJlZGljYXRlQm91bmRlZERhdGUiOmZhbHNlLCJXRkFjdGlvblBhcmFtZXRlckZpbHRlclRlbXBsYXRlcyI6W3siQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjQsIlByb3BlcnR5IjoiVHlwZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IlN0ZXBzIiwiV0ZTZXJpYWxpemF0aW9uVHlwZSI6IldGU3RyaW5nU3Vic3RpdHV0YWJsZVN0YXRlIn19fSx7IkJvdW5kZWQiOnRydWUsIk9wZXJhdG9yIjo0LCJQcm9wZXJ0eSI6IlR5cGUiLCJSZW1vdmFibGUiOmZhbHNlLCJWYWx1ZXMiOnsiRW51bWVyYXRpb24iOnsiVmFsdWUiOiJSZXN0aW5nIEhlYXJ0IFJhdGUiLCJXRlNlcmlhbGl6YXRpb25UeXBlIjoiV0ZTdHJpbmdTdWJzdGl0dXRhYmxlU3RhdGUifX19LHsiQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjQsIlByb3BlcnR5IjoiVHlwZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IkhlYXJ0IFJhdGUiLCJXRlNlcmlhbGl6YXRpb25UeXBlIjoiV0ZTdHJpbmdTdWJzdGl0dXRhYmxlU3RhdGUifX19LHsiQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjQsIlByb3BlcnR5IjoiVHlwZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IkhlYXJ0IFJhdGUgVmFyaWFiaWxpdHkiLCJXRlNlcmlhbGl6YXRpb25UeXBlIjoiV0ZTdHJpbmdTdWJzdGl0dXRhYmxlU3RhdGUifX19LHsiQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjQsIlByb3BlcnR5IjoiVHlwZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IkV4ZXJjaXNlIE1pbnV0ZXMiLCJXRlNlcmlhbGl6YXRpb25UeXBlIjoiV0ZTdHJpbmdTdWJzdGl0dXRhYmxlU3RhdGUifX19LHsiQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjQsIlByb3BlcnR5IjoiVHlwZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IlNsZWVwIiwiV0ZTZXJpYWxpemF0aW9uVHlwZSI6IldGU3RyaW5nU3Vic3RpdHV0YWJsZVN0YXRlIn19fV19LCJXRlNlcmlhbGl6YXRpb25UeXBlIjoiV0ZDb250ZW50UHJlZGljYXRlVGFibGVUZW1wbGF0ZSJ9
 
 // The device key lives in a file outside this Shortcut, in On My iPhone so it works without iCloud Drive.
 #ref onMyIPhone eyJkaXNwbGF5TmFtZSI6Ik9uIE15IGlQaG9uZSIsImZpbGVuYW1lIjoiRmlsZSBQcm92aWRlciBTdG9yYWdlIiwiZmlsZUxvY2F0aW9uIjp7IldGRmlsZUxvY2F0aW9uVHlwZSI6IkxvY2FsU3RvcmFnZSIsInJlbGF0aXZlU3VicGF0aCI6IiJ9fQ==
@@ -42,7 +43,7 @@ if providedKeyCount == 0 {
 
 // Verify the connection and record the Shortcut's version, even if no health samples are available.
 const handshakeRaw = jsonRequest("https://even.bishvili.workers.dev/api/shortcut/hello", "POST", {
-    "shortcutVersion": "2.4.0"
+    "shortcutVersion": "2.4.1"
 }, {"Authorization": "{@credential}"})
 const handshake = getDictionary(handshakeRaw)
 const connectionStatusValue = getValue(handshake, "state")
@@ -50,7 +51,7 @@ const connectionStatus = getText(connectionStatusValue)
 if connectionStatus != "connected" {
     @credential = prompt("That key didn't work. Paste your device key from Even > Sync")
     const retryRaw = jsonRequest("https://even.bishvili.workers.dev/api/shortcut/hello", "POST", {
-        "shortcutVersion": "2.4.0"
+        "shortcutVersion": "2.4.1"
     }, {"Authorization": "{@credential}"})
     const retry = getDictionary(retryRaw)
     const retryStatusValue = getValue(retry, "state")
@@ -103,7 +104,7 @@ for event in events {
 
     const eventBody = formRequest("https://even.bishvili.workers.dev/api/ingest", "POST", {
         "kind": "calendar",
-        "shortcutVersion": "2.4.0",
+        "shortcutVersion": "2.4.1",
         "title": "{title}",
         "calendar": "{calendarName}",
         "start": "{startISO}",
@@ -161,7 +162,7 @@ if stepsAvailable >= 1 {
         const stepsValue = replaceText('^\D*(\d+(?:\.\d+)?)[\s\S]*$', "$1", normalizedSteps, true, true)
         const healthBody = formRequest("https://even.bishvili.workers.dev/api/ingest", "POST", {
             "kind": "health",
-            "shortcutVersion": "2.4.0",
+            "shortcutVersion": "2.4.1",
             "date": "{stepDay}",
             "steps": "{stepsValue}"
         }, {"Authorization": "{@credential}"})
@@ -190,7 +191,7 @@ if restingAvailable >= 1 {
     if restingValue >= 1 {
         const restingBody = formRequest("https://even.bishvili.workers.dev/api/ingest", "POST", {
             "kind": "health",
-            "shortcutVersion": "2.4.0",
+            "shortcutVersion": "2.4.1",
             "date": "{restingDay}",
             "restingHR": "{restingValue}"
         }, {"Authorization": "{@credential}"})
@@ -198,6 +199,31 @@ if restingAvailable >= 1 {
         const restingStatusValue = getValue(restingResponse, "state")
         const restingStatus = getText(restingStatusValue)
         if restingStatus == "accepted" {
+            @acceptedCount += 1
+        }
+    }
+}
+
+// Whole lines only, because other types also contain these words.
+const heartRateMatches = matchText('(?im)^Heart Rate$', recentTypes)
+const heartRateAvailable = count(heartRateMatches)
+if heartRateAvailable >= 1 {
+    const heartRateDays = findLatestDay(heartRateFilter)
+    const heartRateSamples = getFirstItem(heartRateDays)
+    const heartRateDate = getSampleStart(heartRateSamples)
+    const heartRateDay = formatDate(heartRateDate, "Custom", "yyyy-MM-dd")
+    const heartRateValue = getDailyNumber(heartRateSamples)
+    if heartRateValue >= 1 {
+        const heartRateBody = formRequest("https://even.bishvili.workers.dev/api/ingest", "POST", {
+            "kind": "health",
+            "shortcutVersion": "2.4.1",
+            "date": "{heartRateDay}",
+            "heartRate": "{heartRateValue}"
+        }, {"Authorization": "{@credential}"})
+        const heartRateResponse = getDictionary(heartRateBody)
+        const heartRateStatusValue = getValue(heartRateResponse, "state")
+        const heartRateStatus = getText(heartRateStatusValue)
+        if heartRateStatus == "accepted" {
             @acceptedCount += 1
         }
     }
@@ -214,7 +240,7 @@ if hrvAvailable >= 1 {
     if hrvValue >= 1 {
         const hrvBody = formRequest("https://even.bishvili.workers.dev/api/ingest", "POST", {
             "kind": "health",
-            "shortcutVersion": "2.4.0",
+            "shortcutVersion": "2.4.1",
             "date": "{hrvDay}",
             "hrv": "{hrvValue}"
         }, {"Authorization": "{@credential}"})
@@ -238,7 +264,7 @@ if exerciseAvailable >= 1 {
     if exerciseValue >= 1 {
         const workoutBody = formRequest("https://even.bishvili.workers.dev/api/ingest", "POST", {
             "kind": "health",
-            "shortcutVersion": "2.4.0",
+            "shortcutVersion": "2.4.1",
             "date": "{exerciseDay}",
             "workoutMin": "{exerciseValue}"
         }, {"Authorization": "{@credential}"})
@@ -277,7 +303,7 @@ if sleepAvailable >= 1 {
         const sleepHours = @sleepMinutes / 60
         const sleepBody = formRequest("https://even.bishvili.workers.dev/api/ingest", "POST", {
             "kind": "health",
-            "shortcutVersion": "2.4.0",
+            "shortcutVersion": "2.4.1",
             "date": "{day}",
             "sleepHours": "{sleepHours}"
         }, {"Authorization": "{@credential}"})
@@ -293,7 +319,7 @@ if sleepAvailable >= 1 {
 showNotification("Synced {@acceptedCount} items. Skipped {@skippedCalendarCount} calendar events.", "Even")
 
 // Offer an update after syncing; the user approves installation in Apple Shortcuts.
-const releaseBody = downloadURL("https://even.bishvili.workers.dev/api/shortcut/release?current=2.4.0", {"Authorization": "{@credential}"})
+const releaseBody = downloadURL("https://even.bishvili.workers.dev/api/shortcut/release?current=2.4.1", {"Authorization": "{@credential}"})
 const releaseInfo = getDictionary(releaseBody)
 const updateStatusValue = getValue(releaseInfo, "updateStatus")
 const updateStatus = getText(updateStatusValue)
