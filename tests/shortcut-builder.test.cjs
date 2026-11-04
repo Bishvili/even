@@ -88,7 +88,7 @@ test("the owner-scoped API validates the configured key before collecting data",
  const events=source.indexOf("const events = findEvents(todayEventsFilter)");
  assert.ok(binding>=0&&binding<profile&&profile<failure&&failure<events);
  assert.match(source,/Authorization": "\{@credential\}"/);
- assert.match(source,/alert\("That key didn't work/);
+ assert.match(source,/alert\("Open Even, go to Sync, and tap Run Even Sync to reconnect/);
 });
 
 test("every accepted upload is acknowledged and versioned",()=>{
@@ -96,8 +96,8 @@ test("every accepted upload is acknowledged and versioned",()=>{
  assert.match(source,/getValue\(healthResponse, "state"\)/);
  assert.match(source,/if eventStatus != "accepted"/);
  assert.match(source,/if healthStatus != "accepted"/);
- assert.match(source,/shortcutVersion": "2\.4\.1"/);
- assert.match(source,/\/api\/shortcut\/release\?current=2\.4\.1/);
+ assert.match(source,/shortcutVersion": "2\.5\.0"/);
+ assert.match(source,/\/api\/shortcut\/release\?current=2\.5\.0/);
  assert.match(source,/showNotification\("Synced \{@acceptedCount\} items\. Skipped \{@skippedCalendarCount\} calendar events\."/);
  assert.doesNotMatch(source,/\bnothing\(\)/);
  assert.doesNotMatch(source,/Bearer [a-f0-9]{64}/i);
@@ -110,7 +110,6 @@ test("conditional comparisons use explicit typed text instead of Boolean values"
   'providedKeyCount == 0',
   'savedKeyMatchCount == 0',
   'connectionStatus != "connected"',
-  'retryStatus != "connected"',
   'eventStatus != "accepted"',
   'eventError == "No valid records. Check date, metric values, and event start/end formats"',
   'stepsAvailable >= 1',

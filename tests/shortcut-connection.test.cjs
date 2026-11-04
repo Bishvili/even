@@ -27,7 +27,7 @@ test("the device key is read from a file and has no install question or helper",
 });
 
 test("only a key the server accepted is saved", () => {
- const retryFailure = sync.indexOf('if retryStatus != "connected"');
+ const retryFailure = sync.indexOf('if connectionStatus != "connected"');
  const save = sync.indexOf("saveDeviceKey(@credential, keyFolder)");
  const events = sync.indexOf("const events = findEvents(todayEventsFilter)");
  assert.ok(retryFailure >= 0 && retryFailure < save && save < events);
@@ -75,5 +75,5 @@ test("the compiled step-cleanup pattern removes only grouping separators", () =>
 });
 
 test("updates are checked against the current version", () => {
- assert.match(sync, /\/api\/shortcut\/release\?current=2\.4\.1/);
+ assert.match(sync, /\/api\/shortcut\/release\?current=2\.5\.0/);
 });

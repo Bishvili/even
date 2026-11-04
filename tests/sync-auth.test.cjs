@@ -199,10 +199,10 @@ test("device revocation is owner-scoped, and invalidates the bearer",async()=>{
  const b=await call("/api/auth/device",{method:"POST",body:{label:"B"},context:ctx("owner-b@example.com")});
  const unauthorized=await call("/api/auth/revoke",{method:"POST",body:{deviceId:b.data.deviceId},context:ctx("owner-a@example.com")});
  assert.equal(unauthorized.data.revoked,false);
- assert.equal((await call("/api/profile",{headers:{Authorization:"Bearer "+b.data.token}})).status,200);
+ assert.equal((await call("/api/sync/status",{headers:{Authorization:"Bearer "+b.data.token}})).status,200);
  const revoked=await call("/api/auth/revoke",{method:"POST",body:{deviceId:b.data.deviceId},context:ctx("owner-b@example.com")});
  assert.equal(revoked.data.revoked,true);
- assert.equal((await call("/api/profile",{headers:{Authorization:"Bearer "+b.data.token}})).status,401);
+ assert.equal((await call("/api/sync/status",{headers:{Authorization:"Bearer "+b.data.token}})).status,401);
 });
 test("device creation requires a same-origin JSON POST",async()=>{
  const{call,ctx}=harness();

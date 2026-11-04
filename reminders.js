@@ -48,6 +48,8 @@
   await fetch("/api/push/unsubscribe",{method:"POST",headers:deviceHeaders(),cache:"no-store",body:JSON.stringify({endpoint:subscription.endpoint})});
   await subscription.unsubscribe();
  }
+ // Keep the saved reminder in step with this device's push credentials.
+ function syncReminder(){if(settings.on&&canPush()&&app.deviceToken()&&Notification.permission==="granted")subscribe().catch(function(){});}
  async function updateReminder(on){
   var toggle=$("reminder-toggle");toggle.disabled=true;
   try{
@@ -72,8 +74,7 @@
   settings.time=this.value;saveSettings();
   if(settings.on)updateReminder(true);
  });
- document.addEventListener("visibilitychange",function(){if(!document.hidden)renderReminder();});
+ document.addEventListener("visibilitychange",function(){if(!document.hidden){renderReminder();syncReminder();}});
  renderNudge();renderReminder();
- // Keep the saved reminder in step with this device's push credentials.
- if(settings.on&&canPush()&&app.deviceToken()&&Notification.permission==="granted")subscribe().catch(function(){});
+ syncReminder();
 })();

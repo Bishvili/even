@@ -75,6 +75,9 @@ Spacing and shape:
 
 ## Installable PWA considerations
 
+- Check every interaction against **Getting it right the first time** in AGENTS.md before shipping it.
+- People never see or copy a device key. Setup is sign in, install, then run from the app.
+
 - Keep the Web App Manifest, icon sizes, apple-touch-icon, theme colors, service worker, cache versioning, and standalone launch path correct.
 - Provide an accurate Safari Add to Home Screen guide when installation matters. Never imply an iOS web app can invoke a guaranteed native install prompt.
 - Support complete local check-ins while offline, show an honest sync status, and reconcile when connectivity returns. Do not rely on unsupported iOS Periodic Background Sync.

@@ -1,6 +1,6 @@
 (function () {
 "use strict";
-var VERSION = "2.0.7";
+var VERSION = "2.1.0";
 var SHORTCUT_PAGE = "https://routinehub.co/shortcut/26978/";
 var STORAGE_KEY = "even:v1";
 var MOOD_NAMES = ["","Rough","Low","Okay","Good","Great"];
@@ -101,7 +101,6 @@ function renderSync(){
  $("pair-badge").classList.toggle("on",paired);
  $("sync-light").classList.toggle("connected",paired);
  $("sync-light-text").textContent=paired?"Sync ready":"Local only";
- $("sync-token").textContent=paired?"Bearer "+("•".repeat(18))+"…"+state.token.slice(-6):"Generate a device key";
  $("last-sync").textContent=state.lastSync?"Last synced "+formatDate(state.lastSync)+" at "+formatTime(state.lastSync):"Not synced yet";
  $("shortcut-setup").hidden=!!(shortcutStatus&&shortcutStatus.lastDataUploadAt);
  var accountMatches=!authEmail||authEmail===state.syncOwnerEmail;
@@ -109,15 +108,15 @@ function renderSync(){
  var canInstall=paired&&accountMatches&&navigator.onLine;
  var publishedRelease=release&&release.url&&release.verified?release:null;
  install.hidden=!canInstall;
- $("run-shortcut").hidden=!paired||mismatch||!!(shortcutStatus&&shortcutStatus.installedShortcutVersion&&compareVersions(shortcutStatus.installedShortcutVersion,"2.3.3")<0);
+ $("run-shortcut").hidden=!paired||mismatch;
  if(canInstall){install.href=publishedRelease?publishedRelease.url:SHORTCUT_PAGE;install.removeAttribute("aria-disabled");install.removeAttribute("tabindex");}
  else{install.removeAttribute("href");install.setAttribute("aria-disabled","true");install.setAttribute("tabindex","-1");}
  $("shortcut-release-version").textContent=shortcutStatus&&shortcutStatus.installedShortcutVersion?"Connected · v"+shortcutStatus.installedShortcutVersion:"Not connected";
  $("shortcut-install-help").textContent=canInstall
-  ?"Your device key isn’t included in the Shortcut."
+  ?"Then tap Run Even Sync to connect it."
   :mismatch?"Sign in with this iPhone’s account to continue."
   :paired?"Connect to the internet to get the Shortcut."
-  :"Generate a device key to get the Shortcut.";
+  :"Sign in to get the Shortcut.";
  $("check-shortcut-upload").disabled=!paired||mismatch||shortcutStatusLoading;
  var installed=shortcutStatus&&shortcutStatus.installedShortcutVersion||"";
  $("shortcut-update-badge").hidden=!(canInstall&&publishedRelease&&installed&&compareVersions(publishedRelease.version,installed)>0);
@@ -135,7 +134,7 @@ function renderSync(){
 function renderDevices(){
  var el=$("device-list");
  if(!authEmail){el.innerHTML=blank("Sign in to see your devices.");return;}
- if(!authDevices.length){el.innerHTML=blank("No devices yet. Generate a key to connect this iPhone.");return;}
+ if(!authDevices.length){el.innerHTML=blank("No devices yet.");return;}
  el.innerHTML=authDevices.map(function(d){
   var revoked=!!d.revoked,own=d.id===state.deviceId;
   return '<div class="device-row"><div class="device-row-main"><strong>'+esc(d.label||"iPhone")+(own?" · This device":"")+'</strong><small>'+esc(d.revoked?"Revoked":d.lastUsedAt?"Used "+formatDate(d.lastUsedAt):"Not used yet")+'</small></div>'+(revoked?'<span class="muted">Revoked</span>':'<button class="small-action" type="button" data-revoke-device="'+esc(d.id)+'">Revoke</button>')+'</div>';
@@ -420,7 +419,6 @@ function clearDemo(){
  state.moods=state.moods.filter(function(x){return !x.demo;});state.events=state.events.filter(function(x){return !x.demo;});state.health=state.health.filter(function(x){return !x.demo;});
  persist();render();toast("Removed "+(a-state.moods.length+b-state.events.length+c-state.health.length)+" demo records.");
 }
-function arrayToHex(bytes){return Array.from(bytes).map(function(b){return b.toString(16).padStart(2,"0");}).join("");}
 function loginWithEmail(){window.location.assign("/api/auth/start");}
 function syncErrorLabel(code){
  var reasons={
@@ -525,6 +523,8 @@ async function refreshAuth(){
   authEmail=String(data.email).toLowerCase();authDevices=Array.isArray(data.devices)?data.devices:[];authCanRelease=data.canRelease===true;if(data.welcomeName)showWelcome(data.welcomeName);
  }catch(e){authEmail="";authDevices=[];authCanRelease=false;}
  finally{authChecking=false;renderSync();}
+ // Connect automatically the first time. After a revoke, connecting again is a deliberate choice.
+ if(authEmail&&!state.token&&!state.pairedAt&&!state.syncOwnerEmail)issueDevice();
 }
 function accountSafe(email){
  if(state.syncOwnerEmail&&state.syncOwnerEmail!==email){
@@ -540,16 +540,16 @@ function accountSafe(email){
 async function issueDevice(){
  if(!authEmail){toast("Sign in with email first.");return;}
  if(!accountSafe(authEmail))return;
- var button=$("issue-device");button.disabled=true;button.textContent="Generating key…";
+ var button=$("issue-device");button.disabled=true;button.textContent="Connecting…";
  try{
-  var r=await fetch("/api/auth/device",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json","Accept":"application/json"},body:JSON.stringify({label:$("device-label").value.trim()||"My iPhone"}),cache:"no-store"});
-  var result=await r.json();if(!r.ok||!result.token)throw Error(result.error||"Could not create a device key");
+  var r=await fetch("/api/auth/device",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json","Accept":"application/json"},body:JSON.stringify({label:"My iPhone"}),cache:"no-store"});
+  var result=await r.json();if(!r.ok||!result.token)throw Error(result.error||"Could not connect this iPhone");
   if(result.email!==authEmail)throw Error("Account identity changed; key not saved");
   state.syncOwnerEmail=authEmail;state.deviceId=result.deviceId;state.token=result.token;state.pairedAt=Date.now();state.lastSync=null;
   if(!persist())return;
-  await refreshAuth();await loadShortcutRelease();await loadCalendars();await checkShortcutUpload(true);render();toast("Device key created for "+authEmail+". Copy it into Shortcuts.");
+  await refreshAuth();await loadShortcutRelease();await loadCalendars();await checkShortcutUpload(true);render();toast("This iPhone is connected.");
  }catch(e){toast(e.message||"Could not connect this device.");}
- finally{button.disabled=false;button.textContent="Generate my device key";}
+ finally{button.disabled=false;button.textContent="Connect this iPhone";}
 }
 async function revokeDevice(id){
  if(!authEmail){toast("Sign in with email to revoke a device.");return;}
@@ -588,10 +588,6 @@ async function pull(silent){
  finally{button.disabled=false;button.textContent="↻ Sync now";}
 }
 
-function copy(value){if(!value){toast("Generate a private device key first.");return;}
- if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(value).then(function(){toast("Copied to clipboard.");}).catch(function(){fallbackCopy(value);});else fallbackCopy(value);
-}
-function fallbackCopy(value){var a=document.createElement("textarea");a.value=value;document.body.appendChild(a);a.select();try{document.execCommand("copy");toast("Copied to clipboard.");}catch(e){toast("Clipboard access unavailable.");}a.remove();}
 async function eraseRemote(){
  if(!state.token){toast("Connect this device first.");return;}
  if(!confirm("Permanently delete Health and Calendar sync records for "+state.syncOwnerEmail+" only? Local records on this iPhone will remain."))return;
@@ -648,12 +644,6 @@ function init(){
  });
  $("pull-button").addEventListener("click",syncNow);$("run-shortcut").addEventListener("click",function(event){event.preventDefault();runShortcut();});
  $("unpair-button").addEventListener("click",function(){if(state.deviceId)revokeDevice(state.deviceId);});
- document.querySelectorAll("[data-copy]").forEach(function(b){b.addEventListener("click",function(){
-  if(b.dataset.copy==="token"&&authEmail&&authEmail!==state.syncOwnerEmail){
-   toast("Sign in as the device owner before copying its key.");return;
-  }
-  copy(state.token?"Bearer "+state.token:"");
- });});
  $("erase-remote").addEventListener("click",eraseRemote);
  $("backup-button").addEventListener("click",exportBackup);$("restore-input").addEventListener("change",function(ev){restoreBackup(ev.target.files[0]);ev.target.value="";});
  $("erase-local").addEventListener("click",function(){if(confirm("Delete ALL local mood check-ins, notes, health/calendar data and this device's sync key? Cloud data must be erased separately. This cannot be undone.")){state=emptyState();shortcutRelease=null;shortcutStatus=null;persist();render();toast("Local records deleted.");}});

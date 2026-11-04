@@ -16,8 +16,7 @@ test("the retired v2.2 download is gone",()=>{
  assert.doesNotMatch(app,/Signed test build v2\.2/);
 });
 
-test("app does not launch old broken Shortcut versions",()=>{
- assert.match(app,/compareVersions\(shortcutStatus\.installedShortcutVersion,"2\.3\.3"\)<0/);
+test("the run link carries no key in the page",()=>{
  assert.match(html,/id="run-shortcut"[^>]*href="shortcuts:\/\/run-shortcut\?name=Even%20Sync"/);
  assert.doesNotMatch(html,/Bearer [a-f0-9]{64}/i);
 });
@@ -36,7 +35,6 @@ test("Shortcut checks explicit typed values",()=>{
   'providedKeyCount == 0',
   'savedKeyMatchCount == 0',
   'connectionStatus != "connected"',
-  'retryStatus != "connected"',
   'eventStatus != "accepted"',
   'eventError == "No valid records. Check date, metric values, and event start/end formats"',
   'stepsAvailable >= 1',

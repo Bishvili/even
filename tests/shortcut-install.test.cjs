@@ -104,21 +104,8 @@ test("server-reported Shortcut handshake replaces manual installation confirmati
  assert.equal(t.storageWrites.length,0);
 });
 
-test("a connected but outdated Shortcut cannot be launched from the PWA",async()=>{
- const t=setup({reportedVersion:"2.2.0"});
- t.app.setAuth(t.email,[]);
- await t.app.checkShortcutUpload(false);
- assert.equal(t.element("run-shortcut").hidden,true);
-});
-
 test("all application DOM references resolve to real elements",()=>{
  const ids=new Set([...html.matchAll(/\bid="([^"]+)"/g)].map(x=>x[1]));
  for(const match of source.matchAll(/\$\("([^"]+)"\)/g))assert.ok(ids.has(match[1]),"Missing "+match[1]);
 });
 
-test("a v2.3.0 Shortcut cannot be launched from the PWA",async()=>{
- const t=setup({reportedVersion:"2.3.0"});
- t.app.setAuth(t.email,[]);
- await t.app.checkShortcutUpload(false);
- assert.equal(t.element("run-shortcut").hidden,true);
-});

@@ -244,7 +244,6 @@ async function syncApi(request,env,path){
   if(!updated.meta?.changes)return error("Calendar not found",404);
   return reply({ok:true});
  }
- if(path==="/api/profile"&&request.method==="GET")return reply({ok:true,email:owner,deviceId:dev.id});
  if(path==="/api/sync/status"&&request.method==="GET"){
   const [device,h,c]=await Promise.all([
    env.DB.prepare("SELECT last_used_at,last_attempt_at,last_error_code,shortcut_version FROM even_devices WHERE device_id=? AND owner_email=? AND revoked_at IS NULL").bind(dev.id,owner).first(),
@@ -338,7 +337,7 @@ async function syncApi(request,env,path){
  return error("Not found",404);
 }
 async function api(request,env,ctx,path){
- if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:"Even",version:"2.0.7",sync:"email-access"});
+ if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:"Even",version:"2.1.0",sync:"email-access"});
  if(path.startsWith("/api/auth/"))return authApi(request,env,ctx,path);
  return syncApi(request,env,path);
 }

@@ -37,29 +37,21 @@ if providedKeyCount == 0 {
     const savedKeyMatches = matchText('^Bearer [0-9A-Fa-f]{64}$', @credential)
     const savedKeyMatchCount = count(savedKeyMatches)
     if savedKeyMatchCount == 0 {
-        @credential = prompt("Paste your device key from Even > Sync")
+        alert("Open Even, go to Sync, and tap Run Even Sync.", "Not connected")
+        stop()
     }
 }
 
 // Verify the connection and record the Shortcut's version, even if no health samples are available.
 const handshakeRaw = jsonRequest("https://even.bishvili.workers.dev/api/shortcut/hello", "POST", {
-    "shortcutVersion": "2.4.1"
+    "shortcutVersion": "2.5.0"
 }, {"Authorization": "{@credential}"})
 const handshake = getDictionary(handshakeRaw)
 const connectionStatusValue = getValue(handshake, "state")
 const connectionStatus = getText(connectionStatusValue)
 if connectionStatus != "connected" {
-    @credential = prompt("That key didn't work. Paste your device key from Even > Sync")
-    const retryRaw = jsonRequest("https://even.bishvili.workers.dev/api/shortcut/hello", "POST", {
-        "shortcutVersion": "2.4.1"
-    }, {"Authorization": "{@credential}"})
-    const retry = getDictionary(retryRaw)
-    const retryStatusValue = getValue(retry, "state")
-    const retryStatus = getText(retryStatusValue)
-    if retryStatus != "connected" {
-        alert("That key didn't work. Generate a new one in Even > Sync.", "Not connected")
-        stop()
-    }
+    alert("Open Even, go to Sync, and tap Run Even Sync to reconnect.", "Not connected")
+    stop()
 }
 
 // Save only a key the server accepted, so a failed attempt cannot replace a working one.
@@ -104,7 +96,7 @@ for event in events {
 
     const eventBody = formRequest("https://even.bishvili.workers.dev/api/ingest", "POST", {
         "kind": "calendar",
-        "shortcutVersion": "2.4.1",
+        "shortcutVersion": "2.5.0",
         "title": "{title}",
         "calendar": "{calendarName}",
         "start": "{startISO}",
@@ -162,7 +154,7 @@ if stepsAvailable >= 1 {
         const stepsValue = replaceText('^\D*(\d+(?:\.\d+)?)[\s\S]*$', "$1", normalizedSteps, true, true)
         const healthBody = formRequest("https://even.bishvili.workers.dev/api/ingest", "POST", {
             "kind": "health",
-            "shortcutVersion": "2.4.1",
+            "shortcutVersion": "2.5.0",
             "date": "{stepDay}",
             "steps": "{stepsValue}"
         }, {"Authorization": "{@credential}"})
@@ -191,7 +183,7 @@ if restingAvailable >= 1 {
     if restingValue >= 1 {
         const restingBody = formRequest("https://even.bishvili.workers.dev/api/ingest", "POST", {
             "kind": "health",
-            "shortcutVersion": "2.4.1",
+            "shortcutVersion": "2.5.0",
             "date": "{restingDay}",
             "restingHR": "{restingValue}"
         }, {"Authorization": "{@credential}"})
@@ -216,7 +208,7 @@ if heartRateAvailable >= 1 {
     if heartRateValue >= 1 {
         const heartRateBody = formRequest("https://even.bishvili.workers.dev/api/ingest", "POST", {
             "kind": "health",
-            "shortcutVersion": "2.4.1",
+            "shortcutVersion": "2.5.0",
             "date": "{heartRateDay}",
             "heartRate": "{heartRateValue}"
         }, {"Authorization": "{@credential}"})
@@ -240,7 +232,7 @@ if hrvAvailable >= 1 {
     if hrvValue >= 1 {
         const hrvBody = formRequest("https://even.bishvili.workers.dev/api/ingest", "POST", {
             "kind": "health",
-            "shortcutVersion": "2.4.1",
+            "shortcutVersion": "2.5.0",
             "date": "{hrvDay}",
             "hrv": "{hrvValue}"
         }, {"Authorization": "{@credential}"})
@@ -264,7 +256,7 @@ if exerciseAvailable >= 1 {
     if exerciseValue >= 1 {
         const workoutBody = formRequest("https://even.bishvili.workers.dev/api/ingest", "POST", {
             "kind": "health",
-            "shortcutVersion": "2.4.1",
+            "shortcutVersion": "2.5.0",
             "date": "{exerciseDay}",
             "workoutMin": "{exerciseValue}"
         }, {"Authorization": "{@credential}"})
@@ -303,7 +295,7 @@ if sleepAvailable >= 1 {
         const sleepHours = @sleepMinutes / 60
         const sleepBody = formRequest("https://even.bishvili.workers.dev/api/ingest", "POST", {
             "kind": "health",
-            "shortcutVersion": "2.4.1",
+            "shortcutVersion": "2.5.0",
             "date": "{day}",
             "sleepHours": "{sleepHours}"
         }, {"Authorization": "{@credential}"})
@@ -319,7 +311,7 @@ if sleepAvailable >= 1 {
 showNotification("Synced {@acceptedCount} items. Skipped {@skippedCalendarCount} calendar events.", "Even")
 
 // Offer an update after syncing; the user approves installation in Apple Shortcuts.
-const releaseBody = downloadURL("https://even.bishvili.workers.dev/api/shortcut/release?current=2.4.1", {"Authorization": "{@credential}"})
+const releaseBody = downloadURL("https://even.bishvili.workers.dev/api/shortcut/release?current=2.5.0", {"Authorization": "{@credential}"})
 const releaseInfo = getDictionary(releaseBody)
 const updateStatusValue = getValue(releaseInfo, "updateStatus")
 const updateStatus = getText(updateStatusValue)

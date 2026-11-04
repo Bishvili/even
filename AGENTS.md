@@ -34,8 +34,12 @@ The repository owner grants these, using the new developer's own accounts:
 2. **Connect Cloudflare** in Claude and select the Bishvili account. It should list one Worker, `even`. The older Workers Bindings server is deprecated in favor of `https://mcp.cloudflare.com/mcp`.
 3. **Optionally connect RoutineHub** using an API key from their own RoutineHub account, under **Settings → API**. It will only show listings that account owns. In cloud sessions, add it as a Claude connector, because `routinehub.co` is not on the default network allowlist.
 4. **Run the tests:** `node --test tests/*.test.cjs`.
-5. **To release Shortcuts:** in Even → **Sync**, use **Set Up Release Helper**, then **Run Release Helper**. The card appears for accounts listed in `even_release_emails`, and **Improve This Site with Claude** opens a new session on this repository that starts with this onboarding. See [RoutineHub releases](shortcuts/ROUTINEHUB_RELEASE.md).
-6. **To test Sync:** generate their own device key in Even → **Sync**. Keys belong to one account, so never reuse someone else's.
+5. **To work on the Shortcuts:** nobody ever copies a key. Signing in on Even → **Sync** connects the iPhone automatically, and running Even Sync from the app passes the key to the Shortcut, which saves it in On My iPhone for later runs and automations.
+   - **Even Sync** is the Shortcut everyone installs. Its version is in `shortcuts/even-sync.cherri` and must change for each release.
+   - **Even Release** is the developer helper, in `shortcuts/even-release.cherri`. It holds no credentials. Install it with **Set Up Release Helper**; it is served as `/install/Even%20Release.shortcut` because iOS names a Shortcut after its file and release assets can't contain spaces.
+   - **To release:** push to `main` and wait for **Build signed Even Sync**, which signs through a service that sometimes times out, so rerun it. Then use **Run Release Helper** → **Install latest build** → **Replace**, run Even Sync, compare the data with Apple Health, and choose **Publish installed build**. Only an iPhone can create the iCloud link, so a person does this last step.
+   - The card appears for accounts listed in `even_release_emails`, and **Improve This Site with Claude** opens a new session on this repository that starts with this onboarding. See [RoutineHub releases](shortcuts/ROUTINEHUB_RELEASE.md).
+6. **To test Sync:** sign in on Even → **Sync** with their own account. Device keys belong to one account, so never reuse someone else's.
 
 ### What to know before changing anything
 
@@ -44,6 +48,35 @@ The repository owner grants these, using the new developer's own accounts:
 - Cherri rewrites nested dictionaries in custom action parameters into a format iOS ignores, and the action then silently falls back to its defaults. Pass nested values such as filters and folders as `#ref` values, and extend `scripts/check-shortcut-conditions.py` to check the compiled plist.
 - Only an iPhone can prove Shortcut behavior. Open the action in the Shortcuts editor to confirm what iOS actually understood.
 - The Shortcut's key file must stay in On My iPhone: the Shortcuts folder in iCloud Drive does not exist when iCloud Drive is off.
+
+## Getting it right the first time
+
+Only an iPhone proves iOS behavior, and each round trip costs the owner time. Before pushing, check the change against these known failures.
+
+**Installed iPhone app**
+- Native pickers report every wheel turn as `change`. Save time and date fields on `blur`, when the picker closes.
+- Permission prompts need a direct tap. Never call `requestPermission` from a background or input event, and skip it when permission is already granted.
+- A control that can't act should say why when tapped. Don't leave it silently disabled, and any control disabled during work must be enabled again in every path.
+- A tap during momentum scrolling produces no `click`. Primary navigation handles `touchend`.
+- `position: fixed` breaks inside a transformed parent. Keep fixed elements out of anything you transform.
+- `env(safe-area-inset-top)` doesn't clear the Dynamic Island's blur. Leave extra room above the header.
+- Installed apps resume without reloading. Bump the version in `app.js`, `sw.js`, `worker/index.js` and `index.html`, and a new script must be added to all of `index.html`, `sw.js`, `scripts/deploy.sh` and the Worker's type list. `tests/versions.test.cjs` checks this.
+- Trace a feature from a fresh install, from an upgraded install with old saved state, signed out, and offline.
+
+**Push notifications**
+- `201` means Apple accepted a push, not that it appeared. Check `last_push_status` and `last_sent_day`, then the phone's Focus and notification settings.
+- Send encrypted payloads with a declarative notification. iOS removes subscriptions after repeated pushes that show nothing, so every push must show one.
+
+**Shortcuts**
+- Find Health Samples ends the run when a type has no samples, and Shortcuts can't catch errors. Check `recentTypes` first and never query a type it doesn't list.
+- A Shortcut must never wait for an answer on a normal run, because automations can't respond. Use notifications, and stop with a clear alert only when it can't continue.
+- A result limit applies before grouping, so read grouped values from the first group.
+- Health data can't be read while the iPhone is locked.
+
+**Cloud and naming**
+- Worker, repository and address renames need dashboard steps. Push only after they're done, because a mismatch can deploy to the wrong place.
+- Change a live D1 schema before pushing code that needs it, with additive changes only.
+- Check the Workers Builds result for the exact commit, then the deployed code. When you can't test something on a device, say so plainly.
 
 ## Product and quality bar
 

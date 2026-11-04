@@ -27,7 +27,7 @@ These are exploratory **associations, not causal effects**. Overlapping events m
 
 Cloudflare Zero Trust Access protects **even.bishvili.workers.dev/api/auth/** (including child paths), using Email One-time PIN login. An exact-address Cloudflare Access policy controls eligibility. In the Worker, identities are accepted only from validated Access runtime context and the matching Access audience, then checked against a server-side **APPROVED_SYNC_EMAILS** secret (JSON array). Do not commit this allowlist to the public GitHub repository.
 
-The PWA itself remains public and keeps anonymous/offline mood tracking. To sync, an approved email signs in, then clicks **Generate my device key**. This issues a random 256-bit bearer token, stored only as its SHA-256 hash in D1, associated with the verified email, and returned once to the device. The user can copy its Authorization header into Apple Shortcuts and revoke it in the Sync tab.
+The PWA itself remains public and keeps anonymous/offline mood tracking. To sync, an approved email signs in, and the iPhone connects automatically with a revocable device key. This issues a random 256-bit bearer token, stored only as its SHA-256 hash in D1, associated with the verified email, and returned once to the device. The user can copy its Authorization header into Apple Shortcuts and revoke it in the Sync tab.
 
 - Health and calendar data is owned by an email identity. Read/write/erase endpoints derive the owner from the authenticated device token, never from request body fields.
 - Device management requires an Access-authenticated session. Revocation is restricted to the authenticated owner.
@@ -39,7 +39,7 @@ The PWA itself remains public and keeps anonymous/offline mood tracking. To sync
 
 Even uses an Apple Shortcut to transmit selected Calendar and Health measurements from the owner's iPhone to the Cloudflare Worker. The PWA itself does not access HealthKit or EventKit.
 
-Even Sync is a single Shortcut with no import questions, published on [RoutineHub](https://routinehub.co/shortcut/26978/). On its first run it asks for the private device key and saves it to a file once Even accepts it. Later runs reuse the file. **Known issue:** installing a new version can ask for the key again.
+Even Sync is a single Shortcut with no import questions, published on [RoutineHub](https://routinehub.co/shortcut/26978/). Running it from Even → **Sync** passes the device key, and the Shortcut saves it for later runs and automations. Nobody copies a key.
 
 The Sync Shortcut reads its Authorization value from the saved file, asking for it if it is missing or not accepted, then sends an authenticated `/api/shortcut/hello` handshake, then today's Calendar events and Health data through `/api/ingest`; every accepted upload is checked explicitly. The Sync screen distinguishes a successful connection from actual accepted data and allows the user to revoke the device credential. Version checks only offer newer verified releases, and Apple requires approval before replacing an installed Shortcut.
 

@@ -158,9 +158,7 @@
       <div class="account-banner"><span class="account-dot" aria-hidden="true"></span><div><small>SIGNED IN AS</small><strong id="auth-email">—</strong></div><button id="refresh-devices" class="small-action" type="button">Refresh</button></div>
       <div id="owner-mismatch" class="sync-warning" hidden>This iPhone’s records belong to another account. Back them up in Settings and erase them before switching.</div>
       <div id="need-device" hidden>
-       <p class="muted">Create a key to connect this iPhone. You can revoke it at any time.</p>
-       <label for="device-label">Device name</label><input id="device-label" autocomplete="off" maxlength="64" value="My iPhone">
-       <button type="button" class="btn primary full" id="issue-device">Generate my device key</button>
+       <button type="button" class="btn primary full" id="issue-device">Connect this iPhone</button>
       </div>
      </div>
      <div id="pair-connected" hidden>
@@ -187,7 +185,7 @@
      <a id="run-shortcut" class="btn secondary full" href="shortcuts://run-shortcut?name=Even%20Sync" hidden>Run Even Sync <span aria-hidden="true">↗</span></a>
      <div class="shortcut-setup-list" id="shortcut-setup" aria-label="Shortcut setup steps">
       <div class="shortcut-setup-row"><span class="shortcut-step-number">1</span><div><strong>Get the Shortcut</strong><small>Add Even Sync to Shortcuts.</small></div></div>
-      <div class="shortcut-setup-row"><span class="shortcut-step-number">2</span><div><strong>Run it once</strong><small>Tap Run Even Sync, then allow access.</small></div></div>
+      <div class="shortcut-setup-row"><span class="shortcut-step-number">2</span><div><strong>Run it once</strong><small>Tap Run Even Sync below, then allow access.</small></div></div>
       <div class="shortcut-setup-row"><span class="shortcut-step-number">3</span><div><strong>Check the connection</strong><small>Tap Test connection below.</small></div></div>
      </div>
      <div class="shortcut-upload-status">
@@ -213,12 +211,6 @@
      <div id="calendar-list" class="calendar-list"></div>
     </section>
     <details class="card disclosure" id="device-details"><summary>Devices and data</summary>
-    <div class="card" id="shortcut-credentials">
-     <div class="section-heading compact"><h2>Your device key</h2></div>
-     <p class="muted">Treat it like a password.</p>
-     <div class="copy-field"><code id="sync-token">Generate a device key</code><button type="button" data-copy="token">Copy</button></div>
-     <p class="muted shortcut-credentials-note">Running from this app sends it for you. Paste it only if Even Sync asks.</p>
-    </div>
     <div class="card" id="device-manager">
      <div class="section-heading compact"><h2>My devices</h2></div>
      <div id="device-list" class="device-list"><p class="muted">Sign in to see your devices.</p></div>
@@ -230,6 +222,11 @@
      <h2 id="release-title">Developer tools</h2>
      <p class="muted">Change this site, or install and publish Shortcut builds.</p>
      <a class="btn primary full" id="improve-site" href="https://claude.ai/code/new?repo=Bishvili%2Feven&branch=main&q=Get%20me%20set%20up%20to%20improve%20Even.%20Follow%20the%20onboarding%20section%20of%20AGENTS.md%3A%20check%20my%20connections%2C%20help%20me%20add%20what%27s%20missing%2C%20run%20the%20tests%2C%20and%20read%20the%20frontend%20guide.%20Then%20ask%20me%20what%20I%27d%20like%20to%20change." target="_blank" rel="noopener noreferrer">Improve This Site with Claude <span aria-hidden="true">↗</span></a>
+     <details class="shortcut-advanced"><summary>How the Shortcuts work</summary><div>
+      <p><strong>Even Sync</strong> is what everyone installs. It sends Health and calendar data. Running it from this app connects it, so there’s no key to copy.</p>
+      <p><strong>Even Release</strong> is for developers. It holds no credentials, and only approved accounts can publish.</p>
+      <p>To release a change: push it and wait for the build. Tap Run Release Helper and choose Install latest build, then tap Replace. Run Even Sync and check the data. Run the helper again and choose Publish installed build.</p>
+     </div></details>
      <a class="btn secondary full" href="/install/Even%20Release.shortcut" target="_blank" rel="noopener noreferrer">Set Up Release Helper <span aria-hidden="true">↗</span></a>
      <a class="btn secondary full" href="shortcuts://run-shortcut?name=Even%20Release">Run Release Helper <span aria-hidden="true">↗</span></a>
     </section>
@@ -258,7 +255,7 @@
      <a class="btn secondary full" href="sms:988">Text 988 Lifeline</a>
      <a class="btn subtle full" href="tel:18007997233">Call the Domestic Violence Hotline</a>
     </section>
-    <div class="card"><h2>About the insights</h2><p class="muted">Comparisons need at least 3 check-ins in each group. Mood data is subjective and gaps can skew results. Nothing here is a diagnosis or proves a cause.</p><p class="muted">Version <span id="version">2.0.7</span> · No ads or analytics</p></div>
+    <div class="card"><h2>About the insights</h2><p class="muted">Comparisons need at least 3 check-ins in each group. Mood data is subjective and gaps can skew results. Nothing here is a diagnosis or proves a cause.</p><p class="muted">Version <span id="version">2.1.0</span> · No ads or analytics</p></div>
     <div class="card"><h2>Explore a sample month</h2><p class="muted">See 28 days of fictional check-ins and events. They stay separate from your own data and are never uploaded.</p><button class="btn secondary full" id="demo-button">Load 28-day calendar demo</button><button class="btn subtle full" id="clear-demo-button">Remove demo data</button></div>
    </section>
   </main>
@@ -278,6 +275,7 @@
     <li>Send the message that’s already filled in. Claude checks your connections and helps you add what’s missing.</li>
     <li>Tell Claude what you’d like to change.</li>
    </ol>
+   <p class="muted">Changing the Shortcut? Sync → Developer tools explains how to test and publish it. You’ll never need to copy a key.</p>
    <p class="muted">Changes go live for everyone as soon as Claude pushes them, so check the result together.</p>
    <a class="btn primary full" id="welcome-improve" target="_blank" rel="noopener noreferrer">Improve This Site with Claude <span aria-hidden="true">↗</span></a>
    <button type="button" class="btn subtle full" id="welcome-close">Maybe later</button>
