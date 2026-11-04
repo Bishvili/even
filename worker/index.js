@@ -194,14 +194,21 @@ async function deliverPush(env,key,sub,now){
  else await env.DB.prepare("UPDATE even_push_subscriptions SET last_push_status=? WHERE endpoint=?").bind(sent.status,endpoint).run();
  return sent;
 }
+const SMART_QUIET_MS=5400000;
+function dueTarget(times,minutes){
+ const targets=times.map(t=>{const[h,m]=t.split(":").map(Number);return h*60+m;}).filter(t=>t<=minutes&&minutes-t<60);
+ return targets.length?Math.max(...targets):null;
+}
 async function sendReminders(env,now=new Date()){
  const key=pushKey(env);if(!key)return;
- const due=await env.DB.prepare("SELECT s.endpoint,s.p256dh,s.auth,s.remind_at,s.time_zone,s.last_sent_day FROM even_push_subscriptions s JOIN even_devices d ON d.device_id=s.device_id WHERE d.revoked_at IS NULL AND s.p256dh IS NOT NULL").bind().all();
- for(const sub of due.results||[]){
-  const local=localTime(sub.time_zone,now),[hour,minute]=sub.remind_at.split(":").map(Number),target=hour*60+minute;
-  if(sub.last_sent_day===local.day||local.minutes<target||local.minutes>=target+60)continue;
-  const sent=await deliverPush(env,key,sub,now);
-  if(sent.ok)await env.DB.prepare("UPDATE even_push_subscriptions SET last_sent_day=? WHERE endpoint=?").bind(local.day,sub.endpoint).run();
+ const subs=await env.DB.prepare("SELECT s.endpoint,s.p256dh,s.auth,s.mode,s.times,s.time_zone,s.last_sent_day,s.last_sent_target,s.last_check_in_at FROM even_push_subscriptions s JOIN even_devices d ON d.device_id=s.device_id WHERE d.revoked_at IS NULL AND s.p256dh IS NOT NULL AND s.times IS NOT NULL").bind().all();
+ for(const sub of subs.results||[]){
+  const local=localTime(sub.time_zone,now),target=dueTarget(JSON.parse(sub.times),local.minutes);
+  if(target===null||(sub.last_sent_day===local.day&&sub.last_sent_target>=target))continue;
+  // A smart reminder isn't needed right after a check-in.
+  const quiet=sub.mode==="smart"&&sub.last_check_in_at&&now.getTime()-new Date(sub.last_check_in_at).getTime()<SMART_QUIET_MS;
+  const sent=quiet?{ok:true}:await deliverPush(env,key,sub,now);
+  if(sent.ok)await env.DB.prepare("UPDATE even_push_subscriptions SET last_sent_day=?,last_sent_target=? WHERE endpoint=?").bind(local.day,target,sub.endpoint).run();
  }
 }
 async function syncApi(request,env,path){
@@ -219,12 +226,17 @@ async function syncApi(request,env,path){
  if(path==="/api/push/key"&&request.method==="GET"){const key=pushKey(env);return reply({ok:true,key:key?pushPublicKey(key):null});}
  if(path==="/api/push/subscribe"&&request.method==="POST"){
   let input;try{input=await payload(request);}catch(e){return error("Invalid reminder request");}
-  const endpoint=pushEndpoint(input?.endpoint),remindAt=String(input?.remindAt||""),timeZone=String(input?.timeZone||"");
+  const endpoint=pushEndpoint(input?.endpoint),mode=input?.mode,times=input?.times,timeZone=String(input?.timeZone||"");
   const p256dh=String(input?.keys?.p256dh||""),auth=String(input?.keys?.auth||"");
   try{if(fromBase64url(p256dh).length!==65||fromBase64url(auth).length!==16)return error("Invalid reminder request");}catch(e){return error("Invalid reminder request");}
-  if(!endpoint||!REMIND_AT.test(remindAt))return error("Invalid reminder request");
+  if(!endpoint||!["smart","custom"].includes(mode)||!Array.isArray(times)||!times.length||times.length>24||!times.every(t=>REMIND_AT.test(String(t))))return error("Invalid reminder request");
+  const schedule=JSON.stringify([...new Set(times.map(String))].sort());
   try{localTime(timeZone,new Date());}catch(e){return error("Invalid reminder request");}
-  await env.DB.prepare("INSERT INTO even_push_subscriptions(endpoint,owner_email,device_id,remind_at,time_zone,created_at,p256dh,auth) VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(endpoint) DO UPDATE SET p256dh=excluded.p256dh,auth=excluded.auth,owner_email=excluded.owner_email,device_id=excluded.device_id,remind_at=excluded.remind_at,time_zone=excluded.time_zone,last_sent_day=CASE WHEN even_push_subscriptions.remind_at=excluded.remind_at THEN even_push_subscriptions.last_sent_day END").bind(endpoint,owner,dev.id,remindAt,timeZone,new Date().toISOString(),p256dh,auth).run();
+  await env.DB.prepare("INSERT INTO even_push_subscriptions(endpoint,owner_email,device_id,mode,times,time_zone,created_at,p256dh,auth) VALUES(?,?,?,?,?,?,?,?,?) ON CONFLICT(endpoint) DO UPDATE SET p256dh=excluded.p256dh,auth=excluded.auth,owner_email=excluded.owner_email,device_id=excluded.device_id,mode=excluded.mode,times=excluded.times,time_zone=excluded.time_zone").bind(endpoint,owner,dev.id,mode,schedule,timeZone,new Date().toISOString(),p256dh,auth).run();
+  return reply({ok:true});
+ }
+ if(path==="/api/push/check-in"&&request.method==="POST"){
+  await env.DB.prepare("UPDATE even_push_subscriptions SET last_check_in_at=? WHERE owner_email=?").bind(new Date().toISOString(),owner).run();
   return reply({ok:true});
  }
  if(path==="/api/push/unsubscribe"&&request.method==="POST"){
@@ -337,7 +349,7 @@ async function syncApi(request,env,path){
  return error("Not found",404);
 }
 async function api(request,env,ctx,path){
- if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:"Even",version:"2.1.0",sync:"email-access"});
+ if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:"Even",version:"2.2.0",sync:"email-access"});
  if(path.startsWith("/api/auth/"))return authApi(request,env,ctx,path);
  return syncApi(request,env,path);
 }

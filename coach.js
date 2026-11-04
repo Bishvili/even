@@ -81,7 +81,31 @@
   return new Date(today).getTime()-last>=7*DAY_MS;
  }
 
- var api={outlook:outlook,patterns:patterns,brief:brief,hardStretch:hardStretch,steadiness:steadiness,reflectionDue:reflectionDue,REFLECTION:REFLECTION};
+ function minutesOf(time){var p=time.split(":");return Number(p[0])*60+Number(p[1]);}
+ function timeOf(minutes){return String(Math.floor(minutes/60)).padStart(2,"0")+":"+String(minutes%60).padStart(2,"0");}
+ // Spreads reminders across the window, favoring the times check-ins usually happen.
+ function smartTimes(moods,from,to,count,today){
+  var start=minutesOf(from),end=minutesOf(to),cutoff=new Date(today).getTime()-30*DAY_MS,buckets={},times=[];
+  if(end<=start)return[];
+  moods.forEach(function(m){
+   var d=new Date(m.ts);if(d.getTime()<cutoff)return;
+   var at=Math.floor((d.getHours()*60+d.getMinutes())/30)*30;buckets[at]=(buckets[at]||0)+1;
+  });
+  var span=(end-start)/count;
+  for(var i=0;i<count;i++){
+   var low=start+span*i,high=low+span,best=null;
+   Object.keys(buckets).map(Number).forEach(function(at){if(at>=low&&at<high&&(best===null||buckets[at]>buckets[best]))best=at;});
+   times.push(timeOf(best===null?Math.round((low+span/2)/5)*5:best));
+  }
+  return times.filter(function(t,n){return times.indexOf(t)===n;});
+ }
+ function repeatTimes(from,to,everyHours){
+  var times=[],end=minutesOf(to);
+  for(var at=minutesOf(from);at<=end;at+=everyHours*60)times.push(timeOf(at));
+  return times;
+ }
+
+ var api={smartTimes:smartTimes,repeatTimes:repeatTimes,outlook:outlook,patterns:patterns,brief:brief,hardStretch:hardStretch,steadiness:steadiness,reflectionDue:reflectionDue,REFLECTION:REFLECTION};
  root.EvenCoach=api;
  if(typeof document==="undefined"||!root.EvenApp)return;
 

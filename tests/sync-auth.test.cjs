@@ -46,9 +46,10 @@ function harness({verified=false}={}){
     if(sql.startsWith("UPDATE even_devices SET last_attempt_at")){for(const d of rows.devices.values())if(d.device_id===args[2]&&d.owner_email===args[3]&&!d.revoked_at){d.last_attempt_at=args[0];if(sql.includes("last_error_code=NULL,shortcut_version=?")){d.last_error_code=null;d.shortcut_version=args[1];}else d.last_error_code=args[1];}return{meta:{changes:1}};}
     if(sql.startsWith("UPDATE even_devices SET last_used_at")){for(const d of rows.devices.values())if(d.device_id===args[3]&&d.owner_email===args[4]&&!d.revoked_at){d.last_used_at=args[0];d.last_attempt_at=args[1];d.last_error_code=null;d.shortcut_version=args[2]||d.shortcut_version;}return{meta:{changes:1}};}
     if(sql.startsWith("INSERT INTO even_health_metrics")){rows.health.set(args[0]+"|"+args[1]+"|"+args[2],{owner:args[0],day:args[1],metric:args[2],value:args[3]});return{meta:{changes:1}};}
-    if(sql.startsWith("INSERT INTO even_push_subscriptions")){rows.subs.set(args[0],{endpoint:args[0],owner:args[1],device_id:args[2],remind_at:args[3],time_zone:args[4],p256dh:args[6],auth:args[7],last_sent_day:null});return{meta:{changes:1}};}
+    if(sql.startsWith("INSERT INTO even_push_subscriptions")){rows.subs.set(args[0],{endpoint:args[0],owner:args[1],device_id:args[2],mode:args[3],times:args[4],time_zone:args[5],p256dh:args[7],auth:args[8],last_sent_day:null,last_sent_target:null,last_check_in_at:null});return{meta:{changes:1}};}
+    if(sql.includes("SET last_check_in_at")){for(const x of rows.subs.values())if(x.owner===args[1])x.last_check_in_at=args[0];return{meta:{changes:1}};}
     if(sql.includes("SET last_push_status"))return{meta:{changes:1}};
-    if(sql.startsWith("UPDATE even_push_subscriptions")){rows.subs.get(args[1]).last_sent_day=args[0];return{meta:{changes:1}};}
+    if(sql.startsWith("UPDATE even_push_subscriptions")){const s=rows.subs.get(args[2]);s.last_sent_day=args[0];s.last_sent_target=args[1];return{meta:{changes:1}};}
     if(sql.startsWith("DELETE FROM even_push_subscriptions WHERE endpoint=? AND owner_email=?")){const s=rows.subs.get(args[0]);if(s&&s.owner===args[1])rows.subs.delete(args[0]);return{meta:{changes:1}};}
     if(sql.startsWith("DELETE FROM even_push_subscriptions"))  {rows.subs.delete(args[0]);return{meta:{changes:1}};}
     if(sql.startsWith("UPDATE even_release_emails")){if(args[1]==="owner-a@example.com")rows.welcomed=true;return{meta:{changes:1}};}
@@ -131,11 +132,11 @@ test("reminders are validated, owner-scoped, sent once a day, and stop when a de
  const A={Authorization:"Bearer "+a.data.token},B={Authorization:"Bearer "+b.data.token};
  const device=await webcrypto.subtle.generateKey({name:"ECDH",namedCurve:"P-256"},true,["deriveBits"]);
  const devicePublic=new Uint8Array(await webcrypto.subtle.exportKey("raw",device.publicKey)),authSecret=webcrypto.getRandomValues(new Uint8Array(16));
- const endpoint="https://web.push.apple.com/abc",good={endpoint,remindAt:"20:00",timeZone:"America/Los_Angeles",keys:{p256dh:Buffer.from(devicePublic).toString("base64url"),auth:Buffer.from(authSecret).toString("base64url")}};
+ const endpoint="https://web.push.apple.com/abc",good={endpoint,mode:"custom",times:["20:00"],timeZone:"America/Los_Angeles",keys:{p256dh:Buffer.from(devicePublic).toString("base64url"),auth:Buffer.from(authSecret).toString("base64url")}};
  assert.equal((await call("/api/push/subscribe",{method:"POST",body:{...good,keys:{}},headers:A})).status,400);
  assert.equal((await call("/api/push/subscribe",{method:"POST",body:good})).status,401);
  assert.equal((await call("/api/push/subscribe",{method:"POST",body:{...good,endpoint:"https://attacker.example/x"},headers:A})).status,400);
- assert.equal((await call("/api/push/subscribe",{method:"POST",body:{...good,remindAt:"25:00"},headers:A})).status,400);
+ assert.equal((await call("/api/push/subscribe",{method:"POST",body:{...good,times:["25:00"]},headers:A})).status,400);
  assert.equal((await call("/api/push/subscribe",{method:"POST",body:{...good,timeZone:"Nowhere/Fake"},headers:A})).status,400);
  assert.equal((await call("/api/push/subscribe",{method:"POST",body:good,headers:A})).status,200);
  await call("/api/push/unsubscribe",{method:"POST",body:{endpoint},headers:B});
@@ -179,6 +180,32 @@ test("the release helper downloads under the name the app runs",async()=>{
  const response=await runtime.__worker.fetch(new Request("https://even.bishvili.workers.dev/install/Even%20Release.shortcut"),env,{});
  assert.equal(response.status,200);
  assert.match(response.headers.get("Content-Disposition"),/filename="Even Release\.shortcut"/);
+});
+test("several reminder times each send once, and a check-in quiets smart reminders only",async()=>{
+ const{call,ctx,rows,env,runtime,dispatches}=harness();
+ const pair=await webcrypto.subtle.generateKey({name:"ECDSA",namedCurve:"P-256"},true,["sign"]);
+ env.VAPID_PRIVATE_KEY=JSON.stringify(await webcrypto.subtle.exportKey("jwk",pair.privateKey));
+ const device=await webcrypto.subtle.generateKey({name:"ECDH",namedCurve:"P-256"},true,["deriveBits"]);
+ const keys={p256dh:Buffer.from(await webcrypto.subtle.exportKey("raw",device.publicKey)).toString("base64url"),auth:Buffer.alloc(16,1).toString("base64url")};
+ const a=await call("/api/auth/device",{method:"POST",body:{label:"A"},context:ctx("owner-a@example.com")});
+ const A={Authorization:"Bearer "+a.data.token},endpoint="https://web.push.apple.com/abc";
+ const save=(mode,times)=>call("/api/push/subscribe",{method:"POST",body:{endpoint,keys,mode,times,timeZone:"UTC"},headers:A});
+ assert.equal((await save("other",["09:00"])).status,400);
+ assert.equal((await save("custom",[])).status,400);
+ assert.equal((await save("custom",["09:00","11:00"])).status,200);
+ const send=at=>runtime.sendReminders(env,new Date(at));
+ await send("2026-11-04T09:05:00Z");await send("2026-11-04T09:20:00Z");
+ assert.equal(dispatches.length,1);
+ await send("2026-11-04T11:05:00Z");
+ assert.equal(dispatches.length,2);
+ await call("/api/push/check-in",{method:"POST",body:{},headers:A});
+ await save("smart",["23:30"]);
+ const checkedIn=[...rows.subs.values()][0];checkedIn.last_check_in_at="2026-11-04T23:00:00Z";
+ await send("2026-11-04T23:35:00Z");
+ assert.equal(dispatches.length,2);
+ checkedIn.last_check_in_at="2026-11-04T20:00:00Z";checkedIn.last_sent_day=null;
+ await send("2026-11-04T23:35:00Z");
+ assert.equal(dispatches.length,3);
 });
 test("owner A data cannot be read or erased by owner B",async()=>{
  const{call,ctx}=harness();

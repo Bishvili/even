@@ -168,3 +168,4 @@ input::-webkit-date-and-time-value{text-align:left}
 .topbar,#main{position:relative;z-index:2}
 .pull-settling{transition:transform .22s ease-out}
 @media(prefers-reduced-motion:reduce){.pull-settling,.pull-indicator .pull-ring-fill{transition:none}}
+.reminder-modes{margin:12px 0 4px}.calendar-row select{flex:none;width:auto}

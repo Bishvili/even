@@ -2,7 +2,7 @@
 const test=require("node:test");
 const assert=require("node:assert/strict");
 require("../coach.js");
-const {outlook,patterns,brief,hardStretch,steadiness,reflectionDue}=globalThis.EvenCoach;
+const {outlook,patterns,brief,hardStretch,steadiness,reflectionDue,smartTimes,repeatTimes}=globalThis.EvenCoach;
 const today=new Date(2026,10,3,12);// a Tuesday
 const at=(daysAgo,hour=12)=>{const d=new Date(today);d.setDate(d.getDate()-daysAgo);d.setHours(hour);return d.toISOString();};
 
@@ -53,4 +53,16 @@ test("the reflection is due at first and again after seven days",()=>{
  assert.equal(reflectionDue([],today),true);
  assert.equal(reflectionDue([{ts:at(3)}],today),false);
  assert.equal(reflectionDue([{ts:at(7)}],today),true);
+});
+test("smart reminders favor usual check-in times and stay inside the window",()=>{
+ const local=(hour,minute)=>{const d=new Date(today);d.setHours(hour,minute);return d.toISOString();};
+ const moods=[{ts:local(10,5)},{ts:local(10,20)},{ts:local(23,0)}];
+ const times=smartTimes(moods,"09:00","21:00",2,today);
+ assert.equal(times[0],"10:00");
+ assert.equal(times[1],"18:00");
+ assert.equal(smartTimes([],"09:00","21:00",3,today).length,3);
+ assert.deepEqual(smartTimes([],"21:00","09:00",2,today),[]);
+});
+test("repeating reminders run every interval through the end of the window",()=>{
+ assert.deepEqual(repeatTimes("09:00","15:00",2),["09:00","11:00","13:00","15:00"]);
 });
