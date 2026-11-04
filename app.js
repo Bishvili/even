@@ -1,6 +1,6 @@
 (function () {
 "use strict";
-var VERSION = "2.8.1";
+var VERSION = "2.8.2";
 var SHORTCUT_PAGE = "https://routinehub.co/shortcut/26978/";
 var STORAGE_KEY = "even:v1";
 var MOOD_NAMES = ["","Rough","Low","Okay","Good","Great"];
@@ -52,8 +52,7 @@ function alarmRow(a){
 function renderAlarms(){
  var on=state.alarms.filter(function(a){return a.enabled!==false;}),off=state.alarms.filter(function(a){return a.enabled===false;});
  $("alarm-empty").hidden=state.alarms.length>0;
- $("alarm-list").replaceChildren.apply($("alarm-list"),on.map(alarmRow));
- $("alarm-off-list").replaceChildren.apply($("alarm-off-list"),off.map(alarmRow));
+ [["alarm-list",on],["alarm-off-list",off]].forEach(function(group){var list=$(group[0]);list.textContent="";group[1].forEach(function(a){list.appendChild(alarmRow(a));});});
  $("alarm-off").hidden=!off.length;
  $("alarm-off-count").textContent=off.length+(off.length===1?" alarm off":" alarms off");
 }
