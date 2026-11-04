@@ -167,3 +167,4 @@ input::-webkit-date-and-time-value{text-align:left}
 .calendar-row input[type=checkbox]{background:var(--line)}.calendar-row input[type=checkbox]:checked{background:var(--pine)}.calendar-row input[type=checkbox]::before{background:#fff}
 .btn.danger{background:#FFF0EC;color:#A24D43}#erase-remote{color:#A24D43}
 @media(prefers-color-scheme:dark){.btn.danger{background:#3B2320;color:#F0A89D}#erase-remote{color:#F0A89D}}
+.update-banner{z-index:31;padding-right:12px}

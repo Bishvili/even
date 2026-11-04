@@ -1,6 +1,6 @@
 (function () {
 "use strict";
-var VERSION = "2.0.3";
+var VERSION = "2.0.4";
 var SHORTCUT_PAGE = "https://routinehub.co/shortcut/26978/";
 var STORAGE_KEY = "even:v1";
 var MOOD_NAMES = ["","Rough","Low","Okay","Good","Great"];
@@ -597,6 +597,22 @@ async function eraseRemote(){
  if(!confirm("Permanently delete Health and Calendar sync records for "+state.syncOwnerEmail+" only? Local records on this iPhone will remain."))return;
  try{var r=await fetch("/api/erase",{method:"POST",headers:{"Authorization":"Bearer "+state.token},cache:"no-store"});if(!r.ok)throw Error("Delete failed");toast("Synced data erased.");}catch(e){toast("Could not delete cloud data.");}
 }
+function hasDraft(){return !!selectedMood||!!selectedStress||selectedTags.size>0||!!$("mood-note").value.trim();}
+function watchForUpdates(){
+ if(!("serviceWorker" in navigator))return;
+ var wasControlled=!!navigator.serviceWorker.controller,updateReady=false,registration=null;
+ window.addEventListener("load",function(){navigator.serviceWorker.register("/sw.js").then(function(r){registration=r;}).catch(function(){});});
+ navigator.serviceWorker.addEventListener("controllerchange",function(){
+  if(!wasControlled){wasControlled=true;return;}
+  updateReady=true;
+  if(document.hidden&&!hasDraft())window.location.reload();else $("update-banner").hidden=false;
+ });
+ document.addEventListener("visibilitychange",function(){
+  if(!document.hidden){if(registration)registration.update().catch(function(){});return;}
+  if(updateReady&&!hasDraft())window.location.reload();
+ });
+ $("apply-update").addEventListener("click",function(){window.location.reload();});
+}
 function init(){
  $("health-date").value=dateKey(now());var start=new Date();start.setMinutes(0,0,0);start.setHours(start.getHours()+1);var end=new Date(start);end.setHours(end.getHours()+1);$("cal-start").value=localDateTime(start);$("cal-end").value=localDateTime(end);
  document.querySelectorAll("[data-go]").forEach(function(b){b.addEventListener("click",function(ev){ev.preventDefault();navigate(b.dataset.go);if(b.dataset.go==="sync"){refreshAuth();loadShortcutRelease();loadCalendars();checkShortcutUpload(true);}});});
@@ -636,7 +652,7 @@ function init(){
  if(state.token&&navigator.onLine){loadShortcutRelease();loadCalendars();checkShortcutUpload(true);pull(true);}
  window.addEventListener("online",function(){refreshAuth();if(state.token){loadShortcutRelease();loadCalendars();checkShortcutUpload(true);pull(true);}});
  document.addEventListener("visibilitychange",function(){if(!document.hidden){refreshAuth();if(state.token){loadShortcutRelease();loadCalendars();checkShortcutUpload(true);if(shortcutRunPending){shortcutRunPending=false;pull(false);}else if(!state.lastSync||Date.now()-state.lastSync>900000)pull(true);}}});
- if("serviceWorker" in navigator){window.addEventListener("load",function(){navigator.serviceWorker.register("/sw.js").catch(function(){});});}
+ watchForUpdates();
 }
 globalThis.EvenApp={refreshCoach:refreshCoach,addReflection:function(r){state.reflections.push(r);if(persist())render();},toast:toast,formatTime:formatTime,deviceToken:function(){return state.token;}};
 init();
