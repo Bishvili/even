@@ -134,8 +134,15 @@ async function authApi(request,env,ctx,path){
  if(path.startsWith("/api/auth/testers")){
   if(!await canRelease(env,email))return error("This account can't manage testers",403);
   if(path==="/api/auth/testers"&&request.method==="GET"){
-   const rows=await env.DB.prepare("SELECT email FROM even_approved_emails ORDER BY email").bind().all();
-   return reply({ok:true,testers:(rows.results||[]).map(r=>r.email)});
+   const [added,developers,users]=await Promise.all([
+    env.DB.prepare("SELECT email FROM even_approved_emails").bind().all(),
+    env.DB.prepare("SELECT email,display_name FROM even_release_emails").bind().all(),
+    env.DB.prepare("SELECT email FROM even_users").bind().all()
+   ]);
+   const removable=new Set((added.results||[]).map(r=>r.email)),names=new Map((developers.results||[]).map(r=>[r.email,r.display_name])),signedIn=new Set((users.results||[]).map(r=>r.email));
+   ownerEmails(env).forEach(owner=>removable.delete(owner));
+   const everyone=[...new Set([...ownerEmails(env),...names.keys(),...(added.results||[]).map(r=>r.email)])].sort();
+   return reply({ok:true,testers:everyone.map(address=>({email:address,name:names.get(address)||null,signedIn:signedIn.has(address),removable:removable.has(address)}))});
   }
   if(!browserPostAllowed(request))return error("Same-origin JSON POST required",403);
   let input;try{input=await payload(request);}catch(e){return error("Invalid request");}
@@ -143,6 +150,10 @@ async function authApi(request,env,ctx,path){
   if(tester.length>254||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(tester))return error("Enter a valid email address.");
   if(path==="/api/auth/testers"){
    await env.DB.prepare("INSERT OR IGNORE INTO even_approved_emails(email,added_by,created_at) VALUES(?,?,?)").bind(tester,email,new Date().toISOString()).run();
+   return reply({ok:true,emailed:await sendInvite(env,tester)});
+  }
+  if(path==="/api/auth/testers/invite"){
+   if(!await approved(env,tester)&&!await canRelease(env,tester))return error("Add this email first.",404);
    return reply({ok:true,emailed:await sendInvite(env,tester)});
   }
   if(path==="/api/auth/testers/remove"){
@@ -446,7 +457,7 @@ async function syncApi(request,env,path){
  return error("Not found",404);
 }
 async function api(request,env,ctx,path){
- if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:"Even",version:"2.5.1",sync:"email-access"});
+ if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:"Even",version:"2.5.2",sync:"email-access"});
  if(path.startsWith("/api/auth/"))return authApi(request,env,ctx,path);
  return syncApi(request,env,path);
 }

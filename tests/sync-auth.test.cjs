@@ -39,6 +39,8 @@ function harness({verified=false}={}){
    },
    async all(){
     if(sql.startsWith("SELECT email FROM even_approved_emails"))return{results:[...rows.approved.keys()].map(email=>({email}))};
+    if(sql.startsWith("SELECT email,display_name FROM even_release_emails"))return{results:[{email:"owner-a@example.com",display_name:"Ada"}]};
+    if(sql.startsWith("SELECT email FROM even_users"))return{results:[...rows.users.keys()].map(email=>({email}))};
     if(sql.startsWith("SELECT s.endpoint"))return{results:[...rows.subs.values()].filter(s=>[...rows.devices.values()].some(d=>d.device_id===s.device_id&&!d.revoked_at))};
     if(sql.startsWith("SELECT name FROM even_calendars"))return{results:[...rows.calendars.values()].filter(c=>c.owner===args[0]&&!c.enabled)};
     if(sql.startsWith("SELECT name,enabled FROM even_calendars"))return{results:[...rows.calendars.values()].filter(c=>c.owner===args[0])};
@@ -277,9 +279,20 @@ test("release accounts manage testers, and removal ends a tester's access",async
  assert.equal((await call("/api/auth/testers",{method:"POST",body:{email:"New@Example.com"},context:a})).data.emailed,true);
  assert.equal(dispatches.at(-1).url,"https://api.resend.com/emails");
  assert.deepEqual(JSON.parse(dispatches.at(-1).init.body).to,["new@example.com"]);
- assert.deepEqual((await call("/api/auth/testers",{context:a})).data.testers,["new@example.com"]);
+ const everyone=(await call("/api/auth/testers",{context:a})).data.testers;
+ assert.deepEqual(everyone.map(t=>t.email),["new@example.com","owner-a@example.com","owner-b@example.com"]);
+ assert.equal(everyone[0].removable,true);
+ assert.equal(everyone[0].signedIn,false);
+ assert.equal(everyone[1].name,"Ada");
+ assert.equal(everyone[1].removable,false);
+ const before=dispatches.length;
+ assert.equal((await call("/api/auth/testers/invite",{method:"POST",body:{email:"new@example.com"},context:b})).status,403);
+ assert.equal((await call("/api/auth/testers/invite",{method:"POST",body:{email:"stranger@example.com"},context:a})).status,404);
+ assert.equal((await call("/api/auth/testers/invite",{method:"POST",body:{email:"new@example.com"},context:a})).data.emailed,true);
+ assert.equal(dispatches.length,before+1);
  assert.equal((await call("/api/auth/me",{context:tester})).status,200);
  const device=await call("/api/auth/device",{method:"POST",body:{label:"T"},context:tester});
+ assert.equal((await call("/api/auth/testers",{context:a})).data.testers[0].signedIn,true);
  assert.equal((await call("/api/sync/status",{headers:{Authorization:"Bearer "+device.data.token}})).status,200);
  assert.equal((await call("/api/auth/testers/remove",{method:"POST",body:{email:"new@example.com"},context:a})).status,200);
  assert.equal((await call("/api/auth/me",{context:tester})).status,401);

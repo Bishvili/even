@@ -4,17 +4,33 @@
  function $(id){return document.getElementById(id);}
  function send(path,email){return fetch(path,{method:"POST",credentials:"same-origin",cache:"no-store",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:email})});}
 
+ function action(label,handler){
+  var button=document.createElement("button");
+  button.type="button";button.className="small-action";button.textContent=label;button.addEventListener("click",handler);
+  return button;
+ }
+ function resend(email,button){
+  button.disabled=true;
+  send("/api/auth/testers/invite",email).then(function(r){return r.json().then(function(data){
+   app.toast(r.ok&&data.emailed?"Invitation sent to "+email+".":"The email didn’t send. Share the link instead.");
+  });}).catch(function(){app.toast("The email didn’t send. Share the link instead.");}).finally(function(){button.disabled=false;});
+ }
+ function remove(email){
+  if(!confirm("Remove "+email+"? They’ll lose access to Sync."))return;
+  send("/api/auth/testers/remove",email).then(function(r){if(!r.ok)throw Error();app.toast(email+" removed.");load();}).catch(function(){app.toast("Couldn’t remove that email.");});
+ }
  function renderList(testers){
   var list=$("tester-list");list.textContent="";
-  testers.forEach(function(email){
-   var row=document.createElement("div"),name=document.createElement("span"),remove=document.createElement("button");
-   row.className="calendar-row";name.textContent=email;
-   remove.type="button";remove.className="small-action";remove.textContent="Remove";
-   remove.addEventListener("click",function(){
-    if(!confirm("Remove "+email+"? They’ll lose access to Sync."))return;
-    send("/api/auth/testers/remove",email).then(function(r){if(!r.ok)throw Error();app.toast(email+" removed.");load();}).catch(function(){app.toast("Couldn’t remove that email.");});
-   });
-   row.appendChild(name);row.appendChild(remove);list.appendChild(row);
+  testers.forEach(function(tester){
+   var row=document.createElement("div"),who=document.createElement("div"),title=document.createElement("strong"),status=document.createElement("small"),actions=document.createElement("div");
+   row.className="tester-row";actions.className="tester-actions";
+   title.textContent=tester.name?tester.name+" · "+tester.email:tester.email;
+   status.textContent=tester.signedIn?"Signed in":"Not signed in yet";
+   who.appendChild(title);who.appendChild(status);
+   var invite=action("Resend invite",function(){resend(tester.email,invite);});
+   actions.appendChild(invite);
+   if(tester.removable)actions.appendChild(action("Remove",function(){remove(tester.email);}));
+   row.appendChild(who);row.appendChild(actions);list.appendChild(row);
   });
  }
  function load(){
