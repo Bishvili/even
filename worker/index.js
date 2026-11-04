@@ -127,8 +127,8 @@ async function sendInvite(env,to){
  try{
   const sent=await fetch("https://api.resend.com/emails",{method:"POST",headers:{"Authorization":"Bearer "+env.RESEND_API_KEY,"Content-Type":"application/json"},body:JSON.stringify({
    from:"Even <hello@bishvili.org>",to:[to],subject:"You're invited to try Even",
-   text:"You've been invited to try Even, a private way to understand your harder days.\n\n"+url+"\n\n"+steps.map((s,i)=>(i+1)+". "+s).join("\n"),
-   html:'<p>You\'ve been invited to try Even, a private way to understand your harder days.</p><p><a href="'+url+'">Open Even</a></p><ol>'+steps.map(s=>"<li>"+s+"</li>").join("")+"</ol>"
+   text:"You've been invited to try Even, a private way to understand your harder days.\n\n"+url+"\n\n"+steps.map((s,i)=>(i+1)+". "+s).join("\n")+"\n\nHow Even works: "+url+"whitepaper.html",
+   html:'<p>You\'ve been invited to try Even, a private way to understand your harder days.</p><p><a href="'+url+'">Open Even</a></p><ol>'+steps.map(s=>"<li>"+s+"</li>").join("")+'</ol><p><a href="'+url+'whitepaper.html">How Even works</a></p>'
   })});
   return sent.ok;
  }catch(e){return false;}
@@ -521,7 +521,7 @@ async function syncApi(request,env,path){
  return error("Not found",404);
 }
 async function api(request,env,ctx,path){
- if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:"Even",version:"2.7.1",sync:"email-access"});
+ if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:"Even",version:"2.7.2",sync:"email-access"});
  if(path.startsWith("/api/auth/"))return authApi(request,env,ctx,path);
  return syncApi(request,env,path);
 }

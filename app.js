@@ -1,6 +1,6 @@
 (function () {
 "use strict";
-var VERSION = "2.7.1";
+var VERSION = "2.7.2";
 var SHORTCUT_PAGE = "https://routinehub.co/shortcut/26978/";
 var STORAGE_KEY = "even:v1";
 var MOOD_NAMES = ["","Rough","Low","Okay","Good","Great"];
@@ -657,7 +657,7 @@ function init(){
  $("check-shortcut-upload").addEventListener("click",function(){checkShortcutUpload(false);});
  $("device-list").addEventListener("click",function(e){var b=e.target.closest("[data-revoke-device]");if(b)revokeDevice(b.dataset.revokeDevice);});
  // An installed app can't save downloads, so hand this one to Safari.
- if(navigator.standalone===true)$("whitepaper-link").href="x-safari-https://"+location.host+"/whitepaper.html";
+ if(navigator.standalone===true)["whitepaper-link","welcome-paper"].forEach(function(id){$(id).href="x-safari-https://"+location.host+"/whitepaper.html";});
  $("run-sync-now").addEventListener("click",function(){$("run-sync-dialog").close();runShortcut();});$("run-sync-later").addEventListener("click",function(){$("run-sync-dialog").close();});$("welcome-close").addEventListener("click",closeWelcome);$("welcome-improve").addEventListener("click",closeWelcome);
  var navTouch=null;
  document.querySelector(".bottom-nav").addEventListener("touchstart",function(ev){var t=ev.changedTouches[0];navTouch={x:t.clientX,y:t.clientY};},{passive:true});
