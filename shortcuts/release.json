@@ -1,7 +1,7 @@
 {
-  "version": "2.9.0",
-  "url": "https://www.icloud.com/shortcuts/dcbdb24afc0e4062ae148a33513ae702",
+  "version": "3.0.0",
+  "url": "https://www.icloud.com/shortcuts/9495bd908a6a493c97faf15afecb55fa",
   "publishedAt": "2026-11-04",
-  "notes": "Bug fixes and improvements.",
+  "notes": "Syncs faster, brings in tomorrow's events, and counts sleep correctly when you wear more than one device.",
   "verified": true
 }
