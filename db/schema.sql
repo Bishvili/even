@@ -53,5 +53,6 @@ CREATE TABLE IF NOT EXISTS even_push_subscriptions (
   remind_at TEXT NOT NULL,
   time_zone TEXT NOT NULL,
   last_sent_day TEXT,
+  last_push_status INTEGER,
   created_at TEXT NOT NULL
 );

@@ -21,6 +21,7 @@ function harness({verified=false}={}){
  const env={GITHUB_API_KEY:"server-only",APPROVED_SYNC_EMAILS:JSON.stringify(allowed),ASSETS:{async get(key){return key==="config:shortcut:latest"?release:null;}},DB:{
   prepare(sql){return{bind(...args){return {
    async first(){
+    if(sql.startsWith("SELECT endpoint FROM even_push_subscriptions")){const s=rows.subs.get(args[0]);return s&&s.owner===args[1]?{endpoint:s.endpoint}:null;}
     if(sql.includes("SELECT display_name"))return args[0]==="owner-a@example.com"&&!rows.welcomed?{display_name:"Ada"}:null;
     if(sql.includes("FROM even_release_emails"))return args[0]==="owner-a@example.com"?{allowed:1}:null;
     if(sql.includes("SELECT device_id,owner_email,revoked_at"))return rows.devices.get(args[0])||null;
@@ -47,6 +48,7 @@ function harness({verified=false}={}){
     if(sql.startsWith("UPDATE even_devices SET last_used_at")){for(const d of rows.devices.values())if(d.device_id===args[3]&&d.owner_email===args[4]&&!d.revoked_at){d.last_used_at=args[0];d.last_attempt_at=args[1];d.last_error_code=null;d.shortcut_version=args[2]||d.shortcut_version;}return{meta:{changes:1}};}
     if(sql.startsWith("INSERT INTO even_health_metrics")){rows.health.set(args[0]+"|"+args[1]+"|"+args[2],{owner:args[0],day:args[1],metric:args[2],value:args[3]});return{meta:{changes:1}};}
     if(sql.startsWith("INSERT INTO even_push_subscriptions")){rows.subs.set(args[0],{endpoint:args[0],owner:args[1],device_id:args[2],remind_at:args[3],time_zone:args[4],last_sent_day:null});return{meta:{changes:1}};}
+    if(sql.includes("SET last_push_status"))return{meta:{changes:1}};
     if(sql.startsWith("UPDATE even_push_subscriptions")){rows.subs.get(args[1]).last_sent_day=args[0];return{meta:{changes:1}};}
     if(sql.startsWith("DELETE FROM even_push_subscriptions WHERE endpoint=? AND owner_email=?")){const s=rows.subs.get(args[0]);if(s&&s.owner===args[1])rows.subs.delete(args[0]);return{meta:{changes:1}};}
     if(sql.startsWith("DELETE FROM even_push_subscriptions"))  {rows.subs.delete(args[0]);return{meta:{changes:1}};}
@@ -137,6 +139,11 @@ test("reminders are validated, owner-scoped, sent once a day, and stop when a de
  await call("/api/push/unsubscribe",{method:"POST",body:{endpoint},headers:B});
  assert.equal(rows.subs.size,1);
  const send=at=>runtime.sendReminders(env,new Date(at));
+ assert.equal((await call("/api/push/test",{method:"POST",body:{endpoint}})).status,401);
+ assert.equal((await call("/api/push/test",{method:"POST",body:{endpoint},headers:B})).status,404);
+ assert.equal((await call("/api/push/test",{method:"POST",body:{endpoint},headers:A})).status,200);
+ assert.equal(dispatches.length,1);
+ dispatches.length=0;
  await send("2026-11-04T03:00:00Z");
  assert.equal(dispatches.length,0);
  await send("2026-11-04T04:05:00Z");

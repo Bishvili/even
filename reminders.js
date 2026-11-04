@@ -3,7 +3,7 @@
  var app=window.EvenApp,toast=app.toast;
  function $(id){return document.getElementById(id);}
  var SETTINGS_KEY="even-reminder",NUDGE_GAP=3*24*60*60*1000;
- var settings=readSettings(),installEvent=null;
+ var blockedReason="",settings=readSettings(),installEvent=null;
 
  function readSettings(){try{return Object.assign({on:false,time:"08:30",nudgedAt:0},JSON.parse(localStorage.getItem(SETTINGS_KEY)||"{}"));}catch(e){return{on:false,time:"08:30",nudgedAt:0};}}
  function saveSettings(){try{localStorage.setItem(SETTINGS_KEY,JSON.stringify(settings));}catch(e){}}
@@ -26,7 +26,8 @@
   if(!canPush())blocked=isIOS()&&!isInstalled()?"Add Even to your Home Screen to turn on reminders.":"This browser can’t show reminders.";
   else if(!app.deviceToken())blocked="Sign in under Sync to turn on reminders.";
   else if(Notification.permission==="denied")blocked="Notifications are off. Turn them on in Settings.";
-  toggle.disabled=!!blocked;toggle.checked=!blocked&&settings.on;
+  blockedReason=blocked;toggle.checked=!blocked&&settings.on;
+  $("test-reminder").hidden=!toggle.checked;
   $("reminder-time").value=settings.time;
   note.textContent=blocked||"Your reminder time and time zone are saved to your account.";
  }
@@ -48,6 +49,17 @@
   await fetch("/api/push/unsubscribe",{method:"POST",headers:deviceHeaders(),cache:"no-store",body:JSON.stringify({endpoint:subscription.endpoint})});
   await subscription.unsubscribe();
  }
+ async function sendTest(){
+  var button=$("test-reminder");button.disabled=true;
+  try{
+   var registration=await navigator.serviceWorker.ready,subscription=await registration.pushManager.getSubscription();
+   if(!subscription)throw Error("Turn your reminder off and on again.");
+   var sent=await fetch("/api/push/test",{method:"POST",headers:deviceHeaders(),cache:"no-store",body:JSON.stringify({endpoint:subscription.endpoint})});
+   if(!sent.ok)throw Error("Couldn’t send a test. Turn your reminder off and on again.");
+   toast("Test sent. It should arrive in a moment.");
+  }catch(e){toast(e.message);}
+  button.disabled=false;
+ }
  async function updateReminder(on){
   var toggle=$("reminder-toggle");toggle.disabled=true;
   try{
@@ -62,7 +74,11 @@
  window.addEventListener("appinstalled",function(){installEvent=null;renderNudge();renderReminder();});
  $("install-nudge-close").addEventListener("click",dismissNudge);
  $("install-nudge-action").addEventListener("click",function(){var prompt=installEvent;installEvent=null;prompt.prompt();prompt.userChoice.finally(dismissNudge);});
- $("reminder-toggle").addEventListener("change",function(){updateReminder(this.checked);});
+ $("reminder-toggle").addEventListener("change",function(){
+  if(blockedReason){this.checked=false;toast(blockedReason);return;}
+  updateReminder(this.checked);
+ });
+ $("test-reminder").addEventListener("click",sendTest);
  $("reminder-time").addEventListener("change",function(){if(!this.value)return;settings.time=this.value;saveSettings();if(settings.on)updateReminder(true);});
  document.addEventListener("visibilitychange",function(){if(!document.hidden)renderReminder();});
  renderNudge();renderReminder();
