@@ -1,7 +1,7 @@
 {
-  "version": "3.0.0",
-  "url": "https://www.icloud.com/shortcuts/9495bd908a6a493c97faf15afecb55fa",
+  "version": "3.1.0",
+  "url": "https://www.icloud.com/shortcuts/79663b26b6e14577ac289025cf30325f",
   "publishedAt": "2026-11-04",
-  "notes": "Syncs faster, brings in tomorrow's events, and counts sleep correctly when you wear more than one device.",
+  "notes": "Follows the choices you make in Even about which data and calendars to sync.",
   "verified": true
 }
