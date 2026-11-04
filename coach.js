@@ -99,13 +99,27 @@
   }
   return times.filter(function(t,n){return times.indexOf(t)===n;});
  }
+ function median(values){var sorted=values.slice().sort(function(a,b){return a-b;});return sorted[Math.floor(sorted.length/2)];}
+ // Times after midnight count as late evening, so 00:30 sorts after 23:30.
+ function nightMinutes(minutes){return minutes<720?minutes+1440:minutes;}
+ // Prefers recorded sleep, then the last check-in of each day, then the end of the window.
+ function bedtimeReminder(health,moods,to,today){
+  var cutoff=new Date(today).getTime()-14*DAY_MS,slept=[],lastByDay={},estimate;
+  health.forEach(function(h){if(Number.isFinite(h.bedtimeMin)&&new Date(h.date+"T12:00:00").getTime()>=cutoff)slept.push(nightMinutes(h.bedtimeMin));});
+  moods.forEach(function(m){var d=new Date(m.ts);if(d.getTime()<cutoff)return;var key=localDay(d),at=nightMinutes(d.getHours()*60+d.getMinutes());if(!lastByDay[key]||at>lastByDay[key])lastByDay[key]=at;});
+  var evenings=Object.keys(lastByDay).map(function(k){return lastByDay[k];}).filter(function(at){return at>=1080;});
+  if(slept.length>=3)estimate=median(slept);
+  else if(evenings.length>=5)estimate=median(evenings)+30;
+  else estimate=nightMinutes(minutesOf(to));
+  return timeOf((estimate-20+1440)%1440);
+ }
  function repeatTimes(from,to,everyHours){
   var times=[],end=minutesOf(to);
   for(var at=minutesOf(from);at<=end;at+=everyHours*60)times.push(timeOf(at));
   return times;
  }
 
- var api={smartTimes:smartTimes,repeatTimes:repeatTimes,outlook:outlook,patterns:patterns,brief:brief,hardStretch:hardStretch,steadiness:steadiness,reflectionDue:reflectionDue,REFLECTION:REFLECTION};
+ var api={bedtimeReminder:bedtimeReminder,smartTimes:smartTimes,repeatTimes:repeatTimes,outlook:outlook,patterns:patterns,brief:brief,hardStretch:hardStretch,steadiness:steadiness,reflectionDue:reflectionDue,REFLECTION:REFLECTION};
  root.EvenCoach=api;
  if(typeof document==="undefined"||!root.EvenApp)return;
 

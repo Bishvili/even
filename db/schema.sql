@@ -51,6 +51,7 @@ CREATE TABLE IF NOT EXISTS even_push_subscriptions (
   owner_email TEXT NOT NULL REFERENCES even_users(email),
   device_id TEXT NOT NULL,
   mode TEXT,
+  bedtime_at TEXT,
   times TEXT,
   last_sent_target INTEGER,
   last_check_in_at TEXT,

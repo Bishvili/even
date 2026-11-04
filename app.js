@@ -1,6 +1,6 @@
 (function () {
 "use strict";
-var VERSION = "2.2.1";
+var VERSION = "2.3.0";
 var SHORTCUT_PAGE = "https://routinehub.co/shortcut/26978/";
 var STORAGE_KEY = "even:v1";
 var MOOD_NAMES = ["","Rough","Low","Okay","Good","Great"];
@@ -274,7 +274,7 @@ function normalizeHealth(h,source){
  if(!h||typeof h!=="object")return null;
  var date=String(h.date||"");if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||dateKey(date+"T12:00:00")!==date)return null;
  var item={date:date,source:source||h.source||"manual"};if(h.demo)item.demo=true;
- [["sleepHours",0,24],["steps",0,100000],["hrv",0,500],["restingHR",20,250],["heartRate",20,250],["workoutMin",0,1440]].forEach(function(t){if(h[t[0]]!==undefined&&h[t[0]]!==null&&h[t[0]]!==""){var n=number(h[t[0]]);if(Number.isFinite(n)&&n>=t[1]&&n<=t[2])item[t[0]]=n;}});
+ [["sleepHours",0,24],["steps",0,100000],["hrv",0,500],["restingHR",20,250],["heartRate",20,250],["bedtimeMin",0,1439],["workoutMin",0,1440]].forEach(function(t){if(h[t[0]]!==undefined&&h[t[0]]!==null&&h[t[0]]!==""){var n=number(h[t[0]]);if(Number.isFinite(n)&&n>=t[1]&&n<=t[2])item[t[0]]=n;}});
  return Object.keys(item).some(function(k){return ["sleepHours","steps","hrv","restingHR","heartRate","workoutMin"].includes(k);})?item:null;
 }
 function upsertHealth(h){var idx=state.health.findIndex(function(x){return x.date===h.date;});if(idx<0)state.health.push(h);else{var merged=Object.assign({},state.health[idx],h);if(!h.demo)delete merged.demo;state.health[idx]=merged;}}
@@ -654,7 +654,8 @@ function init(){
  window.addEventListener("online",function(){refreshAuth();if(state.token){loadShortcutRelease();loadCalendars();checkShortcutUpload(true);pull(true);}});
  document.addEventListener("visibilitychange",function(){if(!document.hidden){refreshAuth();if(state.token){loadShortcutRelease();loadCalendars();checkShortcutUpload(true);if(shortcutRunPending){shortcutRunPending=false;pull(false);}else if(!state.lastSync||Date.now()-state.lastSync>900000)pull(true);}}});
  watchForUpdates();
+ if(new URLSearchParams(location.search).get("sync")==="1"){history.replaceState(null,"","/#sync");navigate("sync");if(state.token)pull(false);}
 }
-globalThis.EvenApp={personalMoods:function(){return state.moods.filter(function(m){return !m.demo;});},refresh:refresh,runShortcut:runShortcut,refreshCoach:refreshCoach,addReflection:function(r){state.reflections.push(r);if(persist())render();},toast:toast,formatTime:formatTime,deviceToken:function(){return state.token;}};
+globalThis.EvenApp={personalHealth:function(){return state.health.filter(function(h){return !h.demo;});},personalMoods:function(){return state.moods.filter(function(m){return !m.demo;});},refresh:refresh,runShortcut:runShortcut,refreshCoach:refreshCoach,addReflection:function(r){state.reflections.push(r);if(persist())render();},toast:toast,formatTime:formatTime,deviceToken:function(){return state.token;}};
 init();
 })();

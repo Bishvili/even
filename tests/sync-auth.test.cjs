@@ -10,12 +10,12 @@ const {TextEncoder}=require("node:util");
 
 function harness({verified=false}={}){
  const source=fs.readFileSync(path.join(__dirname,"..","worker","index.js"),"utf8");
- const loaded=source.replace("export default {","globalThis.sendReminders = sendReminders;globalThis.__worker = {");
+ const loaded=source.replace("export default {","globalThis.sendReminders = sendReminders;globalThis.reminderMessage = reminderMessage;globalThis.pushPayload = pushPayload;globalThis.__worker = {");
  assert.notEqual(source,loaded,"Worker ESM export not found");
  const dispatches=[];
  const runtime={crypto:webcrypto,TextEncoder,Response,URL,atob,btoa,Intl,Uint8Array,console,async fetch(url,init){
   if(String(url).includes("/shortcuts/api/records/"))return new Response(JSON.stringify({fields:{name:{value:String(url).endsWith("00000000000000000000000000000000")?"Other Shortcut":"Even Sync"}}}));
-  if(String(url).endsWith("Even-Sync-version.txt"))return new Response("2.5.0\n");
+  if(String(url).endsWith("Even-Sync-version.txt"))return new Response("2.6.0\n");
   if(String(url).endsWith(".shortcut"))return new Response("file");
   dispatches.push({url,init});return new Response(null,{status:204});}};
  vm.runInNewContext(loaded,runtime,{timeout:2500,filename:"worker/index.js"});
@@ -26,6 +26,7 @@ function harness({verified=false}={}){
   prepare(sql){return{bind(...args){return {
    async first(){
     if(sql.includes("SELECT display_name"))return args[0]==="owner-a@example.com"&&!rows.welcomed?{display_name:"Ada"}:null;
+    if(sql.startsWith("SELECT endpoint,p256dh,auth FROM even_push_subscriptions")){return [...rows.subs.values()].find(x=>x.device_id===args[0]&&x.owner===args[1])||null;}
     if(sql.startsWith("SELECT shortcut_version FROM even_devices")){const d=[...rows.devices.values()].find(x=>x.device_id===args[0]);return d||null;}
     if(sql.includes("FROM even_release_emails"))return args[0]==="owner-a@example.com"?{allowed:1}:null;
     if(sql.includes("SELECT device_id,owner_email,revoked_at"))return rows.devices.get(args[0])||null;
@@ -51,7 +52,7 @@ function harness({verified=false}={}){
     if(sql.startsWith("UPDATE even_devices SET last_attempt_at")){for(const d of rows.devices.values())if(d.device_id===args[2]&&d.owner_email===args[3]&&!d.revoked_at){d.last_attempt_at=args[0];if(sql.includes("last_error_code=NULL,shortcut_version=?")){d.last_error_code=null;d.shortcut_version=args[1];}else d.last_error_code=args[1];}return{meta:{changes:1}};}
     if(sql.startsWith("UPDATE even_devices SET last_used_at")){for(const d of rows.devices.values())if(d.device_id===args[3]&&d.owner_email===args[4]&&!d.revoked_at){d.last_used_at=args[0];d.last_attempt_at=args[1];d.last_error_code=null;d.shortcut_version=args[2]||d.shortcut_version;}return{meta:{changes:1}};}
     if(sql.startsWith("INSERT INTO even_health_metrics")){rows.health.set(args[0]+"|"+args[1]+"|"+args[2],{owner:args[0],day:args[1],metric:args[2],value:args[3]});return{meta:{changes:1}};}
-    if(sql.startsWith("INSERT INTO even_push_subscriptions")){rows.subs.set(args[0],{endpoint:args[0],owner:args[1],device_id:args[2],mode:args[3],times:args[4],time_zone:args[5],p256dh:args[7],auth:args[8],last_sent_day:null,last_sent_target:null,last_check_in_at:null});return{meta:{changes:1}};}
+    if(sql.startsWith("INSERT INTO even_push_subscriptions")){rows.subs.set(args[0],{endpoint:args[0],owner:args[1],device_id:args[2],mode:args[3],times:args[4],time_zone:args[5],p256dh:args[7],auth:args[8],bedtime_at:args[9],last_sent_day:null,last_sent_target:null,last_check_in_at:null});return{meta:{changes:1}};}
     if(sql.includes("SET last_check_in_at")){for(const x of rows.subs.values())if(x.owner===args[1])x.last_check_in_at=args[0];return{meta:{changes:1}};}
     if(sql.includes("SET last_push_status"))return{meta:{changes:1}};
     if(sql.startsWith("UPDATE even_push_subscriptions")){const s=rows.subs.get(args[2]);s.last_sent_day=args[0];s.last_sent_target=args[1];return{meta:{changes:1}};}
@@ -221,13 +222,31 @@ test("the helper's release state compares installed, latest and published, and w
  assert.equal((await call("/api/shortcut/release-state",{headers:{Authorization:"Bearer "+b.data.token}})).status,403);
  const device=[...rows.devices.values()].find(d=>d.owner_email==="owner-a@example.com");
  assert.equal((await call("/api/shortcut/release-state",{headers:A})).data.state,"install");
- device.shortcut_version="2.5.0";
+ device.shortcut_version="2.6.0";
  const state=await call("/api/shortcut/release-state",{headers:A});
  assert.equal(state.data.state,"publish");
- assert.equal(state.data.latest,"2.5.0");
+ assert.equal(state.data.latest,"2.6.0");
  const wrong=await call("/api/shortcut/publish",{method:"POST",body:{link:"https://www.icloud.com/shortcuts/00000000000000000000000000000000"},headers:A});
  assert.equal(wrong.status,400);
  assert.equal(dispatches.length,0);
+});
+test("smart messages match the time of day, and a sync notification opens the app",async()=>{
+ const{call,ctx,env,runtime,dispatches}=harness();
+ const pair=await webcrypto.subtle.generateKey({name:"ECDSA",namedCurve:"P-256"},true,["sign"]);
+ env.VAPID_PRIVATE_KEY=JSON.stringify(await webcrypto.subtle.exportKey("jwk",pair.privateKey));
+ assert.match(runtime.reminderMessage(500,false),/morning/i);
+ assert.match(runtime.reminderMessage(1200,false),/today/i);
+ assert.match(runtime.reminderMessage(500,true),/Bedtime/);
+ const device=await webcrypto.subtle.generateKey({name:"ECDH",namedCurve:"P-256"},true,["deriveBits"]);
+ const keys={p256dh:Buffer.from(await webcrypto.subtle.exportKey("raw",device.publicKey)).toString("base64url"),auth:Buffer.alloc(16,1).toString("base64url")};
+ const a=await call("/api/auth/device",{method:"POST",body:{label:"A"},context:ctx("owner-a@example.com")});
+ const A={Authorization:"Bearer "+a.data.token};
+ assert.equal((await call("/api/push/synced",{method:"POST",body:{items:"2"},headers:A})).data.state,"none");
+ await call("/api/push/subscribe",{method:"POST",body:{endpoint:"https://web.push.apple.com/abc",keys,mode:"smart",times:["09:00"],bedtimeAt:"22:40",timeZone:"UTC"},headers:A});
+ assert.equal((await call("/api/push/synced",{method:"POST",body:{items:"2"}})).status,401);
+ assert.equal((await call("/api/push/synced",{method:"POST",body:{items:"2"},headers:A})).data.state,"sent");
+ assert.equal(dispatches.length,1);
+ assert.equal(JSON.parse(JSON.stringify(runtime.pushPayload("x","/?sync=1"))).includes("/?sync=1"),true);
 });
 test("owner A data cannot be read or erased by owner B",async()=>{
  const{call,ctx}=harness();

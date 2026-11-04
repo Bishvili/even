@@ -75,5 +75,5 @@ test("the compiled step-cleanup pattern removes only grouping separators", () =>
 });
 
 test("updates are checked against the current version", () => {
- assert.match(sync, /\/api\/shortcut\/release\?current=2\.5\.0/);
+ assert.match(sync, /\/api\/shortcut\/release\?current=2\.6\.0/);
 });

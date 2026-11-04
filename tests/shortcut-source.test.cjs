@@ -57,7 +57,9 @@ test("Shortcut checks explicit typed values",()=>{
   'stageCount >= 1',
   '@sleepMinutes >= 1',
   'sleepStatus == "accepted"',
-  'updateStatus == "new_release"'
+  'updateStatus == "new_release"',
+  'providedKeyCount >= 1',
+  'syncedState != "sent"'
  ]);
  assert.doesNotMatch(shortcut,/if\s+@\w+\s*==\s*(true|false)/);
  assert.doesNotMatch(shortcut,/Bearer [a-f0-9]{64}/i);

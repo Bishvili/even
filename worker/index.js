@@ -53,7 +53,9 @@ function dateOnly(value){
 function readHealth(x){
  if(!x||typeof x!=="object")return [];
  const day=dateOnly(x.date||x.day);if(!day)return [];
- const results=[];for(const [metric,[low,high]] of Object.entries(METRICS)){
+ const results=[],bedtime=/^([01]\d|2[0-3]):([0-5]\d)$/.exec(String(x.bedtime||""));
+ if(bedtime)results.push({day,metric:"bedtimeMin",value:Number(bedtime[1])*60+Number(bedtime[2])});
+ for(const [metric,[low,high]] of Object.entries(METRICS)){
   const raw=x[metric];if(raw===undefined||raw===null||raw==="")continue;
   const value=Number(raw);
   if(Number.isFinite(value)&&value>=low&&value<=high)results.push({day,metric,value});
@@ -180,16 +182,25 @@ async function encryptPush(text,p256dh,auth){
  const cipher=new Uint8Array(await crypto.subtle.encrypt({name:"AES-GCM",iv:nonce},aes,concat(encoder.encode(text),new Uint8Array([2]))));
  return concat(salt,new Uint8Array([0,0,16,0,sender.length]),sender,cipher);
 }
-const REMINDER_PAYLOAD=JSON.stringify({web_push:8030,mutable:true,notification:{title:"Even",body:"How are you feeling?",navigate:"https://even.bishvili.workers.dev/#checkin"}});
-async function sendPush(key,sub,now){
+function pushPayload(body,path,extra={}){
+ return JSON.stringify({web_push:8030,mutable:true,...extra,notification:{title:"Even",body,navigate:"https://even.bishvili.workers.dev"+path}});
+}
+function reminderMessage(minutes,atBedtime){
+ if(atBedtime)return "Bedtime soon. Take a moment to check in, then rest.";
+ if(minutes<660)return "Good morning. How are you starting the day?";
+ if(minutes<840)return "How is your day going so far?";
+ if(minutes<1020)return "Afternoon check-in. How is your energy?";
+ return "How did today go?";
+}
+async function sendPush(key,sub,now,payload){
  const encoder=new TextEncoder(),text=value=>base64url(encoder.encode(JSON.stringify(value)));
  const unsigned=text({typ:"JWT",alg:"ES256"})+"."+text({aud:new URL(sub.endpoint).origin,exp:Math.floor(now.getTime()/1000)+43200,sub:"https://even.bishvili.workers.dev"});
  const signingKey=await crypto.subtle.importKey("jwk",{kty:"EC",crv:"P-256",d:key.d,x:key.x,y:key.y},{name:"ECDSA",namedCurve:"P-256"},false,["sign"]);
  const signature=new Uint8Array(await crypto.subtle.sign({name:"ECDSA",hash:"SHA-256"},signingKey,encoder.encode(unsigned)));
- return fetch(sub.endpoint,{method:"POST",body:await encryptPush(REMINDER_PAYLOAD,sub.p256dh,sub.auth),headers:{"Authorization":`vapid t=${unsigned}.${base64url(signature)}, k=${pushPublicKey(key)}`,"Content-Encoding":"aes128gcm","Content-Type":"application/octet-stream","TTL":"3600","Urgency":"high"}});
+ return fetch(sub.endpoint,{method:"POST",body:await encryptPush(payload,sub.p256dh,sub.auth),headers:{"Authorization":`vapid t=${unsigned}.${base64url(signature)}, k=${pushPublicKey(key)}`,"Content-Encoding":"aes128gcm","Content-Type":"application/octet-stream","TTL":"3600","Urgency":"high"}});
 }
-async function deliverPush(env,key,sub,now){
- const sent=await sendPush(key,sub,now);const endpoint=sub.endpoint;
+async function deliverPush(env,key,sub,now,payload){
+ const sent=await sendPush(key,sub,now,payload);const endpoint=sub.endpoint;
  if(sent.status===404||sent.status===410)await env.DB.prepare("DELETE FROM even_push_subscriptions WHERE endpoint=?").bind(endpoint).run();
  else await env.DB.prepare("UPDATE even_push_subscriptions SET last_push_status=? WHERE endpoint=?").bind(sent.status,endpoint).run();
  return sent;
@@ -201,13 +212,15 @@ function dueTarget(times,minutes){
 }
 async function sendReminders(env,now=new Date()){
  const key=pushKey(env);if(!key)return;
- const subs=await env.DB.prepare("SELECT s.endpoint,s.p256dh,s.auth,s.mode,s.times,s.time_zone,s.last_sent_day,s.last_sent_target,s.last_check_in_at FROM even_push_subscriptions s JOIN even_devices d ON d.device_id=s.device_id WHERE d.revoked_at IS NULL AND s.p256dh IS NOT NULL AND s.times IS NOT NULL").bind().all();
+ const subs=await env.DB.prepare("SELECT s.endpoint,s.p256dh,s.auth,s.mode,s.times,s.bedtime_at,s.time_zone,s.last_sent_day,s.last_sent_target,s.last_check_in_at FROM even_push_subscriptions s JOIN even_devices d ON d.device_id=s.device_id WHERE d.revoked_at IS NULL AND s.p256dh IS NOT NULL AND s.times IS NOT NULL").bind().all();
  for(const sub of subs.results||[]){
   const local=localTime(sub.time_zone,now),target=dueTarget(JSON.parse(sub.times),local.minutes);
   if(target===null||(sub.last_sent_day===local.day&&sub.last_sent_target>=target))continue;
   // A smart reminder isn't needed right after a check-in.
   const quiet=sub.mode==="smart"&&sub.last_check_in_at&&now.getTime()-new Date(sub.last_check_in_at).getTime()<SMART_QUIET_MS;
-  const sent=quiet?{ok:true}:await deliverPush(env,key,sub,now);
+  const [hour,minute]=(sub.bedtime_at||"99:99").split(":").map(Number);
+  const smart=sub.mode==="smart",body=smart?reminderMessage(target,hour*60+minute===target):"How are you feeling?";
+  const sent=quiet?{ok:true}:await deliverPush(env,key,sub,now,pushPayload(body,"/#checkin",{brief:smart&&target<660}));
   if(sent.ok)await env.DB.prepare("UPDATE even_push_subscriptions SET last_sent_day=?,last_sent_target=? WHERE endpoint=?").bind(local.day,target,sub.endpoint).run();
  }
 }
@@ -253,10 +266,19 @@ async function syncApi(request,env,path){
   const p256dh=String(input?.keys?.p256dh||""),auth=String(input?.keys?.auth||"");
   try{if(fromBase64url(p256dh).length!==65||fromBase64url(auth).length!==16)return error("Invalid reminder request");}catch(e){return error("Invalid reminder request");}
   if(!endpoint||!["smart","custom"].includes(mode)||!Array.isArray(times)||!times.length||times.length>24||!times.every(t=>REMIND_AT.test(String(t))))return error("Invalid reminder request");
+  const bedtimeAt=mode==="smart"&&REMIND_AT.test(String(input?.bedtimeAt||""))?String(input.bedtimeAt):null;
   const schedule=JSON.stringify([...new Set(times.map(String))].sort());
   try{localTime(timeZone,new Date());}catch(e){return error("Invalid reminder request");}
-  await env.DB.prepare("INSERT INTO even_push_subscriptions(endpoint,owner_email,device_id,mode,times,time_zone,created_at,p256dh,auth) VALUES(?,?,?,?,?,?,?,?,?) ON CONFLICT(endpoint) DO UPDATE SET p256dh=excluded.p256dh,auth=excluded.auth,owner_email=excluded.owner_email,device_id=excluded.device_id,mode=excluded.mode,times=excluded.times,time_zone=excluded.time_zone").bind(endpoint,owner,dev.id,mode,schedule,timeZone,new Date().toISOString(),p256dh,auth).run();
+  await env.DB.prepare("INSERT INTO even_push_subscriptions(endpoint,owner_email,device_id,mode,times,time_zone,created_at,p256dh,auth,bedtime_at) VALUES(?,?,?,?,?,?,?,?,?,?) ON CONFLICT(endpoint) DO UPDATE SET bedtime_at=excluded.bedtime_at,p256dh=excluded.p256dh,auth=excluded.auth,owner_email=excluded.owner_email,device_id=excluded.device_id,mode=excluded.mode,times=excluded.times,time_zone=excluded.time_zone").bind(endpoint,owner,dev.id,mode,schedule,timeZone,new Date().toISOString(),p256dh,auth,bedtimeAt).run();
   return reply({ok:true});
+ }
+ if(path==="/api/push/synced"&&request.method==="POST"){
+  let input;try{input=await payload(request);}catch(e){return error("Invalid request");}
+  const items=Number(input?.items),key=pushKey(env);
+  const sub=key&&await env.DB.prepare("SELECT endpoint,p256dh,auth FROM even_push_subscriptions WHERE device_id=? AND owner_email=? AND p256dh IS NOT NULL").bind(dev.id,owner).first();
+  if(!sub||!Number.isInteger(items)||items<0)return reply({ok:true,state:"none"});
+  const sent=await deliverPush(env,key,sub,new Date(),pushPayload("Synced "+items+" item"+(items===1?"":"s")+". Tap to open Even.","/?sync=1"));
+  return reply({ok:true,state:sent.ok?"sent":"none"});
  }
  if(path==="/api/push/check-in"&&request.method==="POST"){
   await env.DB.prepare("UPDATE even_push_subscriptions SET last_check_in_at=? WHERE owner_email=?").bind(new Date().toISOString(),owner).run();
@@ -372,7 +394,7 @@ async function syncApi(request,env,path){
  return error("Not found",404);
 }
 async function api(request,env,ctx,path){
- if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:"Even",version:"2.2.1",sync:"email-access"});
+ if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:"Even",version:"2.3.0",sync:"email-access"});
  if(path.startsWith("/api/auth/"))return authApi(request,env,ctx,path);
  return syncApi(request,env,path);
 }

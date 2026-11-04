@@ -2,7 +2,7 @@
 const test=require("node:test");
 const assert=require("node:assert/strict");
 require("../coach.js");
-const {outlook,patterns,brief,hardStretch,steadiness,reflectionDue,smartTimes,repeatTimes}=globalThis.EvenCoach;
+const {outlook,patterns,brief,hardStretch,steadiness,reflectionDue,smartTimes,repeatTimes,bedtimeReminder}=globalThis.EvenCoach;
 const today=new Date(2026,10,3,12);// a Tuesday
 const at=(daysAgo,hour=12)=>{const d=new Date(today);d.setDate(d.getDate()-daysAgo);d.setHours(hour);return d.toISOString();};
 
@@ -65,4 +65,15 @@ test("smart reminders favor usual check-in times and stay inside the window",()=
 });
 test("repeating reminders run every interval through the end of the window",()=>{
  assert.deepEqual(repeatTimes("09:00","15:00",2),["09:00","11:00","13:00","15:00"]);
+});
+test("the bedtime reminder uses sleep, then late check-ins, then the window end",()=>{
+ const day=n=>{const d=new Date(today);d.setDate(d.getDate()-n);return d;};
+ const iso=d=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+ const sleep=[1,2,3].map(n=>({date:iso(day(n)),bedtimeMin:23*60}));
+ assert.equal(bedtimeReminder(sleep,[],"21:00",today),"22:40");
+ const afterMidnight=[1,2,3].map(n=>({date:iso(day(n)),bedtimeMin:10}));
+ assert.equal(bedtimeReminder(afterMidnight,[],"21:00",today),"23:50");
+ const late=[1,2,3,4,5].map(n=>{const d=day(n);d.setHours(21,30,0,0);return{ts:d.toISOString()};});
+ assert.equal(bedtimeReminder([],late,"21:00",today),"21:40");
+ assert.equal(bedtimeReminder([],[],"21:00",today),"20:40");
 });
