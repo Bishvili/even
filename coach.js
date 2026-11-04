@@ -105,7 +105,16 @@
  // Prefers recorded sleep, then the last check-in of each day, then the end of the window.
  function bedtimeReminder(health,moods,to,today){
   var cutoff=new Date(today).getTime()-14*DAY_MS,slept=[],lastByDay={},estimate;
-  health.forEach(function(h){if(Number.isFinite(h.bedtimeMin)&&new Date(h.date+"T12:00:00").getTime()>=cutoff)slept.push(nightMinutes(h.bedtimeMin));});
+  // Friday and Saturday nights often run later, so compare like with like when there's enough data.
+  function weekendNight(day){return day===5||day===6;}
+  var tonightWeekend=weekendNight(new Date(today).getDay()),matching=[];
+  health.forEach(function(h){
+   var morning=new Date(h.date+"T12:00:00");
+   if(!Number.isFinite(h.bedtimeMin)||morning.getTime()<cutoff)return;
+   var minutes=nightMinutes(h.bedtimeMin);slept.push(minutes);
+   if(weekendNight(new Date(morning.getTime()-DAY_MS).getDay())===tonightWeekend)matching.push(minutes);
+  });
+  if(matching.length>=3)slept=matching;
   moods.forEach(function(m){var d=new Date(m.ts);if(d.getTime()<cutoff)return;var key=localDay(d),at=nightMinutes(d.getHours()*60+d.getMinutes());if(!lastByDay[key]||at>lastByDay[key])lastByDay[key]=at;});
   var evenings=Object.keys(lastByDay).map(function(k){return lastByDay[k];}).filter(function(at){return at>=1080;});
   if(slept.length>=3)estimate=median(slept);
@@ -132,7 +141,7 @@
 
  var LEVELS={harder:"Tends to be harder",easier:"Tends to be easier",typical:"About average",unknown:"Not enough check-ins"};
  var reflectionSnoozed=false;
- var STEPS=["Breathe in","Hold","Breathe out","Hold"],breathTimer=null;
+ var STEPS=["Breathe in","Hold","Breathe out","Hold"],breathTimer=null,breathDelay=null;
  function $(id){return document.getElementById(id);}
  function element(tag,className,text){var e=document.createElement(tag);if(className)e.className=className;if(text!==undefined)e.textContent=text;return e;}
 
@@ -200,17 +209,20 @@
    root.EvenApp.toast("Reflection saved.");
   });
  }
- function stopBreathing(){if(breathTimer)clearInterval(breathTimer);breathTimer=null;}
+ function stopBreathing(){clearTimeout(breathDelay);if(breathTimer)clearInterval(breathTimer);breathTimer=null;}
  function startBreathing(){
   var step=0,cycles=0,label=$("breath-label"),circle=$("breath-circle");
-  stopBreathing();label.textContent=STEPS[0];
-  // Start small, then grow with the first breath in.
-  circle.dataset.step="3";circle.getBoundingClientRect();circle.dataset.step="0";
-  breathTimer=setInterval(function(){
+  stopBreathing();label.textContent="Get comfortable…";circle.dataset.step="3";
+  // A short pause to settle, then the circle grows with the first breath in.
+  breathDelay=setTimeout(function(){
+   label.textContent=STEPS[0];circle.dataset.step="0";
+   breathTimer=setInterval(nextStep,4000);
+  },4000);
+  function nextStep(){
    step=(step+1)%4;if(step===0)cycles++;
    if(cycles>=4){stopBreathing();label.textContent="Nicely done.";circle.dataset.step="3";return;}
    label.textContent=STEPS[step];circle.dataset.step=String(step);
-  },4000);
+  }
  }
  function render(data){
   renderToday(data);

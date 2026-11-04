@@ -44,7 +44,7 @@ if providedKeyCount == 0 {
 
 // Verify the connection and record the Shortcut's version, even if no health samples are available.
 const handshakeRaw = jsonRequest("https://even.bishvili.workers.dev/api/shortcut/hello", "POST", {
-    "shortcutVersion": "2.7.0"
+    "shortcutVersion": "2.8.0"
 }, {"Authorization": "{@credential}"})
 const handshake = getDictionary(handshakeRaw)
 const connectionStatusValue = getValue(handshake, "state")
@@ -69,6 +69,8 @@ action 'is.workflow.actions.filter.health.quantity' findSamples(&variable filter
 
 // The newest samples of any type. A filter can't both match several types and limit dates, so a result limit bounds it.
 action 'is.workflow.actions.filter.health.quantity' findRecentSamples(&variable filter: 'WFContentItemFilter'): array {"WFContentItemLimitEnabled":true,"WFContentItemLimitNumber":1000,"WFContentItemSortProperty":"Start Date","WFContentItemSortOrder":"Latest First"}
+
+action 'is.workflow.actions.filter.health.quantity' findSleepHistory(&variable filter: 'WFContentItemFilter'): array {"WFContentItemLimitEnabled":true,"WFContentItemLimitNumber":300,"WFContentItemSortProperty":"Start Date","WFContentItemSortOrder":"Latest First"}
 
 action 'is.workflow.actions.properties.health.quantity' getSampleTypes(variable samples: 'WFInput'): array {"WFContentItemPropertyName":"Type"}
 
@@ -96,7 +98,7 @@ for event in events {
 
     const eventBody = formRequest("https://even.bishvili.workers.dev/api/ingest", "POST", {
         "kind": "calendar",
-        "shortcutVersion": "2.7.0",
+        "shortcutVersion": "2.8.0",
         "title": "{title}",
         "calendar": "{calendarName}",
         "start": "{startISO}",
@@ -154,7 +156,7 @@ if stepsAvailable >= 1 {
         const stepsValue = replaceText('^\D*(\d+(?:\.\d+)?)[\s\S]*$', "$1", normalizedSteps, true, true)
         const healthBody = formRequest("https://even.bishvili.workers.dev/api/ingest", "POST", {
             "kind": "health",
-            "shortcutVersion": "2.7.0",
+            "shortcutVersion": "2.8.0",
             "date": "{stepDay}",
             "steps": "{stepsValue}"
         }, {"Authorization": "{@credential}"})
@@ -183,7 +185,7 @@ if restingAvailable >= 1 {
     if restingValue >= 1 {
         const restingBody = formRequest("https://even.bishvili.workers.dev/api/ingest", "POST", {
             "kind": "health",
-            "shortcutVersion": "2.7.0",
+            "shortcutVersion": "2.8.0",
             "date": "{restingDay}",
             "restingHR": "{restingValue}"
         }, {"Authorization": "{@credential}"})
@@ -208,7 +210,7 @@ if heartRateAvailable >= 1 {
     if heartRateValue >= 1 {
         const heartRateBody = formRequest("https://even.bishvili.workers.dev/api/ingest", "POST", {
             "kind": "health",
-            "shortcutVersion": "2.7.0",
+            "shortcutVersion": "2.8.0",
             "date": "{heartRateDay}",
             "heartRate": "{heartRateValue}"
         }, {"Authorization": "{@credential}"})
@@ -232,7 +234,7 @@ if hrvAvailable >= 1 {
     if hrvValue >= 1 {
         const hrvBody = formRequest("https://even.bishvili.workers.dev/api/ingest", "POST", {
             "kind": "health",
-            "shortcutVersion": "2.7.0",
+            "shortcutVersion": "2.8.0",
             "date": "{hrvDay}",
             "hrv": "{hrvValue}"
         }, {"Authorization": "{@credential}"})
@@ -256,7 +258,7 @@ if exerciseAvailable >= 1 {
     if exerciseValue >= 1 {
         const workoutBody = formRequest("https://even.bishvili.workers.dev/api/ingest", "POST", {
             "kind": "health",
-            "shortcutVersion": "2.7.0",
+            "shortcutVersion": "2.8.0",
             "date": "{exerciseDay}",
             "workoutMin": "{exerciseValue}"
         }, {"Authorization": "{@credential}"})
@@ -275,22 +277,28 @@ const sleepMatches = matchText('(?i)Sleep', recentTypes)
 const sleepAvailable = count(sleepMatches)
 if sleepAvailable >= 1 {
     @sleepMinutes = 0
-    @bedtime = ""
-    const sleepSamples = findSamples(sleepFilter)
-    for sleepSample in sleepSamples {
-        const sleepStart = getSampleStart(@sleepSample)
-        const sleepAge = minutesSince(today, sleepStart)
-        if sleepAge <= 1440 {
-            const stageValue = getSampleValue(@sleepSample)
-            const stageText = getText(stageValue)
-            const stageMatches = matchText('(?i)asleep', stageText)
-            const stageCount = count(stageMatches)
-            if stageCount >= 1 {
+    @sleepStarts = ""
+    // The first sync reads two weeks back, so the bedtime estimate works straight away.
+    @sleepSamples = findSamples(sleepFilter)
+    const historyValue = getValue(handshake, "sleepHistory")
+    const historyState = getText(historyValue)
+    if historyState == "needed" {
+        @sleepSamples = findSleepHistory(sleepFilter)
+    }
+    for sleepSample in @sleepSamples {
+        const stageValue = getSampleValue(@sleepSample)
+        const stageText = getText(stageValue)
+        const stageMatches = matchText('(?i)asleep', stageText)
+        const stageCount = count(stageMatches)
+        if stageCount >= 1 {
+            const sleepStart = getSampleStart(@sleepSample)
+            const startStamp = formatDate(sleepStart, "Custom", "yyyy-MM-dd'T'HH:mm")
+            @sleepStarts = "{@sleepStarts} {startStamp}"
+            const sleepAge = minutesSince(today, sleepStart)
+            if sleepAge <= 1440 {
                 const sleepEnd = getSampleEnd(@sleepSample)
                 const stageMinutes = minutesSince(sleepEnd, sleepStart)
                 @sleepMinutes += stageMinutes
-                // Samples run newest first, so this ends on the night's first sleep.
-                @bedtime = formatDate(sleepStart, "Custom", "HH:mm")
             }
         }
     }
@@ -298,10 +306,10 @@ if sleepAvailable >= 1 {
         const sleepHours = @sleepMinutes / 60
         const sleepBody = formRequest("https://even.bishvili.workers.dev/api/ingest", "POST", {
             "kind": "health",
-            "shortcutVersion": "2.7.0",
+            "shortcutVersion": "2.8.0",
             "date": "{day}",
             "sleepHours": "{sleepHours}",
-            "bedtime": "{@bedtime}"
+            "sleepStarts": "{@sleepStarts}"
         }, {"Authorization": "{@credential}"})
         const sleepResponse = getDictionary(sleepBody)
         const sleepStatusValue = getValue(sleepResponse, "state")
@@ -313,7 +321,7 @@ if sleepAvailable >= 1 {
 }
 
 // Offer an update after syncing; the user approves installation in Apple Shortcuts.
-const releaseBody = downloadURL("https://even.bishvili.workers.dev/api/shortcut/release?current=2.7.0", {"Authorization": "{@credential}"})
+const releaseBody = downloadURL("https://even.bishvili.workers.dev/api/shortcut/release?current=2.8.0", {"Authorization": "{@credential}"})
 const releaseInfo = getDictionary(releaseBody)
 const updateStatusValue = getValue(releaseInfo, "updateStatus")
 const updateStatus = getText(updateStatusValue)

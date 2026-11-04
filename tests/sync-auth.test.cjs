@@ -10,12 +10,12 @@ const {TextEncoder}=require("node:util");
 
 function harness({verified=false}={}){
  const source=fs.readFileSync(path.join(__dirname,"..","worker","index.js"),"utf8");
- const loaded=source.replace("export default {","globalThis.sendReminders = sendReminders;globalThis.reminderMessage = reminderMessage;globalThis.pushPayload = pushPayload;globalThis.__worker = {");
+ const loaded=source.replace("export default {","globalThis.sendReminders = sendReminders;globalThis.readBedtimes = readBedtimes;globalThis.reminderMessage = reminderMessage;globalThis.pushPayload = pushPayload;globalThis.__worker = {");
  assert.notEqual(source,loaded,"Worker ESM export not found");
  const dispatches=[];
  const runtime={crypto:webcrypto,TextEncoder,Response,URL,atob,btoa,Intl,Uint8Array,console,async fetch(url,init){
   if(String(url).includes("/shortcuts/api/records/"))return new Response(JSON.stringify({fields:{name:{value:String(url).endsWith("00000000000000000000000000000000")?"Other Shortcut":"Even Sync"}}}));
-  if(String(url).endsWith("Even-Sync-version.txt"))return new Response("2.7.0\n");
+  if(String(url).endsWith("Even-Sync-version.txt"))return new Response("2.8.0\n");
   if(String(url).endsWith(".shortcut"))return new Response("file");
   dispatches.push({url,init});return new Response(null,{status:204});}};
  vm.runInNewContext(loaded,runtime,{timeout:2500,filename:"worker/index.js"});
@@ -222,10 +222,10 @@ test("the helper's release state compares installed, latest and published, and w
  assert.equal((await call("/api/shortcut/release-state",{headers:{Authorization:"Bearer "+b.data.token}})).status,403);
  const device=[...rows.devices.values()].find(d=>d.owner_email==="owner-a@example.com");
  assert.equal((await call("/api/shortcut/release-state",{headers:A})).data.state,"install");
- device.shortcut_version="2.7.0";
+ device.shortcut_version="2.8.0";
  const state=await call("/api/shortcut/release-state",{headers:A});
  assert.equal(state.data.state,"publish");
- assert.equal(state.data.latest,"2.7.0");
+ assert.equal(state.data.latest,"2.8.0");
  const wrong=await call("/api/shortcut/publish",{method:"POST",body:{link:"https://www.icloud.com/shortcuts/00000000000000000000000000000000"},headers:A});
  assert.equal(wrong.status,400);
  assert.equal(dispatches.length,0);
@@ -247,6 +247,15 @@ test("smart messages match the time of day, and a sync notification opens the ap
  assert.equal((await call("/api/push/synced",{method:"POST",body:{items:"2"},headers:A})).data.state,"sent");
  assert.equal(dispatches.length,1);
  assert.equal(JSON.parse(JSON.stringify(runtime.pushPayload("x","/?sync=1"))).includes("/?sync=1"),true);
+});
+test("each night's bedtime is its earliest sleep, ignoring naps and bad values",()=>{
+ const{runtime}=harness();
+ const rows=runtime.readBedtimes("2026-11-03T07:10 2026-11-03T00:20 2026-11-02T23:40 2026-11-02T15:00 2026-11-02T01:00 2026-11-01T22:50 bad 2026-13-01T22:00");
+ const byDay=Object.fromEntries(rows.map(r=>[r.day,r.value]));
+ assert.equal(byDay["2026-11-03"],23*60+40);
+ assert.equal(byDay["2026-11-02"],22*60+50);
+ assert.equal(rows.length,2);
+ assert.equal(runtime.readBedtimes("").length,0);
 });
 test("owner A data cannot be read or erased by owner B",async()=>{
  const{call,ctx}=harness();

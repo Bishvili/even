@@ -50,11 +50,24 @@ function dateOnly(value){
  const parsed=new Date(day+"T12:00:00Z");
  return Number.isFinite(parsed.getTime())&&parsed.toISOString().slice(0,10)===day?day:null;
 }
+// Each night's bedtime is its earliest sleep from 6 PM on. Daytime naps don't count.
+function readBedtimes(starts){
+ const nights=new Map();
+ for(const stamp of String(starts||"").trim().split(/\s+/).slice(0,400)){
+  const match=/^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2})$/.exec(stamp),date=match&&dateOnly(match[1]);
+  if(!date)continue;
+  const hour=Number(match[2]),minute=Number(match[3]);
+  if(hour>23||minute>59||(hour>=10&&hour<18))continue;
+  const morning=hour<18?date:new Date(new Date(date+"T12:00:00Z").getTime()+86400000).toISOString().slice(0,10);
+  const value=hour*60+minute,night=hour<18?value+1440:value;
+  if(!nights.has(morning)||night<nights.get(morning).night)nights.set(morning,{night,value});
+ }
+ return [...nights].map(([day,n])=>({day,metric:"bedtimeMin",value:n.value}));
+}
 function readHealth(x){
  if(!x||typeof x!=="object")return [];
  const day=dateOnly(x.date||x.day);if(!day)return [];
- const results=[],bedtime=/^([01]\d|2[0-3]):([0-5]\d)$/.exec(String(x.bedtime||""));
- if(bedtime)results.push({day,metric:"bedtimeMin",value:Number(bedtime[1])*60+Number(bedtime[2])});
+ const results=readBedtimes(x.sleepStarts);
  for(const [metric,[low,high]] of Object.entries(METRICS)){
   const raw=x[metric];if(raw===undefined||raw===null||raw==="")continue;
   const value=Number(raw);
@@ -327,7 +340,8 @@ async function syncApi(request,env,path){
   const at=new Date().toISOString();
   await env.DB.prepare("UPDATE even_devices SET last_attempt_at=?,last_error_code=NULL,shortcut_version=? WHERE device_id=? AND owner_email=? AND revoked_at IS NULL")
    .bind(at,clientVersion,dev.id,owner).run();
-  return reply({ok:true,connected:true,state:"connected",shortcutVersion:clientVersion,receivedAt:at});
+  const nights=await env.DB.prepare("SELECT COUNT(*) AS count FROM even_health_metrics WHERE owner_email=? AND metric='bedtimeMin'").bind(owner).first();
+  return reply({ok:true,connected:true,state:"connected",shortcutVersion:clientVersion,receivedAt:at,sleepHistory:Number(nights?.count||0)<3?"needed":"complete"});
  }
 
  if(path==="/api/pull"&&request.method==="GET"){
@@ -394,7 +408,7 @@ async function syncApi(request,env,path){
  return error("Not found",404);
 }
 async function api(request,env,ctx,path){
- if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:"Even",version:"2.3.3",sync:"email-access"});
+ if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:"Even",version:"2.4.0",sync:"email-access"});
  if(path.startsWith("/api/auth/"))return authApi(request,env,ctx,path);
  return syncApi(request,env,path);
 }
