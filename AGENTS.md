@@ -99,7 +99,7 @@ Only an iPhone proves iOS behavior, and each round trip costs the owner time. Be
 **Data and privacy**
 - Demo records must never merge into personal ones, and every count must say which records it counts. Read personal data through `EvenApp.personalMoods()`, `personalHealth()` and `personalEvents()`. Until #20, `upsertHealth` can merge a demo day into a real one.
 - A new table or column that holds an owner's data must be covered by erase, account deletion and the cross-account tests in the same change.
-- Resting and average heart rate are synced, but no feature uses them yet (#37). Don't add another measure without a feature that uses it.
+- Resting and average heart rate are synced, but no feature uses them yet. By decision, resting heart rate becomes personal context (#37) and average heart rate stops being collected (#36). Don't add another measure without a feature that uses it.
 - When what Even collects, sends or stores changes, update the **Data inventory**, Sync → Help and privacy, Settings, the README's Privacy section and `whitepaper.html` in the same commit.
 
 **Analysis and copy**
@@ -129,6 +129,8 @@ Even is an iPhone-first, installable progressive web app for quick mood check-in
   - Even Sync sends every calendar's events, with titles, and titles are stored. Which calendars are kept is managed in the app, and events from turned-off calendars are discarded when they arrive (#24).
   - Removing a tester deletes their synced data. Planned in #22.
   - Sources and Sync become one **Data** tab, leaving four tabs. Planned in #27; until it ships, this guide's references to Even → **Sync** and **Sources** stay correct.
+  - Resting heart rate becomes personal recovery context, compared with the person's own usual level, and Even Sync stops collecting average heart rate. Planned in #37 and #36.
+  - Even Sync also sends tomorrow's events, so the wind-down and morning brief can plan around the first commitment. Planned in #36; until it ships, calendar data covers today only.
 - Where `README.md` disagrees with this guide, this guide is current. #34 brings the README up to date.
 
 ## Product language and code quality
