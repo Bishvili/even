@@ -17,12 +17,13 @@ for file in icon-192.png icon-512.png; do
   rm -f "$encoded"
 done
 
-# Removes source files the app no longer serves.
-for key in asset:shortcut.cherri asset:connection.cherri; do
-  $WRANGLER kv key delete "$key" --namespace-id "$NAMESPACE_ID" --remote || true
-done
-
-# Tells the Shortcut and the app which release is current.
+# Tells the Shortcut and the app which release is current, and Developer tools which helper link to install.
 $WRANGLER kv key put "config:shortcut:latest" --path shortcuts/release.json --namespace-id "$NAMESPACE_ID" --remote
+$WRANGLER kv key put "config:helper:latest" --path shortcuts/helper.json --namespace-id "$NAMESPACE_ID" --remote
+
+# The versions in the source let the release helper tell a build that's still being signed from a current one.
+sync_version="$(grep -oE '"shortcutVersion": "[0-9]+\.[0-9]+\.[0-9]+"' shortcuts/even-sync.cherri | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')"
+helper_version="$(grep -oE 'const helperVersion = "[0-9]+\.[0-9]+\.[0-9]+"' shortcuts/even-release.cherri | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')"
+$WRANGLER kv key put "config:shortcut:source" "{\"sync\":\"$sync_version\",\"release\":\"$helper_version\"}" --namespace-id "$NAMESPACE_ID" --remote
 
 $WRANGLER deploy

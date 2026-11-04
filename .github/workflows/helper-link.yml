@@ -1,0 +1,54 @@
+name: Share Even Release link
+
+# Even Release starts this after it shares its own iCloud link, so Set Up Release Helper installs the current helper.
+on:
+  workflow_dispatch:
+    inputs:
+      icloud_link:
+        description: "iCloud link to the installed Even Release"
+        type: string
+        required: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: helper-link
+  cancel-in-progress: false
+
+jobs:
+  helper-link:
+    if: ${{ github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Record the link with the helper's version
+        env:
+          ICLOUD_LINK: ${{ inputs.icloud_link }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          import re
+          from pathlib import Path
+
+          link = os.environ["ICLOUD_LINK"].strip()
+          if not re.fullmatch(r"https://www\.icloud\.com/shortcuts/[a-fA-F0-9]{32}", link):
+              raise SystemExit("A valid Apple iCloud share link is required.")
+          versions = re.findall(r'const helperVersion = "(\d+\.\d+\.\d+)"', Path("shortcuts/even-release.cherri").read_text())
+          if len(versions) != 1:
+              raise SystemExit("The helper source must state exactly one version.")
+          Path("shortcuts/helper.json").write_text(json.dumps({"version": versions[0], "url": link}, indent=2) + "\n")
+          PY
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add shortcuts/helper.json
+          if git diff --cached --quiet; then
+            echo "The helper link is already current."
+            exit 0
+          fi
+          git commit -m "release: Even Release link"
+          git pull --rebase origin main
+          git push origin main

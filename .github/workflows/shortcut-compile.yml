@@ -1,27 +1,9 @@
 name: Validate application and Shortcut
 
+# Runs on every push, because the tests cover files that a path filter would miss.
 on:
   push:
-    paths:
-      - 'shortcuts/**'
-      - 'tests/**'
-      - 'scripts/**'
-      - 'app.js'
-      - 'index.html'
-      - 'styles.css'
-      - 'worker/**'
-      - 'db/**'
-      - '.github/workflows/shortcut-compile.yml'
   pull_request:
-    paths:
-      - 'shortcuts/**'
-      - 'tests/**'
-      - 'app.js'
-      - 'index.html'
-      - 'styles.css'
-      - 'worker/**'
-      - 'db/**'
-      - '.github/workflows/shortcut-compile.yml'
   workflow_dispatch:
 
 permissions:
@@ -52,13 +34,18 @@ jobs:
         run: |
           git clone --depth 1 --branch v2.3.0 https://github.com/electrikmilk/cherri.git /tmp/cherri-source
           (cd /tmp/cherri-source && go build -trimpath -o /tmp/cherri-compiler .)
-      - name: Compile Even Sync without remote signing
+      - name: Compile Even Sync and Even Release without remote signing
         run: |
           /tmp/cherri-compiler shortcuts/even-sync.cherri --debug --skip-sign --output=/tmp/even-compiled.shortcut
-      - name: Verify generated Shortcut plist and conditional values
+          /tmp/cherri-compiler shortcuts/even-release.cherri --debug --skip-sign --output=/tmp/even-release-compiled.shortcut
+      - name: Verify the generated Shortcut plists
         run: |
           find . -type f -name '*.plist' -print
           PLIST="$(find . -type f -name 'Even Sync.plist' -print -quit)"
           test -n "$PLIST"
           test -s "$PLIST"
           python3 scripts/check-shortcut-conditions.py "$PLIST"
+          HELPER="$(find . -type f -name 'Even Release.plist' -print -quit)"
+          test -n "$HELPER"
+          test -s "$HELPER"
+          python3 scripts/check-shortcut-conditions.py --helper "$HELPER"

@@ -25,7 +25,11 @@ test("nothing asks a person to paste a device key",()=>{
  assert.doesNotMatch(read("shortcuts/even-sync.cherri"),/prompt\(/);
  assert.doesNotMatch(read("index.html"),/paste/i);
 });
-test("the helper installs from an iCloud link and the paper opens in Safari",()=>{
- assert.match(read("index.html"),/id="setup-helper" href="https:\/\/www\.icloud\.com\/shortcuts\/[a-f0-9]{32}"/);
- assert.match(read("app.js"),/navigator\.standalone===true\)\["whitepaper-link","welcome-paper"\]/);
+test("the helper installs from the link it last shared, and the paper opens in Safari",()=>{
+ const html=read("index.html"),app=read("app.js");
+ assert.match(html,/id="setup-helper" target="_blank" rel="noopener noreferrer" hidden>/);
+ assert.doesNotMatch(html,/id="setup-helper" href=/);
+ assert.ok(app.includes('authCanRelease&&data.helper&&/^https:\\/\\/www\\.icloud\\.com\\/shortcuts\\/[a-f0-9]{32}$/i.test(data.helper.url)'));
+ assert.match(app,/if\(authHelper\)helper\.href=authHelper;else helper\.removeAttribute\("href"\)/);
+ assert.match(app,/navigator\.standalone===true\)\["whitepaper-link","welcome-paper"\]/);
 });

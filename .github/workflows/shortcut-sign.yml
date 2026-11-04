@@ -46,14 +46,19 @@ jobs:
           git clone --depth 1 --branch v2.3.0 https://github.com/electrikmilk/cherri.git /tmp/cherri-source
           (cd /tmp/cherri-source && go build -trimpath -o /tmp/cherri-compiler .)
 
-      - name: Compile Sync and verify all If comparisons
+      - name: Compile both Shortcuts and verify all If comparisons
         run: |
           /tmp/cherri-compiler shortcuts/even-sync.cherri --debug --derive-uuids --skip-sign --output=/tmp/even-sync-unsigned.shortcut
+          /tmp/cherri-compiler shortcuts/even-release.cherri --debug --derive-uuids --skip-sign --output=/tmp/even-release-unsigned.shortcut
           PLIST="$(find . -type f -name 'Even Sync.plist' -print -quit)"
+          HELPER="$(find . -type f -name 'Even Release.plist' -print -quit)"
           test -n "$PLIST"
+          test -n "$HELPER"
           python3 scripts/check-shortcut-conditions.py "$PLIST"
+          python3 scripts/check-shortcut-conditions.py --helper "$HELPER"
           mkdir -p dist
           cp "$PLIST" dist/compiled-sync.plist
+          cp "$HELPER" dist/compiled-release.plist
 
       - name: Upload compiled plists for structural diagnostics
         uses: actions/upload-artifact@v4
@@ -112,4 +117,7 @@ jobs:
           cp "dist/Even Sync.shortcut" dist/Even-Sync.shortcut
           cp "dist/Even Release.shortcut" dist/Even-Release.shortcut
           grep -oE '"shortcutVersion": "[0-9.]+"' shortcuts/even-sync.cherri | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' > dist/Even-Sync-version.txt
-          gh release upload shortcut-latest dist/Even-Sync.shortcut dist/Even-Release.shortcut dist/Even-Sync-version.txt --clobber
+          grep -oE 'const helperVersion = "[0-9.]+"' shortcuts/even-release.cherri | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' > dist/Even-Release-version.txt
+          test -s dist/Even-Sync-version.txt
+          test -s dist/Even-Release-version.txt
+          gh release upload shortcut-latest dist/Even-Sync.shortcut dist/Even-Release.shortcut dist/Even-Sync-version.txt dist/Even-Release-version.txt --clobber

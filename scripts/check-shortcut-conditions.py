@@ -1,8 +1,12 @@
 #!/usr/bin/env python3
-"""Check that compiled Apple Shortcuts If actions retain their comparison values.
+"""Check compiled Apple Shortcuts property lists before they are signed.
 
-This inspects the generated property list, not the higher-level Cherri source.
-A Shortcut can compile successfully while an If action has no usable right operand.
+This inspects the generated property list, not the higher-level Cherri source. A Shortcut can compile
+successfully while an If action has no usable right operand, or while a field no longer refers to the
+value it should send.
+
+Usage: check-shortcut-conditions.py <Even Sync.plist>
+       check-shortcut-conditions.py --helper <Even Release.plist>
 """
 
 from __future__ import annotations
@@ -14,10 +18,17 @@ import sys
 from pathlib import Path
 
 
-EXPECTED_TEXT = collections.Counter(
-    {"connected": 1, "sent": 1, "needed": 1, "accepted": 7, "No valid records. Check date, metric values, and event start/end formats": 1, "new_release": 1}
-)
-EXPECTED_NUMBER = [0, 0] + [1] * 13 + [1440]
+SYNC_TEXT = collections.Counter({"connected": 1, "accepted": 2, "needed": 1, "new_release": 1, "sent": 1})
+SYNC_NUMBERS = [0, 0] + [1] * 11
+HELPER_TEXT = collections.Counter({
+    "Even Sync": 2, "Even Release": 1, "update": 1, "share": 1, "install": 1, "building": 1,
+    "ahead": 1, "current": 2, "publish": 1, "Publish": 1,
+})
+HELPER_NUMBERS = [0, 1, 1, 1, 1]
+
+TIMESTAMP_PATTERN = "yyyy-MM-dd'T'HH:mm:ssZZZZZ"
+KEY_FILE = "even-device-key.txt"
+STEP_GROUPING_PATTERN = r"(?<=\d)[,\s](?=\d{3}(?:\D|$))"
 
 
 def unwrap_text(value):
@@ -52,51 +63,100 @@ def operands(params):
             yield ("missing", None, item.get("WFCondition"))
 
 
-TIMESTAMP_PATTERN = "yyyy-MM-dd'T'HH:mm:ssZZZZZ"
+def check_conditions(actions, expected_text, expected_numbers) -> None:
+    """Every If keeps an explicit right-hand value, and the values are the expected ones."""
+    observed = []
+    for index, action in enumerate(actions):
+        if action.get("WFWorkflowActionIdentifier") != "is.workflow.actions.conditional":
+            continue
+        params = action.get("WFWorkflowActionParameters", {})
+        if params.get("WFControlFlowMode") != 0:
+            continue
+        for kind, value, operator in operands(params):
+            observed.append({"action": index, "kind": kind, "value": value, "operator": operator})
 
-def check_calendar_timestamps(actions) -> None:
-    """Require the compiled form to send full timestamp and timezone offset tokens."""
-    named = {
-        a.get("WFWorkflowActionParameters", {}).get("CustomOutputName"): a.get("WFWorkflowActionParameters", {})
-        for a in actions
+    print(json.dumps({"conditions": observed}, indent=2))
+    expected_total = sum(expected_text.values()) + len(expected_numbers)
+    if len(observed) != expected_total:
+        raise AssertionError(f"Expected {expected_total} If comparisons, found {len(observed)}")
+    missing = [row for row in observed if row["kind"] == "missing" or row["value"] == ""]
+    if missing:
+        raise AssertionError(f"If conditions missing right operands: {missing}")
+    texts = collections.Counter(row["value"] for row in observed if row["kind"] == "text")
+    numbers = sorted(float(row["value"]) for row in observed if row["kind"] == "number")
+    if texts != expected_text:
+        raise AssertionError(f"Unexpected text operands: {texts}; expected {expected_text}")
+    if numbers != sorted(float(n) for n in expected_numbers):
+        raise AssertionError(f"Unexpected numeric operands: {numbers}; expected {expected_numbers}")
+    print(f"All {expected_total} If comparisons have explicit, expected right-hand values.")
+
+
+def named_outputs(actions):
+    return {
+        action.get("WFWorkflowActionParameters", {}).get("CustomOutputName"): action
+        for action in actions
+        if action.get("WFWorkflowActionParameters", {}).get("CustomOutputName")
     }
-    for time_name, event_name in (("startISO", "startDate"), ("endISO", "endDate")):
-        item = named.get(time_name)
+
+
+def forms(actions):
+    """Each form request's fields, keyed by field name."""
+    result = []
+    for action in actions:
+        if action.get("WFWorkflowActionIdentifier") != "is.workflow.actions.downloadurl":
+            continue
+        items = action.get("WFWorkflowActionParameters", {}).get("WFFormValues", {}).get("Value", {}).get("WFDictionaryFieldValueItems", [])
+        fields = {
+            item.get("WFKey", {}).get("Value", {}).get("string"): item.get("WFValue", {}).get("Value", {})
+            for item in items
+        }
+        if fields:
+            result.append((action, fields))
+    return result
+
+
+def refers_to_variable(value, name) -> bool:
+    return f'"VariableName": "{name}"' in json.dumps(value)
+
+
+def check_timestamps_and_records(actions) -> None:
+    """Calendar and sleep times keep their date, time and time zone, and reach the records that are sent."""
+    named = named_outputs(actions)
+    for time_name, source_name in (
+        ("startISO", "startDate"), ("endISO", "endDate"),
+        ("upcomingStartISO", "upcomingStart"), ("upcomingEndISO", "upcomingEnd"),
+        ("sleepStartISO", "sleepStart"), ("sleepEndISO", "sleepEnd"),
+    ):
+        item = named.get(time_name, {}).get("WFWorkflowActionParameters")
         if not item:
             raise AssertionError(f"Missing compiled date formatter {time_name}")
         actual = (item.get("WFDateFormatStyle"), item.get("WFTimeFormatStyle"), item.get("WFDateFormat"))
-        expected = ("Custom", "None", TIMESTAMP_PATTERN)
-        if actual != expected:
-            raise AssertionError(f"{time_name} strips event time/zone: {actual}, expected {expected}")
+        if actual != ("Custom", "None", TIMESTAMP_PATTERN):
+            raise AssertionError(f"{time_name} strips the time or time zone: {actual}")
         source = item.get("WFDate", {}).get("Value", {}).get("attachmentsByRange", {}).get("{0, 1}", {})
-        if source.get("OutputName") != event_name:
-            raise AssertionError(f"{time_name} does not reference {event_name}")
+        if source.get("OutputName") != source_name:
+            raise AssertionError(f"{time_name} does not format {source_name}")
 
-    forms = [
-        a.get("WFWorkflowActionParameters", {}).get("WFFormValues", {}).get("Value", {}).get("WFDictionaryFieldValueItems", [])
-        for a in actions
-        if a.get("WFWorkflowActionIdentifier") == "is.workflow.actions.downloadurl"
-    ]
-    calendar_forms = []
-    for form in forms:
-        fields = {
-            x.get("WFKey", {}).get("Value", {}).get("string"): x.get("WFValue", {}).get("Value", {})
-            for x in form
-        }
-        if fields.get("kind", {}).get("string") == "calendar":
-            calendar_forms.append(fields)
-    if len(calendar_forms) != 1:
-        raise AssertionError(f"Expected one Calendar upload form, found {len(calendar_forms)}")
-    fields = calendar_forms[0]
-    for field, formatter in (("start", "startISO"), ("end", "endISO")):
-        token = fields.get(field, {}).get("attachmentsByRange", {}).get("{0, 1}", {})
-        if token.get("OutputName") != formatter or token.get("OutputUUID") != named[formatter].get("UUID"):
-            raise AssertionError(f"Calendar form field {field} does not reference {formatter}")
-    print("Calendar form sends full ISO date-time with timezone offsets for both event endpoints.")
+    dumps = [json.dumps(action) for action in actions]
+    for variable, parts in (
+        ("eventRecords", ("startISO", "endISO", "calendarName", "title")),
+        ("eventRecords", ("upcomingStartISO", "upcomingEndISO", "upcomingCalendar", "upcomingTitle")),
+        ("sleepIntervals", ("sleepStartISO", "sleepEndISO")),
+    ):
+        if not any(f'"VariableName": "{variable}"' in dump and all(f'"OutputName": "{part}"' in dump for part in parts) for dump in dumps):
+            raise AssertionError(f"No record appends {', '.join(parts)} to {variable}")
 
-
-KEY_FILE = "even-device-key.txt"
-STEP_GROUPING_PATTERN = r"(?<=\d)[,\s](?=\d{3}(?:\D|$))"
+    sent = forms(actions)
+    calendar = [fields for _, fields in sent if fields.get("kind", {}).get("string") == "calendar_days"]
+    if len(calendar) != 1:
+        raise AssertionError(f"Expected one calendar upload, found {len(calendar)}")
+    if any(fields.get("kind", {}).get("string") in ("calendar", "calendar_complete") for _, fields in sent):
+        raise AssertionError("Even Sync still sends events one at a time")
+    if not refers_to_variable(calendar[0].get("events"), "eventRecords"):
+        raise AssertionError("The calendar upload does not send the event records")
+    if any("heartRate" in fields for _, fields in sent):
+        raise AssertionError("Even Sync still sends average heart rate")
+    print("Calendar and sleep records keep full ISO date-times with time zones, and both days go up together.")
 
 
 def check_alarms(actions) -> None:
@@ -111,22 +171,22 @@ def check_alarms(actions) -> None:
     print("Even Sync reads alarms with their time, repeat, state and name.")
 
 
-def check_connection_and_steps(document, actions) -> None:
+def check_connection_and_health(document, actions) -> None:
     if document.get("WFWorkflowImportQuestions", []):
         raise AssertionError("Even Sync cannot ask for a device key when reinstalled")
 
-    named = {
-        action.get("WFWorkflowActionParameters", {}).get("CustomOutputName"): action
-        for action in actions
-    }
+    named = named_outputs(actions)
     by_id = lambda identifier: [a for a in actions if a.get("WFWorkflowActionIdentifier") == identifier]
     if any("runworkflow" in a.get("WFWorkflowActionIdentifier", "") for a in actions):
         raise AssertionError("Even Sync must not depend on another Shortcut")
 
-    for finder, count, types in (("is.workflow.actions.filter.calendarevents", 1, [None]), ("is.workflow.actions.filter.health.quantity", 8, ["Steps", "Steps", "Resting Heart Rate", "Heart Rate", "Heart Rate Variability", "Exercise Minutes", "Sleep", "Sleep"])):
+    for finder, types in (
+        ("is.workflow.actions.filter.calendarevents", [None, None]),
+        ("is.workflow.actions.filter.health.quantity", ["Steps", "Steps", "Resting Heart Rate", "Heart Rate Variability", "Exercise Minutes", "Sleep", "Sleep"]),
+    ):
         found = by_id(finder)
-        if len(found) != count:
-            raise AssertionError(f"Expected {count} {finder} actions, found {len(found)}")
+        if len(found) != len(types):
+            raise AssertionError(f"Expected {len(types)} {finder} actions, found {len(found)}")
         for action, expected_type in zip(found, types):
             template = action["WFWorkflowActionParameters"].get("WFContentItemFilter", {})
             if template.get("WFSerializationType") != "WFContentPredicateTableTemplate":
@@ -135,6 +195,8 @@ def check_connection_and_steps(document, actions) -> None:
             actual = rows[0]["Values"]["Enumeration"]["Value"] if expected_type else None
             if actual != expected_type:
                 raise AssertionError(f"Expected filter type {expected_type}, found {actual}")
+            if any(row.get("Values", {}).get("Enumeration", {}).get("Value") == "Heart Rate" for row in rows):
+                raise AssertionError("Even Sync still reads average heart rate")
 
     reads = [a for a in by_id("is.workflow.actions.documentpicker.open") if a.get("WFWorkflowActionParameters", {}).get("WFGetFilePath") == KEY_FILE]
     if len(reads) != 1:
@@ -164,8 +226,7 @@ def check_connection_and_steps(document, actions) -> None:
 
     total = named.get("totalSteps", {})
     total_settings = total.get("WFWorkflowActionParameters", {})
-    total_input = json.dumps(total_settings.get("Input", {}))
-    if total.get("WFWorkflowActionIdentifier") != "is.workflow.actions.statistics" or total_settings.get("WFStatisticsOperation") != "Sum" or '"values"' not in total_input:
+    if total.get("WFWorkflowActionIdentifier") != "is.workflow.actions.statistics" or total_settings.get("WFStatisticsOperation") != "Sum" or '"values"' not in json.dumps(total_settings.get("Input", {})):
         raise AssertionError("Step sum does not receive the Health sample values")
 
     normalizer = named.get("normalizedSteps", {})
@@ -178,63 +239,59 @@ def check_connection_and_steps(document, actions) -> None:
     if text_input.get("OutputName") != "totalStepsText":
         raise AssertionError("Step normalizer is not receiving the statistic's textual value")
 
-    health = named.get("healthBody", {}).get("WFWorkflowActionParameters", {})
-    fields = health.get("WFFormValues", {}).get("Value", {}).get("WFDictionaryFieldValueItems", [])
-    values = {
-        field.get("WFKey", {}).get("Value", {}).get("string"):
-        field.get("WFValue", {}).get("Value", {})
-        for field in fields
-    }
-    if values.get("kind", {}).get("string") != "health":
-        raise AssertionError("Expected health ingestion form")
-    steps = values.get("steps", {}).get("attachmentsByRange", {}).get("{0, 1}", {})
-    extractor = named.get("stepsValue", {}).get("WFWorkflowActionParameters", {})
+    extractor_action = named.get("stepsValue", {})
+    extractor = extractor_action.get("WFWorkflowActionParameters", {})
     extractor_input = extractor.get("WFInput", {}).get("Value", {}).get("attachmentsByRange", {}).get("{0, 1}", {})
     if extractor.get("WFReplaceTextReplace") != "$1" or not extractor.get("WFReplaceTextRegularExpression") or extractor_input.get("OutputName") != "normalizedSteps":
         raise AssertionError("Step number extraction is missing or malformed")
-    if steps.get("OutputName") != "stepsValue" or steps.get("OutputUUID") != extractor.get("UUID"):
-        raise AssertionError("Health form does not use the normalized numeric step value")
-    print("Installed Sync has no import question; saved-key file and numeric Health fields verified.")
+    setters = [a for a in by_id("is.workflow.actions.setvariable") if a.get("WFWorkflowActionParameters", {}).get("WFVariableName") == "stepsField"]
+    if not any(extractor.get("UUID") and extractor["UUID"] in json.dumps(s.get("WFWorkflowActionParameters", {}).get("WFInput", {})) for s in setters):
+        raise AssertionError("The steps field is not set from the numeric step value")
+
+    health = named.get("healthBody", {}).get("WFWorkflowActionParameters", {})
+    items = health.get("WFFormValues", {}).get("Value", {}).get("WFDictionaryFieldValueItems", [])
+    values = {item.get("WFKey", {}).get("Value", {}).get("string"): item.get("WFValue", {}).get("Value", {}) for item in items}
+    if values.get("kind", {}).get("string") != "health":
+        raise AssertionError("Expected one health upload")
+    for field, variable in (("steps", "stepsField"), ("restingHR", "restingField"), ("hrv", "hrvField"), ("workoutMin", "exerciseField"), ("sleepIntervals", "sleepIntervals")):
+        if not refers_to_variable(values.get(field), variable):
+            raise AssertionError(f"Health upload field {field} does not send {variable}")
+    print("Installed Sync has no import question; saved-key file and the single Health upload verified.")
 
 
-def check(plist_path: Path) -> None:
+def check_helper(document, actions) -> None:
+    if document.get("WFWorkflowImportQuestions", []):
+        raise AssertionError("Even Release must not ask questions when installed")
+    urls = [json.dumps(a.get("WFWorkflowActionParameters", {}).get("WFURL", "")) for a in actions if a.get("WFWorkflowActionIdentifier") == "is.workflow.actions.downloadurl"]
+    if not any("release-state?helper=" in url for url in urls):
+        raise AssertionError("Even Release does not report its own version")
+    if not any("Even-Release.shortcut" in url for url in urls):
+        raise AssertionError("Even Release cannot update itself")
+    print("Even Release reports its version and can update itself.")
+
+
+def check(plist_path: Path, helper: bool) -> None:
     with plist_path.open("rb") as stream:
         document = plistlib.load(stream)
     actions = document.get("WFWorkflowActions", [])
     if not isinstance(actions, list):
         raise ValueError("Missing WFWorkflowActions array")
-
-    observed = []
-    for index, action in enumerate(actions):
-        if action.get("WFWorkflowActionIdentifier") != "is.workflow.actions.conditional":
-            continue
-        params = action.get("WFWorkflowActionParameters", {})
-        if params.get("WFControlFlowMode") != 0:
-            continue
-        for kind, value, operator in operands(params):
-            observed.append({"action": index, "kind": kind, "value": value, "operator": operator})
-
-    print(json.dumps({"plist": str(plist_path), "conditions": observed}, indent=2))
-    if len(observed) != 28:
-        raise AssertionError(f"Expected twenty-eight If comparisons, found {len(observed)}")
-
-    missing = [row for row in observed if row["kind"] == "missing" or row["value"] == ""]
-    if missing:
-        raise AssertionError(f"If conditions missing right operands: {missing}")
-
-    texts = collections.Counter(row["value"] for row in observed if row["kind"] == "text")
-    numbers = [row["value"] for row in observed if row["kind"] == "number"]
-    if texts != EXPECTED_TEXT:
-        raise AssertionError(f"Unexpected text operands: {texts}; expected {EXPECTED_TEXT}")
-    if sorted(float(n) for n in numbers) != EXPECTED_NUMBER:
-        raise AssertionError(f"Expected numeric thresholds 0 and 1, got {numbers}")
-    check_calendar_timestamps(actions)
-    check_connection_and_steps(document, actions)
+    print(f"Checking {plist_path}")
+    if helper:
+        check_conditions(actions, HELPER_TEXT, HELPER_NUMBERS)
+        check_helper(document, actions)
+        return
+    check_conditions(actions, SYNC_TEXT, SYNC_NUMBERS)
+    check_timestamps_and_records(actions)
+    check_connection_and_health(document, actions)
     check_alarms(actions)
-    print("All twenty-eight If comparisons have explicit, expected right-hand values.")
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 2:
-        raise SystemExit("Usage: check-shortcut-conditions.py <compiled.plist>")
-    check(Path(sys.argv[1]))
+    args = sys.argv[1:]
+    helper = bool(args) and args[0] == "--helper"
+    if helper:
+        args = args[1:]
+    if len(args) != 1:
+        raise SystemExit(__doc__)
+    check(Path(args[0]), helper)

@@ -12,10 +12,11 @@ async function approved(env,email){
 }
 const MIME={"index.html":"text/html; charset=utf-8","styles.css":"text/css; charset=utf-8","app.js":"text/javascript; charset=utf-8","reminders.js":"text/javascript; charset=utf-8","intake.js":"text/javascript; charset=utf-8","whitepaper.html":"text/html; charset=utf-8","whitepaper.css":"text/css; charset=utf-8","invites.js":"text/javascript; charset=utf-8","coach.js":"text/javascript; charset=utf-8","refresh.js":"text/javascript; charset=utf-8","sw.js":"text/javascript; charset=utf-8","manifest.webmanifest":"application/manifest+json","icon.svg":"image/svg+xml","icon-192.png":"image/png","icon-512.png":"image/png"};
 const SECURITY={"X-Content-Type-Options":"nosniff","Referrer-Policy":"no-referrer","X-Frame-Options":"DENY","Permissions-Policy":"camera=(), microphone=(), geolocation=()","Content-Security-Policy":"default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'"};
-const METRICS={sleepHours:[0,24],steps:[0,100000],hrv:[0,500],restingHR:[20,250],heartRate:[20,250],workoutMin:[0,1440]};
+const METRICS={sleepHours:[0,24],steps:[0,100000],hrv:[0,500],restingHR:[20,250],workoutMin:[0,1440]};
+const SEMVER=/^\d{1,3}\.\d{1,3}\.\d{1,3}$/,UTC_OFFSET=/^(Z|[+-]\d{2}:\d{2})$/;
 const CATS=["Meeting","Work","Exercise","Social","Family","Rest","Commute","Other"];
 function reply(body,status=200){return new Response(JSON.stringify(body),{status,headers:{...SECURITY,"Content-Type":"application/json; charset=utf-8","Cache-Control":"no-store"}});}
-function error(message,status=400){return reply({ok:false,error:message},status);}
+function error(message,status,code){return reply({ok:false,error:message,code},status);}
 async function digest(text){const bytes=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(text));return Array.from(new Uint8Array(bytes),b=>b.toString(16).padStart(2,"0")).join("");}
 function secureRandomHex(){return Array.from(crypto.getRandomValues(new Uint8Array(32)),x=>x.toString(16).padStart(2,"0")).join("");}
 async function payload(request){
@@ -94,17 +95,50 @@ function readBedtimes(starts){
  }
  return [...nights].map(([day,n])=>({day,metric:"bedtimeMin",value:n.value}));
 }
+function nextDay(day){return new Date(new Date(day+"T12:00:00Z").getTime()+86400000).toISOString().slice(0,10);}
+// Sleep arrives as the start and end of each asleep sample. Overlapping samples from more than one device are merged,
+// each night is filed under the morning it ends, and daytime naps don't count. When the Shortcut reached its sample
+// limit, the oldest night may be cut off, so it's left as it was.
+function readSleep(text,samples,limit){
+ const nights=new Map();
+ for(const record of String(text||"").split("\u241e").slice(0,1000)){
+  const [startText="",endText=""]=record.split("\u241f").map(v=>v.trim());
+  const local=/^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2})/.exec(startText),date=local&&dateOnly(local[1]);
+  const start=Date.parse(startText),end=Date.parse(endText);
+  if(!date||!Number.isFinite(start)||!Number.isFinite(end)||end<=start||end-start>86400000)continue;
+  const hour=Number(local[2]),minute=Number(local[3]);
+  if(hour>23||minute>59||(hour>=10&&hour<18))continue;
+  const morning=hour<18?date:nextDay(date),night=nights.get(morning)||{spans:[],order:Infinity,bed:0};
+  const value=hour*60+minute,order=hour<18?value+1440:value;
+  if(order<night.order){night.order=order;night.bed=value;}
+  night.spans.push([start,end]);nights.set(morning,night);
+ }
+ const days=[...nights.keys()].sort(),cap=Number(limit);
+ if(cap>0&&Number(samples)>=cap)days.shift();
+ return days.flatMap(day=>{
+  const spans=nights.get(day).spans.sort((a,b)=>a[0]-b[0]);
+  let asleep=0,[from,to]=spans[0];
+  for(const [s,e] of spans.slice(1)){if(s>to){asleep+=to-from;from=s;to=e;}else if(e>to)to=e;}
+  asleep+=to-from;
+  return [{day,metric:"sleepHours",value:Math.round(asleep/36000)/100},{day,metric:"bedtimeMin",value:nights.get(day).bed}];
+ });
+}
+// Some locales write decimals with a comma.
+function measure(raw){const value=String(raw).trim();return Number(/^\d+,\d+$/.test(value)?value.replace(",","."):value);}
+// Each measure can carry its own date, because its latest daily total may be from an earlier day.
 function readHealth(x){
  if(!x||typeof x!=="object")return [];
- const day=dateOnly(x.date||x.day);if(!day)return [];
- const results=readBedtimes(x.sleepStarts);
+ const base=dateOnly(x.date||x.day),results=[...readBedtimes(x.sleepStarts),...readSleep(x.sleepIntervals,x.sleepSamples,x.sleepLimit)];
  for(const [metric,[low,high]] of Object.entries(METRICS)){
-  const raw=x[metric];if(raw===undefined||raw===null||raw==="")continue;
-  const value=Number(raw);
-  if(Number.isFinite(value)&&value>=low&&value<=high)results.push({day,metric,value});
+  const raw=x[metric];if(raw===undefined||raw===null||String(raw).trim()==="")continue;
+  const day=dateOnly(x[metric+"Date"])||base,value=measure(raw);
+  if(day&&Number.isFinite(value)&&value>=low&&value<=high)results.push({day,metric,value});
  }
  return results;
 }
+// Whether a measure was sent at all, even an invalid one. Average heart rate from older Shortcuts doesn't count, and
+// neither do sleep intervals, because a night that may be cut off is left out on purpose rather than rejected.
+function sentHealth(x){return !!x&&typeof x==="object"&&[...Object.keys(METRICS),"sleepStarts"].some(k=>x[k]!==undefined&&x[k]!==null&&String(x[k]).trim()!=="");}
 function classifyCalendarTitle(title){
  if(/\b(meeting|call|standup|stand-up)\b/i.test(title))return "Meeting";
  if(/\b(workout|gym|run|running|training)\b/i.test(title))return "Exercise";
@@ -119,6 +153,28 @@ function readEvent(x){
  const title=String(x.title||"Calendar event").trim().slice(0,100)||"Calendar event";
  const category=CATS.includes(x.category)?x.category:classifyCalendarTitle(title);
  return {start:start.toISOString(),end:end.toISOString(),title,category,calendar:String(x.calendar||"").trim().slice(0,100)||null};
+}
+// Even Sync 3 sends today's and tomorrow's events as records of start, end, calendar and title, so both days arrive complete.
+function readEventRecords(text){
+ const seen=new Set(),events=[];
+ for(const record of String(text||"").split("\u241e")){
+  if(events.length>=150)break;
+  const [start="",end="",calendar="",...title]=record.split("\u241f");
+  const day=dateOnly(start.trim().slice(0,10)),event=day&&readEvent({start:start.trim(),end:end.trim(),calendar,title:title.join("\u241f")});
+  if(!event||seen.has(event.start+"|"+event.end+"|"+event.title))continue;
+  seen.add(event.start+"|"+event.end+"|"+event.title);events.push({...event,day});
+ }
+ return events;
+}
+async function eventStatement(env,owner,e,at){
+ const eventId=(await digest(e.start+"|"+e.end+"|"+e.title)).slice(0,40);
+ return env.DB.prepare("INSERT INTO even_calendar_events(owner_email,event_id,start_time,end_time,title,category,calendar,updated_at) VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(owner_email,event_id) DO UPDATE SET title=excluded.title,category=excluded.category,calendar=excluded.calendar,updated_at=excluded.updated_at").bind(owner,eventId,e.start,e.end,e.title,e.category,e.calendar,at);
+}
+async function markUpload(env,dev,version,at){
+ const claimed=String(version||"").trim(),clientVersion=SEMVER.test(claimed)?claimed:null;
+ await env.DB.prepare("UPDATE even_devices SET last_used_at=?,last_attempt_at=?,last_error_code=NULL,shortcut_version=COALESCE(?,shortcut_version) WHERE device_id=? AND owner_email=? AND revoked_at IS NULL")
+  .bind(at,at,clientVersion,dev.id,dev.owner).run();
+ return clientVersion;
 }
 async function sendInvite(env,to){
  if(!env.RESEND_API_KEY)return false;
@@ -136,7 +192,7 @@ async function sendInvite(env,to){
 async function authApi(request,env,ctx,path){
  const email=await authIdentity(request,env,ctx);
  if(!email&&path==="/api/auth/start"&&request.method==="GET")return new Response(null,{status:303,headers:{...SECURITY,"Cache-Control":"no-store","Location":new URL(request.url).origin+"/?auth=denied#sync"}});
- if(!email)return error("An approved Cloudflare Access login is required",401);
+ if(!email)return error("Sign in with an approved email.",401,"sign_in_required");
  if(path==="/api/auth/start"&&request.method==="GET"){
   const url=new URL(request.url);
   return new Response(null,{status:303,headers:{...SECURITY,"Cache-Control":"no-store","Location":url.origin+"/?auth=ready#sync"}});
@@ -144,21 +200,22 @@ async function authApi(request,env,ctx,path){
  if(path==="/api/auth/me"&&request.method==="GET"){
   const r=await env.DB.prepare("SELECT device_id,label,created_at,last_used_at,last_attempt_at,last_error_code,shortcut_version,revoked_at FROM even_devices WHERE owner_email=? ORDER BY created_at DESC LIMIT 30").bind(email).all();
   const welcome=await env.DB.prepare("SELECT display_name FROM even_release_emails WHERE email=? AND display_name IS NOT NULL AND welcomed_at IS NULL").bind(email).first();
-  return reply({ok:true,email,canRelease:await canRelease(env,email),welcomeName:welcome?.display_name||null,devices:(r.results||[]).map(d=>({id:d.device_id,label:d.label,createdAt:d.created_at,lastUsedAt:d.last_used_at,lastAttemptAt:d.last_attempt_at,lastErrorCode:d.last_error_code,shortcutVersion:d.shortcut_version,revoked:!!d.revoked_at}))});
+  const release=await canRelease(env,email);
+  return reply({ok:true,email,canRelease:release,helper:release?await loadHelperLink(env):null,welcomeName:welcome?.display_name||null,devices:(r.results||[]).map(d=>({id:d.device_id,label:d.label,createdAt:d.created_at,lastUsedAt:d.last_used_at,lastAttemptAt:d.last_attempt_at,lastErrorCode:d.last_error_code,shortcutVersion:d.shortcut_version,revoked:!!d.revoked_at}))});
  }
  if(path==="/api/auth/device"){
-  if(!browserPostAllowed(request))return error("Same-origin JSON POST required",403);
-  let input;try{input=await payload(request);}catch(e){return error("Invalid device request",400);}
+  if(!browserPostAllowed(request))return error("This request isn't allowed.",403,"same_origin_required");
+  let input;try{input=await payload(request);}catch(e){return error("Even couldn't read that request.",400,"invalid_body");}
   const label=String(input.label||"iPhone").trim().replace(/[\x00-\x1f]/g,"").slice(0,64)||"iPhone";
   const count=await env.DB.prepare("SELECT COUNT(*) AS count FROM even_devices WHERE owner_email=? AND revoked_at IS NULL").bind(email).first();
-  if(Number(count?.count||0)>=10)return error("Ten active devices maximum; revoke one first",429);
+  if(Number(count?.count||0)>=10)return error("Ten active devices maximum; revoke one first",429,"device_limit");
   const token=secureRandomHex(),deviceId=crypto.randomUUID(),at=new Date().toISOString();
   await env.DB.prepare("INSERT OR IGNORE INTO even_users(email,created_at) VALUES(?,?)").bind(email,at).run();
   await env.DB.prepare("INSERT INTO even_devices(token_hash,device_id,owner_email,label,created_at) VALUES(?,?,?,?,?)").bind(await digest(token),deviceId,email,label,at).run();
   return reply({ok:true,email,token,deviceId,label,createdAt:at});
  }
  if(path.startsWith("/api/auth/testers")){
-  if(!await canRelease(env,email))return error("This account can't manage testers",403);
+  if(!await canRelease(env,email))return error("This account can't manage testers",403,"not_release_account");
   if(path==="/api/auth/testers"&&request.method==="GET"){
    const [added,developers,users]=await Promise.all([
     env.DB.prepare("SELECT email FROM even_approved_emails").bind().all(),
@@ -170,38 +227,38 @@ async function authApi(request,env,ctx,path){
    const everyone=[...new Set([...ownerEmails(env),...names.keys(),...(added.results||[]).map(r=>r.email)])].sort();
    return reply({ok:true,testers:everyone.map(address=>({email:address,name:names.get(address)||null,signedIn:signedIn.has(address),removable:removable.has(address)}))});
   }
-  if(!browserPostAllowed(request))return error("Same-origin JSON POST required",403);
-  let input;try{input=await payload(request);}catch(e){return error("Invalid request");}
+  if(!browserPostAllowed(request))return error("This request isn't allowed.",403,"same_origin_required");
+  let input;try{input=await payload(request);}catch(e){return error("Even couldn't read that request.",400,"invalid_body");}
   const tester=String(input?.email||"").trim().toLowerCase();
-  if(tester.length>254||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(tester))return error("Enter a valid email address.");
+  if(tester.length>254||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(tester))return error("Enter a valid email address.",400,"invalid_email");
   if(path==="/api/auth/testers"){
    await env.DB.prepare("INSERT OR IGNORE INTO even_approved_emails(email,added_by,created_at) VALUES(?,?,?)").bind(tester,email,new Date().toISOString()).run();
    return reply({ok:true,emailed:await sendInvite(env,tester)});
   }
   if(path==="/api/auth/testers/invite"){
-   if(!await approved(env,tester)&&!await canRelease(env,tester))return error("Add this email first.",404);
+   if(!await approved(env,tester)&&!await canRelease(env,tester))return error("Add this email first.",404,"not_a_tester");
    return reply({ok:true,emailed:await sendInvite(env,tester)});
   }
   if(path==="/api/auth/testers/remove"){
    await env.DB.prepare("DELETE FROM even_approved_emails WHERE email=?").bind(tester).run();
    return reply({ok:true});
   }
-  return error("Not found",404);
+  return error("Not found",404,"not_found");
  }
  if(path==="/api/auth/welcomed"){
-  if(!browserPostAllowed(request))return error("Same-origin JSON POST required",403);
+  if(!browserPostAllowed(request))return error("This request isn't allowed.",403,"same_origin_required");
   await env.DB.prepare("UPDATE even_release_emails SET welcomed_at=? WHERE email=? AND welcomed_at IS NULL").bind(new Date().toISOString(),email).run();
   return reply({ok:true});
  }
  if(path==="/api/auth/revoke"){
-  if(!browserPostAllowed(request))return error("Same-origin JSON POST required",403);
-  let input;try{input=await payload(request);}catch(e){return error("Invalid request");}
+  if(!browserPostAllowed(request))return error("This request isn't allowed.",403,"same_origin_required");
+  let input;try{input=await payload(request);}catch(e){return error("Even couldn't read that request.",400,"invalid_body");}
   const deviceId=String(input.deviceId||"");
-  if(!/^[\w-]{12,80}$/.test(deviceId))return error("Invalid device identifier");
+  if(!/^[\w-]{12,80}$/.test(deviceId))return error("Invalid device identifier",400,"invalid_device");
   const result=await env.DB.prepare("UPDATE even_devices SET revoked_at=? WHERE device_id=? AND owner_email=? AND revoked_at IS NULL").bind(new Date().toISOString(),deviceId,email).run();
   return reply({ok:true,revoked:!!result.meta?.changes});
  }
- return error("Not found",404);
+ return error("Not found",404,"not_found");
 }
 function cleanShortcutRelease(value){
  if(!value||typeof value!=="object")return null;
@@ -210,6 +267,17 @@ function cleanShortcutRelease(value){
  if(!/^\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(version))return null;
  if(!ICLOUD_SHORTCUT.test(url))return null;
  return {version,url,publishedAt:String(value.publishedAt||"").slice(0,30),notes:String(value.notes||"").slice(0,180),verified:value.verified===true};
+}
+async function loadConfig(env,key){try{const raw=await env.ASSETS.get(key);return raw?JSON.parse(raw):null;}catch(e){return null;}}
+// The link Even Release last shared, so Set Up Release Helper installs the current helper.
+async function loadHelperLink(env){
+ const value=await loadConfig(env,"config:helper:latest");
+ return value&&SEMVER.test(String(value.version||""))&&ICLOUD_SHORTCUT.test(String(value.url||""))?{version:value.version,url:value.url}:null;
+}
+// The versions in the source on main, written at deploy, so a build that's still being signed isn't mistaken for current.
+async function loadSourceVersions(env){
+ const value=await loadConfig(env,"config:shortcut:source")||{};
+ return{sync:SEMVER.test(String(value.sync||""))?value.sync:null,release:SEMVER.test(String(value.release||""))?value.release:null};
 }
 async function loadShortcutRelease(env){
  const raw=await env.ASSETS.get("config:shortcut:latest");
@@ -336,62 +404,81 @@ async function sendReminders(env,now=new Date()){
  }
 }
 const BUILDS="https://github.com/Bishvili/even/releases/download/shortcut-latest/";
-async function latestBuildVersion(){
- const file=await fetch(BUILDS+"Even-Sync-version.txt");
+async function latestBuildVersion(name){
+ const file=await fetch(BUILDS+name+"-version.txt");
  if(!file.ok)return null;
  const version=(await file.text()).trim();
- return /^\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(version)?version:null;
+ return SEMVER.test(version)?version:null;
 }
-// Published versions can't be edited, so a link only passes if it names Even Sync.
-async function linkIsEvenSync(link){
+// Published versions can't be edited, so a link only passes if it names the expected Shortcut.
+async function shortcutName(link){
  try{
   const record=await fetch("https://www.icloud.com/shortcuts/api/records/"+link.split("/").pop());
-  return record.ok&&(await record.json())?.fields?.name?.value==="Even Sync";
- }catch(e){return false;}
+  return record.ok?String((await record.json())?.fields?.name?.value||""):"";
+ }catch(e){return "";}
+}
+async function startWorkflow(env,file,inputs){
+ const started=await fetch("https://api.github.com/repos/Bishvili/even/actions/workflows/"+file+"/dispatches",{method:"POST",headers:{"Authorization":"Bearer "+env.GITHUB_API_KEY,"Accept":"application/vnd.github+json","Content-Type":"application/json","User-Agent":"even","X-GitHub-Api-Version":"2022-11-28"},body:JSON.stringify({ref:"main",inputs})});
+ return started.status===204;
 }
 async function syncApi(request,env,path){
  const dev=await validDevice(request,env);
- if(!dev)return error("A valid non-revoked device key is required",401);
+ if(!dev)return error("This iPhone isn't connected. Open Even, go to Sync, and tap Run Even Sync.",401,"device_required");
  const owner=dev.owner;
  if(path==="/api/shortcut/release-state"&&request.method==="GET"){
-  if(!await canRelease(env,owner))return error("This account can't publish releases",403);
-  const latest=await latestBuildVersion();
-  if(!latest)return error("The latest build couldn't be checked",502);
+  if(!await canRelease(env,owner))return error("This account can't publish releases",403,"not_release_account");
+  const latest=await latestBuildVersion("Even-Sync");
+  if(!latest)return error("The latest build couldn't be checked",502,"build_unavailable");
   const device=await env.DB.prepare("SELECT shortcut_version FROM even_devices WHERE device_id=? AND owner_email=?").bind(dev.id,owner).first();
   const published=(await loadShortcutRelease(env))?.version||null,installed=device?.shortcut_version||null;
-  return reply({ok:true,state:installed!==latest?"install":published!==latest?"publish":"current",latest,installed,published});
+  const helper=new URL(request.url).searchParams.get("helper")||"";
+  // Even Release 1 knows only these three states.
+  if(!SEMVER.test(helper))return reply({ok:true,state:installed!==latest?"install":published!==latest?"publish":"current",latest,installed,published});
+  const [source,latestHelper,shared]=await Promise.all([loadSourceVersions(env),latestBuildVersion("Even-Release").catch(()=>null),loadHelperLink(env)]);
+  const state=source.sync&&semverNewer(source.sync,latest)?"building":installed&&semverNewer(installed,latest)?"ahead":installed!==latest?"install":published!==latest?"publish":"current";
+  const helperState=latestHelper&&semverNewer(latestHelper,helper)?"update":"current";
+  const helperLinkState=helperState==="current"&&!(latestHelper&&semverNewer(helper,latestHelper))&&shared?.version!==helper?"share":"current";
+  return reply({ok:true,state,latest,installed,published,helper,helperState,helperLinkState});
  }
  if(path==="/api/shortcut/publish"&&request.method==="POST"){
-  if(!await canRelease(env,owner))return error("This account can't publish releases",403);
-  let input;try{input=await payload(request);}catch(e){return error("Invalid release request");}
+  if(!await canRelease(env,owner))return error("This account can't publish releases",403,"not_release_account");
+  let input;try{input=await payload(request);}catch(e){return error("Even couldn't read that request.",400,"invalid_body");}
   const link=String(input?.link||"").trim();
-  if(!ICLOUD_SHORTCUT.test(link))return error("A valid Shortcut link is required");
-  if(!await linkIsEvenSync(link))return error("That link isn't Even Sync, so nothing was published.");
-  const started=await fetch("https://api.github.com/repos/Bishvili/even/actions/workflows/routinehub-publish.yml/dispatches",{method:"POST",headers:{"Authorization":"Bearer "+env.GITHUB_API_KEY,"Accept":"application/vnd.github+json","Content-Type":"application/json","User-Agent":"even","X-GitHub-Api-Version":"2022-11-28"},body:JSON.stringify({ref:"main",inputs:{icloud_link:link}})});
-  return started.status===204?reply({ok:true}):error("Publishing couldn't start",502);
+  if(!ICLOUD_SHORTCUT.test(link))return error("A valid Shortcut link is required",400,"invalid_link");
+  if(await shortcutName(link)!=="Even Sync")return error("That link isn't Even Sync, so nothing was published.",400,"wrong_shortcut");
+  return await startWorkflow(env,"routinehub-publish.yml",{icloud_link:link})?reply({ok:true}):error("Publishing couldn't start",502,"publish_failed");
+ }
+ // Even Release shares its own link, so Set Up Release Helper installs the current helper.
+ if(path==="/api/shortcut/helper-link"&&request.method==="POST"){
+  if(!await canRelease(env,owner))return error("This account can't publish releases",403,"not_release_account");
+  let input;try{input=await payload(request);}catch(e){return error("Even couldn't read that request.",400,"invalid_body");}
+  const link=String(input?.link||"").trim();
+  if(!ICLOUD_SHORTCUT.test(link))return error("A valid Shortcut link is required",400,"invalid_link");
+  if(await shortcutName(link)!=="Even Release")return error("That link isn't Even Release, so nothing was shared.",400,"wrong_shortcut");
+  return await startWorkflow(env,"helper-link.yml",{icloud_link:link})?reply({ok:true}):error("Sharing couldn't start",502,"share_failed");
  }
  if(path==="/api/push/key"&&request.method==="GET"){const key=pushKey(env);return reply({ok:true,key:key?pushPublicKey(key):null});}
  if(path==="/api/push/subscribe"&&request.method==="POST"){
-  let input;try{input=await payload(request);}catch(e){return error("Invalid reminder request");}
+  let input;try{input=await payload(request);}catch(e){return error("Invalid reminder request",400,"invalid_reminder");}
   const endpoint=pushEndpoint(input?.endpoint),mode=input?.mode,times=input?.times,timeZone=String(input?.timeZone||"");
   const p256dh=String(input?.keys?.p256dh||""),auth=String(input?.keys?.auth||"");
-  try{if(fromBase64url(p256dh).length!==65||fromBase64url(auth).length!==16)return error("Invalid reminder request");}catch(e){return error("Invalid reminder request");}
-  if(!endpoint||!["smart","custom"].includes(mode)||!Array.isArray(times)||!times.length||times.length>24||!times.every(t=>REMIND_AT.test(String(t))))return error("Invalid reminder request");
+  try{if(fromBase64url(p256dh).length!==65||fromBase64url(auth).length!==16)return error("Invalid reminder request",400,"invalid_reminder");}catch(e){return error("Invalid reminder request",400,"invalid_reminder");}
+  if(!endpoint||!["smart","custom"].includes(mode)||!Array.isArray(times)||!times.length||times.length>24||!times.every(t=>REMIND_AT.test(String(t))))return error("Invalid reminder request",400,"invalid_reminder");
   const smartTime=value=>mode==="smart"&&REMIND_AT.test(String(value||""))?String(value):null;
   const bedtimeAt=smartTime(input?.bedtimeAt),briefAt=smartTime(input?.briefAt),hardAt=smartTime(input?.hardAt),weekends=input?.weekends===false?0:1;
   const syncAt=REMIND_AT.test(String(input?.syncAt||""))?String(input.syncAt):null;
   const stressTimes=Array.isArray(input?.stressTimes)?input.stressTimes.slice(0,14).map(String).filter(at=>Number.isFinite(Date.parse(at))):[];
   const schedule=JSON.stringify([...new Set(times.map(String))].sort());
-  try{localTime(timeZone,new Date());}catch(e){return error("Invalid reminder request");}
+  try{localTime(timeZone,new Date());}catch(e){return error("Invalid reminder request",400,"invalid_reminder");}
   await env.DB.prepare("INSERT INTO even_push_subscriptions(endpoint,owner_email,device_id,mode,times,time_zone,created_at,p256dh,auth,bedtime_at,brief_at,hard_at,weekends,sync_at,stress_times) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(endpoint) DO UPDATE SET sync_at=excluded.sync_at,stress_times=excluded.stress_times, bedtime_at=excluded.bedtime_at,brief_at=excluded.brief_at,hard_at=excluded.hard_at,weekends=excluded.weekends,p256dh=excluded.p256dh,auth=excluded.auth,owner_email=excluded.owner_email,device_id=excluded.device_id,mode=excluded.mode,times=excluded.times,time_zone=excluded.time_zone").bind(endpoint,owner,dev.id,mode,schedule,timeZone,new Date().toISOString(),p256dh,auth,bedtimeAt,briefAt,hardAt,weekends,syncAt,JSON.stringify(stressTimes)).run();
   return reply({ok:true});
  }
  if(path==="/api/push/synced"&&request.method==="POST"){
-  let input;try{input=await payload(request);}catch(e){return error("Invalid request");}
+  let input;try{input=await payload(request);}catch(e){return error("Even couldn't read that request.",400,"invalid_body");}
   const items=Number(input?.items),key=pushKey(env);
   const sub=key&&await env.DB.prepare("SELECT endpoint,p256dh,auth FROM even_push_subscriptions WHERE device_id=? AND owner_email=? AND p256dh IS NOT NULL").bind(dev.id,owner).first();
   if(!sub||!Number.isInteger(items)||items<0)return reply({ok:true,state:"none"});
-  const sent=await deliverPush(env,key,sub,new Date(),pushPayload("Synced "+items+" item"+(items===1?"":"s")+". Tap to open Even.","/?sync=1"));
+  const sent=await deliverPush(env,key,sub,new Date(),pushPayload("Sync finished. Tap to open Even.","/?sync=1"));
   return reply({ok:true,state:sent.ok?"sent":"none"});
  }
  if(path==="/api/push/check-in"&&request.method==="POST"){
@@ -399,7 +486,7 @@ async function syncApi(request,env,path){
   return reply({ok:true});
  }
  if(path==="/api/push/unsubscribe"&&request.method==="POST"){
-  let input;try{input=await payload(request);}catch(e){return error("Invalid reminder request");}
+  let input;try{input=await payload(request);}catch(e){return error("Invalid reminder request",400,"invalid_reminder");}
   await env.DB.prepare("DELETE FROM even_push_subscriptions WHERE endpoint=? AND owner_email=?").bind(String(input?.endpoint||""),owner).run();
   return reply({ok:true});
  }
@@ -408,11 +495,11 @@ async function syncApi(request,env,path){
   return reply({ok:true,calendars:(r.results||[]).map(c=>({name:c.name,enabled:!!c.enabled}))});
  }
  if(path==="/api/calendars"&&request.method==="POST"){
-  let input;try{input=await payload(request);}catch(e){return error("Invalid calendar request");}
+  let input;try{input=await payload(request);}catch(e){return error("Invalid calendar request",400,"invalid_calendar");}
   const name=String(input?.name||"");
-  if(!name||name.length>100||typeof input.enabled!=="boolean")return error("Invalid calendar request");
+  if(!name||name.length>100||typeof input.enabled!=="boolean")return error("Invalid calendar request",400,"invalid_calendar");
   const updated=await env.DB.prepare("UPDATE even_calendars SET enabled=? WHERE owner_email=? AND name=?").bind(input.enabled?1:0,owner,name).run();
-  if(!updated.meta?.changes)return error("Calendar not found",404);
+  if(!updated.meta?.changes)return error("Calendar not found",404,"calendar_not_found");
   return reply({ok:true});
  }
  if(path==="/api/sync/status"&&request.method==="GET"){
@@ -421,7 +508,7 @@ async function syncApi(request,env,path){
    env.DB.prepare("SELECT COUNT(*) AS count FROM even_health_metrics WHERE owner_email=?").bind(owner).first(),
    env.DB.prepare("SELECT COUNT(*) AS count FROM even_calendar_events WHERE owner_email=?").bind(owner).first()
   ]);
-  if(!device)return error("This device was revoked",401);
+  if(!device)return error("This device was revoked",401,"device_revoked");
   return reply({ok:true,credentialValid:true,deviceId:dev.id,lastDataUploadAt:device.last_used_at||null,
    lastAttemptAt:device.last_attempt_at||null,lastErrorCode:device.last_error_code||null,
    installedShortcutVersion:device.shortcut_version||null,
@@ -429,20 +516,22 @@ async function syncApi(request,env,path){
  }
  if(path==="/api/shortcut/release"&&request.method==="GET"){
   const release=await loadShortcutRelease(env);
-  if(!release)return error("No Shortcut release is configured",503);
+  if(!release)return error("No Shortcut release is configured",503,"no_release");
   const installed=new URL(request.url).searchParams.get("current")||"";
   const updateAvailable=release.verified&&semverNewer(release.version,installed);
   return reply({ok:true,release,updateAvailable,updateStatus:updateAvailable?"new_release":"current",automaticReplacement:false});
  }
  if(path==="/api/shortcut/hello"&&request.method==="POST"){
-  let body;try{body=await payload(request);}catch(e){return error("Invalid Shortcut handshake",400);}
+  let body;try{body=await payload(request);}catch(e){return error("Even couldn't read that request.",400,"invalid_body");}
   const clientVersion=String(body?.shortcutVersion||"").trim();
-  if(!/^\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(clientVersion))return error("A valid Shortcut version is required",400);
+  if(!/^\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(clientVersion))return error("A valid Shortcut version is required",400,"invalid_version");
   const at=new Date().toISOString();
   await env.DB.prepare("UPDATE even_devices SET last_attempt_at=?,last_error_code=NULL,shortcut_version=? WHERE device_id=? AND owner_email=? AND revoked_at IS NULL")
    .bind(at,clientVersion,dev.id,owner).run();
   const nights=await env.DB.prepare("SELECT COUNT(*) AS count FROM even_health_metrics WHERE owner_email=? AND metric='bedtimeMin'").bind(owner).first();
-  return reply({ok:true,connected:true,state:"connected",shortcutVersion:clientVersion,receivedAt:at,sleepHistory:Number(nights?.count||0)<3?"needed":"complete"});
+  // Even Sync 3 learns about a new version here, so it needs no separate request.
+  const release=await loadShortcutRelease(env),updateAvailable=!!release&&release.verified&&semverNewer(release.version,clientVersion);
+  return reply({ok:true,connected:true,state:"connected",shortcutVersion:clientVersion,receivedAt:at,sleepHistory:Number(nights?.count||0)<3?"needed":"complete",updateStatus:updateAvailable?"new_release":"current"});
  }
 
  if(path==="/api/pull"&&request.method==="GET"){
@@ -460,22 +549,34 @@ async function syncApi(request,env,path){
  if(path==="/api/ingest"&&request.method==="POST"){
   let input;
   try{input=await payload(request);}
-  catch(e){await recordSyncFailure(env,dev,"invalid_body");return error("Invalid or oversized request body");}
+  catch(e){await recordSyncFailure(env,dev,"invalid_body");return error("Even couldn't read this upload.",400,"invalid_body");}
   if(!input||typeof input!=="object"){
-   await recordSyncFailure(env,dev,"invalid_body");return error("Expected JSON or form fields");
+   await recordSyncFailure(env,dev,"invalid_body");return error("Even couldn't read this upload.",400,"invalid_body");
   }
   const kind=String(input.kind||"").toLowerCase();
   if(kind==="calendar_complete"){
    const day=dateOnly(input.date),offset=String(input.utcOffset||"").trim(),started=new Date(input.startedAt);
-   if(!day||!/^(Z|[+-]\d{2}:\d{2})$/.test(offset)||!Number.isFinite(started.getTime())||Date.now()-started.getTime()>21600000)return error("Invalid calendar sync details");
+   if(!day||!UTC_OFFSET.test(offset)||!Number.isFinite(started.getTime())||Date.now()-started.getTime()>21600000)return error("Invalid calendar sync details",400,"invalid_calendar_details");
    const from=new Date(day+"T00:00:00"+offset);
    const to=new Date(from.getTime()+86400000);
    const result=await env.DB.prepare("DELETE FROM even_calendar_events WHERE owner_email=? AND start_time>=? AND start_time<? AND updated_at<?").bind(owner,from.toISOString(),to.toISOString(),started.toISOString()).run();
    return reply({ok:true,state:"reconciled",removed:result.meta?.changes||0});
   }
+  if(kind==="calendar_days"){
+   const day=dateOnly(input.date),offset=String(input.utcOffset||"").trim();
+   if(!day||!UTC_OFFSET.test(offset))return error("Invalid calendar sync details",400,"invalid_calendar_details");
+   const tomorrow=nextDay(day),events=await enabledEvents(env,owner,readEventRecords(input.events).filter(e=>e.day===day||e.day===tomorrow));
+   const at=new Date().toISOString(),statements=await Promise.all(events.map(e=>eventStatement(env,owner,e,at)));
+   for(let i=0;i<statements.length;i+=50)await env.DB.batch(statements.slice(i,i+50));
+   // Both days are complete, so anything the run didn't send was edited or deleted.
+   const from=new Date(day+"T00:00:00"+offset),to=new Date(from.getTime()+172800000);
+   const removed=await env.DB.prepare("DELETE FROM even_calendar_events WHERE owner_email=? AND start_time>=? AND start_time<? AND updated_at<?").bind(owner,from.toISOString(),to.toISOString(),at).run();
+   const shortcutVersion=await markUpload(env,dev,input.shortcutVersion,at);
+   return reply({ok:true,state:"accepted",receivedAt:at,calendarEvents:events.length,removed:removed.meta?.changes||0,shortcutVersion});
+  }
   if(kind==="alarms"){
    const raw=String(input.alarms||""),alarms=readAlarms(raw),day=dateOnly(input.date);
-   if(!day||(raw.trim()&&!alarms.length))return error("Invalid alarm details");
+   if(!day||(raw.trim()&&!alarms.length))return error("Invalid alarm details",400,"invalid_alarm_details");
    const at=new Date().toISOString(),first=firstAlarm(alarms,day);
    const statements=[env.DB.prepare("DELETE FROM even_alarms WHERE owner_email=?").bind(owner)];
    alarms.forEach((a,position)=>statements.push(env.DB.prepare("INSERT INTO even_alarms(owner_email,position,time_min,days,enabled,label,updated_at) VALUES(?,?,?,?,?,?,?)").bind(owner,position,a.timeMin,a.days.join(","),a.enabled,a.label,at)));
@@ -484,7 +585,7 @@ async function syncApi(request,env,path){
    return reply({ok:true,state:"accepted",alarms:alarms.length});
   }
   if(!["health","calendar","batch"].includes(kind)){
-   await recordSyncFailure(env,dev,"invalid_kind");return error("Use kind=health, calendar, or batch");
+   await recordSyncFailure(env,dev,"invalid_kind");return error("Even couldn't read this upload.",400,"invalid_kind");
   }
   const healthInput=kind==="batch"?(Array.isArray(input.health)?input.health.slice(0,75):[]):kind==="health"?(Array.isArray(input.days)?input.days.slice(0,75):[input]):[];
   const eventInput=kind==="batch"?(Array.isArray(input.events)?input.events.slice(0,125):[]):kind==="calendar"?(Array.isArray(input.events)?input.events.slice(0,125):[input]):[];
@@ -492,21 +593,17 @@ async function syncApi(request,env,path){
   const received=eventInput.map(readEvent).filter(Boolean);
   const events=await enabledEvents(env,owner,received);
   if(!metrics.length&&received.length&&!events.length)return reply({ok:true,state:"skipped",error:NO_VALID_RECORDS});
+  // Nothing new to keep, such as average heart rate from an older Shortcut, isn't a failed upload.
+  if(!metrics.length&&!eventInput.length&&!healthInput.some(sentHealth))return reply({ok:true,state:"accepted",healthMetrics:0,calendarEvents:0});
   if(!metrics.length&&!events.length){
    await recordSyncFailure(env,dev,"no_valid_records");
-   return error(NO_VALID_RECORDS);
+   return error(NO_VALID_RECORDS,400,"no_valid_records");
   }
   const at=new Date().toISOString(),statements=[];
   metrics.forEach(x=>statements.push(env.DB.prepare("INSERT INTO even_health_metrics(owner_email,day,metric,value,updated_at) VALUES(?,?,?,?,?) ON CONFLICT(owner_email,day,metric) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at").bind(owner,x.day,x.metric,x.value,at)));
-  for(const e of events){
-   const eventId=(await digest(e.start+"|"+e.end+"|"+e.title)).slice(0,40);
-   statements.push(env.DB.prepare("INSERT INTO even_calendar_events(owner_email,event_id,start_time,end_time,title,category,calendar,updated_at) VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(owner_email,event_id) DO UPDATE SET title=excluded.title,category=excluded.category,calendar=excluded.calendar,updated_at=excluded.updated_at").bind(owner,eventId,e.start,e.end,e.title,e.category,e.calendar,at));
-  }
+  for(const e of events)statements.push(await eventStatement(env,owner,e,at));
   for(let i=0;i<statements.length;i+=50)await env.DB.batch(statements.slice(i,i+50));
-  const claimedVersion=String(input.shortcutVersion||"").trim();
-  const clientVersion=/^\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(claimedVersion)?claimedVersion:null;
-  await env.DB.prepare("UPDATE even_devices SET last_used_at=?,last_attempt_at=?,last_error_code=NULL,shortcut_version=COALESCE(?,shortcut_version) WHERE device_id=? AND owner_email=? AND revoked_at IS NULL")
-    .bind(at,at,clientVersion,dev.id,owner).run();
+  const clientVersion=await markUpload(env,dev,input.shortcutVersion,at);
   return reply({ok:true,state:"accepted",receivedAt:at,kind,healthMetrics:metrics.length,calendarEvents:events.length,shortcutVersion:clientVersion});
  }
  if(path==="/api/erase"&&request.method==="POST"){
@@ -518,10 +615,10 @@ async function syncApi(request,env,path){
   ]);
   return reply({ok:true,erased:true,email:owner});
  }
- return error("Not found",404);
+ return error("Not found",404,"not_found");
 }
 async function api(request,env,ctx,path){
- if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:"Even",version:"2.8.3",sync:"email-access"});
+ if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:"Even",version:"2.9.0",sync:"email-access"});
  if(path.startsWith("/api/auth/"))return authApi(request,env,ctx,path);
  return syncApi(request,env,path);
 }
@@ -540,6 +637,6 @@ export default {async fetch(request,env,ctx){
  try{const path=new URL(request.url).pathname;if(path.startsWith("/api/"))return await api(request,env,ctx,path);
  if(request.method!=="GET"&&request.method!=="HEAD")return new Response("Method not allowed",{status:405,headers:SECURITY});
  return await asset(path,env);
- }catch(e){return error("Request could not be processed",500);}
+ }catch(e){return error("Request could not be processed",500,"server_error");}
 },
 async scheduled(event,env,ctx){ctx.waitUntil(sendReminders(env));}};

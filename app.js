@@ -1,6 +1,6 @@
 (function () {
 "use strict";
-var VERSION = "2.8.3";
+var VERSION = "2.9.0";
 var SHORTCUT_PAGE = "https://routinehub.co/shortcut/26978/";
 var STORAGE_KEY = "even:v1";
 var MOOD_NAMES = ["","Rough","Low","Okay","Good","Great"];
@@ -10,7 +10,7 @@ var CATEGORIES = ["Meeting","Work","Exercise","Social","Family","Rest","Commute"
 var ACTIVITY_LABELS = ["Work","Meeting","Exercise","Social","Family","Rest","Outdoors","Commute","Food"];
 var selectedMood = 0, selectedStress = 0, selectedTags = new Set(), insightDays = 30, insightScope = "personal", toastTimer = null;
 var state = readState();
-var authEmail = "", authDevices = [], authChecking = false, authCanRelease = false;
+var authEmail = "", authDevices = [], authChecking = false, authCanRelease = false, authHelper = "";
 var shortcutRelease = null, shortcutStatus = null, shortcutStatusLoading = false;
 function $(id){ return document.getElementById(id); }
 function emptyState(){ return {moods:[],health:[],events:[],reflections:[],alarms:[],resets:[],token:"",deviceId:"",syncOwnerEmail:"",pairedAt:null,lastSync:null}; }
@@ -91,7 +91,7 @@ function renderSources(){
  var all=hs.concat(cs).filter(function(x){return !isNaN(new Date(x.ts).getTime());}).sort(function(a,b){return new Date(b.ts)-new Date(a.ts);});
  $("context-count").textContent=all.length+" items";
  $("context-list").innerHTML=all.length?all.slice(0,12).map(function(x){
- if(x.kind==="health"){var h=x.h, summary=[h.sleepHours!=null?Math.round(h.sleepHours*10)/10+"h sleep":"",h.steps!=null?h.steps.toLocaleString()+" steps":"",h.hrv!=null?Math.round(h.hrv)+" ms HRV":"",h.restingHR!=null?Math.round(h.restingHR)+" bpm resting":"",h.heartRate!=null?Math.round(h.heartRate)+" bpm":"",h.workoutMin!=null?Math.round(h.workoutMin)+" min exercise":""].filter(Boolean).join(" · ");
+ if(x.kind==="health"){var h=x.h, summary=[h.sleepHours!=null?Math.round(h.sleepHours*10)/10+"h sleep":"",h.steps!=null?h.steps.toLocaleString()+" steps":"",h.hrv!=null?Math.round(h.hrv)+" ms HRV":"",h.restingHR!=null?Math.round(h.restingHR)+" bpm resting":"",h.workoutMin!=null?Math.round(h.workoutMin)+" min exercise":""].filter(Boolean).join(" · ");
  return '<div class="entry"><span class="entry-emoji" aria-hidden="true">♥︎</span><div class="entry-main"><strong>Health · '+esc(h.date)+'</strong><small>'+esc(summary||"Health day")+(h.demo?" · DEMO":"")+'</small></div><button class="entry-delete" aria-label="Delete health day" data-delete-health="'+esc(h.date)+'">×</button></div>';}
  var e=x.e;
  return '<div class="entry"><span class="entry-emoji" aria-hidden="true">▦︎</span><div class="entry-main"><strong>'+esc(e.title||"Calendar event")+'</strong><small>'+esc(formatDate(e.start)+" "+formatTime(e.start)+" · "+e.category+(e.demo?" · DEMO":""))+'</small></div><button class="entry-delete" aria-label="Delete calendar event" data-delete-event="'+esc(e.id)+'">×</button></div>';
@@ -105,6 +105,8 @@ function compareVersions(left,right){
 }
 function renderSync(){
  $("release-card").hidden=!authCanRelease;
+ // The helper shares its own link, so this always installs the current one.
+ var helper=$("setup-helper");helper.hidden=!authHelper;if(authHelper)helper.href=authHelper;else helper.removeAttribute("href");
  var paired=!!state.token&&!!state.syncOwnerEmail&&!!state.deviceId;
  var mismatch=!!authEmail&&!!state.syncOwnerEmail&&authEmail!==state.syncOwnerEmail;
  $("login-panel").hidden=!!authEmail;$("login-ready").hidden=!authEmail;
@@ -290,8 +292,8 @@ function normalizeHealth(h,source){
  if(!h||typeof h!=="object")return null;
  var date=String(h.date||"");if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||dateKey(date+"T12:00:00")!==date)return null;
  var item={date:date,source:source||h.source||"manual"};if(h.demo)item.demo=true;
- [["sleepHours",0,24],["steps",0,100000],["hrv",0,500],["restingHR",20,250],["heartRate",20,250],["bedtimeMin",0,1439],["workoutMin",0,1440],["firstAlarmMin",0,719]].forEach(function(t){if(h[t[0]]!==undefined&&h[t[0]]!==null&&h[t[0]]!==""){var n=number(h[t[0]]);if(Number.isFinite(n)&&n>=t[1]&&n<=t[2])item[t[0]]=n;}});
- return Object.keys(item).some(function(k){return ["sleepHours","steps","hrv","restingHR","heartRate","workoutMin"].includes(k);})?item:null;
+ [["sleepHours",0,24],["steps",0,100000],["hrv",0,500],["restingHR",20,250],["bedtimeMin",0,1439],["workoutMin",0,1440],["firstAlarmMin",0,719]].forEach(function(t){if(h[t[0]]!==undefined&&h[t[0]]!==null&&h[t[0]]!==""){var n=number(h[t[0]]);if(Number.isFinite(n)&&n>=t[1]&&n<=t[2])item[t[0]]=n;}});
+ return Object.keys(item).some(function(k){return ["sleepHours","steps","hrv","restingHR","workoutMin"].includes(k);})?item:null;
 }
 function upsertHealth(h){var idx=state.health.findIndex(function(x){return x.date===h.date;});if(idx<0)state.health.push(h);else{var merged=Object.assign({},state.health[idx],h);if(!h.demo)delete merged.demo;state.health[idx]=merged;}}
 function normalizeEvent(e,source){
@@ -371,7 +373,7 @@ function exportBackup(){
 }
 async function restoreBackup(file){
  if(!file||file.size>7e6){toast("Select a backup under 7 MB.");return;}
- try{var data=JSON.parse(await file.text());if((data.app!=="Even"&&data.app!=="Rage Tracker")||!Array.isArray(data.moods)||!Array.isArray(data.health)||!Array.isArray(data.events))throw Error("Not a backup");
+ try{var data=JSON.parse(await file.text());if(data.app!=="Even"||!Array.isArray(data.moods)||!Array.isArray(data.health)||!Array.isArray(data.events))throw Error("Not a backup");
  if(data.account&&state.syncOwnerEmail&&data.account!==state.syncOwnerEmail)throw Error("This backup belongs to another account");
  if(!confirm("Replace locally saved mood, health and calendar data with this backup? Your sync pairing will remain."))return;
  state.reflections=Array.isArray(data.reflections)?data.reflections.slice(-200):[];
@@ -536,8 +538,8 @@ async function refreshAuth(){
   var r=await fetch("/api/auth/me",{credentials:"same-origin",cache:"no-store",headers:{"Accept":"application/json"}});
   if(!r.ok||r.redirected||!(r.headers.get("content-type")||"").includes("application/json"))throw Error("No active login");
   var data=await r.json();if(!data.ok||!data.email)throw Error("Identity unavailable");
-  authEmail=String(data.email).toLowerCase();authDevices=Array.isArray(data.devices)?data.devices:[];authCanRelease=data.canRelease===true;if(data.welcomeName)showWelcome(data.welcomeName);
- }catch(e){authEmail="";authDevices=[];authCanRelease=false;}
+  authEmail=String(data.email).toLowerCase();authDevices=Array.isArray(data.devices)?data.devices:[];authCanRelease=data.canRelease===true;authHelper=authCanRelease&&data.helper&&/^https:\/\/www\.icloud\.com\/shortcuts\/[a-f0-9]{32}$/i.test(data.helper.url)?data.helper.url:"";if(data.welcomeName)showWelcome(data.welcomeName);
+ }catch(e){authEmail="";authDevices=[];authCanRelease=false;authHelper="";}
  finally{authChecking=false;renderSync();}
  // Connect automatically the first time. After a revoke, connecting again is a deliberate choice.
  if(authEmail&&!state.token&&!state.pairedAt&&!state.syncOwnerEmail)issueDevice();

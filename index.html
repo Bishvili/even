@@ -217,7 +217,7 @@
      <details class="shortcut-advanced">
       <summary>Help and privacy</summary>
       <div>
-       <p>Even Sync sends today’s steps, heart rate, resting heart rate, heart rate variability and exercise minutes, last night’s sleep, and the titles, times and calendar names of today’s calendar events. Anything with no data today is left out.</p>
+       <p>Even Sync sends today’s steps, resting heart rate, heart rate variability and exercise minutes; your sleep from recent nights, or up to a month on the first sync; your alarms; and the titles, times and calendar names of today’s and tomorrow’s events from every calendar. Anything with no data is left out, and anything Even doesn’t use is discarded when it arrives.</p>
        <p>Your device key is saved as a plain-text file, even-device-key.txt, in a Even folder in On My iPhone. It isn’t encrypted by Even. Anyone who can open that file, and any Shortcut you let read it, can use the key. Don’t share it.</p>
        <p>If Shortcuts asks, turn on <strong>Allow Sharing Large Amounts of Data</strong> in Settings → Apps → Shortcuts → Advanced.</p>
        <p>To sync on a schedule, add a Time of Day automation in Shortcuts that runs Even Sync, and choose Run Immediately. Your iPhone must be unlocked to read Health data.</p>
@@ -228,7 +228,7 @@
     
     <section class="card" id="calendar-card" aria-labelledby="calendars-title" hidden>
      <h2 id="calendars-title">Calendars</h2>
-     <p class="muted">Calendars you turn off stop syncing and are hidden. Turn them back on anytime.</p>
+     <p class="muted">Even Sync still reads calendars you turn off, but their events aren’t saved. Turning one back on saves its events from the next sync.</p>
      <div id="calendar-list" class="calendar-list"></div>
     </section>
     <details class="card disclosure" id="device-details"><summary>Devices and data</summary>
@@ -238,7 +238,7 @@
     </div>
     <button type="button" class="btn subtle full" id="erase-remote">Erase synced data</button>
     </details>
-    <div class="help-note"><strong>Privacy</strong><p>Mood check-ins stay on this iPhone. Steps and calendar events you sync are sent over HTTPS and stored in your private account. They aren’t end-to-end encrypted. You can revoke a device or erase synced data at any time.</p></div>
+    <div class="help-note"><strong>Privacy</strong><p>Mood check-ins stay on this iPhone. Health data, calendar events and alarms you sync are sent over an encrypted connection and stored in your private account. They aren’t end-to-end encrypted. You can revoke a device or erase synced data at any time.</p></div>
     
     
     
@@ -302,12 +302,12 @@
      <details class="shortcut-advanced"><summary>How the Shortcuts work</summary><div>
       <p><strong>Even Sync</strong> is what everyone installs. It sends Health and calendar data. Running it from this app connects it, so there’s no key to copy.</p>
       <p><strong>Even Release</strong> is for developers. It holds no credentials, and only approved accounts can publish.</p>
-      <p>To release a change: push it and wait for the build, then tap Run Release Helper. It runs Even Sync and checks the versions. If an update is needed, tap Replace and run it again. If a version needs publishing, it asks you first.</p>
+      <p>To release a change: push it, then tap Run Release Helper. It keeps itself up to date, runs Even Sync and checks the versions. If an update is needed, tap Replace and run it again. If a version needs publishing, it asks you first and tells you when it’s live.</p>
      </div></details>
-     <a class="btn secondary full" id="setup-helper" href="https://www.icloud.com/shortcuts/ae34096d23534730ae2f82a99d861414" target="_blank" rel="noopener noreferrer">Set Up Release Helper <span aria-hidden="true">↗</span></a>
+     <a class="btn secondary full" id="setup-helper" target="_blank" rel="noopener noreferrer" hidden>Set Up Release Helper <span aria-hidden="true">↗</span></a>
      <a class="btn secondary full" href="shortcuts://run-shortcut?name=Even%20Release">Run Release Helper <span aria-hidden="true">↗</span></a>
     </section>
-    <div class="card"><h2>About the insights</h2><p class="muted">Comparisons need at least 3 check-ins in each group. Mood data is subjective and gaps can skew results. Nothing here is a diagnosis or proves a cause.</p><a class="btn subtle full" id="whitepaper-link" href="/whitepaper.html" target="_blank" rel="noopener">How Even works <span aria-hidden="true">↗</span></a><p class="muted">Version <span id="version">2.8.3</span> · No ads or analytics</p></div>
+    <div class="card"><h2>About the insights</h2><p class="muted">Comparisons need at least 3 check-ins in each group. Mood data is subjective and gaps can skew results. Nothing here is a diagnosis or proves a cause.</p><a class="btn subtle full" id="whitepaper-link" href="/whitepaper.html" target="_blank" rel="noopener">How Even works <span aria-hidden="true">↗</span></a><p class="muted">Version <span id="version">2.9.0</span> · No ads or analytics</p></div>
     <div class="card"><h2>Explore a sample month</h2><p class="muted">See 28 days of fictional check-ins and events. They stay separate from your own data and are never uploaded.</p><button class="btn secondary full" id="demo-button">Load 28-day calendar demo</button><button class="btn subtle full" id="clear-demo-button">Remove demo data</button></div>
    </section>
   </main>

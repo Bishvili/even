@@ -1,17 +1,17 @@
 # Even Sync
 
-Even Sync is the replaceable iPhone Shortcut that sends selected Calendar events and Apple Health Steps to the owner's private Even account. **The installed Shortcut is always named `Even Sync`**, with no version suffix. The current version is **v2.8.0**.
+Even Sync is the replaceable iPhone Shortcut that sends Health measures, today's and tomorrow's calendar events, and alarms to the owner's private Even account. **The installed Shortcut is always named `Even Sync`**, with no version suffix. Its version is the `shortcutVersion` in [even-sync.cherri](even-sync.cherri).
 
 ## Setup
 
 Even Sync is a single Shortcut. It has no import questions and holds no credential; the device key is kept in a file.
 
-1. Install **Even Sync**. Its signed file is named `Even Sync.shortcut`. Choose to replace the older Sync Shortcut if Apple offers this option. The version is part of the Shortcut's authenticated handshake and update request, not its installed name.
+1. Install **Even Sync**. Its signed file is named `Even Sync.shortcut`. Choose to replace the older Sync Shortcut if Apple offers this option.
 2. In Even → **Sync**, sign in with an approved email. The iPhone connects automatically.
 3. Tap **Run Even Sync**. The app passes the device key, and once Even accepts it the Shortcut saves it to `even-device-key.txt` in an `Even` folder in On My iPhone, so later runs and automations need nothing else. Running it with no saved key shows a message pointing back to the app.
-4. Check **Sync → Test connection** and **Sync now** in the PWA. A successful handshake without accepted data is not sufficient to establish that uploads worked.
+4. Check **Sync → Test connection** and **Sync now** in the app. A successful handshake without accepted data doesn't show that uploads worked.
 
-Later runs read the saved file and do not ask for the key. **Known issue:** installing a new version can ask for the key again. If the file is missing or the handshake does not succeed, Sync asks for the value. A value that is not accepted is never saved, so a failed attempt or a server outage cannot replace a working key.
+A key that isn't accepted is never saved, so a failed attempt or a server outage can't replace a working key.
 
 ### Credential storage and privacy
 
@@ -22,27 +22,31 @@ The device key is stored as plain text. **It is not encrypted by Even or held in
 - Do not share the file or put its contents in GitHub, Cherri Playground, RoutineHub links, public source or screenshots.
 - Deleting the Shortcut does not delete the file. To disconnect a device, revoke its key in Even and delete `even-device-key.txt` in Files.
 
-Treat the key as sensitive and revoke it in Even if exposure is suspected. A revoked key cannot be used even if a copy of the file remains.
+Treat the key as sensitive and revoke it in Even if exposure is suspected. A revoked key can't be used even if a copy of the file remains. The Shortcut itself contains no private token, so a tested installed copy can be shared to create an iCloud link without exposing the key.
 
-The Shortcut itself contains no private token, so a tested installed copy can be shared to create an iCloud link without exposing the key.
+## What a run sends
 
-## Upload semantics
+A run makes five requests, each carrying the device key:
 
-- The sync starts with `POST /api/shortcut/hello`, reporting `shortcutVersion=2.8.0` and recording a connected handshake only after an authenticated device key is accepted.
-- Calendar events carry titles and start/end timestamps formatted as full ISO 8601 date-time strings with offsets. They contain no attendee, location, notes, or mood data. The Worker derives broad category labels.
-- An event rejected with the Worker's **exact known invalid-record message** is counted as skipped. Valid events continue uploading. Authentication or unexpected server errors still stop the workflow.
-- Apple Health Steps are read from native Health samples and summed. The total is converted to text, locale grouping separators (for example, in `12,345`) and any unit text are removed, and the number is posted as `steps` with the current local `date`. The Worker accepts values within configured numeric bounds. Sample overlap across devices may lead to differences from Apple's reconciled Step total.
-- Steps, heart rate, resting heart rate, heart rate variability and exercise minutes use Apple Health's own daily values. Sleep adds up time asleep in samples from the last day, in hours. A value of zero is left out, except steps.
-- Find Health Samples ends the run when a type has no samples, so the Shortcut first reads the newest 1,000 samples of all five types and only queries types found there. Anything with no recent data is left out.
-- After the calendar uploads, `calendar_complete` removes today's events on the server that this run did not send, so edited and deleted events do not linger.
-- The final notification distinguishes accepted uploads from skipped invalid Calendar events. If an upload is rejected, the Shortcut displays the server error without the device key.
-- The Shortcut checks `/api/shortcut/release?current=2.8.0` and offers a newer **verified** version only when available. It shows a notification rather than asking, so scheduled runs never wait for an answer; installing a replacement always requires the user's approval in the app.
+1. `POST /api/shortcut/hello` reports the Shortcut's version. The reply says whether the key was accepted, whether sleep history is still needed, and, as `updateStatus`, whether a newer verified version is ready. A newer version is offered with a notification; installing it always needs the person's approval.
+2. `POST /api/ingest` with `kind=calendar_days` sends every event that starts today or in the next two days, from every calendar, as records of start, end, calendar and title. Records are separated by `␞` and fields by `␟`. Times are ISO 8601 with offsets. The Worker keeps today's and tomorrow's events, counts each event once, discards events from calendars turned off in the app, derives each category, and removes stored events from those two days that the run didn't send. No attendee, location, notes or mood data is sent.
+3. `POST /api/ingest` with `kind=health` sends steps, resting heart rate, heart rate variability and exercise minutes, each with the date of its latest daily total, and the start and end of each asleep sample. A measure with no data is sent empty and left out, never as zero. The step total is converted to a plain number first, with grouping separators and unit text removed.
+4. `POST /api/ingest` with `kind=alarms` sends each alarm's time, repeat days, on/off state and name. It comes last, because Shortcuts can't catch an error while reading alarm details.
+5. `POST /api/push/synced` sends a notification that opens Even. Without notifications on, the Shortcut shows its own.
+
+Failures show a notification instead of asking, so scheduled runs never wait for an answer.
+
+### Health details
+
+- Find Health Samples ends the run when a type has no samples, so the Shortcut first reads the newest 1,000 samples of all five types and only queries types found there.
+- Steps, resting heart rate, heart rate variability and exercise minutes use Apple Health's own daily values.
+- Sleep is read as up to 100 recent samples, or 300 on the first sync so the bedtime estimate works straight away. Only asleep samples are sent. The Worker merges overlapping samples from more than one device, files each night under the morning it ends, and ignores naps that start between 10 AM and 6 PM. When the run reached its sample limit, the oldest night may be cut off, so the Worker leaves it as it was.
 
 ## Automated checks and release process
 
-GitHub Actions runs `node --test tests/*.test.cjs`, compiles pinned Cherri 2.3.0 without signing, inspects the generated plist for all typed `If` comparisons and timestamp tokens, then signs the Shortcut using Cherri HubSign. The ZIP artifact contains `Even Sync.shortcut`.
+On every push, GitHub Actions runs `node --test tests/*.test.cjs`, compiles both Shortcuts with pinned Cherri 2.3.0, and runs `scripts/check-shortcut-conditions.py` on the compiled property lists. The checks confirm every `If` comparison keeps its value, timestamps keep their time zone, the records and the single Health upload refer to the right values, and no average heart rate is read. Pushes to `main` then sign both Shortcuts with Cherri HubSign and post them, with their versions, to the `shortcut-latest` release.
 
-Passing source tests, plist checks, and signing does not establish that Calendar, Health, file access or network requests work on an iPhone, so run a new build on a device before publishing. See [RoutineHub releases](ROUTINEHUB_RELEASE.md). Pushes to `main` deploy the app and Worker.
+Passing these checks doesn't show that Calendar, Health, file access or network requests work on an iPhone, so run each new build on a device before publishing. See [RoutineHub releases](ROUTINEHUB_RELEASE.md). Pushes to `main` deploy the app and Worker.
 
 ## References
 

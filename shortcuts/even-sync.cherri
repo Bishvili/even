@@ -9,13 +9,13 @@
 
 // Filters are passed as references because Cherri rewrites nested action parameters.
 #ref todayEventsFilter eyJWYWx1ZSI6eyJXRkFjdGlvblBhcmFtZXRlckZpbHRlclByZWZpeCI6MSwiV0ZDb250ZW50UHJlZGljYXRlQm91bmRlZERhdGUiOmZhbHNlLCJXRkFjdGlvblBhcmFtZXRlckZpbHRlclRlbXBsYXRlcyI6W3siQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjEwMDIsIlByb3BlcnR5IjoiU3RhcnQgRGF0ZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJOdW1iZXIiOiI3IiwiVW5pdCI6MTZ9fV19LCJXRlNlcmlhbGl6YXRpb25UeXBlIjoiV0ZDb250ZW50UHJlZGljYXRlVGFibGVUZW1wbGF0ZSJ9
+#ref upcomingEventsFilter eyJWYWx1ZSI6eyJXRkFjdGlvblBhcmFtZXRlckZpbHRlclByZWZpeCI6MSwiV0ZDb250ZW50UHJlZGljYXRlQm91bmRlZERhdGUiOmZhbHNlLCJXRkFjdGlvblBhcmFtZXRlckZpbHRlclRlbXBsYXRlcyI6W3siQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjEwMDAsIlByb3BlcnR5IjoiU3RhcnQgRGF0ZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJOdW1iZXIiOiIyIiwiVW5pdCI6MTZ9fV19LCJXRlNlcmlhbGl6YXRpb25UeXBlIjoiV0ZDb250ZW50UHJlZGljYXRlVGFibGVUZW1wbGF0ZSJ9
 #ref stepsFilter eyJWYWx1ZSI6eyJXRkFjdGlvblBhcmFtZXRlckZpbHRlclByZWZpeCI6MSwiV0ZDb250ZW50UHJlZGljYXRlQm91bmRlZERhdGUiOmZhbHNlLCJXRkFjdGlvblBhcmFtZXRlckZpbHRlclRlbXBsYXRlcyI6W3siQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjQsIlByb3BlcnR5IjoiVHlwZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IlN0ZXBzIiwiV0ZTZXJpYWxpemF0aW9uVHlwZSI6IldGU3RyaW5nU3Vic3RpdHV0YWJsZVN0YXRlIn19fSx7IkJvdW5kZWQiOnRydWUsIk9wZXJhdG9yIjoxMDAxLCJQcm9wZXJ0eSI6IlN0YXJ0IERhdGUiLCJSZW1vdmFibGUiOmZhbHNlLCJWYWx1ZXMiOnsiTnVtYmVyIjoiMzAiLCJVbml0IjoxNn19XX0sIldGU2VyaWFsaXphdGlvblR5cGUiOiJXRkNvbnRlbnRQcmVkaWNhdGVUYWJsZVRlbXBsYXRlIn0=
 #ref restingFilter eyJWYWx1ZSI6eyJXRkFjdGlvblBhcmFtZXRlckZpbHRlclByZWZpeCI6MSwiV0ZDb250ZW50UHJlZGljYXRlQm91bmRlZERhdGUiOmZhbHNlLCJXRkFjdGlvblBhcmFtZXRlckZpbHRlclRlbXBsYXRlcyI6W3siQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjQsIlByb3BlcnR5IjoiVHlwZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IlJlc3RpbmcgSGVhcnQgUmF0ZSIsIldGU2VyaWFsaXphdGlvblR5cGUiOiJXRlN0cmluZ1N1YnN0aXR1dGFibGVTdGF0ZSJ9fX0seyJCb3VuZGVkIjp0cnVlLCJPcGVyYXRvciI6MTAwMSwiUHJvcGVydHkiOiJTdGFydCBEYXRlIiwiUmVtb3ZhYmxlIjpmYWxzZSwiVmFsdWVzIjp7Ik51bWJlciI6IjMwIiwiVW5pdCI6MTZ9fV19LCJXRlNlcmlhbGl6YXRpb25UeXBlIjoiV0ZDb250ZW50UHJlZGljYXRlVGFibGVUZW1wbGF0ZSJ9
-#ref heartRateFilter eyJWYWx1ZSI6eyJXRkFjdGlvblBhcmFtZXRlckZpbHRlclByZWZpeCI6MSwiV0ZDb250ZW50UHJlZGljYXRlQm91bmRlZERhdGUiOmZhbHNlLCJXRkFjdGlvblBhcmFtZXRlckZpbHRlclRlbXBsYXRlcyI6W3siQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjQsIlByb3BlcnR5IjoiVHlwZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IkhlYXJ0IFJhdGUiLCJXRlNlcmlhbGl6YXRpb25UeXBlIjoiV0ZTdHJpbmdTdWJzdGl0dXRhYmxlU3RhdGUifX19LHsiQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjEwMDEsIlByb3BlcnR5IjoiU3RhcnQgRGF0ZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJOdW1iZXIiOiIzMCIsIlVuaXQiOjE2fX1dfSwiV0ZTZXJpYWxpemF0aW9uVHlwZSI6IldGQ29udGVudFByZWRpY2F0ZVRhYmxlVGVtcGxhdGUifQ==
 #ref hrvFilter eyJWYWx1ZSI6eyJXRkFjdGlvblBhcmFtZXRlckZpbHRlclByZWZpeCI6MSwiV0ZDb250ZW50UHJlZGljYXRlQm91bmRlZERhdGUiOmZhbHNlLCJXRkFjdGlvblBhcmFtZXRlckZpbHRlclRlbXBsYXRlcyI6W3siQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjQsIlByb3BlcnR5IjoiVHlwZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IkhlYXJ0IFJhdGUgVmFyaWFiaWxpdHkiLCJXRlNlcmlhbGl6YXRpb25UeXBlIjoiV0ZTdHJpbmdTdWJzdGl0dXRhYmxlU3RhdGUifX19LHsiQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjEwMDEsIlByb3BlcnR5IjoiU3RhcnQgRGF0ZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJOdW1iZXIiOiIzMCIsIlVuaXQiOjE2fX1dfSwiV0ZTZXJpYWxpemF0aW9uVHlwZSI6IldGQ29udGVudFByZWRpY2F0ZVRhYmxlVGVtcGxhdGUifQ==
 #ref exerciseFilter eyJWYWx1ZSI6eyJXRkFjdGlvblBhcmFtZXRlckZpbHRlclByZWZpeCI6MSwiV0ZDb250ZW50UHJlZGljYXRlQm91bmRlZERhdGUiOmZhbHNlLCJXRkFjdGlvblBhcmFtZXRlckZpbHRlclRlbXBsYXRlcyI6W3siQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjQsIlByb3BlcnR5IjoiVHlwZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IkV4ZXJjaXNlIE1pbnV0ZXMiLCJXRlNlcmlhbGl6YXRpb25UeXBlIjoiV0ZTdHJpbmdTdWJzdGl0dXRhYmxlU3RhdGUifX19LHsiQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjEwMDEsIlByb3BlcnR5IjoiU3RhcnQgRGF0ZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJOdW1iZXIiOiIzMCIsIlVuaXQiOjE2fX1dfSwiV0ZTZXJpYWxpemF0aW9uVHlwZSI6IldGQ29udGVudFByZWRpY2F0ZVRhYmxlVGVtcGxhdGUifQ==
 #ref sleepFilter eyJWYWx1ZSI6eyJXRkFjdGlvblBhcmFtZXRlckZpbHRlclByZWZpeCI6MSwiV0ZDb250ZW50UHJlZGljYXRlQm91bmRlZERhdGUiOmZhbHNlLCJXRkFjdGlvblBhcmFtZXRlckZpbHRlclRlbXBsYXRlcyI6W3siQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjQsIlByb3BlcnR5IjoiVHlwZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IlNsZWVwIiwiV0ZTZXJpYWxpemF0aW9uVHlwZSI6IldGU3RyaW5nU3Vic3RpdHV0YWJsZVN0YXRlIn19fSx7IkJvdW5kZWQiOnRydWUsIk9wZXJhdG9yIjoxMDAxLCJQcm9wZXJ0eSI6IlN0YXJ0IERhdGUiLCJSZW1vdmFibGUiOmZhbHNlLCJWYWx1ZXMiOnsiTnVtYmVyIjoiMzAiLCJVbml0IjoxNn19XX0sIldGU2VyaWFsaXphdGlvblR5cGUiOiJXRkNvbnRlbnRQcmVkaWNhdGVUYWJsZVRlbXBsYXRlIn0=
-#ref recentTypesFilter eyJWYWx1ZSI6eyJXRkFjdGlvblBhcmFtZXRlckZpbHRlclByZWZpeCI6MCwiV0ZDb250ZW50UHJlZGljYXRlQm91bmRlZERhdGUiOmZhbHNlLCJXRkFjdGlvblBhcmFtZXRlckZpbHRlclRlbXBsYXRlcyI6W3siQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjQsIlByb3BlcnR5IjoiVHlwZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IlN0ZXBzIiwiV0ZTZXJpYWxpemF0aW9uVHlwZSI6IldGU3RyaW5nU3Vic3RpdHV0YWJsZVN0YXRlIn19fSx7IkJvdW5kZWQiOnRydWUsIk9wZXJhdG9yIjo0LCJQcm9wZXJ0eSI6IlR5cGUiLCJSZW1vdmFibGUiOmZhbHNlLCJWYWx1ZXMiOnsiRW51bWVyYXRpb24iOnsiVmFsdWUiOiJSZXN0aW5nIEhlYXJ0IFJhdGUiLCJXRlNlcmlhbGl6YXRpb25UeXBlIjoiV0ZTdHJpbmdTdWJzdGl0dXRhYmxlU3RhdGUifX19LHsiQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjQsIlByb3BlcnR5IjoiVHlwZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IkhlYXJ0IFJhdGUiLCJXRlNlcmlhbGl6YXRpb25UeXBlIjoiV0ZTdHJpbmdTdWJzdGl0dXRhYmxlU3RhdGUifX19LHsiQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjQsIlByb3BlcnR5IjoiVHlwZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IkhlYXJ0IFJhdGUgVmFyaWFiaWxpdHkiLCJXRlNlcmlhbGl6YXRpb25UeXBlIjoiV0ZTdHJpbmdTdWJzdGl0dXRhYmxlU3RhdGUifX19LHsiQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjQsIlByb3BlcnR5IjoiVHlwZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IkV4ZXJjaXNlIE1pbnV0ZXMiLCJXRlNlcmlhbGl6YXRpb25UeXBlIjoiV0ZTdHJpbmdTdWJzdGl0dXRhYmxlU3RhdGUifX19LHsiQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjQsIlByb3BlcnR5IjoiVHlwZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IlNsZWVwIiwiV0ZTZXJpYWxpemF0aW9uVHlwZSI6IldGU3RyaW5nU3Vic3RpdHV0YWJsZVN0YXRlIn19fV19LCJXRlNlcmlhbGl6YXRpb25UeXBlIjoiV0ZDb250ZW50UHJlZGljYXRlVGFibGVUZW1wbGF0ZSJ9
+#ref recentTypesFilter eyJWYWx1ZSI6eyJXRkFjdGlvblBhcmFtZXRlckZpbHRlclByZWZpeCI6MCwiV0ZDb250ZW50UHJlZGljYXRlQm91bmRlZERhdGUiOmZhbHNlLCJXRkFjdGlvblBhcmFtZXRlckZpbHRlclRlbXBsYXRlcyI6W3siQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjQsIlByb3BlcnR5IjoiVHlwZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IlN0ZXBzIiwiV0ZTZXJpYWxpemF0aW9uVHlwZSI6IldGU3RyaW5nU3Vic3RpdHV0YWJsZVN0YXRlIn19fSx7IkJvdW5kZWQiOnRydWUsIk9wZXJhdG9yIjo0LCJQcm9wZXJ0eSI6IlR5cGUiLCJSZW1vdmFibGUiOmZhbHNlLCJWYWx1ZXMiOnsiRW51bWVyYXRpb24iOnsiVmFsdWUiOiJSZXN0aW5nIEhlYXJ0IFJhdGUiLCJXRlNlcmlhbGl6YXRpb25UeXBlIjoiV0ZTdHJpbmdTdWJzdGl0dXRhYmxlU3RhdGUifX19LHsiQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjQsIlByb3BlcnR5IjoiVHlwZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IkhlYXJ0IFJhdGUgVmFyaWFiaWxpdHkiLCJXRlNlcmlhbGl6YXRpb25UeXBlIjoiV0ZTdHJpbmdTdWJzdGl0dXRhYmxlU3RhdGUifX19LHsiQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjQsIlByb3BlcnR5IjoiVHlwZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IkV4ZXJjaXNlIE1pbnV0ZXMiLCJXRlNlcmlhbGl6YXRpb25UeXBlIjoiV0ZTdHJpbmdTdWJzdGl0dXRhYmxlU3RhdGUifX19LHsiQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjQsIlByb3BlcnR5IjoiVHlwZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IlNsZWVwIiwiV0ZTZXJpYWxpemF0aW9uVHlwZSI6IldGU3RyaW5nU3Vic3RpdHV0YWJsZVN0YXRlIn19fV19LCJXRlNlcmlhbGl6YXRpb25UeXBlIjoiV0ZDb250ZW50UHJlZGljYXRlVGFibGVUZW1wbGF0ZSJ9
 
 // The device key lives in a file outside this Shortcut, in On My iPhone so it works without iCloud Drive.
 #ref onMyIPhone eyJkaXNwbGF5TmFtZSI6Ik9uIE15IGlQaG9uZSIsImZpbGVuYW1lIjoiRmlsZSBQcm92aWRlciBTdG9yYWdlIiwiZmlsZUxvY2F0aW9uIjp7IldGRmlsZUxvY2F0aW9uVHlwZSI6IkxvY2FsU3RvcmFnZSIsInJlbGF0aXZlU3VicGF0aCI6IiJ9fQ==
@@ -43,8 +43,9 @@ if providedKeyCount == 0 {
 }
 
 // Verify the connection and record the Shortcut's version, even if no health samples are available.
+// The reply also says whether a newer version is ready.
 const handshakeRaw = jsonRequest("https://even.bishvili.workers.dev/api/shortcut/hello", "POST", {
-    "shortcutVersion": "2.9.0"
+    "shortcutVersion": "3.0.0"
 }, {"Authorization": "{@credential}"})
 const handshake = getDictionary(handshakeRaw)
 const connectionStatusValue = getValue(handshake, "state")
@@ -57,15 +58,66 @@ if connectionStatus != "connected" {
 // Save only a key the server accepted, so a failed attempt cannot replace a working one.
 saveDeviceKey(@credential, keyFolder)
 
-// Collect only events starting today.
-action 'is.workflow.actions.filter.calendarevents' findEvents(&variable filter: 'WFContentItemFilter'): array {"WFContentItemLimitEnabled":true,"WFContentItemLimitNumber":30,"WFContentItemSortProperty":"Start Date","WFContentItemSortOrder":"Oldest First"}
+// Each upload that's accepted counts once, for the final notification.
+@acceptedCount = 0
+const today = currentDate()
+const day = formatDate(today, "Custom", "yyyy-MM-dd")
+const utcOffset = formatDate(today, "Custom", "ZZZZZ")
+
+// Today's and tomorrow's events go up together, so the server can treat both days as complete.
+// Records and fields use separator characters, because a title can contain almost anything else.
+action 'is.workflow.actions.filter.calendarevents' findEvents(&variable filter: 'WFContentItemFilter'): array {"WFContentItemLimitEnabled":true,"WFContentItemLimitNumber":60,"WFContentItemSortProperty":"Start Date","WFContentItemSortOrder":"Oldest First"}
+
+@eventRecords = ""
+const todayEvents = findEvents(todayEventsFilter)
+for event in todayEvents {
+    const title = getEventDetail(@event, "Title")
+    const calendarName = getEventDetail(@event, "Calendar")
+    const startDate = getEventDetail(@event, "Start Date")
+    const endDate = getEventDetail(@event, "End Date")
+    const startISO = formatTimestamp(startDate, "Custom", "None", "yyyy-MM-dd'T'HH:mm:ssZZZZZ")
+    const endISO = formatTimestamp(endDate, "Custom", "None", "yyyy-MM-dd'T'HH:mm:ssZZZZZ")
+    @eventRecords = "{@eventRecords}␞{startISO}␟{endISO}␟{calendarName}␟{title}"
+}
+
+// The next two days repeat the rest of today; the server counts each event once and keeps only today and tomorrow.
+const upcomingEvents = findEvents(upcomingEventsFilter)
+for upcomingEvent in upcomingEvents {
+    const upcomingTitle = getEventDetail(@upcomingEvent, "Title")
+    const upcomingCalendar = getEventDetail(@upcomingEvent, "Calendar")
+    const upcomingStart = getEventDetail(@upcomingEvent, "Start Date")
+    const upcomingEnd = getEventDetail(@upcomingEvent, "End Date")
+    const upcomingStartISO = formatTimestamp(upcomingStart, "Custom", "None", "yyyy-MM-dd'T'HH:mm:ssZZZZZ")
+    const upcomingEndISO = formatTimestamp(upcomingEnd, "Custom", "None", "yyyy-MM-dd'T'HH:mm:ssZZZZZ")
+    @eventRecords = "{@eventRecords}␞{upcomingStartISO}␟{upcomingEndISO}␟{upcomingCalendar}␟{upcomingTitle}"
+}
+
+const calendarBody = formRequest("https://even.bishvili.workers.dev/api/ingest", "POST", {
+    "kind": "calendar_days",
+    "shortcutVersion": "3.0.0",
+    "date": "{day}",
+    "utcOffset": "{utcOffset}",
+    "events": "{@eventRecords}"
+}, {"Authorization": "{@credential}"})
+const calendarResponse = getDictionary(calendarBody)
+const calendarStatusValue = getValue(calendarResponse, "state")
+const calendarStatus = getText(calendarStatusValue)
+// A notification, not an alert, so a scheduled run keeps going.
+if calendarStatus != "accepted" {
+    const calendarErrorValue = getValue(calendarResponse, "error")
+    const calendarError = getText(calendarErrorValue)
+    showNotification("Your calendar didn't sync. {calendarError}", "Even Sync")
+} else {
+    @acceptedCount += 1
+}
 
 // Daily groups over 30 days give Health's own totals, and a quiet day doesn't end the run.
-// The newest group is usually today, so each value is sent under its group's own date.
+// The newest group is usually today, so each value is sent with its group's own date.
 // A result limit would apply before grouping and return a single sample.
 action 'is.workflow.actions.filter.health.quantity' findLatestDay(&variable filter: 'WFContentItemFilter'): array {"WFHKSampleFilteringGroupBy":"Day","WFHKSampleFilteringFillMissing":true,"WFContentItemSortProperty":"Start Date","WFContentItemSortOrder":"Latest First"}
 
-action 'is.workflow.actions.filter.health.quantity' findSamples(&variable filter: 'WFContentItemFilter'): array {"WFContentItemLimitEnabled":true,"WFContentItemLimitNumber":60,"WFContentItemSortProperty":"Start Date","WFContentItemSortOrder":"Latest First"}
+// Recent sleep samples, newest first. The server needs to know when the limit was reached, because the oldest night may be cut off.
+action 'is.workflow.actions.filter.health.quantity' findSamples(&variable filter: 'WFContentItemFilter'): array {"WFContentItemLimitEnabled":true,"WFContentItemLimitNumber":100,"WFContentItemSortProperty":"Start Date","WFContentItemSortOrder":"Latest First"}
 
 // The newest samples of any type. A filter can't both match several types and limit dates, so a result limit bounds it.
 action 'is.workflow.actions.filter.health.quantity' findRecentSamples(&variable filter: 'WFContentItemFilter'): array {"WFContentItemLimitEnabled":true,"WFContentItemLimitNumber":1000,"WFContentItemSortProperty":"Start Date","WFContentItemSortOrder":"Latest First"}
@@ -80,60 +132,23 @@ action 'is.workflow.actions.properties.health.quantity' getSampleValue(variable 
 action 'is.workflow.actions.properties.health.quantity' getDailyNumber(variable sample: 'WFInput'): number {"WFContentItemPropertyName":"Value"}
 action 'is.workflow.actions.properties.health.quantity' getSampleStart(variable sample: 'WFInput') {"WFContentItemPropertyName":"Start Date"}
 action 'is.workflow.actions.properties.health.quantity' getSampleEnd(variable sample: 'WFInput') {"WFContentItemPropertyName":"End Date"}
-action 'is.workflow.actions.gettimebetweendates' minutesSince(variable end: 'WFInput', variable start: 'WFTimeUntilFromDate'): number {"WFTimeUntilUnit":"Minutes"}
 
 // Calculate Statistics takes its list through the Input parameter.
 action 'is.workflow.actions.statistics' sumValues(variable values: 'Input'): number {"WFStatisticsOperation":"Sum"}
 
-@acceptedCount = 0
-@skippedCalendarCount = 0
-const events = findEvents(todayEventsFilter)
-for event in events {
-    const title = getEventDetail(@event, "Title")
-    const calendarName = getEventDetail(@event, "Calendar")
-    const startDate = getEventDetail(@event, "Start Date")
-    const endDate = getEventDetail(@event, "End Date")
-    const startISO = formatTimestamp(startDate, "Custom", "None", "yyyy-MM-dd'T'HH:mm:ssZZZZZ")
-    const endISO = formatTimestamp(endDate, "Custom", "None", "yyyy-MM-dd'T'HH:mm:ssZZZZZ")
-
-    const eventBody = formRequest("https://even.bishvili.workers.dev/api/ingest", "POST", {
-        "kind": "calendar",
-        "shortcutVersion": "2.9.0",
-        "title": "{title}",
-        "calendar": "{calendarName}",
-        "start": "{startISO}",
-        "end": "{endISO}"
-    }, {"Authorization": "{@credential}"})
-    const eventResponse = getDictionary(eventBody)
-    const eventStatusValue = getValue(eventResponse, "state")
-    const eventStatus = getText(eventStatusValue)
-    if eventStatus != "accepted" {
-        const eventErrorValue = getValue(eventResponse, "error")
-        const eventError = getText(eventErrorValue)
-        if eventError == "No valid records. Check date, metric values, and event start/end formats" {
-            @skippedCalendarCount += 1
-        } else {
-            alert("Your calendar didn't sync. {eventError}", "Sync stopped")
-            stop()
-        }
-    } else {
-        @acceptedCount += 1
-    }
-}
-
-const today = currentDate()
-const day = formatDate(today, "Custom", "yyyy-MM-dd")
-const utcOffset = formatDate(today, "Custom", "ZZZZZ")
-
-// Remove today's events that this run did not send, such as deleted or edited ones.
-const syncStartedValue = getValue(handshake, "receivedAt")
-const syncStarted = getText(syncStartedValue)
-formRequest("https://even.bishvili.workers.dev/api/ingest", "POST", {
-    "kind": "calendar_complete",
-    "date": "{day}",
-    "utcOffset": "{utcOffset}",
-    "startedAt": "{syncStarted}"
-}, {"Authorization": "{@credential}"})
+// Every measure goes up in one request. Anything with no data stays empty and is left out, never sent as zero.
+@healthFields = 0
+@stepsField = ""
+@stepsDay = ""
+@restingField = ""
+@restingDay = ""
+@hrvField = ""
+@hrvDay = ""
+@exerciseField = ""
+@exerciseDay = ""
+@sleepIntervals = ""
+@sleepCount = "0"
+@sleepLimit = "100"
 
 // Find Health Samples ends the run when a type has no samples, so check which types have recent data first.
 const recentSamples = findRecentSamples(recentTypesFilter)
@@ -154,72 +169,24 @@ if stepsAvailable >= 1 {
         const normalizedSteps = replaceText('(?<=\d)[,\s](?=\d{3}(?:\D|$))', "", totalStepsText, true, true)
         // Keep only the number, because the text form of a Health value can include a unit.
         const stepsValue = replaceText('^\D*(\d+(?:\.\d+)?)[\s\S]*$', "$1", normalizedSteps, true, true)
-        const healthBody = formRequest("https://even.bishvili.workers.dev/api/ingest", "POST", {
-            "kind": "health",
-            "shortcutVersion": "2.9.0",
-            "date": "{stepDay}",
-            "steps": "{stepsValue}"
-        }, {"Authorization": "{@credential}"})
-        const healthResponse = getDictionary(healthBody)
-        const healthStatusValue = getValue(healthResponse, "state")
-        const healthStatus = getText(healthStatusValue)
-        if healthStatus != "accepted" {
-            const healthErrorValue = getValue(healthResponse, "error")
-            const healthError = getText(healthErrorValue)
-            alert("Your steps didn't sync. {healthError}", "Sync stopped")
-            stop()
-        }
-        @acceptedCount += 1
+        @stepsField = stepsValue
+        @stepsDay = stepDay
+        @healthFields += 1
     }
 }
 
-// A metric with no data today is left out, never sent as zero.
 const restingMatches = matchText('(?i)Resting', recentTypes)
 const restingAvailable = count(restingMatches)
 if restingAvailable >= 1 {
     const restingDays = findLatestDay(restingFilter)
     const restingSamples = getFirstItem(restingDays)
     const restingDate = getSampleStart(restingSamples)
-    const restingDay = formatDate(restingDate, "Custom", "yyyy-MM-dd")
+    const restingSampleDay = formatDate(restingDate, "Custom", "yyyy-MM-dd")
     const restingValue = getDailyNumber(restingSamples)
     if restingValue >= 1 {
-        const restingBody = formRequest("https://even.bishvili.workers.dev/api/ingest", "POST", {
-            "kind": "health",
-            "shortcutVersion": "2.9.0",
-            "date": "{restingDay}",
-            "restingHR": "{restingValue}"
-        }, {"Authorization": "{@credential}"})
-        const restingResponse = getDictionary(restingBody)
-        const restingStatusValue = getValue(restingResponse, "state")
-        const restingStatus = getText(restingStatusValue)
-        if restingStatus == "accepted" {
-            @acceptedCount += 1
-        }
-    }
-}
-
-// Whole lines only, because other types also contain these words.
-const heartRateMatches = matchText('(?im)^Heart Rate$', recentTypes)
-const heartRateAvailable = count(heartRateMatches)
-if heartRateAvailable >= 1 {
-    const heartRateDays = findLatestDay(heartRateFilter)
-    const heartRateSamples = getFirstItem(heartRateDays)
-    const heartRateDate = getSampleStart(heartRateSamples)
-    const heartRateDay = formatDate(heartRateDate, "Custom", "yyyy-MM-dd")
-    const heartRateValue = getDailyNumber(heartRateSamples)
-    if heartRateValue >= 1 {
-        const heartRateBody = formRequest("https://even.bishvili.workers.dev/api/ingest", "POST", {
-            "kind": "health",
-            "shortcutVersion": "2.9.0",
-            "date": "{heartRateDay}",
-            "heartRate": "{heartRateValue}"
-        }, {"Authorization": "{@credential}"})
-        const heartRateResponse = getDictionary(heartRateBody)
-        const heartRateStatusValue = getValue(heartRateResponse, "state")
-        const heartRateStatus = getText(heartRateStatusValue)
-        if heartRateStatus == "accepted" {
-            @acceptedCount += 1
-        }
+        @restingField = "{restingValue}"
+        @restingDay = restingSampleDay
+        @healthFields += 1
     }
 }
 
@@ -229,21 +196,12 @@ if hrvAvailable >= 1 {
     const hrvDays = findLatestDay(hrvFilter)
     const hrvSamples = getFirstItem(hrvDays)
     const hrvDate = getSampleStart(hrvSamples)
-    const hrvDay = formatDate(hrvDate, "Custom", "yyyy-MM-dd")
+    const hrvSampleDay = formatDate(hrvDate, "Custom", "yyyy-MM-dd")
     const hrvValue = getDailyNumber(hrvSamples)
     if hrvValue >= 1 {
-        const hrvBody = formRequest("https://even.bishvili.workers.dev/api/ingest", "POST", {
-            "kind": "health",
-            "shortcutVersion": "2.9.0",
-            "date": "{hrvDay}",
-            "hrv": "{hrvValue}"
-        }, {"Authorization": "{@credential}"})
-        const hrvResponse = getDictionary(hrvBody)
-        const hrvStatusValue = getValue(hrvResponse, "state")
-        const hrvStatus = getText(hrvStatusValue)
-        if hrvStatus == "accepted" {
-            @acceptedCount += 1
-        }
+        @hrvField = "{hrvValue}"
+        @hrvDay = hrvSampleDay
+        @healthFields += 1
     }
 }
 
@@ -253,38 +211,30 @@ if exerciseAvailable >= 1 {
     const exerciseDays = findLatestDay(exerciseFilter)
     const exerciseSamples = getFirstItem(exerciseDays)
     const exerciseDate = getSampleStart(exerciseSamples)
-    const exerciseDay = formatDate(exerciseDate, "Custom", "yyyy-MM-dd")
+    const exerciseSampleDay = formatDate(exerciseDate, "Custom", "yyyy-MM-dd")
     const exerciseValue = getDailyNumber(exerciseSamples)
     if exerciseValue >= 1 {
-        const workoutBody = formRequest("https://even.bishvili.workers.dev/api/ingest", "POST", {
-            "kind": "health",
-            "shortcutVersion": "2.9.0",
-            "date": "{exerciseDay}",
-            "workoutMin": "{exerciseValue}"
-        }, {"Authorization": "{@credential}"})
-        const workoutResponse = getDictionary(workoutBody)
-        const workoutStatusValue = getValue(workoutResponse, "state")
-        const workoutStatus = getText(workoutStatusValue)
-        if workoutStatus == "accepted" {
-            @acceptedCount += 1
-        }
+        @exerciseField = "{exerciseValue}"
+        @exerciseDay = exerciseSampleDay
+        @healthFields += 1
     }
 }
 
-// Count only sleep from the last 24 hours.
-// Count only time asleep, not time in bed or awake.
+// Each asleep sample goes up as its start and end. The server merges overlapping samples from more than one device
+// and files each night under the morning it ends, so time in bed, awake time and naps don't count.
 const sleepMatches = matchText('(?i)Sleep', recentTypes)
 const sleepAvailable = count(sleepMatches)
 if sleepAvailable >= 1 {
-    @sleepMinutes = 0
-    @sleepStarts = ""
-    // The first sync reads two weeks back, so the bedtime estimate works straight away.
+    // The first sync reads up to a month back, so the bedtime estimate works straight away.
     @sleepSamples = findSamples(sleepFilter)
     const historyValue = getValue(handshake, "sleepHistory")
     const historyState = getText(historyValue)
     if historyState == "needed" {
         @sleepSamples = findSleepHistory(sleepFilter)
+        @sleepLimit = "300"
     }
+    const sleepSampleCount = count(@sleepSamples)
+    @sleepCount = "{sleepSampleCount}"
     for sleepSample in @sleepSamples {
         const stageValue = getSampleValue(@sleepSample)
         const stageText = getText(stageValue)
@@ -292,38 +242,46 @@ if sleepAvailable >= 1 {
         const stageCount = count(stageMatches)
         if stageCount >= 1 {
             const sleepStart = getSampleStart(@sleepSample)
-            const startStamp = formatDate(sleepStart, "Custom", "yyyy-MM-dd'T'HH:mm")
-            @sleepStarts = "{@sleepStarts} {startStamp}"
-            const sleepAge = minutesSince(today, sleepStart)
-            if sleepAge <= 1440 {
-                const sleepEnd = getSampleEnd(@sleepSample)
-                const stageMinutes = minutesSince(sleepEnd, sleepStart)
-                @sleepMinutes += stageMinutes
-            }
+            const sleepEnd = getSampleEnd(@sleepSample)
+            const sleepStartISO = formatTimestamp(sleepStart, "Custom", "None", "yyyy-MM-dd'T'HH:mm:ssZZZZZ")
+            const sleepEndISO = formatTimestamp(sleepEnd, "Custom", "None", "yyyy-MM-dd'T'HH:mm:ssZZZZZ")
+            @sleepIntervals = "{@sleepIntervals}␞{sleepStartISO}␟{sleepEndISO}"
         }
     }
-    if @sleepMinutes >= 1 {
-        const sleepHours = @sleepMinutes / 60
-        const sleepBody = formRequest("https://even.bishvili.workers.dev/api/ingest", "POST", {
-            "kind": "health",
-            "shortcutVersion": "2.9.0",
-            "date": "{day}",
-            "sleepHours": "{sleepHours}",
-            "sleepStarts": "{@sleepStarts}"
-        }, {"Authorization": "{@credential}"})
-        const sleepResponse = getDictionary(sleepBody)
-        const sleepStatusValue = getValue(sleepResponse, "state")
-        const sleepStatus = getText(sleepStatusValue)
-        if sleepStatus == "accepted" {
-            @acceptedCount += 1
-        }
+    @healthFields += 1
+}
+
+if @healthFields >= 1 {
+    const healthBody = formRequest("https://even.bishvili.workers.dev/api/ingest", "POST", {
+        "kind": "health",
+        "shortcutVersion": "3.0.0",
+        "date": "{day}",
+        "steps": "{@stepsField}",
+        "stepsDate": "{@stepsDay}",
+        "restingHR": "{@restingField}",
+        "restingHRDate": "{@restingDay}",
+        "hrv": "{@hrvField}",
+        "hrvDate": "{@hrvDay}",
+        "workoutMin": "{@exerciseField}",
+        "workoutMinDate": "{@exerciseDay}",
+        "sleepIntervals": "{@sleepIntervals}",
+        "sleepSamples": "{@sleepCount}",
+        "sleepLimit": "{@sleepLimit}"
+    }, {"Authorization": "{@credential}"})
+    const healthResponse = getDictionary(healthBody)
+    const healthStatusValue = getValue(healthResponse, "state")
+    const healthStatus = getText(healthStatusValue)
+    if healthStatus != "accepted" {
+        const healthErrorValue = getValue(healthResponse, "error")
+        const healthError = getText(healthErrorValue)
+        showNotification("Your Health data didn't sync. {healthError}", "Even Sync")
+    } else {
+        @acceptedCount += 1
     }
 }
 
 // Offer an update after syncing; the user approves installation in Apple Shortcuts.
-const releaseBody = downloadURL("https://even.bishvili.workers.dev/api/shortcut/release?current=2.9.0", {"Authorization": "{@credential}"})
-const releaseInfo = getDictionary(releaseBody)
-const updateStatusValue = getValue(releaseInfo, "updateStatus")
+const updateStatusValue = getValue(handshake, "updateStatus")
 const updateStatus = getText(updateStatusValue)
 // A notification, because a question would stall a scheduled run.
 if updateStatus == "new_release" {
@@ -340,12 +298,12 @@ for alarm in alarms {
 }
 formRequest("https://even.bishvili.workers.dev/api/ingest", "POST", {
     "kind": "alarms",
-    "shortcutVersion": "2.9.0",
+    "shortcutVersion": "3.0.0",
     "date": "{day}",
     "alarms": "{@alarmRecords}"
 }, {"Authorization": "{@credential}"})
 
-// A push opens the app and brings the data in. Without reminders on, fall back to a plain notification.
+// A push opens the app and brings the data in. Without notifications on, fall back to a plain notification.
 const syncedRaw = jsonRequest("https://even.bishvili.workers.dev/api/push/synced", "POST", {
     "items": "{@acceptedCount}"
 }, {"Authorization": "{@credential}"})
@@ -353,5 +311,5 @@ const synced = getDictionary(syncedRaw)
 const syncedValue = getValue(synced, "state")
 const syncedState = getText(syncedValue)
 if syncedState != "sent" {
-    showNotification("Synced {@acceptedCount} items. Skipped {@skippedCalendarCount} calendar events.", "Even")
+    showNotification("Sync finished. Open Even to see it.", "Even Sync")
 }

@@ -31,7 +31,7 @@ test("the paper states the rules the app applies",()=>{
  }
 });
 test("the paper names every synced health measure",()=>{
- const named={sleepHours:/Hours asleep/,steps:/steps/,hrv:/heart rate variability/,restingHR:/Resting/,heartRate:/average heart rate/,workoutMin:/exercise minutes/};
+ const named={sleepHours:/Hours asleep/,steps:/steps/,hrv:/heart rate variability/,restingHR:/Resting heart rate/,workoutMin:/exercise minutes/};
  const metrics=worker.match(/const METRICS=\{([^}]*)\}/)[1].match(/\w+(?=:\[)/g);
  for(const metric of metrics){
   assert.ok(named[metric],metric+" needs a place in the paper");

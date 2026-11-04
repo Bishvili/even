@@ -8,10 +8,10 @@ on:
         type: string
         required: true
       changes:
-        description: "Release notes (plain text, no emojis)"
+        description: "Release notes (plain text, no emojis). Leave empty to use shortcuts/release-notes.txt."
         type: string
         required: false
-        default: "Bug fixes and improvements."
+        default: ""
 
 permissions:
   contents: write
@@ -32,6 +32,7 @@ jobs:
         id: release
         env:
           ICLOUD_LINK: ${{ inputs.icloud_link }}
+          RELEASE_CHANGES: ${{ inputs.changes }}
         run: |
           python3 - <<'PY'
           import os
@@ -48,6 +49,11 @@ jobs:
               raise SystemExit("The Shortcut source has inconsistent versions.")
           if re.search(r"Bearer [a-fA-F0-9]{64}", source):
               raise SystemExit("Credential detected in Shortcut source. Refusing release.")
+          # The notes are committed with the version bump, so every release says what changed.
+          notes_file = Path("shortcuts/release-notes.txt")
+          notes = os.environ.get("RELEASE_CHANGES", "").strip() or (notes_file.read_text().strip() if notes_file.exists() else "")
+          notes = " ".join(notes.split())[:180] or "Bug fixes and improvements."
+          Path(os.environ["RUNNER_TEMP"], "release-notes.txt").write_text(notes)
           with open(os.environ["GITHUB_OUTPUT"], "a") as output:
               output.write(f"version={versions.pop()}\n")
           PY
@@ -57,11 +63,11 @@ jobs:
           ROUTINEHUB_API_KEY: ${{ secrets.ROUTINEHUB_API_KEY }}
           RELEASE_VERSION: ${{ steps.release.outputs.version }}
           ICLOUD_LINK: ${{ inputs.icloud_link }}
-          RELEASE_CHANGES: ${{ inputs.changes }}
         run: |
           python3 - <<'PY'
           import json
           import os
+          from pathlib import Path
           from urllib import error, parse, request
 
           key = os.environ.get("ROUTINEHUB_API_KEY", "")
@@ -71,7 +77,7 @@ jobs:
           body = parse.urlencode({
               "version": os.environ["RELEASE_VERSION"],
               "link": os.environ["ICLOUD_LINK"].strip(),
-              "changes": os.environ["RELEASE_CHANGES"],
+              "changes": Path(os.environ["RUNNER_TEMP"], "release-notes.txt").read_text(),
           }).encode()
           req = request.Request(url, data=body, method="POST", headers={
               "Content-Type": "application/x-www-form-urlencoded",
@@ -95,7 +101,6 @@ jobs:
         env:
           RELEASE_VERSION: ${{ steps.release.outputs.version }}
           ICLOUD_LINK: ${{ inputs.icloud_link }}
-          RELEASE_CHANGES: ${{ inputs.changes }}
         run: |
           python3 - <<'PY'
           import datetime
@@ -107,7 +112,7 @@ jobs:
               "version": os.environ["RELEASE_VERSION"],
               "url": os.environ["ICLOUD_LINK"].strip(),
               "publishedAt": datetime.date.today().isoformat(),
-              "notes": os.environ["RELEASE_CHANGES"][:180],
+              "notes": Path(os.environ["RUNNER_TEMP"], "release-notes.txt").read_text()[:180],
               "verified": True,
           }, indent=2) + "\n")
           PY

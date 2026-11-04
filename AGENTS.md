@@ -35,9 +35,9 @@ The repository owner grants these, using the new developer's own accounts:
 3. **Optionally connect RoutineHub** using an API key from their own RoutineHub account, under **Settings → API**. It will only show listings that account owns. In cloud sessions, add it as a Claude connector, because `routinehub.co` is not on the default network allowlist.
 4. **Run the tests:** `node --test tests/*.test.cjs`.
 5. **To work on the Shortcuts:** nobody ever copies a key. Signing in on Even → **Sync** connects the iPhone automatically, and running Even Sync from the app passes the key to the Shortcut, which saves it in On My iPhone for later runs and automations.
-   - **Even Sync** is the Shortcut everyone installs. Its version is in `shortcuts/even-sync.cherri` and must change for each release.
-   - **Even Release** is the developer helper, in `shortcuts/even-release.cherri`. It holds no credentials. Install it with **Set Up Release Helper** in **Settings** → **Developer tools**, which opens a fixed iCloud link. When its source changes, install `Even-Release.shortcut` from the `shortcut-latest` GitHub release on an iPhone, copy a new iCloud link, and update the button in `index.html`.
-   - **To release:** push to `main` and wait for **Build signed Even Sync**, which signs through a service that sometimes times out, so rerun it. In **Settings** → **Developer tools**, tap **Run Release Helper**. It runs Even Sync and asks the Worker for the state: an older installed version downloads the latest (tap **Replace** and run it again), an unpublished version asks for confirmation and publishes, and otherwise it reports that everything is current. The Worker refuses any link not named Even Sync. Only an iPhone can create the iCloud link.
+   - **Even Sync** is the Shortcut everyone installs. Its version is in `shortcuts/even-sync.cherri` and must change for each release, with one plain sentence for people in `shortcuts/release-notes.txt`.
+   - **Even Release** is the developer helper, in `shortcuts/even-release.cherri`. It holds no credentials. Install it with **Set Up Release Helper** in **Settings** → **Developer tools**, which opens the link the helper last shared (`shortcuts/helper.json`). Change `helperVersion` with every change to its source: the next run downloads the new build (tap **Replace** and run it again), then shares its own new link. Even Release 1 can't update itself, so install the first Even Release 2 from `Even-Release.shortcut` in the `shortcut-latest` GitHub release.
+   - **To release:** push to `main`, then tap **Run Release Helper** in **Settings** → **Developer tools**. It runs Even Sync and asks the Worker for the state. While **Build signed Even Sync** is still signing, it says to try again; that workflow signs through a service that sometimes times out, so rerun it if it fails. An older installed version downloads the latest (tap **Replace** and run it again). An unpublished version asks for confirmation, publishes, and waits until the app offers it. A newer installed build is never replaced with an older one. The Worker refuses any link not named Even Sync or Even Release. Only an iPhone can create the iCloud link.
    - The card appears for accounts listed in `even_release_emails`, and **Improve This Site with Claude** opens a new session on this repository that starts with this onboarding. See [RoutineHub releases](shortcuts/ROUTINEHUB_RELEASE.md).
 6. **To test Sync:** sign in on Even → **Sync** with their own account. Device keys belong to one account, so never reuse someone else's.
 
@@ -82,10 +82,11 @@ Only an iPhone proves iOS behavior, and each round trip costs the owner time. Be
 - A result limit applies before grouping, so read grouped values from the first group.
 - Health data can't be read while the iPhone is locked.
 - Clock alarm details exist only as variable properties, whose names can differ across iOS versions. Confirm in the Shortcuts editor and in Even → **Sources** that names, times and on/off state arrive. Keep alarms at the end of the run, because an error there can't be caught.
-- Even Sync matches the Worker's skipped-event message (`NO_VALID_RECORDS` in `worker/index.js`) word for word until it checks an error code (#31). Change that message only together with the Shortcut.
+- Clients check an error's `code`, never its message. Even Sync 2.9.0 still matches the skipped-event message (`NO_VALID_RECORDS` in `worker/index.js`) word for word, so keep that message until 2.9.0 is out of use.
 - Even Sync sends every calendar's events, with titles, and the app decides which calendars are kept. Don't filter calendars in the Shortcut.
-- Every request is a round trip from the phone, often on cellular or inside an automation. Add fields to an existing request instead of adding requests (#35).
-- Sleep hours add up every asleep sample from the last 24 hours, so two wearables or a nap inflate them until #35 merges intervals. Don't build rules on exact sleep totals before then.
+- A run makes five requests: the handshake, today's and tomorrow's events, all Health measures, alarms, and the final notification. Every request is a round trip from the phone, often on cellular or inside an automation, so add fields to one of these instead of adding requests.
+- The Worker accepts both Even Sync 2.9.0's one-at-a-time uploads and 3.0.0's batches. Remove the old paths once 3.0.0 is the only version in use (#35).
+- Sleep arrives as asleep intervals that the Worker merges per night, so two wearables count once. A batch that reached its sample limit leaves its oldest night alone, because that night may be cut off. Even Sync 2.9.0 still adds up the last 24 hours.
 
 **Cloud and naming**
 - Worker, repository and address renames need dashboard steps. Push only after they're done, because a mismatch can deploy to the wrong place.
@@ -93,13 +94,13 @@ Only an iPhone proves iOS behavior, and each round trip costs the owner time. Be
 - After someone adds a Worker secret, list the secret names and compare them with what the code reads. A misspelled name fails silently.
 - Every page and asset is served with a strict content security policy, so inline styles and scripts are blocked, including `style="…"` attributes that JavaScript writes into `innerHTML`. Set dynamic values with `element.style` or a class, keep styles and scripts in separate files, and add each file to `scripts/deploy.sh` and the Worker's type list.
 - Check the Workers Builds result for the exact commit, then the deployed code. When you can't test something on a device, say so plainly.
-- Workers Builds doesn't run the tests yet (#17), so a failing commit still deploys. Run `node --test tests/*.test.cjs` before every push, and check **Validate application and Shortcut** afterward.
+- Workers Builds runs `node --test tests/*.test.cjs` before each deploy, so a failing test stops it. Run the tests before pushing anyway, and check **Validate application and Shortcut** afterward, which also compiles and checks both Shortcuts.
 - `scripts/deploy.sh` copies the files to KV before deploying the Worker, so a failed deploy leaves new pages running against the old Worker. Fix or revert at once (#30).
 
 **Data and privacy**
 - Demo records must never merge into personal ones, and every count must say which records it counts. Read personal data through `EvenApp.personalMoods()`, `personalHealth()` and `personalEvents()`. Until #20, `upsertHealth` can merge a demo day into a real one.
 - A new table or column that holds an owner's data must be covered by erase, account deletion and the cross-account tests in the same change.
-- Resting and average heart rate are synced, but no feature uses them yet. By decision, resting heart rate becomes personal context (#37) and average heart rate stops being collected (#36). Don't add another measure without a feature that uses it.
+- Resting heart rate is synced, but no feature uses it yet; #37 makes it personal context. Average heart rate is no longer kept: the Worker ignores it and Even Sync 3 doesn't read it. Don't add another measure without a feature that uses it.
 - When what Even collects, sends or stores changes, update the **Data inventory**, Sync → Help and privacy, Settings, the README's Privacy section and `whitepaper.html` in the same commit.
 
 **Analysis and copy**
@@ -129,8 +130,8 @@ Even is an iPhone-first, installable progressive web app for quick mood check-in
   - Even Sync sends every calendar's events, with titles, and titles are stored. Which calendars are kept is managed in the app, and events from turned-off calendars are discarded when they arrive (#24).
   - Removing a tester deletes their synced data. Planned in #22.
   - Sources and Sync become one **Data** tab, leaving four tabs. Planned in #27; until it ships, this guide's references to Even → **Sync** and **Sources** stay correct.
-  - Resting heart rate becomes personal recovery context, compared with the person's own usual level, and Even Sync stops collecting average heart rate. Planned in #37 and #36.
-  - Even Sync also sends tomorrow's events, so the wind-down and morning brief can plan around the first commitment. Planned in #36; until it ships, calendar data covers today only.
+  - Resting heart rate becomes personal recovery context, compared with the person's own usual level (planned in #37). Average heart rate is no longer collected.
+  - Even Sync also sends tomorrow's events, so the wind-down and morning brief can plan around the first commitment. Even Sync 3 sends them; coaching starts using them in #37.
 - Where `README.md` disagrees with this guide, this guide is current. #34 brings the README up to date.
 
 ## Product language and code quality
@@ -205,10 +206,11 @@ What Even holds and where it goes. Write every privacy statement from this table
 | Mood, optional stress, energy (saved as 3 when untouched), tags, notes | Check-ins | Yes | No | Insights, coaching and notification times. Notes are only displayed. |
 | Weekly reflections and breathing sessions | The app | Yes | No | Insights. Breathing also feeds what tends to help. |
 | Health days and events added by hand or imported | Sources | Yes | No | Insights and coaching |
-| Steps, exercise minutes, sleep hours, HRV | Even Sync, from Apple Health | Yes | Yes | Insights and coaching. HRV: Insights only. |
-| Bedtimes | Even Sync: recent sleep start times, up to a month on the first sync | Yes | Yes | Bedtime estimate and wind-down |
-| Resting and average heart rate | Even Sync, from Apple Health | Yes | Yes | Shown in Sources only (#37) |
-| Today's calendar events: title, start, end, calendar name | Even Sync reads every calendar; the Worker adds a category | Yes, without the calendar name | Yes, except events from turned-off calendars, which are discarded on arrival | Insights, coaching and nudges before events |
+| Steps, exercise minutes, sleep hours, HRV | Even Sync, from Apple Health. Sleep arrives as asleep intervals from recent nights, up to a month on the first sync | Yes | Yes | Insights and coaching. HRV: Insights only. |
+| Bedtimes | Worked out from the sleep intervals | Yes | Yes | Bedtime estimate and wind-down |
+| Resting heart rate | Even Sync, from Apple Health | Yes | Yes | Shown in Sources only (#37) |
+| Average heart rate | Even Sync 2.9.0 only | No | No: discarded on arrival | Nothing |
+| Today's and tomorrow's calendar events: title, start, end, calendar name | Even Sync reads every calendar (2.9.0 reads today only); the Worker adds a category | Yes, without the calendar name | Yes, except events from turned-off calendars, which are discarded on arrival | Insights, coaching and nudges before events |
 | Calendar names and on/off state | Even Sync and the app | No | Yes | Calendar settings |
 | Alarms: time, repeat days, on/off, name | Even Sync, from Clock | Yes | Yes, plus each synced day's first morning alarm | Brief, wind-down, next steps and the early-alarm pattern |
 | Notification settings and answers | The app | Yes, including each message's text | Times and their kinds, time zone, weekends, sync reminder time, times of expected harder moments, latest check-in time, push subscription and delivery status | Sending notifications |

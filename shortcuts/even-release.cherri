@@ -14,9 +14,12 @@ action 'is.workflow.actions.file.createfolder' createKeyFolder(&variable locatio
 
 action 'is.workflow.actions.documentpicker.open' readSavedDeviceKey(&variable folder: 'WFFile'): text {"WFGetFilePath":"even-device-key.txt","WFFileErrorIfNotFound":false,"WFShowFilePicker":false}
 
+// Change this with every change to the helper, so it can update itself and share the new link.
+const helperVersion = "2.0.0"
+
 const keyFolder = createKeyFolder(onMyIPhone)
 
-// Look up Even Sync by its exact name, so no other Shortcut can be chosen.
+// Look up Shortcuts by their exact names, so no other Shortcut can be chosen.
 const allShortcuts = getShortcuts()
 @hasSync = 0
 for candidate in allShortcuts {
@@ -30,6 +33,8 @@ for candidate in allShortcuts {
 @state = "install"
 @credential = ""
 @latest = ""
+@helperState = "current"
+@helperLinkState = "current"
 if @hasSync == 1 {
     // Running it reports the installed version and shows its result before anything goes public.
     const runRequest = text("release check")
@@ -37,12 +42,48 @@ if @hasSync == 1 {
 
     const savedKeyFile = readSavedDeviceKey(keyFolder)
     @credential = getText(savedKeyFile)
-    const stateRaw = downloadURL("https://even.bishvili.workers.dev/api/shortcut/release-state", {"Authorization": "{@credential}"})
+    const stateRaw = downloadURL("https://even.bishvili.workers.dev/api/shortcut/release-state?helper={helperVersion}", {"Authorization": "{@credential}"})
     const stateInfo = getDictionary(stateRaw)
     const stateValue = getValue(stateInfo, "state")
     @state = getText(stateValue)
     const latestValue = getValue(stateInfo, "latest")
     @latest = getText(latestValue)
+    const helperStateValue = getValue(stateInfo, "helperState")
+    @helperState = getText(helperStateValue)
+    const helperLinkValue = getValue(stateInfo, "helperLinkState")
+    @helperLinkState = getText(helperLinkValue)
+}
+
+// The helper updates itself first, so every later step runs on the latest version.
+if @helperState == "update" {
+    showNotification("Tap Replace, then run this helper again.", "Even Release")
+    const helperBuild = downloadURL("https://github.com/Bishvili/even/releases/download/shortcut-latest/Even-Release.shortcut")
+    const namedHelper = setName(helperBuild, "Even Release.shortcut")
+    openFile(namedHelper)
+    stop()
+}
+
+// Share this version's link once, so Set Up Release Helper installs it for other developers.
+if @helperLinkState == "share" {
+    @helperLink = ""
+    for helperCandidate in allShortcuts {
+        const helperName = getShortcutDetail(@helperCandidate, "Name")
+        const helperText = getText(helperName)
+        if helperText == "Even Release" {
+            const helperLinkResult = createShortcutLink(@helperCandidate)
+            @helperLink = getText(helperLinkResult)
+        }
+    }
+    const sharedRaw = jsonRequest("https://even.bishvili.workers.dev/api/shortcut/helper-link", "POST", {
+        "link": "{@helperLink}"
+    }, {"Authorization": "{@credential}"})
+    const shared = getDictionary(sharedRaw)
+    const sharedErrorValue = getValue(shared, "error")
+    const sharedError = getText(sharedErrorValue)
+    const sharedErrorLength = count(sharedError, "Characters")
+    if sharedErrorLength >= 1 {
+        showNotification("{sharedError}", "Even Release")
+    }
 }
 
 if @state == "install" {
@@ -50,6 +91,16 @@ if @state == "install" {
     const build = downloadURL("https://github.com/Bishvili/even/releases/download/shortcut-latest/Even-Sync.shortcut")
     const namedBuild = setName(build, "Even Sync.shortcut")
     openFile(namedBuild)
+    stop()
+}
+
+if @state == "building" {
+    alert("The new build is still being signed. Try again in a few minutes.", "Even Release")
+    stop()
+}
+
+if @state == "ahead" {
+    alert("This iPhone has a newer Even Sync than the latest build, so there's nothing to install.", "Even Release")
     stop()
 }
 
@@ -91,4 +142,24 @@ if errorLength >= 1 {
     alert("{errorText}", "Publishing didn't start")
     stop()
 }
-showNotification("Publishing version {@latest}.", "Even Release")
+showNotification("Publishing version {@latest}. This takes a few minutes.", "Even Release")
+
+// Wait until the app offers the new version, checking every 20 seconds for up to four minutes.
+@live = 0
+repeat attempt for 12 {
+    if @live == 0 {
+        wait(20)
+        const checkRaw = downloadURL("https://even.bishvili.workers.dev/api/shortcut/release-state?helper={helperVersion}", {"Authorization": "{@credential}"})
+        const checkInfo = getDictionary(checkRaw)
+        const checkValue = getValue(checkInfo, "state")
+        const checkState = getText(checkValue)
+        if checkState == "current" {
+            @live = 1
+        }
+    }
+}
+if @live == 1 {
+    alert("Version {@latest} is live.", "Even Release")
+} else {
+    alert("Publishing is still running. Run this helper again in a few minutes to check.", "Even Release")
+}

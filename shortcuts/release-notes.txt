@@ -1,0 +1,1 @@
+Syncs faster, brings in tomorrow's events, and counts sleep correctly when you wear more than one device.

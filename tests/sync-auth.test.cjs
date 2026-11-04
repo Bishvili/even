@@ -8,21 +8,22 @@ const vm=require("node:vm");
 const {webcrypto}=require("node:crypto");
 const {TextEncoder}=require("node:util");
 
-function harness({verified=false}={}){
+function harness({verified=false,buildVersion="2.8.0",helperBuild="2.0.0",sourceVersions=null,helperLink=null}={}){
  const source=fs.readFileSync(path.join(__dirname,"..","worker","index.js"),"utf8");
- const loaded=source.replace("export default {","globalThis.sendReminders = sendReminders;globalThis.readBedtimes = readBedtimes;globalThis.reminderMessage = reminderMessage;globalThis.readAlarms = readAlarms;globalThis.firstAlarm = firstAlarm;globalThis.pushPayload = pushPayload;globalThis.__worker = {");
+ const loaded=source.replace("export default {","globalThis.sendReminders = sendReminders;globalThis.readBedtimes = readBedtimes;globalThis.readSleep = readSleep;globalThis.reminderMessage = reminderMessage;globalThis.readAlarms = readAlarms;globalThis.firstAlarm = firstAlarm;globalThis.pushPayload = pushPayload;globalThis.__worker = {");
  assert.notEqual(source,loaded,"Worker ESM export not found");
  const dispatches=[];
  const runtime={crypto:webcrypto,TextEncoder,Response,URL,atob,btoa,Intl,Uint8Array,console,async fetch(url,init){
-  if(String(url).includes("/shortcuts/api/records/"))return new Response(JSON.stringify({fields:{name:{value:String(url).endsWith("00000000000000000000000000000000")?"Other Shortcut":"Even Sync"}}}));
-  if(String(url).endsWith("Even-Sync-version.txt"))return new Response("2.8.0\n");
+  if(String(url).includes("/shortcuts/api/records/")){const id=String(url).split("/").pop();return new Response(JSON.stringify({fields:{name:{value:id==="0".repeat(32)?"Other Shortcut":id==="1".repeat(32)?"Even Release":"Even Sync"}}}));}
+  if(String(url).endsWith("Even-Sync-version.txt"))return new Response(buildVersion+"\n");
+  if(String(url).endsWith("Even-Release-version.txt"))return helperBuild?new Response(helperBuild+"\n"):new Response("",{status:404});
   if(String(url).endsWith(".shortcut"))return new Response("file");
   dispatches.push({url,init});return new Response(null,{status:204});}};
  vm.runInNewContext(loaded,runtime,{timeout:2500,filename:"worker/index.js"});
  const allowed=["owner-a@example.com","owner-b@example.com"];
  const rows={approved:new Map(),subs:new Map(),calendars:new Map(),users:new Map(),devices:new Map(),health:new Map(),events:new Map()};
  const release=JSON.stringify({version:"1.0.0",url:"https://www.icloud.com/shortcuts/82109f53491f4d95a0a8b8437c4090f2",publishedAt:"2026-11-01",notes:"First shared release",verified});
- const env={GITHUB_API_KEY:"server-only",APPROVED_SYNC_EMAILS:JSON.stringify(allowed),ASSETS:{async get(key){return key==="config:shortcut:latest"?release:null;}},DB:{
+ const env={GITHUB_API_KEY:"server-only",APPROVED_SYNC_EMAILS:JSON.stringify(allowed),ASSETS:{async get(key){return {"config:shortcut:latest":release,"config:helper:latest":helperLink&&JSON.stringify(helperLink),"config:shortcut:source":sourceVersions&&JSON.stringify(sourceVersions)}[key]||null;}},DB:{
   prepare(sql){return{bind(...args){return {
    async first(){
     if(sql.includes("FROM even_approved_emails WHERE email"))return rows.approved.has(args[0])?{allowed:1}:null;
@@ -73,7 +74,7 @@ function harness({verified=false}={}){
     if(sql.startsWith("INSERT OR IGNORE INTO even_calendars")){const k=args[0]+"|"+args[1];if(!rows.calendars.has(k))rows.calendars.set(k,{owner:args[0],name:args[1],enabled:1});return{meta:{changes:1}};}
     if(sql.startsWith("UPDATE even_calendars")){const c=rows.calendars.get(args[1]+"|"+args[2]);if(c)c.enabled=args[0];return{meta:{changes:c?1:0}};}
     if(sql.startsWith("DELETE FROM even_calendars")){for(const [k,c] of rows.calendars)if(c.owner===args[0])rows.calendars.delete(k);return{meta:{changes:1}};}
-    if(sql.startsWith("INSERT INTO even_calendar_events")){rows.events.set(args[0]+"|"+args[1],{owner:args[0],id:args[1],start_time:args[2],end_time:args[3],title:args[4],category:args[5],calendar:args[6]});return{meta:{changes:1}};}
+    if(sql.startsWith("INSERT INTO even_calendar_events")){rows.events.set(args[0]+"|"+args[1],{owner:args[0],id:args[1],start_time:args[2],end_time:args[3],title:args[4],category:args[5],calendar:args[6],start:args[2],updated:args[7]});return{meta:{changes:1}};}
     if(sql.startsWith("DELETE FROM even_health_metrics")){for(const [k,d] of rows.health)if(d.owner===args[0])rows.health.delete(k);return{meta:{changes:1}};}
     if(sql.includes("updated_at<?")){let changes=0;for(const [k,d] of rows.events)if(d.owner===args[0]&&d.start>=args[1]&&d.start<args[2]&&d.updated<args[3]){rows.events.delete(k);changes++;}return{meta:{changes}};}
     if(sql.startsWith("DELETE FROM even_calendar_events")){for(const [k,d] of rows.events)if(d.owner===args[0])rows.events.delete(k);return{meta:{changes:1}};}
@@ -492,4 +493,146 @@ test("alarms belong to one owner, replace on each sync, and go with an erase",as
  await upload("\u241e06:30\u241fMonday\u241fYes\u241fGym");
  await call("/api/erase",{method:"POST",headers:A});
  assert.equal((await call("/api/pull",{headers:A})).data.alarms.length,0);
+});
+
+test("today's and tomorrow's events arrive together, and events the run didn't send are removed",async()=>{
+ const{call,ctx,rows}=harness();
+ const a=await call("/api/auth/device",{method:"POST",body:{label:"A"},context:ctx("owner-a@example.com")});
+ await call("/api/auth/device",{method:"POST",body:{label:"B"},context:ctx("owner-b@example.com")});
+ const A={Authorization:"Bearer "+a.data.token};
+ await call("/api/ingest",{method:"POST",body:{kind:"calendar",title:"Earlier",calendar:"Private",start:"2026-11-01T10:00:00Z",end:"2026-11-01T11:00:00Z"},headers:A});
+ await call("/api/calendars",{method:"POST",body:{name:"Private",enabled:false},headers:A});
+ const old=new Date(Date.now()-60000).toISOString();
+ rows.events.set("stale",{owner:"owner-a@example.com",start:"2026-11-04T17:00:00.000Z",updated:old});
+ rows.events.set("dayAfter",{owner:"owner-a@example.com",start:"2026-11-06T17:00:00.000Z",updated:old});
+ rows.events.set("otherOwner",{owner:"owner-b@example.com",start:"2026-11-04T17:00:00.000Z",updated:old});
+ const record=(...fields)=>fields.join("␟");
+ const events=["",
+  record("2026-11-04T09:00:00-08:00","2026-11-04T10:00:00-08:00","Work","Planning meeting"),
+  record("2026-11-04T09:00:00-08:00","2026-11-04T10:00:00-08:00","Work","Planning meeting"),
+  record("2026-11-05T08:00:00-08:00","2026-11-05T08:30:00-08:00","Home","Gym"),
+  record("2026-11-06T08:00:00-08:00","2026-11-06T09:00:00-08:00","Work","Too far ahead"),
+  record("2026-11-04T12:00:00-08:00","2026-11-04T13:00:00-08:00","Private","Kept off"),
+  record("not a time","2026-11-04T13:00:00-08:00","Work","Broken")
+ ].join("␞");
+ const sent=await call("/api/ingest",{method:"POST",body:{kind:"calendar_days",date:"2026-11-04",utcOffset:"-08:00",shortcutVersion:"3.0.0",events},headers:A});
+ assert.equal(sent.status,200);
+ assert.equal(sent.data.state,"accepted");
+ assert.equal(sent.data.calendarEvents,2);
+ assert.equal(sent.data.removed,1);
+ assert.ok(!rows.events.has("stale")&&rows.events.has("dayAfter")&&rows.events.has("otherOwner"));
+ const titles=[...rows.events.values()].filter(e=>e.owner==="owner-a@example.com"&&e.title&&e.start>="2026-11-04").map(e=>e.title).sort();
+ assert.deepEqual(titles,["Gym","Planning meeting"]);
+ const status=await call("/api/sync/status",{headers:A});
+ assert.equal(status.data.installedShortcutVersion,"3.0.0");
+ assert.ok(status.data.lastDataUploadAt);
+ const bad=await call("/api/ingest",{method:"POST",body:{kind:"calendar_days",date:"2026-11-04",utcOffset:"bad",events},headers:A});
+ assert.equal(bad.status,400);
+ assert.equal(bad.data.code,"invalid_calendar_details");
+});
+test("Health takes each measure with its own date, reads comma decimals, and ignores average heart rate quietly",async()=>{
+ const{call,ctx,rows}=harness();
+ const a=await call("/api/auth/device",{method:"POST",body:{label:"A"},context:ctx("owner-a@example.com")});
+ const A={Authorization:"Bearer "+a.data.token};
+ const sent=await call("/api/ingest",{method:"POST",body:{kind:"health",shortcutVersion:"3.0.0",date:"2026-11-04",steps:"5200",stepsDate:"2026-11-04",hrv:"45,5",hrvDate:"2026-11-03",restingHR:"",restingHRDate:"",workoutMin:"",workoutMinDate:"",sleepIntervals:"",sleepSamples:"0",sleepLimit:"100"},headers:A});
+ assert.equal(sent.data.state,"accepted");
+ assert.equal(sent.data.healthMetrics,2);
+ assert.equal(rows.health.get("owner-a@example.com|2026-11-04|steps").value,5200);
+ assert.equal(rows.health.get("owner-a@example.com|2026-11-03|hrv").value,45.5);
+ const ignored=await call("/api/ingest",{method:"POST",body:{kind:"health",date:"2026-11-04",heartRate:"64",shortcutVersion:"2.9.0"},headers:A});
+ assert.equal(ignored.status,200);
+ assert.equal(ignored.data.healthMetrics,0);
+ assert.equal([...rows.health.values()].some(h=>h.metric==="heartRate"),false);
+ assert.equal((await call("/api/sync/status",{headers:A})).data.lastErrorCode,null);
+ const bad=await call("/api/ingest",{method:"POST",body:{kind:"health",date:"2026-11-04",steps:"lots"},headers:A});
+ assert.equal(bad.status,400);
+ assert.equal(bad.data.code,"no_valid_records");
+});
+test("sleep intervals are merged across devices, filed by the morning they end, and skip naps and a possibly cut-off night",()=>{
+ const{runtime}=harness();
+ const span=(start,end)=>start+"␟"+end;
+ const text=["",
+  span("2026-11-03T23:30:00-08:00","2026-11-04T03:00:00-08:00"),
+  span("2026-11-04T03:00:00-08:00","2026-11-04T06:30:00-08:00"),
+  span("2026-11-03T23:45:00-08:00","2026-11-04T06:00:00-08:00"),
+  span("2026-11-04T14:00:00-08:00","2026-11-04T14:40:00-08:00"),
+  span("2026-11-02T22:50:00-08:00","2026-11-03T06:00:00-08:00"),
+  span("not a time","2026-11-03T06:00:00-08:00")
+ ].join("␞");
+ const byNight=list=>Object.fromEntries(list.map(r=>[r.day+" "+r.metric,r.value]));
+ const complete=byNight(runtime.readSleep(text,"6","100"));
+ assert.equal(complete["2026-11-04 sleepHours"],7);
+ assert.equal(complete["2026-11-04 bedtimeMin"],23*60+30);
+ assert.equal(complete["2026-11-03 sleepHours"],7.17);
+ assert.equal(complete["2026-11-03 bedtimeMin"],22*60+50);
+ assert.equal(Object.keys(complete).length,4);
+ const capped=byNight(runtime.readSleep(text,"100","100"));
+ assert.equal(capped["2026-11-03 sleepHours"],undefined);
+ assert.equal(capped["2026-11-04 sleepHours"],7);
+ assert.deepEqual(Array.from(runtime.readSleep("","0","100")),[]);
+});
+test("the handshake says when a verified update is ready",async()=>{
+ const verified=harness({verified:true});
+ const a=await verified.call("/api/auth/device",{method:"POST",body:{label:"A"},context:verified.ctx("owner-a@example.com")});
+ const A={Authorization:"Bearer "+a.data.token};
+ assert.equal((await verified.call("/api/shortcut/hello",{method:"POST",body:{shortcutVersion:"0.9.0"},headers:A})).data.updateStatus,"new_release");
+ assert.equal((await verified.call("/api/shortcut/hello",{method:"POST",body:{shortcutVersion:"1.0.0"},headers:A})).data.updateStatus,"current");
+ const unverified=harness();
+ const b=await unverified.call("/api/auth/device",{method:"POST",body:{label:"A"},context:unverified.ctx("owner-a@example.com")});
+ assert.equal((await unverified.call("/api/shortcut/hello",{method:"POST",body:{shortcutVersion:"0.9.0"},headers:{Authorization:"Bearer "+b.data.token}})).data.updateStatus,"current");
+});
+test("Even Release 2 waits for a build being signed, never offers a downgrade, updates itself, and shares its link once",async()=>{
+ const shared={version:"1.0.0",url:"https://www.icloud.com/shortcuts/ae34096d23534730ae2f82a99d861414"};
+ async function state(options,installed,helper){
+  const t=harness(options);
+  const a=await t.call("/api/auth/device",{method:"POST",body:{label:"A"},context:t.ctx("owner-a@example.com")});
+  [...t.rows.devices.values()].find(d=>d.owner_email==="owner-a@example.com").shortcut_version=installed;
+  return (await t.call("/api/shortcut/release-state"+(helper?"?helper="+helper:""),{headers:{Authorization:"Bearer "+a.data.token}})).data;
+ }
+ const building=await state({buildVersion:"2.9.0",sourceVersions:{sync:"3.0.0",release:"2.0.0"},helperLink:shared},"2.9.0","2.0.0");
+ assert.equal(building.state,"building");
+ assert.equal(building.helperState,"current");
+ assert.equal(building.helperLinkState,"share");
+ assert.equal((await state({buildVersion:"2.9.0",sourceVersions:{sync:"2.9.0",release:"2.0.0"}},"3.0.0","2.0.0")).state,"ahead");
+ assert.equal((await state({buildVersion:"3.0.0",sourceVersions:{sync:"3.0.0",release:"2.0.0"}},"2.9.0","2.0.0")).state,"install");
+ const outdated=await state({buildVersion:"2.9.0",helperBuild:"2.1.0"},"2.9.0","2.0.0");
+ assert.equal(outdated.helperState,"update");
+ assert.equal(outdated.helperLinkState,"current");
+ const current=await state({verified:true,buildVersion:"1.0.0",sourceVersions:{sync:"1.0.0",release:"2.0.0"},helperLink:{version:"2.0.0",url:shared.url}},"1.0.0","2.0.0");
+ assert.deepEqual([current.state,current.helperState,current.helperLinkState],["current","current","current"]);
+ assert.equal((await state({buildVersion:"2.9.0",sourceVersions:{sync:"3.0.0",release:"2.0.0"}},"2.9.0",null)).state,"publish");
+});
+test("only release accounts can share the helper link, and only a link named Even Release",async()=>{
+ const{call,ctx,dispatches}=harness();
+ const a=await call("/api/auth/device",{method:"POST",body:{label:"A"},context:ctx("owner-a@example.com")});
+ const b=await call("/api/auth/device",{method:"POST",body:{label:"B"},context:ctx("owner-b@example.com")});
+ const link="https://www.icloud.com/shortcuts/"+"1".repeat(32);
+ assert.equal((await call("/api/shortcut/helper-link",{method:"POST",body:{link}})).status,401);
+ assert.equal((await call("/api/shortcut/helper-link",{method:"POST",body:{link},headers:{Authorization:"Bearer "+b.data.token}})).status,403);
+ const A={Authorization:"Bearer "+a.data.token};
+ const wrong=await call("/api/shortcut/helper-link",{method:"POST",body:{link:"https://www.icloud.com/shortcuts/82109f53491f4d95a0a8b8437c4090f2"},headers:A});
+ assert.equal(wrong.status,400);
+ assert.equal(wrong.data.code,"wrong_shortcut");
+ assert.equal(dispatches.length,0);
+ assert.equal((await call("/api/shortcut/helper-link",{method:"POST",body:{link},headers:A})).status,200);
+ assert.match(String(dispatches[0].url),/\/workflows\/helper-link\.yml\/dispatches$/);
+ assert.equal(JSON.parse(dispatches[0].init.body).inputs.icloud_link,link);
+});
+test("release accounts get the helper's shared link with their session",async()=>{
+ const helperLink={version:"2.0.0",url:"https://www.icloud.com/shortcuts/"+"1".repeat(32)};
+ const{call,ctx}=harness({helperLink});
+ assert.equal((await call("/api/auth/me",{context:ctx("owner-a@example.com")})).data.helper.url,helperLink.url);
+ assert.equal((await call("/api/auth/me",{context:ctx("owner-b@example.com")})).data.helper,null);
+});
+test("every error carries a stable code",async()=>{
+ const{call,ctx}=harness();
+ const missing=await call("/api/pull");
+ assert.equal(missing.status,401);
+ assert.equal(missing.data.code,"device_required");
+ const a=await call("/api/auth/device",{method:"POST",body:{label:"A"},context:ctx("owner-a@example.com")});
+ const A={Authorization:"Bearer "+a.data.token};
+ assert.equal((await call("/api/ingest",{method:"POST",body:{kind:"mystery"},headers:A})).data.code,"invalid_kind");
+ assert.equal((await call("/api/nothing-here",{headers:A})).data.code,"not_found");
+ const source=fs.readFileSync(path.join(__dirname,"..","worker","index.js"),"utf8");
+ assert.doesNotMatch(source,/\berror\((?:"[^"]*"|NO_VALID_RECORDS)(?:,\d{3})?\)/);
 });
