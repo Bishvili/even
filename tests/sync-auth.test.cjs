@@ -15,7 +15,7 @@ function harness({verified=false}={}){
  const dispatches=[];
  const runtime={crypto:webcrypto,TextEncoder,Response,URL,atob,btoa,Intl,Uint8Array,console,async fetch(url,init){
   if(String(url).includes("/shortcuts/api/records/"))return new Response(JSON.stringify({fields:{name:{value:String(url).endsWith("00000000000000000000000000000000")?"Other Shortcut":"Even Sync"}}}));
-  if(String(url).endsWith("Even-Sync-version.txt"))return new Response("2.6.0\n");
+  if(String(url).endsWith("Even-Sync-version.txt"))return new Response("2.7.0\n");
   if(String(url).endsWith(".shortcut"))return new Response("file");
   dispatches.push({url,init});return new Response(null,{status:204});}};
  vm.runInNewContext(loaded,runtime,{timeout:2500,filename:"worker/index.js"});
@@ -222,10 +222,10 @@ test("the helper's release state compares installed, latest and published, and w
  assert.equal((await call("/api/shortcut/release-state",{headers:{Authorization:"Bearer "+b.data.token}})).status,403);
  const device=[...rows.devices.values()].find(d=>d.owner_email==="owner-a@example.com");
  assert.equal((await call("/api/shortcut/release-state",{headers:A})).data.state,"install");
- device.shortcut_version="2.6.0";
+ device.shortcut_version="2.7.0";
  const state=await call("/api/shortcut/release-state",{headers:A});
  assert.equal(state.data.state,"publish");
- assert.equal(state.data.latest,"2.6.0");
+ assert.equal(state.data.latest,"2.7.0");
  const wrong=await call("/api/shortcut/publish",{method:"POST",body:{link:"https://www.icloud.com/shortcuts/00000000000000000000000000000000"},headers:A});
  assert.equal(wrong.status,400);
  assert.equal(dispatches.length,0);

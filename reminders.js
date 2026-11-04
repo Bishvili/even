@@ -11,10 +11,10 @@
  function isIOS(){return /iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);}
  function canPush(){return "serviceWorker" in navigator&&"PushManager" in window&&"Notification" in window;}
  function deviceHeaders(){return{"Authorization":"Bearer "+app.deviceToken(),"Content-Type":"application/json"};}
- function bedtimeAt(){return globalThis.EvenCoach.bedtimeReminder(app.personalHealth(),app.personalMoods(),settings.to,new Date());}
+ function smartPlan(){return globalThis.EvenCoach.smartPlan(app.personalMoods(),app.personalHealth(),settings.from,settings.to,settings.count,new Date());}
  function schedule(){
   var coach=globalThis.EvenCoach;
-  if(settings.mode==="smart")return coach.smartTimes(app.personalMoods(),settings.from,settings.to,settings.count,new Date()).concat(bedtimeAt());
+  if(settings.mode==="smart")return smartPlan().times;
   return settings.mode==="repeat"?coach.repeatTimes(settings.from,settings.to,settings.every):settings.times;
  }
  function timeLabel(value){var parts=value.split(":"),date=new Date();date.setHours(Number(parts[0]),Number(parts[1]),0,0);return app.formatTime(date);}
@@ -69,7 +69,7 @@
   if(!key)throw Error("Reminders aren’t available right now.");
   var registration=await navigator.serviceWorker.ready;
   var subscription=await registration.pushManager.getSubscription()||await registration.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:keyBytes(key)});
-  var saved=await fetch("/api/push/subscribe",{method:"POST",headers:deviceHeaders(),cache:"no-store",body:JSON.stringify({endpoint:subscription.endpoint,keys:subscription.toJSON().keys,mode:settings.mode==="smart"?"smart":"custom",times:schedule(),bedtimeAt:settings.mode==="smart"?bedtimeAt():null,timeZone:Intl.DateTimeFormat().resolvedOptions().timeZone})});
+  var saved=await fetch("/api/push/subscribe",{method:"POST",headers:deviceHeaders(),cache:"no-store",body:JSON.stringify({endpoint:subscription.endpoint,keys:subscription.toJSON().keys,mode:settings.mode==="smart"?"smart":"custom",times:schedule(),bedtimeAt:settings.mode==="smart"?smartPlan().bedtimeAt:null,timeZone:Intl.DateTimeFormat().resolvedOptions().timeZone})});
   if(!saved.ok)throw Error("Couldn’t save your reminder.");
  }
  async function unsubscribe(){
@@ -91,7 +91,7 @@
  async function updateReminder(on){
   var toggle=$("reminder-toggle");toggle.disabled=true;
   try{
-   if(on){await subscribe();var count=schedule().length;toast(settings.mode==="smart"?"Smart reminders are on, plus one before bedtime.":count===1?"Reminder set for "+timeLabel(schedule()[0])+".":count+" reminders a day are set.");}
+   if(on){await subscribe();var count=schedule().length;toast(settings.mode==="smart"?"Smart reminders are on.":count===1?"Reminder set for "+timeLabel(schedule()[0])+".":count+" reminders a day are set.");}
    else{await unsubscribe();toast("Reminders off.");}
    settings.on=on;saveSettings();
   }catch(e){toast(e.message||"Couldn’t update your reminder.");}

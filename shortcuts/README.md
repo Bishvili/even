@@ -1,6 +1,6 @@
 # Even Sync
 
-Even Sync is the replaceable iPhone Shortcut that sends selected Calendar events and Apple Health Steps to the owner's private Even account. **The installed Shortcut is always named `Even Sync`**, with no version suffix. The current version is **v2.6.0**.
+Even Sync is the replaceable iPhone Shortcut that sends selected Calendar events and Apple Health Steps to the owner's private Even account. **The installed Shortcut is always named `Even Sync`**, with no version suffix. The current version is **v2.7.0**.
 
 ## Setup
 
@@ -28,7 +28,7 @@ The Shortcut itself contains no private token, so a tested installed copy can be
 
 ## Upload semantics
 
-- The sync starts with `POST /api/shortcut/hello`, reporting `shortcutVersion=2.6.0` and recording a connected handshake only after an authenticated device key is accepted.
+- The sync starts with `POST /api/shortcut/hello`, reporting `shortcutVersion=2.7.0` and recording a connected handshake only after an authenticated device key is accepted.
 - Calendar events carry titles and start/end timestamps formatted as full ISO 8601 date-time strings with offsets. They contain no attendee, location, notes, or mood data. The Worker derives broad category labels.
 - An event rejected with the Worker's **exact known invalid-record message** is counted as skipped. Valid events continue uploading. Authentication or unexpected server errors still stop the workflow.
 - Apple Health Steps are read from native Health samples and summed. The total is converted to text, locale grouping separators (for example, in `12,345`) and any unit text are removed, and the number is posted as `steps` with the current local `date`. The Worker accepts values within configured numeric bounds. Sample overlap across devices may lead to differences from Apple's reconciled Step total.
@@ -36,7 +36,7 @@ The Shortcut itself contains no private token, so a tested installed copy can be
 - Find Health Samples ends the run when a type has no samples, so the Shortcut first reads the newest 1,000 samples of all five types and only queries types found there. Anything with no recent data is left out.
 - After the calendar uploads, `calendar_complete` removes today's events on the server that this run did not send, so edited and deleted events do not linger.
 - The final notification distinguishes accepted uploads from skipped invalid Calendar events. If an upload is rejected, the Shortcut displays the server error without the device key.
-- The Shortcut checks `/api/shortcut/release?current=2.6.0` and offers a newer **verified** version only when available. It shows a notification rather than asking, so scheduled runs never wait for an answer; installing a replacement always requires the user's approval in the app.
+- The Shortcut checks `/api/shortcut/release?current=2.7.0` and offers a newer **verified** version only when available. It shows a notification rather than asking, so scheduled runs never wait for an answer; installing a replacement always requires the user's approval in the app.
 
 ## Automated checks and release process
 

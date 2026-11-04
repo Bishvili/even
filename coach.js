@@ -113,13 +113,20 @@
   else estimate=nightMinutes(minutesOf(to));
   return timeOf((estimate-20+1440)%1440);
  }
+ // The bedtime reminder takes one of the day's slots when it falls inside the window.
+ function smartPlan(moods,health,from,to,count,today){
+  var bedtime=bedtimeReminder(health,moods,to,today),inWindow=bedtime>=from&&bedtime<=to;
+  if(!inWindow)return{times:smartTimes(moods,from,to,count,today),bedtimeAt:null};
+  var earlier=count>1?smartTimes(moods,from,bedtime,count-1,today):[];
+  return{times:earlier.filter(function(t){return t!==bedtime;}).concat(bedtime),bedtimeAt:bedtime};
+ }
  function repeatTimes(from,to,everyHours){
   var times=[],end=minutesOf(to);
   for(var at=minutesOf(from);at<=end;at+=everyHours*60)times.push(timeOf(at));
   return times;
  }
 
- var api={bedtimeReminder:bedtimeReminder,smartTimes:smartTimes,repeatTimes:repeatTimes,outlook:outlook,patterns:patterns,brief:brief,hardStretch:hardStretch,steadiness:steadiness,reflectionDue:reflectionDue,REFLECTION:REFLECTION};
+ var api={smartPlan:smartPlan,bedtimeReminder:bedtimeReminder,smartTimes:smartTimes,repeatTimes:repeatTimes,outlook:outlook,patterns:patterns,brief:brief,hardStretch:hardStretch,steadiness:steadiness,reflectionDue:reflectionDue,REFLECTION:REFLECTION};
  root.EvenCoach=api;
  if(typeof document==="undefined"||!root.EvenApp)return;
 

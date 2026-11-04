@@ -96,8 +96,8 @@ test("every accepted upload is acknowledged and versioned",()=>{
  assert.match(source,/getValue\(healthResponse, "state"\)/);
  assert.match(source,/if eventStatus != "accepted"/);
  assert.match(source,/if healthStatus != "accepted"/);
- assert.match(source,/shortcutVersion": "2\.6\.0"/);
- assert.match(source,/\/api\/shortcut\/release\?current=2\.6\.0/);
+ assert.match(source,/shortcutVersion": "2\.7\.0"/);
+ assert.match(source,/\/api\/shortcut\/release\?current=2\.7\.0/);
  assert.match(source,/showNotification\("Synced \{@acceptedCount\} items\. Skipped \{@skippedCalendarCount\} calendar events\."/);
  assert.doesNotMatch(source,/\bnothing\(\)/);
  assert.doesNotMatch(source,/Bearer [a-f0-9]{64}/i);
@@ -133,7 +133,6 @@ test("conditional comparisons use explicit typed text instead of Boolean values"
   '@sleepMinutes >= 1',
   'sleepStatus == "accepted"',
   'updateStatus == "new_release"',
-  'providedKeyCount >= 1',
   'syncedState != "sent"'
  ]);
  assert.doesNotMatch(source,/if\s+@\w+\s*(==|!=)\s*(true|false)/);
