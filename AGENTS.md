@@ -48,6 +48,7 @@ The repository owner grants these, using the new developer's own accounts:
 - Cherri rewrites nested dictionaries in custom action parameters into a format iOS ignores, and the action then silently falls back to its defaults. Pass nested values such as filters and folders as `#ref` values, and extend `scripts/check-shortcut-conditions.py` to check the compiled plist.
 - Only an iPhone can prove Shortcut behavior. Open the action in the Shortcuts editor to confirm what iOS actually understood.
 - The Shortcut's key file must stay in On My iPhone: the Shortcuts folder in iCloud Drive does not exist when iCloud Drive is off.
+- The plan of record is #16. Read **Plans and decisions** below before starting work.
 
 ## Getting it right the first time
 
@@ -63,11 +64,16 @@ Only an iPhone proves iOS behavior, and each round trip costs the owner time. Be
 - Installed apps resume without reloading. Bump the version in `app.js`, `sw.js`, `worker/index.js` and `index.html`, and a new script must be added to all of `index.html`, `sw.js`, `scripts/deploy.sh` and the Worker's type list. `tests/versions.test.cjs` checks this.
 - An installed app shows same-site downloads as a blank page. Open them in Safari with an `x-safari-https://` link.
 - Trace a feature from a fresh install, from an upgraded install with old saved state, signed out, and offline.
+- Each page must be cached under its own path. #19 fixes the service worker, which currently stores every page as `/`. After adding or linking a page, open it, go offline, and confirm the app still opens to Check in.
+- Check the first launch on a 375×667 screen with the install prompt showing. All five mood buttons must be fully visible above the tab bar.
 
 **Push notifications**
 - A notification can open the app, but only a tap inside the app is sure to launch a Shortcut. Anything opened from a notification needs a visible button as a fallback.
 - `201` means Apple accepted a push, not that it appeared. Check `last_push_status` and `last_sent_day`, then the phone's Focus and notification settings.
 - Send encrypted payloads with a declarative notification. iOS removes subscriptions after repeated pushes that show nothing, so every push must show one.
+- A notification arrives up to one cron interval after its planned time, which is 15 minutes in `wrangler.jsonc` today. Plan around the interval, and never describe timing more precisely than it is delivered.
+- The scheduled job must handle each subscription on its own, so one failure can't stop the rest, and a run sends each person at most one notification (#21).
+- The account repeats the stored plan every day until the app is next opened. A time meant for one day only, such as a wind-down for tomorrow's alarm or a nudge before an event, repeats too until #25 sends dated schedules.
 
 **Shortcuts**
 - Find Health Samples ends the run when a type has no samples, and Shortcuts can't catch errors. Check `recentTypes` first and never query a type it doesn't list.
@@ -76,13 +82,32 @@ Only an iPhone proves iOS behavior, and each round trip costs the owner time. Be
 - A result limit applies before grouping, so read grouped values from the first group.
 - Health data can't be read while the iPhone is locked.
 - Clock alarm details exist only as variable properties, whose names can differ across iOS versions. Confirm in the Shortcuts editor and in Even → **Sources** that names, times and on/off state arrive. Keep alarms at the end of the run, because an error there can't be caught.
+- Even Sync matches the Worker's skipped-event message (`NO_VALID_RECORDS` in `worker/index.js`) word for word until it checks an error code (#31). Change that message only together with the Shortcut.
+- Even Sync sends every calendar's events, with titles, and the app decides which calendars are kept. Don't filter calendars in the Shortcut.
+- Every request is a round trip from the phone, often on cellular or inside an automation. Add fields to an existing request instead of adding requests (#35).
+- Sleep hours add up every asleep sample from the last 24 hours, so two wearables or a nap inflate them until #35 merges intervals. Don't build rules on exact sleep totals before then.
 
 **Cloud and naming**
 - Worker, repository and address renames need dashboard steps. Push only after they're done, because a mismatch can deploy to the wrong place.
-- Change a live D1 schema before pushing code that needs it, with additive changes only.
+- Change a live D1 schema before pushing code that needs it, with additive changes only, and record the change in `db/schema.sql` in the same commit. Numbered migrations arrive with #30.
 - After someone adds a Worker secret, list the secret names and compare them with what the code reads. A misspelled name fails silently.
-- Every page and asset is served with a strict content security policy, so inline styles and scripts are blocked. Use separate files, and add each to `scripts/deploy.sh` and the Worker's type list.
+- Every page and asset is served with a strict content security policy, so inline styles and scripts are blocked, including `style="…"` attributes that JavaScript writes into `innerHTML`. Set dynamic values with `element.style` or a class, keep styles and scripts in separate files, and add each file to `scripts/deploy.sh` and the Worker's type list.
 - Check the Workers Builds result for the exact commit, then the deployed code. When you can't test something on a device, say so plainly.
+- Workers Builds doesn't run the tests yet (#17), so a failing commit still deploys. Run `node --test tests/*.test.cjs` before every push, and check **Validate application and Shortcut** afterward.
+- `scripts/deploy.sh` copies the files to KV before deploying the Worker, so a failed deploy leaves new pages running against the old Worker. Fix or revert at once (#30).
+
+**Data and privacy**
+- Demo records must never merge into personal ones, and every count must say which records it counts. Read personal data through `EvenApp.personalMoods()`, `personalHealth()` and `personalEvents()`. Until #20, `upsertHealth` can merge a demo day into a real one.
+- A new table or column that holds an owner's data must be covered by erase, account deletion and the cross-account tests in the same change.
+- Resting and average heart rate are synced, but no feature uses them yet (#37). Don't add another measure without a feature that uses it.
+- When what Even collects, sends or stores changes, update the **Data inventory**, Sync → Help and privacy, Settings, the README's Privacy section and `whitepaper.html` in the same commit.
+
+**Analysis and copy**
+- Each comparison has one implementation: stress in `coach.js`, and mood in `app.js` until #32 merges them. Extend those rather than adding another.
+- Give each comparison one minimum count and one threshold. Never show an average below the minimum, and use the same numbers in the interface and How Even Works.
+- Write counts with the right singular or plural form: "1 entry", never "1 entries".
+- Confirmations for destructive actions say whose data, which data, and whether it can be undone.
+- When you change wording or replace a behavior, search the interface, the Shortcuts, the docs and the paper for the old version, and update every match.
 
 ## Product and quality bar
 
@@ -96,10 +121,20 @@ Even is an iPhone-first, installable progressive web app for quick mood check-in
 - Correlations are exploratory. Show sample counts, time windows, missing-data limitations, and appropriate uncertainty; never suggest causation or provide medical diagnoses.
 - Fictional demo data must be clearly marked, reproducible, and fully isolated from real data and personal summary statistics.
 
+## Plans and decisions
+
+- The plan of record is #16, with the Shortcut plan in #36 and the data-context plan in #37. Read them and the open issues before starting work, follow their order, and update the ticket when the scope changes.
+- Write tickets with **Problem**, **Evidence** (permalinks to lines), **Proposed fix**, **Acceptance criteria**, **Tests** and **Rollout notes**. Start each title with P0 (wrong now, or a data or privacy risk), P1 (trust, accuracy or first impression) or P2 (foundations). Never copy personal values into a ticket: use code references and aggregate counts.
+- The owner has decided the following. Don't reopen them without asking:
+  - Even Sync sends every calendar's events, with titles, and titles are stored. Which calendars are kept is managed in the app, and events from turned-off calendars are discarded when they arrive (#24).
+  - Removing a tester deletes their synced data. Planned in #22.
+  - Sources and Sync become one **Data** tab, leaving four tabs. Planned in #27; until it ships, this guide's references to Even → **Sync** and **Sources** stay correct.
+- Where `README.md` disagrees with this guide, this guide is current. #34 brings the README up to date.
+
 ## Product language and code quality
 
 - Write production-quality application code and documentation. Do not reference AI-generated code, a chat conversation, prompts, an assistant, or the circumstances in which a feature was requested in UI text, comments, commits, documentation, or runtime metadata.
-- The interface must read as a finished product. Never expose development state or internals to users: no prototype, beta, candidate, corrected, unverified, or test-build language; no version history; no tool, vendor, or infrastructure names such as Cherri, Cloudflare, or GitHub; no HTTP, API, header, or handshake terminology.
+- The interface must read as a finished product. Never expose development state or internals to users: no prototype, beta, candidate, corrected, unverified, or test-build language; no version history; no tool, vendor, or infrastructure names such as Cherri, Cloudflare, or GitHub; no HTTP, HTTPS, API, header, or handshake terminology. Say *connect* or *disconnect this iPhone*, never *generate*, *device key*, *token* or *server*; the only exception is the security note about the key file.
 - Keep copy short. Say what to do or what happened in a sentence, then stop. Do not explain how something works unless the person needs it to make a choice. Put necessary detail behind a disclosure.
 - Stay honest in fewer words: required privacy and security facts remain visible, stated plainly.
 - Use concise, user-facing language that describes actions and outcomes. Avoid placeholders, sales language, misleading success states, and filler.
@@ -155,9 +190,30 @@ Current UI is plain JavaScript and CSS. Do not rewrite it merely to adopt a fram
 2. Restrict issuance and revocation of device credentials to the verified owner. Use cryptographically random device tokens, store only hashes server-side, support revocation, and do not log or embed tokens.
 3. Every read, write, export, and delete of cloud data must be scoped to the derived account owner on the server. Test cross-user isolation and revocation.
 4. Keep the email allowlist in Cloudflare secrets or private D1 tables and all credentials in Cloudflare secrets, never checked into the public repository or served in production assets.
-5. Treat calendar titles and Health metrics as sensitive personal data. Collect the minimum, allow omission of identifying calendar titles, avoid third-party trackers, redact logs, and use HTTPS.
+5. Treat calendar titles and Health metrics as sensitive personal data. Collect only what a feature uses, avoid third-party trackers, redact logs, and use HTTPS. By the owner's decision, Even Sync reads every calendar and titles are stored; people choose which calendars are kept in the app, and the privacy text must say so plainly.
 6. Avoid claiming end-to-end encryption, clinical-grade reliability, automatic Apple Health permissions, or sync capabilities the product does not implement.
-7. Provide explicit data deletion, safe export, and account-switching behavior. Do not silently combine local data from two accounts.
+7. Provide explicit data deletion, safe export, and account-switching behavior. Do not silently combine local data from two accounts. Every way an account loses access must leave its synced data deleted or deletable.
+
+## Data inventory
+
+What Even holds and where it goes. Write every privacy statement from this table, and keep it current: when it changes, change Sync → Help and privacy, Settings, the README's Privacy section and `whitepaper.html` with it.
+
+| Data | Comes from | On the iPhone | In the account | Used for |
+| --- | --- | --- | --- | --- |
+| Mood, optional stress, energy (saved as 3 when untouched), tags, notes | Check-ins | Yes | No | Insights, coaching and notification times. Notes are only displayed. |
+| Weekly reflections and breathing sessions | The app | Yes | No | Insights. Breathing also feeds what tends to help. |
+| Health days and events added by hand or imported | Sources | Yes | No | Insights and coaching |
+| Steps, exercise minutes, sleep hours, HRV | Even Sync, from Apple Health | Yes | Yes | Insights and coaching. HRV: Insights only. |
+| Bedtimes | Even Sync: recent sleep start times, up to a month on the first sync | Yes | Yes | Bedtime estimate and wind-down |
+| Resting and average heart rate | Even Sync, from Apple Health | Yes | Yes | Shown in Sources only (#37) |
+| Today's calendar events: title, start, end, calendar name | Even Sync reads every calendar; the Worker adds a category | Yes, without the calendar name | Yes, except events from turned-off calendars, which are discarded on arrival | Insights, coaching and nudges before events |
+| Calendar names and on/off state | Even Sync and the app | No | Yes | Calendar settings |
+| Alarms: time, repeat days, on/off, name | Even Sync, from Clock | Yes | Yes, plus each synced day's first morning alarm | Brief, wind-down, next steps and the early-alarm pattern |
+| Notification settings and answers | The app | Yes, including each message's text | Times and their kinds, time zone, weekends, sync reminder time, times of expected harder moments, latest check-in time, push subscription and delivery status | Sending notifications |
+| Account and devices | Sign-in and Even Sync | Account email, device ID and credential | Email; each device's label, dates, last error and Shortcut version; only a hash of each credential | Sync status and access |
+| Testers and release accounts | Developer tools and the owner | No | Email, who added them, display name | Who can sign in and publish |
+
+Backups are unencrypted JSON files that people save themselves. Outside services: Cloudflare hosts the app and sends sign-in codes, Apple's push service carries encrypted notifications, Resend sends invitation emails, and releases send the public Shortcut link to GitHub and RoutineHub.
 
 ## Schema evolution and cleanup
 
@@ -172,10 +228,10 @@ Current UI is plain JavaScript and CSS. Do not rewrite it merely to adopt a fram
 1. Inspect the relevant code, tests, deployed architecture, and any existing instructions.
 2. State the user-visible behavior and security invariants that must remain true. For visual work, create a compact design direction and review it for specificity before coding.
 3. Make the smallest coherent change that **fully** addresses the request; refactor surrounding code when necessary to eliminate duplication and dead paths.
-4. Add or update tests at the right layer. Run the existing Node test suite with: node --test tests/*.test.cjs. Add WebKit/browser end-to-end tests as the UI grows.
-5. For UI changes, review at iPhone widths and in installed standalone mode. Exercise safe areas, keyboard, scroll, offline, focus, reduced motion, light/dark appearance, and empty/error states.
+4. Add or update tests at the right layer. Run the existing Node test suite with: node --test tests/*.test.cjs. Add WebKit/browser end-to-end tests as the UI grows. Until #17 adds a browser check to CI, load the changed screens with the Worker's `SECURITY` headers, signed out and with the demo month loaded, and treat any console error or security-policy violation as a failure.
+5. For UI changes, review at iPhone widths and in installed standalone mode. Exercise safe areas, keyboard, scroll, offline, focus, reduced motion, light/dark appearance, and empty/error states. Check the first launch at 375×667 with the install prompt showing.
 6. For API or D1 changes, test invalid credentials, unauthorized requests, multiuser isolation, malformed payloads, idempotency, and rollback behavior.
-7. Update documentation, migration instructions, the PWA service-worker cache version, and `whitepaper.html` in the same change. Any change to what Even collects, where data goes, how patterns or prompts are decided, what notifications do, or safety behavior must be reflected in the paper. `tests/whitepaper.test.cjs` catches the numeric rules; check the prose by reading it. If you edit the paper, keep its plain, clinician-facing language and its limits section.
+7. Update documentation, migration instructions, the PWA service-worker cache version, the **Data inventory**, and `whitepaper.html` in the same change. Any change to what Even collects, where data goes, how patterns or prompts are decided, what notifications do, or safety behavior must be reflected in the paper. `tests/whitepaper.test.cjs` catches the numeric rules; check the prose by reading it. If you edit the paper, keep its plain, clinician-facing language and its limits section.
 8. Pushes to `main` deploy through Workers Builds using `scripts/deploy.sh`. Check that the build succeeded rather than assuming a commit is live.
 9. Verify the **deployed** version and its functionality before describing it as live. There is no staging, so for changes involving auth or personal data, plan how to roll back before pushing.
 10. Leave the branch, test suite, and docs coherent. Avoid stray test scripts, stale comments, or unresolved TODOs with no owner.

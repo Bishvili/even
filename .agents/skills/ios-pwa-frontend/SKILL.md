@@ -35,7 +35,7 @@ When a design needs a distinctive moment, spend the visual emphasis once: an exc
 
 ## Current visual direction and tokens
 
-The product is called Even: a calm, private health coach. Use serif headlines from the system stack (ui-serif, New York), system sans for everything else, pill buttons, deep green hero surfaces, and warm yellow as the single accent. Colors live in the CSS custom properties in styles.css, with a complete dark palette; never add literal colors outside them. Consolidate values into CSS custom properties or typed theme tokens rather than continuing to sprinkle magic hex literals.
+The product is called Even: a calm, private health coach. Use serif headlines from the system stack (ui-serif, New York), system sans for everything else, pill buttons, deep green hero surfaces, and warm yellow as the single accent. Colors live in the CSS custom properties in styles.css, with a complete dark palette; never add literal colors outside them, including in SVG markup in `index.html` and in JavaScript. Consolidate values into CSS custom properties or typed theme tokens rather than continuing to sprinkle magic hex literals.
 
 The token values in `styles.css` are the source of truth. Their roles are ink for text, canvas for the background, pine for interactive elements, mist for soft surfaces, warm yellow for sparse meaningful emphasis, and quiet text for secondary information. White raised surfaces are allowed. Test contrast in both appearances, because dark mode is its own palette, not an inversion.
 
@@ -44,8 +44,9 @@ Typography:
 - Define semantic type roles instead of arbitrary font sizes: large navigation title, section title, body, secondary detail, caption, metric.
 - Start with a readable 16–17px body size on iPhone, 16px or larger form inputs to avoid focus zoom, and restrained headings that fit narrow widths.
 - Respect larger system text settings and wrapping; do not hard-code short heights for text-bearing controls.
+- Set `font: -apple-system-body` on the root and size the type roles in `rem`, so text follows the iPhone's text size. The installed app has no text-zoom control, so fixed `px` sizes leave people who need larger text with no way to get it. Captions are at least 12px at the default size. The current styles use fixed sizes down to 8px; #28 converts them, so don't add new `px` font sizes.
 - Use tabular numerals for time, dates, mood averages, and chart labels.
-- Prefer sentence case for interface copy. Use uppercase only when it genuinely helps distinguish a limited number of tiny informational labels.
+- Prefer sentence case for interface copy. Use uppercase only when it genuinely helps distinguish a limited number of tiny informational labels, and apply it with CSS rather than typing capitals into the HTML, so screen readers don't spell labels out.
 
 Spacing and shape:
 - Use a consistent 4pt/8pt spacing scale; let content density follow the user's task rather than repeating identical cards.
@@ -63,6 +64,10 @@ Spacing and shape:
 - Respect env(safe-area-inset-top), env(safe-area-inset-bottom), the notch/Dynamic Island, iOS keyboard, and the standalone web-app viewport. Account for bottom navigation when content scrolls.
 - Do not disable pinch zoom, text selection, long-press, or scrolling to force an app-like appearance.
 - Use descriptive labels, stable navigation, and predictable back/forward behavior. Do not hide an essential feature behind gestures.
+- The active tab carries `aria-current="page"`, focus moves to the new view's title, and each tab keeps its scroll position. Tapping the active tab scrolls to the top.
+- The owner has decided on four tabs: Check in, Insights, Data and Settings. #27 merges today's Sources and Sync into Data. Don't add a tab.
+- Show one overlay at a time. Toasts and the install prompt share a queue and never cover the primary action.
+- Confirm destructive actions with an in-app sheet that names whose data and which data. Native `confirm()` shows the site address as its title; #27 adds the sheet, so use it once it exists.
 
 ## Installable PWA considerations
 
@@ -88,13 +93,19 @@ Spacing and shape:
 - One prominent mood control, optional energy and context tags, then an obvious Save action.
 - Confirm success without blocking the next action. Prevent accidental duplicate saves and clarify when data is stored locally.
 - A plain current-streak count is fine. Keep it neutral: no guilt when it resets, and no rewards for reporting a certain mood.
+- Above the mood picker, show only the title and at most one prompt. On a 375×667 screen at first launch, with the install prompt showing, all five mood buttons are fully visible above the tab bar. Once a mood is chosen, Save is visible without scrolling.
+- Don't show the weekly reflection until the person has a week of check-ins.
+- Keep Save enabled. If it's tapped without a mood, say what's missing.
 
 ### Insights
 - Lead with one question or pattern at a time, then supporting sample counts, baseline, timeframe, and comparison details.
 - Charts must have labeled units, meaningful axes, accessible text equivalents, and readable contrast; never encode positive/negative using color alone.
 - Calendar comparisons require transparent before/after windows and enough observations. Show overlap and missing-data caveats when relevant.
 - Use "associated with", "averaged", or "in this sample", never "caused by" or medical assertions.
-- Fictional demo data must remain visibly separate from personal data in every chart, metric, and summary.
+- Fictional demo data must remain visibly separate from personal data in every chart, metric, and summary. Counts anywhere in the app include personal records only.
+- Never show an average, bar or pattern from fewer check-ins than the stated minimum, and use the same minimum in the code, the copy and How Even Works.
+- Set chart sizes with SVG attributes or `element.style`, never a `style=` attribute in markup, which the security policy blocks.
+- Show each subject once. When two comparisons cover the same thing, such as a tag and a calendar category, lead with the stronger one and put the other in its detail.
 
 ### Sources and sync
 - Distinguish device-local information from synced records.
@@ -102,6 +113,8 @@ Spacing and shape:
 - Make sign-in, connection, removing a device, sync freshness, and error recovery easy to find.
 - Do not show a device as linked before the server confirms it. Never show a device key.
 - Do not display an actionable install link until a real, verified iCloud Shortcut link exists.
+- Say plainly what's sent: Even Sync reads every calendar, events from turned-off calendars are discarded when they arrive, and titles are stored. Write privacy copy from the Data inventory in AGENTS.md.
+- When signed out, show only sign-in; reveal Shortcut setup after sign-in.
 
 ### Settings and privacy
 - Present export, restore, clear local data, erase synced data, and device revoke as clearly different actions.
@@ -118,6 +131,9 @@ Write natural product copy for a thoughtful wellness tool.
 - Empty states guide action without making someone feel judged.
 - Use specific facts, not broad reassurance. Do not claim that synced health data is equivalent to on-device storage or end-to-end encryption.
 - Avoid artificially enthusiastic praise, generic status badges, marketing superlatives, and patterned "label / tagline / adjective" layouts.
+- Use one vocabulary: sign in, connect or disconnect this iPhone, sync, Even Sync. Never say generate, device key, token, server, HTTPS or handshake, except in the security note about the key file.
+- Write counts with the right singular or plural form.
+- Reserve ↗ for links that leave the app.
 
 ## Motion and feedback
 
@@ -152,6 +168,10 @@ Before treating a UI feature as ready:
 - Does it function as an installed standalone iOS app, not just a desktop browser preview?
 - Are charts truthful and personal data protected?
 - Did the review remove at least one unnecessary piece of visual or textual clutter?
+- On a 375×667 screen at first launch, with the install prompt showing, are the mood buttons uncovered?
+- Served with the production security headers, is the console free of errors and security-policy violations?
+- Do counts exclude demo records, and are singular and plural forms right?
+- With Larger Text on, does everything scale without clipping?
 
 ## References
 
