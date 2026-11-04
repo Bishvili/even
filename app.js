@@ -1,6 +1,6 @@
 (function () {
 "use strict";
-var VERSION = "2.3.2";
+var VERSION = "2.3.3";
 var SHORTCUT_PAGE = "https://routinehub.co/shortcut/26978/";
 var STORAGE_KEY = "even:v1";
 var MOOD_NAMES = ["","Rough","Low","Okay","Good","Great"];
@@ -567,6 +567,16 @@ function syncNow(){
  if(state.token&&confirm("Run Even Sync first to send today’s data?"))runShortcut();
  else pull(false);
 }
+// However the app was opened, bring in anything uploaded since the last sync.
+async function syncIfNewUpload(){
+ if(!state.token||!navigator.onLine)return;
+ try{
+  var r=await fetch("/api/sync/status",{headers:{"Authorization":"Bearer "+state.token},cache:"no-store"});
+  if(!r.ok)return;
+  var uploaded=Date.parse((await r.json()).lastDataUploadAt);
+  if(uploaded&&(!state.lastSync||uploaded>state.lastSync))pull(false);
+ }catch(e){}
+}
 async function pull(silent){
  if(!state.token){if(!silent)toast("Sign in and generate a device key first.");return;}
  var button=$("pull-button");button.disabled=true;button.textContent="Syncing…";
@@ -582,7 +592,7 @@ async function pull(silent){
   var serverEvents=body.events||[],serverIds={},oldest=null;
   serverEvents.forEach(function(x){serverIds[x.id]=true;if(!oldest||x.start<oldest)oldest=x.start;});
   var complete=serverEvents.length<1200;state.events=state.events.filter(function(x){return x.source!=="shortcut"||serverIds[x.id]||(!complete&&x.start<oldest);});
-  state.lastSync=Date.now();persist();render();if(!silent)toast("Synced "+h+" health days and "+e+" calendar events for "+state.syncOwnerEmail+".");
+  state.lastSync=Date.parse(body.syncAt)||Date.now();persist();render();if(!silent)toast("Synced "+h+" health days and "+e+" calendar events for "+state.syncOwnerEmail+".");
   checkShortcutUpload(true);
  }catch(e){if(!silent)toast(e.message||"Sync unavailable. Local data is unchanged.");}
  finally{button.disabled=false;button.textContent="↻ Sync now";}
@@ -652,11 +662,12 @@ function init(){
  $("demo-button").addEventListener("click",demo);$("clear-demo-button").addEventListener("click",clearDemo);
  setEnergyText();navigate(location.hash.slice(1)||"checkin");
  if(navigator.onLine)refreshAuth();
- if(state.token&&navigator.onLine){loadShortcutRelease();loadCalendars();checkShortcutUpload(true);pull(true);}
- window.addEventListener("online",function(){refreshAuth();if(state.token){loadShortcutRelease();loadCalendars();checkShortcutUpload(true);pull(true);}});
- document.addEventListener("visibilitychange",function(){if(!document.hidden){refreshAuth();if(state.token){loadShortcutRelease();loadCalendars();checkShortcutUpload(true);if(shortcutRunPending){shortcutRunPending=false;pull(false);}else if(!state.lastSync||Date.now()-state.lastSync>900000)pull(true);}}});
+ if(state.token&&navigator.onLine){loadShortcutRelease();loadCalendars();checkShortcutUpload(true);}
+ window.addEventListener("online",function(){refreshAuth();if(state.token){loadShortcutRelease();loadCalendars();checkShortcutUpload(true);syncIfNewUpload();}});
+ document.addEventListener("visibilitychange",function(){if(!document.hidden){refreshAuth();if(state.token){loadShortcutRelease();loadCalendars();checkShortcutUpload(true);if(shortcutRunPending){shortcutRunPending=false;pull(false);}else syncIfNewUpload();}}});
  watchForUpdates();
  if(new URLSearchParams(location.search).get("sync")==="1"){history.replaceState(null,"","/#sync");navigate("sync");if(state.token)pull(false);}
+ else syncIfNewUpload();
 }
 globalThis.EvenApp={personalHealth:function(){return state.health.filter(function(h){return !h.demo;});},personalMoods:function(){return state.moods.filter(function(m){return !m.demo;});},refresh:refresh,runShortcut:runShortcut,refreshCoach:refreshCoach,addReflection:function(r){state.reflections.push(r);if(persist())render();},toast:toast,formatTime:formatTime,deviceToken:function(){return state.token;}};
 init();

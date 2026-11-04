@@ -203,7 +203,9 @@
  function stopBreathing(){if(breathTimer)clearInterval(breathTimer);breathTimer=null;}
  function startBreathing(){
   var step=0,cycles=0,label=$("breath-label"),circle=$("breath-circle");
-  stopBreathing();label.textContent=STEPS[0];circle.dataset.step="0";
+  stopBreathing();label.textContent=STEPS[0];
+  // Start small, then grow with the first breath in.
+  circle.dataset.step="3";circle.getBoundingClientRect();circle.dataset.step="0";
   breathTimer=setInterval(function(){
    step=(step+1)%4;if(step===0)cycles++;
    if(cycles>=4){stopBreathing();label.textContent="Nicely done.";circle.dataset.step="3";return;}

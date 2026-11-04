@@ -163,9 +163,8 @@ input::-webkit-date-and-time-value{text-align:left}
 .pull-indicator circle{fill:none;stroke-width:3}
 .pull-ring-track{stroke:var(--line)}
 .pull-ring{stroke:var(--pine);stroke-linecap:round;stroke-dasharray:75.4;stroke-dashoffset:75.4}
-.pull-indicator .pull-ring-fill{fill:var(--pine);stroke:none;transform:scale(0);transform-origin:center;transition:transform .15s ease-out}
-.pull-indicator.run .pull-ring-fill{transform:scale(1)}
+.pull-indicator .pull-ring-fill{fill:var(--pine);stroke:none;transform:scale(0);transform-box:fill-box;transform-origin:center}
 .topbar,#main{position:relative;z-index:2}
 .pull-settling{transition:transform .22s ease-out}
-@media(prefers-reduced-motion:reduce){.pull-settling,.pull-indicator .pull-ring-fill{transition:none}}
+@media(prefers-reduced-motion:reduce){.pull-settling{transition:none}}
 .reminder-modes{margin:12px 0 4px}.calendar-row select{flex:none;width:auto}
