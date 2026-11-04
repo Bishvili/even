@@ -1,15 +1,13 @@
-// Home Screen install prompt and daily check-in reminders.
+// Notifications: the questions that set them up, the day's plan, and keeping the account's schedule current.
 (function(){
  var app=window.EvenApp,toast=app.toast;
  function $(id){return document.getElementById(id);}
- var SETTINGS_KEY="even-reminder",NUDGE_GAP=3*24*60*60*1000;
- var blockedReason="",syncError="",settings=readSettings(),installEvent=null;
+ var SETTINGS_KEY="even-reminder";
+ var blockedReason="",syncError="",settings=readSettings();
 
- function defaults(){return{on:false,mode:"smart",from:"09:00",to:"21:00",count:5,times:["09:00"],every:2,nudgedAt:0,hardest:"varies",brief:true,windDown:true,weekends:true,stressNudges:true,syncReminder:true,syncAt:"",intakeDone:false,intakeDismissed:false};}
+ function defaults(){return{on:false,mode:"smart",from:"09:00",to:"21:00",count:5,times:["09:00"],every:2,hardest:"varies",brief:true,windDown:true,weekends:true,stressNudges:true,syncReminder:true,syncAt:"",intakeDone:false,intakeDismissed:false};}
  function readSettings(){try{return Object.assign(defaults(),JSON.parse(localStorage.getItem(SETTINGS_KEY)||"{}"));}catch(e){return defaults();}}
  function saveSettings(){try{localStorage.setItem(SETTINGS_KEY,JSON.stringify(settings));}catch(e){}}
- function isInstalled(){return window.navigator.standalone===true||window.matchMedia("(display-mode: standalone)").matches;}
- function isIOS(){return /iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);}
  function canPush(){return "serviceWorker" in navigator&&"PushManager" in window&&"Notification" in window;}
  function deviceHeaders(){return{"Authorization":"Bearer "+app.deviceToken(),"Content-Type":"application/json"};}
  function planFor(values){return globalThis.EvenCoach.smartPlan(app.personalMoods(),app.personalHealth(),values.from,values.to,values.count,new Date(),Object.assign({alarms:app.alarms()},values));}
@@ -36,23 +34,23 @@
  }
  function timeLabel(value){var parts=value.split(":"),date=new Date();date.setHours(Number(parts[0]),Number(parts[1]),0,0);return app.formatTime(date);}
 
- function renderNudge(){
-  var nudge=$("install-nudge"),due=Date.now()-settings.nudgedAt>NUDGE_GAP;
-  nudge.hidden=isInstalled()||!due||!(installEvent||isIOS());
-  $("install-nudge-action").hidden=!installEvent;
-  $("install-nudge-text").textContent=installEvent?"Install Even for quick check-ins and reminders.":"Tap Share, then Add to Home Screen, for quick check-ins and reminders.";
+ function blocked(){
+  if(!canPush())return app.isIOS()&&!app.isInstalled()?"Add Even to your Home Screen to turn on notifications.":"This browser can’t show notifications.";
+  if(!app.deviceToken())return "Sign in under Sync to turn on notifications.";
+  if(Notification.permission==="denied")return "Notifications are off. Turn them on in Settings.";
+  return "";
  }
- function dismissNudge(){settings.nudgedAt=Date.now();saveSettings();renderNudge();}
-
+ // For first-run setup: ready to ask now, possible later, or never possible here.
+ function notificationStep(){
+  if(!canPush()&&!app.isIOS())return "unavailable";
+  return !blocked()&&!settings.on&&!settings.intakeDone&&!settings.intakeDismissed?"ready":"later";
+ }
  function renderReminder(){
-  var toggle=$("reminder-toggle"),note=$("reminder-note"),blocked="";
-  if(!canPush())blocked=isIOS()&&!isInstalled()?"Add Even to your Home Screen to turn on notifications.":"This browser can’t show notifications.";
-  else if(!app.deviceToken())blocked="Sign in under Sync to turn on notifications.";
-  else if(Notification.permission==="denied")blocked="Notifications are off. Turn them on in Settings.";
-  blockedReason=blocked;toggle.disabled=false;toggle.checked=!blocked&&settings.on;
-  note.textContent=blocked||syncError||"Your notification times, time zone and check-in times are saved to your account. What you write stays here unless you sync check-ins.";
-  $("intake-card").hidden=Boolean(blocked)||settings.intakeDone||settings.intakeDismissed;
+  var toggle=$("reminder-toggle"),note=$("reminder-note");
+  blockedReason=blocked();toggle.disabled=false;toggle.checked=!blockedReason&&settings.on;
+  note.textContent=blockedReason||syncError||"Your notification times, time zone and check-in times are saved to your account. What you write stays here unless you sync check-ins.";
   renderSchedule();
+  if(globalThis.EvenOnboarding)globalThis.EvenOnboarding.render();
  }
  var PARTS={morning:"mornings",midday:"middays",afternoon:"afternoons",evening:"evenings"};
  var BEDTIME_WHY={sleep:"20 minutes before you usually fall asleep",evenings:"Based on your latest evening check-ins",window:"20 minutes before the end of your day"};
@@ -189,10 +187,6 @@
   renderReminder();
  }
 
- window.addEventListener("beforeinstallprompt",function(event){event.preventDefault();installEvent=event;renderNudge();});
- window.addEventListener("appinstalled",function(){installEvent=null;renderNudge();renderReminder();});
- $("install-nudge-close").addEventListener("click",dismissNudge);
- $("install-nudge-action").addEventListener("click",function(){var prompt=installEvent;installEvent=null;prompt.prompt();prompt.userChoice.finally(dismissNudge);});
  $("reminder-toggle").addEventListener("change",function(){
   if(blockedReason){this.checked=false;toast(blockedReason);return;}
   if(this.checked&&!settings.intakeDone){
@@ -211,13 +205,11 @@
  [["brief","brief"],["wind-down","windDown"],["weekends","weekends"],["stress","stressNudges"],["sync","syncReminder"]].forEach(function(item){$("reminder-"+item[0]).addEventListener("change",function(){settings[item[1]]=this.checked;scheduleChanged();});});
  $("reminder-sync-time").addEventListener("blur",function(){if(this.value&&this.value!==syncTime(settings)){settings.syncAt=this.value;scheduleChanged();}});
  function dismissIntake(){settings.intakeDismissed=true;saveSettings();renderReminder();}
- $("intake-start").addEventListener("click",function(){openIntake("Not now",dismissIntake);});
- $("intake-later").addEventListener("click",dismissIntake);
  $("intake-retake").addEventListener("click",function(){openIntake("Cancel",function(){});});
  $("add-reminder-time").addEventListener("click",function(){if(settings.times.length>=12)return;settings.times.push("12:00");renderSchedule();scheduleChanged();});
- globalThis.EvenReminders={checkedIn:checkedIn,dataChanged:function(){renderPlan();syncReminder();},preferences:function(){return settings;}};
+ globalThis.EvenReminders={checkedIn:checkedIn,dataChanged:function(){renderPlan();syncReminder();},preferences:function(){return settings;},notificationStep:notificationStep,startIntake:function(){openIntake("Not now",dismissIntake);},dismissIntake:dismissIntake};
  app.refreshCoach();
  document.addEventListener("visibilitychange",function(){if(!document.hidden){renderReminder();syncReminder();}});
- renderNudge();renderReminder();
+ renderReminder();
  syncReminder();
 })();

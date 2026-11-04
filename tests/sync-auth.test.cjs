@@ -108,7 +108,7 @@ function harness({verified=false,buildVersion="2.8.0",helperBuild="2.0.0",source
   const h=new Headers(headers);
   if(body!==undefined){h.set("Content-Type","application/json");if(!h.has("Origin"))h.set("Origin",base);}
   const response=await runtime.__worker.fetch(new Request(base+route,{method,headers:h,body:body===undefined?undefined:JSON.stringify(body)}),env,context);
-  return{status:response.status,data:response.status===303?null:await response.json()};
+  return{status:response.status,location:response.headers.get("Location"),data:response.status===303?null:await response.json()};
  }
  return{call,ctx,rows,dispatches,env,runtime};
 }
@@ -298,6 +298,14 @@ test("each night's bedtime is its earliest sleep, ignoring naps and bad values",
  assert.equal(byDay["2026-11-02"],22*60+50);
  assert.equal(rows.length,2);
  assert.equal(runtime.readBedtimes("").length,0);
+});
+test("sign-in returns to the screen it started from, with nothing left in the address",async()=>{
+ const{call,ctx}=harness(),owner=ctx("owner-a@example.com"),stranger=ctx("new@example.com"),base="https://even.bishvili.workers.dev";
+ assert.equal((await call("/api/auth/start",{context:owner})).location,base+"/#sync");
+ assert.equal((await call("/api/auth/start?to=checkin",{context:owner})).location,base+"/#checkin");
+ assert.equal((await call("/api/auth/start?to=https://evil.example",{context:owner})).location,base+"/#sync");
+ assert.equal((await call("/api/auth/start?to=checkin",{context:stranger})).location,base+"/?auth=denied#checkin");
+ assert.equal((await call("/api/auth/start")).location,base+"/?auth=denied#sync");
 });
 test("release accounts manage testers, and removal ends a tester's access",async()=>{
  const{call,ctx,env,dispatches}=harness();

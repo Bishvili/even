@@ -49,10 +49,12 @@ test("the weekly reflection scores a steadier week higher and rejects incomplete
  assert.equal(steadiness({snapped:4,setOff:4,recovered:0,rested:0}),0);
  assert.equal(steadiness({snapped:2,setOff:2,recovered:2}),null);
 });
-test("the reflection is due at first and again after seven days",()=>{
- assert.equal(reflectionDue([],today),true);
- assert.equal(reflectionDue([{ts:at(3)}],today),false);
- assert.equal(reflectionDue([{ts:at(7)}],today),true);
+test("the reflection waits for a week of check-ins, then comes every seven days",()=>{
+ assert.equal(reflectionDue([],[],today),false);
+ assert.equal(reflectionDue([],[{ts:at(6)},{ts:at(0)}],today),false);
+ assert.equal(reflectionDue([],[{ts:at(7)}],today),true);
+ assert.equal(reflectionDue([{ts:at(3)}],[{ts:at(20)}],today),false);
+ assert.equal(reflectionDue([{ts:at(7)}],[{ts:at(20)}],today),true);
 });
 test("smart reminders favor usual check-in times and stay inside the window",()=>{
  const local=(hour,minute)=>{const d=new Date(today);d.setHours(hour,minute);return d.toISOString();};

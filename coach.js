@@ -1,7 +1,7 @@
 // Daily brief, weekly outlook, patterns, reset exercise and support.
 (function(root){
  var DAY_MS=86400000,DAYS=["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
- var MIN_SAMPLES=3,MIN_GAP=0.4,HISTORY_DAYS=56,NEAR_EVENT_MS=5400000,SHORT_SLEEP=6.5,EARLY_ALARM=420;
+ var MIN_SAMPLES=3,MIN_GAP=0.4,HISTORY_DAYS=56,NEAR_EVENT_MS=5400000,SHORT_SLEEP=6.5,EARLY_ALARM=420,REFLECTION_DAYS=7;
  var BRIEF_CACHE="even-brief",DEFAULT_ACTION="Leave room for a short reset today.";
 
  function mean(values){return values.reduce(function(a,b){return a+b;},0)/values.length;}
@@ -79,10 +79,13 @@
   }
   return Math.round(total/(REFLECTION.length*4)*100);
  }
- function reflectionDue(reflections,today){
+ // Weekly, starting once the first check-in is a week old.
+ function reflectionDue(reflections,moods,today){
+  var at=new Date(today).getTime(),first=Math.min.apply(null,moods.map(function(m){return new Date(m.ts).getTime();}));
+  if(!moods.length||at-first<REFLECTION_DAYS*DAY_MS)return false;
   if(!reflections.length)return true;
   var last=Math.max.apply(null,reflections.map(function(r){return new Date(r.ts).getTime();}));
-  return new Date(today).getTime()-last>=7*DAY_MS;
+  return at-last>=REFLECTION_DAYS*DAY_MS;
  }
 
  function minutesOf(time){var p=time.split(":");return Number(p[0])*60+Number(p[1]);}
@@ -398,7 +401,7 @@
  }
  function renderReflections(reflections){
   var list=$("reflection-history"),rows=reflections.slice(-6).reverse();list.textContent="";
-  if(!rows.length){list.appendChild(element("p","muted","Answer your first reflection on Check in to start a weekly trend."));return;}
+  if(!rows.length){list.appendChild(element("p","muted","A week after your first check-in, Check in offers a short reflection. Your answers make a weekly trend here."));return;}
   rows.forEach(function(r){
    var row=element("div","outlook-row"),text=element("div");
    text.appendChild(element("strong","",new Date(r.ts).toLocaleDateString(undefined,{month:"short",day:"numeric"})));
@@ -445,7 +448,7 @@
  }
  function render(data){
   renderToday(data);
-  $("reflection-prompt").hidden=reflectionSnoozed||!reflectionDue(data.reflections,new Date());
+  $("reflection-prompt").hidden=reflectionSnoozed||!reflectionDue(data.reflections,data.moods.filter(function(m){return !m.demo;}),new Date());
   renderReflections(data.reflections);
   var scoped=function(x){return !!x.demo===(data.scope==="demo");};
   renderOutlook(data.moods.filter(scoped));

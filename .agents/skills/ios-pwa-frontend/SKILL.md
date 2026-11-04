@@ -66,7 +66,7 @@ Spacing and shape:
 - Use descriptive labels, stable navigation, and predictable back/forward behavior. Do not hide an essential feature behind gestures.
 - The active tab carries `aria-current="page"`, focus moves to the new view's title, and each tab keeps its scroll position. Tapping the active tab scrolls to the top.
 - The owner has decided on four tabs: Check in, Insights, Data and Settings. #27 merges today's Sources and Sync into Data. Don't add a tab.
-- Show one overlay at a time. Toasts and the install prompt share a queue and never cover the primary action.
+- Show one overlay at a time. Toasts and the update banner never cover the primary action.
 - Confirm destructive actions with an in-app sheet that names whose data and which data. Native `confirm()` shows the site address as its title; #27 adds the sheet, so use it once it exists.
 
 ## Installable PWA considerations
@@ -89,11 +89,11 @@ Spacing and shape:
 - Put manual entry, rarely used tools and account management behind a disclosure, keeping required privacy facts visible.
 
 ### Check-in
-- Open on the mood selection, not an onboarding wall.
+- Open on the mood selection, not an onboarding wall. Until setup is done, the one prompt is the setup card: one step at a time, each with **Not now**, and checking in never waits for it.
 - One prominent mood control, optional energy and context tags, then an obvious Save action.
 - Confirm success without blocking the next action. Prevent accidental duplicate saves and clarify when data is stored locally.
 - A plain current-streak count is fine. Keep it neutral: no guilt when it resets, and no rewards for reporting a certain mood.
-- Above the mood picker, show only the title and at most one prompt. On a 375×667 screen at first launch, with the install prompt showing, all five mood buttons are fully visible above the tab bar. Once a mood is chosen, Save is visible without scrolling.
+- Above the mood picker, show only the title and at most one prompt. On a 375×667 screen at first launch, with the Home Screen step showing, all five mood buttons are fully visible above the tab bar. Once a mood is chosen, Save is visible without scrolling.
 - Don't show the weekly reflection until the person has a week of check-ins.
 - Keep Save enabled. If it's tapped without a mood, say what's missing.
 
@@ -168,7 +168,7 @@ Before treating a UI feature as ready:
 - Does it function as an installed standalone iOS app, not just a desktop browser preview?
 - Are charts truthful and personal data protected?
 - Did the review remove at least one unnecessary piece of visual or textual clutter?
-- On a 375×667 screen at first launch, with the install prompt showing, are the mood buttons uncovered?
+- On a 375×667 screen at first launch, with the Home Screen step showing, are the mood buttons uncovered?
 - Served with the production security headers, is the console free of errors and security-policy violations?
 - Do counts exclude demo records, and are singular and plural forms right?
 - With Larger Text on, does everything scale without clipping?

@@ -1,6 +1,6 @@
 (function () {
 "use strict";
-var VERSION = "2.10.0";
+var VERSION = "2.11.0";
 var SHORTCUT_PAGE = "https://routinehub.co/shortcut/26978/";
 var STORAGE_KEY = "even:v1";
 var MOOD_NAMES = ["","Rough","Low","Okay","Good","Great"];
@@ -10,7 +10,7 @@ var CATEGORIES = ["Meeting","Work","Exercise","Social","Family","Rest","Commute"
 var ACTIVITY_LABELS = ["Work","Meeting","Exercise","Social","Family","Rest","Outdoors","Commute","Food"];
 var selectedMood = 0, selectedStress = 0, selectedTags = new Set(), insightDays = 30, insightScope = "personal", toastTimer = null;
 var state = readState();
-var authEmail = "", authDevices = [], authChecking = false, authCanRelease = false, authHelper = "";
+var authEmail = "", authDevices = [], authChecking = false, authKnown = false, authCanRelease = false, authHelper = "", connecting = false;
 var shortcutRelease = null, shortcutStatus = null, shortcutStatusLoading = false;
 function $(id){ return document.getElementById(id); }
 function emptyState(){ return {moods:[],health:[],events:[],reflections:[],alarms:[],resets:[],moodSync:false,deletedMoods:[],token:"",deviceId:"",syncOwnerEmail:"",pairedAt:null,lastSync:null}; }
@@ -34,6 +34,9 @@ function score(n){return Number.isFinite(n)?n.toFixed(1):"—";}
 function newId(){return (crypto.randomUUID?crypto.randomUUID():String(Date.now())+"-"+Math.random().toString(36).slice(2));}
 function toast(msg){var el=$("toast");el.textContent=msg;el.classList.add("show");if(toastTimer)clearTimeout(toastTimer);toastTimer=setTimeout(function(){el.classList.remove("show");},3500);}
 function blank(msg){return '<div class="empty">'+esc(msg)+'</div>';}
+function plural(n,one,many){return n+" "+(n===1?one:many);}
+function isInstalled(){return window.navigator.standalone===true||window.matchMedia("(display-mode: standalone)").matches;}
+function isIOS(){return /iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);}
 function navigate(view){if(!["checkin","insights","sources","sync","settings"].includes(view))view="checkin";
  document.querySelectorAll(".view").forEach(function(v){v.classList.toggle("active",v.id==="view-"+view);});
  document.querySelectorAll(".nav-item").forEach(function(n){n.classList.toggle("active",n.dataset.go===view);});
@@ -58,7 +61,7 @@ function renderAlarms(){
 }
 function refreshCoach(){renderAlarms();if(globalThis.EvenCoach&&globalThis.EvenCoach.render)globalThis.EvenCoach.render({moods:state.moods,events:state.events,health:state.health,reflections:state.reflections,alarms:state.alarms,resets:state.resets,connected:!!state.token,lastUpload:shortcutStatus&&shortcutStatus.lastDataUploadAt,notifyPrefs:globalThis.EvenReminders?globalThis.EvenReminders.preferences():{from:"09:00",to:"21:00",weekends:true},scope:insightScope});}
 function render(){
- $("date-label").textContent=formatPrettyDate(now()).toUpperCase();
+ $("date-label").textContent=formatPrettyDate(now());
  $("current-time").textContent=formatTime(now());
  renderStats();renderRecent();renderSources();renderSync();renderSettings();
  if($("view-insights").classList.contains("active"))renderInsights();
@@ -68,16 +71,17 @@ function getRecent(days){var cutoff=Date.now()-days*86400000;return state.moods.
 function renderStats(){
  var personal=state.moods.filter(function(m){return !m.demo;}), today=dateKey(now()), cutoff=Date.now()-7*86400000;
  var counts=personal.filter(function(m){return new Date(m.ts).getTime()>=cutoff;}), days=new Set(personal.map(function(m){return dateKey(m.ts);}));
- $("stat-today").textContent=personal.filter(function(m){return dateKey(m.ts)===today;}).length;
+ var todayCount=personal.filter(function(m){return dateKey(m.ts)===today;}).length;
+ $("stat-today").textContent=todayCount;$("stat-today-unit").textContent=todayCount===1?"check-in":"check-ins";
  $("stat-average").textContent=score(average(counts.map(function(m){return m.score;})));
  var d=new Date();d.setHours(12,0,0,0);
  if(!days.has(dateKey(d)))d.setDate(d.getDate()-1);
  var streak=0;while(days.has(dateKey(d))&&streak<3650){streak++;d.setDate(d.getDate()-1);}
- $("stat-streak").textContent=streak;
+ $("stat-streak").textContent=streak;$("stat-streak-unit").textContent=streak===1?"day":"days";
 }
 function renderRecent(){
  var moods=state.moods.filter(function(m){return !m.demo;}).sort(function(a,b){return new Date(b.ts)-new Date(a.ts);});
- $("entries-count").textContent=moods.length+" personal entries";
+ $("entries-count").textContent=plural(moods.length,"personal entry","personal entries");
  $("recent-list").innerHTML=moods.length?moods.slice(0,12).map(function(m){
  var tags=(m.tags||[]).join(" · "),sub=formatDate(m.ts)+" at "+formatTime(m.ts)+(tags?" · "+tags:"")+(m.demo?" · DEMO":"");
  return '<div class="entry"><span class="entry-emoji">'+MOOD_EMOJI[m.score]+'</span><div class="entry-main"><strong>'+MOOD_NAMES[m.score]+(m.note?" · "+esc(m.note):"")+'</strong><small>'+esc(sub)+'</small></div><div class="entry-side">'+m.score+'/5</div><button class="entry-delete" aria-label="Delete check-in" data-delete-mood="'+esc(m.id)+'">×</button></div>';
@@ -89,7 +93,7 @@ function renderSources(){
  var hs=state.health.map(function(h){return {kind:"health",ts:h.date+"T12:00:00",h:h};});
  var cs=state.events.map(function(e){return {kind:"event",ts:e.start,e:e};});
  var all=hs.concat(cs).filter(function(x){return !isNaN(new Date(x.ts).getTime());}).sort(function(a,b){return new Date(b.ts)-new Date(a.ts);});
- $("context-count").textContent=all.length+" items";
+ $("context-count").textContent=plural(all.length,"item","items");
  $("context-list").innerHTML=all.length?all.slice(0,12).map(function(x){
  if(x.kind==="health"){var h=x.h, summary=[h.sleepHours!=null?Math.round(h.sleepHours*10)/10+"h sleep":"",h.steps!=null?h.steps.toLocaleString()+" steps":"",h.hrv!=null?Math.round(h.hrv)+" ms HRV":"",h.restingHR!=null?Math.round(h.restingHR)+" bpm resting":"",h.workoutMin!=null?Math.round(h.workoutMin)+" min exercise":""].filter(Boolean).join(" · ");
  return '<div class="entry"><span class="entry-emoji" aria-hidden="true">♥︎</span><div class="entry-main"><strong>Health · '+esc(h.date)+'</strong><small>'+esc(summary||"Health day")+(h.demo?" · DEMO":"")+'</small></div><button class="entry-delete" aria-label="Delete health day" data-delete-health="'+esc(h.date)+'">×</button></div>';}
@@ -121,20 +125,20 @@ function renderSync(){
  $("sync-light-text").textContent=paired?"Sync ready":"Local only";
  $("last-sync").textContent=state.lastSync?"Last synced "+formatDate(state.lastSync)+" at "+formatTime(state.lastSync):"Not synced yet";
  $("shortcut-setup").hidden=!!(shortcutStatus&&shortcutStatus.lastDataUploadAt);
- var accountMatches=!authEmail||authEmail===state.syncOwnerEmail;
- var install=$("install-shortcut"),release=shortcutRelease;
- var canInstall=paired&&accountMatches&&navigator.onLine;
- var publishedRelease=release&&release.url&&release.verified?release:null;
+ var signedOut=!authEmail&&!paired;
+ $("shortcut-card").hidden=signedOut;$("device-details").hidden=signedOut;
+ var install=$("install-shortcut"),link=shortcutLink(),canInstall=!!link;
+ var publishedRelease=shortcutRelease&&shortcutRelease.url&&shortcutRelease.verified?shortcutRelease:null;
  install.hidden=!canInstall;
  $("run-shortcut").hidden=!paired||mismatch;
- if(canInstall){install.href=publishedRelease?publishedRelease.url:SHORTCUT_PAGE;install.removeAttribute("aria-disabled");install.removeAttribute("tabindex");}
+ if(canInstall){install.href=link;install.removeAttribute("aria-disabled");install.removeAttribute("tabindex");}
  else{install.removeAttribute("href");install.setAttribute("aria-disabled","true");install.setAttribute("tabindex","-1");}
  $("shortcut-release-version").textContent=shortcutStatus&&shortcutStatus.installedShortcutVersion?"Connected · v"+shortcutStatus.installedShortcutVersion:"Not connected";
  $("shortcut-install-help").textContent=canInstall
   ?"Then tap Run Even Sync to connect it."
   :mismatch?"Sign in with this iPhone’s account to continue."
-  :paired?"Connect to the internet to get the Shortcut."
-  :"Sign in to get the Shortcut.";
+  :paired?"Connect to the internet to get Even Sync."
+  :"Sign in to get Even Sync.";
  $("check-shortcut-upload").disabled=!paired||mismatch||shortcutStatusLoading;
  var installed=shortcutStatus&&shortcutStatus.installedShortcutVersion||"";
  $("shortcut-update-badge").hidden=!(canInstall&&publishedRelease&&installed&&compareVersions(publishedRelease.version,installed)>0);
@@ -145,9 +149,16 @@ function renderSync(){
     ?"Connected "+formatDate(shortcutStatus.lastAttemptAt)+" · no data yet"
   :"Nothing received yet";
  $("shortcut-upload-counts").textContent=shortcutStatus
-  ?shortcutStatus.healthMetrics+" health measurements · "+shortcutStatus.calendarEvents+" calendar events"
+  ?plural(shortcutStatus.healthMetrics,"health measurement","health measurements")+" · "+plural(shortcutStatus.calendarEvents,"calendar event","calendar events")
   :"No steps or events yet";
  renderDevices();
+ if(globalThis.EvenOnboarding)globalThis.EvenOnboarding.render();
+}
+// The verified iCloud link, or the public listing while it's unavailable. Empty when this iPhone can't install.
+function shortcutLink(){
+ var paired=!!state.token&&!!state.syncOwnerEmail&&!!state.deviceId,accountMatches=!authEmail||authEmail===state.syncOwnerEmail;
+ if(!paired||!accountMatches||!navigator.onLine)return "";
+ return shortcutRelease&&shortcutRelease.url&&shortcutRelease.verified?shortcutRelease.url:SHORTCUT_PAGE;
 }
 function renderDevices(){
  var el=$("device-list");
@@ -155,7 +166,7 @@ function renderDevices(){
  if(!authDevices.length){el.innerHTML=blank("No devices yet.");return;}
  el.innerHTML=authDevices.map(function(d){
   var revoked=!!d.revoked,own=d.id===state.deviceId;
-  return '<div class="device-row"><div class="device-row-main"><strong>'+esc(d.label||"iPhone")+(own?" · This device":"")+'</strong><small>'+esc(d.revoked?"Revoked":d.lastUsedAt?"Used "+formatDate(d.lastUsedAt):"Not used yet")+'</small></div>'+(revoked?'<span class="muted">Revoked</span>':'<button class="icon-action" type="button" data-rename-device="'+esc(d.id)+'" aria-label="Rename '+esc(d.label||"device")+'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4Z"/><path d="m13.5 6.5 4 4"/></svg></button><button class="small-action" type="button" data-revoke-device="'+esc(d.id)+'">Revoke</button>')+'</div>';
+  return '<div class="device-row"><div class="device-row-main"><strong>'+esc(d.label||"iPhone")+(own?" · This device":"")+'</strong><small>'+esc(d.revoked?"Disconnected":d.lastUsedAt?"Used "+formatDate(d.lastUsedAt):"Not used yet")+'</small></div>'+(revoked?'<span class="muted">Disconnected</span>':'<button class="icon-action" type="button" data-rename-device="'+esc(d.id)+'" aria-label="Rename '+esc(d.label||"device")+'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4Z"/><path d="m13.5 6.5 4 4"/></svg></button><button class="small-action" type="button" data-revoke-device="'+esc(d.id)+'">Disconnect</button>')+'</div>';
  }).join("");
 }
 
@@ -280,7 +291,7 @@ function drawHealth(moods,health){
  var yes=hrv.filter(function(x){return number(x.h.hrv)>=med;}).map(function(x){return x.mood;}),no=hrv.filter(function(x){return number(x.h.hrv)<med;}).map(function(x){return x.mood;});if(yes.length>=3&&no.length>=3)rows.push({name:"Higher-than-median HRV",yes:yes,no:no});}
  $("health-insights").innerHTML=rows.length?rows.map(function(r){return diffHtml(r.name,r.yes,r.no);}).join("")+'<p class="muted">One daily mood average per date · '+joined.length+' matched days</p>':blank("To compare sleep or activity, log mood on at least 6 days with health records in both groups.");
 }
-function selectMood(n){selectedMood=n;document.querySelectorAll("[data-mood]").forEach(function(b){b.setAttribute("aria-pressed",String(Number(b.dataset.mood)===n));});$("save-mood").disabled=!selectedMood;}
+function selectMood(n){selectedMood=n;document.querySelectorAll("[data-mood]").forEach(function(b){b.setAttribute("aria-pressed",String(Number(b.dataset.mood)===n));});}
 function setEnergyText(){$("energy-label").textContent=$("energy").value+" · "+ENERGY_NAMES[Number($("energy").value)];}
 function selectStress(n){selectedStress=n;document.querySelectorAll("[data-stress]").forEach(function(b){var on=Number(b.dataset.stress)===n;b.classList.toggle("selected",on);b.setAttribute("aria-pressed",String(on));});}
 // Check-ins sync only when the account has turned it on. Each device uploads what the account lacks and removes what another device deleted.
@@ -377,7 +388,7 @@ async function renameDevice(ev){
 }
 function thisDeviceName(){var ua=navigator.userAgent;return /iPhone/.test(ua)?"iPhone":/iPad/.test(ua)||(/Macintosh/.test(ua)&&navigator.maxTouchPoints>1)?"iPad":/Macintosh/.test(ua)?"Mac":/Windows/.test(ua)?"Windows computer":"Device";}
 function handleMoodSave(){
- if(!selectedMood)return;
+ if(!selectedMood){toast("Choose how you’re feeling first.");return;}
  state.moods.push({id:newId(),ts:new Date().toISOString(),score:selectedMood,energy:Number($("energy").value),tags:Array.from(selectedTags),note:$("mood-note").value.trim().slice(0,400)});
  if(selectedStress)state.moods[state.moods.length-1].stress=selectedStress;
  if(!persist())return;selectMood(0);selectStress(0);selectedTags.clear();document.querySelectorAll("[data-tag]").forEach(function(b){b.classList.remove("selected");b.setAttribute("aria-pressed","false");});$("mood-note").value="";$("energy").value="3";setEnergyText();render();toast("Check-in saved. Thanks for checking in.");if(globalThis.EvenReminders)globalThis.EvenReminders.checkedIn();syncMoods();
@@ -531,7 +542,7 @@ function clearDemo(){
  state.moods=state.moods.filter(function(x){return !x.demo;});state.events=state.events.filter(function(x){return !x.demo;});state.health=state.health.filter(function(x){return !x.demo;});
  persist();render();toast("Removed "+(a-state.moods.length+b-state.events.length+c-state.health.length)+" demo records.");
 }
-function loginWithEmail(){window.location.assign("/api/auth/start");}
+function signIn(view){window.location.assign("/api/auth/start"+(view==="checkin"?"?to=checkin":""));}
 function syncErrorLabel(code){
  var reasons={
   invalid_body:"Even couldn’t read the last upload.",
@@ -599,10 +610,10 @@ async function checkShortcutUpload(silent){
   if(r.status===401){
    shortcutStatus=null;shortcutRelease=null;
    state.token="";state.deviceId="";state.lastSync=null;persist();
-   throw Error("This device key is no longer valid. Sign in and generate a new one.");
+   throw Error("This iPhone was disconnected. Sign in to connect it again.");
   }
-  if(!r.ok||!data.credentialValid)throw Error(data.error||"Couldn’t check your device key.");
-  if(data.deviceId!==state.deviceId)throw Error("The server returned a different device.");
+  if(!r.ok||!data.credentialValid)throw Error(data.error||"Couldn’t check the connection.");
+  if(data.deviceId!==state.deviceId)throw Error("Even couldn’t confirm this iPhone. Sign in to connect it again.");
   shortcutStatus=data;
   if(!silent){
    if(data.lastErrorCode)renderSyncDiagnostic(syncErrorLabel(data.lastErrorCode)+" Run Even Sync again.","error");
@@ -634,7 +645,7 @@ async function refreshAuth(){
   var data=await r.json();if(!data.ok||!data.email)throw Error("Identity unavailable");
   authEmail=String(data.email).toLowerCase();authDevices=Array.isArray(data.devices)?data.devices:[];authCanRelease=data.canRelease===true;authHelper=authCanRelease&&data.helper&&/^https:\/\/www\.icloud\.com\/shortcuts\/[a-f0-9]{32}$/i.test(data.helper.url)?data.helper.url:"";if(data.welcomeName)showWelcome(data.welcomeName);
  }catch(e){authEmail="";authDevices=[];authCanRelease=false;authHelper="";}
- finally{authChecking=false;renderSync();}
+ finally{authChecking=false;authKnown=true;renderSync();}
  // Connect automatically the first time. After a revoke, connecting again is a deliberate choice.
  if(authEmail&&!state.token&&!state.pairedAt&&!state.syncOwnerEmail)issueDevice();
 }
@@ -645,33 +656,34 @@ function accountSafe(email){
  }
  if(!state.syncOwnerEmail){
   var personal=state.moods.some(function(m){return !m.demo;})||state.health.some(function(h){return !h.demo;})||state.events.some(function(e){return !e.demo;});
-  if(personal&&!confirm("This phone already has local mood, health or calendar records. Associate those local records with "+email+"? Cancel if they belong to somebody else."))return false;
+  if(personal&&!confirm("This iPhone already has check-ins or other records. Keep them with "+email+"? Choose Cancel if they’re someone else’s."))return false;
  }
  return true;
 }
 async function issueDevice(){
  if(!authEmail){toast("Sign in with email first.");return;}
- if(!accountSafe(authEmail))return;
- var button=$("issue-device");button.disabled=true;button.textContent="Connecting…";
+ if(connecting||!accountSafe(authEmail))return;
+ var button=$("issue-device");connecting=true;button.disabled=true;button.textContent="Connecting…";renderSync();
  try{
   var r=await fetch("/api/auth/device",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json","Accept":"application/json"},body:JSON.stringify({label:"My "+thisDeviceName()}),cache:"no-store"});
-  var result=await r.json();if(!r.ok||!result.token)throw Error(result.error||"Could not connect this iPhone");
-  if(result.email!==authEmail)throw Error("Account identity changed; key not saved");
+  var result=await r.json();if(!r.ok||!result.token)throw Error(result.error||"Couldn’t connect this "+thisDeviceName()+". Try again.");
+  if(result.email!==authEmail)throw Error("You signed in with a different account, so this "+thisDeviceName()+" wasn’t connected.");
   state.syncOwnerEmail=authEmail;state.deviceId=result.deviceId;state.token=result.token;state.pairedAt=Date.now();state.lastSync=null;
   if(!persist())return;
   await refreshAuth();await loadShortcutRelease();await loadCalendars();await checkShortcutUpload(true);render();toast("This "+thisDeviceName()+" is connected.");
- }catch(e){toast(e.message||"Could not connect this device.");}
- finally{button.disabled=false;button.textContent="Connect this iPhone";}
+ }catch(e){toast(e.message||"Couldn’t connect this "+thisDeviceName()+". Try again.");}
+ finally{connecting=false;button.disabled=false;button.textContent="Connect this iPhone";renderSync();}
 }
 async function revokeDevice(id){
- if(!authEmail){toast("Sign in with email to revoke a device.");return;}
- if(!confirm("Revoke this device's sync key? Any Shortcut using the key will stop working."))return;
+ if(!authEmail){toast("Sign in to disconnect a device.");return;}
+ var own=id===state.deviceId;
+ if(!confirm((own?"Disconnect this iPhone?":"Disconnect this device?")+" Even Sync stops sending data from it. What’s already synced stays in your account."))return;
  try{
   var r=await fetch("/api/auth/revoke",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({deviceId:id}),cache:"no-store"});
-  var result=await r.json();if(!r.ok||!result.revoked)throw Error(result.error||"Device not revoked");
+  var result=await r.json();if(!r.ok||!result.revoked)throw Error(result.error||"Couldn’t disconnect the device.");
   if(id===state.deviceId){state.token="";state.deviceId="";state.lastSync=null;shortcutStatus=null;shortcutRelease=null;persist();}
-  await refreshAuth();render();toast("Device key revoked. Personal records remain on this iPhone.");
- }catch(e){toast(e.message||"Could not revoke the device.");}
+  await refreshAuth();render();toast(own?"This iPhone is disconnected. Its records stay on it.":"That device is disconnected.");
+ }catch(e){toast(e.message||"Couldn’t disconnect the device.");}
 }
 var shortcutRunPending=false;
 function runShortcut(){shortcutRunPending=true;window.location.href="shortcuts://run-shortcut?name=Even%20Sync&input=text&text="+encodeURIComponent("Bearer "+state.token);}
@@ -690,12 +702,12 @@ async function syncIfNewUpload(){
  }catch(e){}
 }
 async function pull(silent){
- if(!state.token){if(!silent)toast("Sign in and generate a device key first.");return;}
+ if(!state.token){if(!silent)toast("Sign in on Sync to bring in your data.");return;}
  var button=$("pull-button");button.disabled=true;button.textContent="Syncing…";
  try{
   var r=await fetch("/api/pull",{headers:{"Authorization":"Bearer "+state.token},cache:"no-store"});
   var body=await r.json();
-  if(r.status===401){state.token="";state.deviceId="";shortcutStatus=null;shortcutRelease=null;persist();render();throw Error("Device key expired or revoked. Sign in to reconnect.");}
+  if(r.status===401){state.token="";state.deviceId="";shortcutStatus=null;shortcutRelease=null;persist();render();throw Error("This iPhone was disconnected. Sign in to connect it again.");}
   if(!r.ok)throw Error(body.error||"Sync failed");
   if(!body.email||body.email!==state.syncOwnerEmail)throw Error("Account mismatch. Nothing was imported.");
   var serverHealth=body.health||[];if(serverHealth.length<600)state.health=state.health.filter(function(x){return x.source!=="shortcut";});
@@ -750,10 +762,10 @@ function init(){
  b=ev.target.closest("[data-delete-event]");if(b&&confirm("Delete this event?")){state.events=state.events.filter(function(x){return x.id!==b.dataset.deleteEvent;});persist();render();}});
  document.querySelectorAll("[data-days]").forEach(function(b){b.addEventListener("click",function(){insightDays=Number(b.dataset.days);document.querySelectorAll("[data-days]").forEach(function(x){x.classList.toggle("selected",x===b);});renderInsights();});});
  document.querySelectorAll("[data-scope]").forEach(function(b){b.addEventListener("click",function(){insightScope=b.dataset.scope;renderInsights();});});
- $("login-button").addEventListener("click",loginWithEmail);
+ $("login-button").addEventListener("click",function(){signIn("sync");});
  $("issue-device").addEventListener("click",issueDevice);
  $("refresh-devices").addEventListener("click",refreshAuth);
- $("install-shortcut").addEventListener("click",function(e){if(!state.token||!shortcutRelease||!this.href){e.preventDefault();toast("Connect your device to open the current Shortcut.");}});
+ $("install-shortcut").addEventListener("click",function(e){if(!this.href){e.preventDefault();toast($("shortcut-install-help").textContent);}});
  $("check-shortcut-upload").addEventListener("click",function(){checkShortcutUpload(false);});
  $("device-list").addEventListener("click",function(e){var b=e.target.closest("[data-revoke-device]");if(b)revokeDevice(b.dataset.revokeDevice);});$("device-list").addEventListener("click",function(e){var b=e.target.closest("[data-rename-device]");if(b)openRenameDevice(b.dataset.renameDevice);});$("rename-device-form").addEventListener("submit",renameDevice);$("rename-device-cancel").addEventListener("click",function(){$("rename-device-dialog").close();});$("mood-sync-toggle").addEventListener("change",function(){setMoodSync(this);});
  // An installed app can't save downloads, so hand this one to Safari.
@@ -771,7 +783,7 @@ function init(){
  $("unpair-button").addEventListener("click",function(){if(state.deviceId)revokeDevice(state.deviceId);});
  $("erase-remote").addEventListener("click",eraseRemote);
  $("backup-button").addEventListener("click",exportBackup);$("restore-input").addEventListener("change",function(ev){restoreBackup(ev.target.files[0]);ev.target.value="";});
- $("erase-local").addEventListener("click",function(){if(confirm("Delete ALL local mood check-ins, notes, health/calendar data and this device's sync key? Cloud data must be erased separately. This cannot be undone.")){state=emptyState();shortcutRelease=null;shortcutStatus=null;persist();render();toast("Local records deleted.");}});
+ $("erase-local").addEventListener("click",function(){if(confirm("Delete all check-ins, notes, and health and calendar data on this iPhone? You’ll need to connect it again to sync. Synced data in your account stays until you erase it. This can’t be undone.")){state=emptyState();shortcutRelease=null;shortcutStatus=null;persist();render();toast("Local records deleted.");}});
  $("demo-button").addEventListener("click",demo);$("clear-demo-button").addEventListener("click",clearDemo);
  setEnergyText();navigate(location.hash.slice(1)||"checkin");
  if(navigator.onLine)refreshAuth();
@@ -780,7 +792,7 @@ function init(){
  document.addEventListener("visibilitychange",function(){if(!document.hidden){refreshAuth();if(state.token){loadShortcutRelease();loadCalendars();loadSyncSettings();syncMoods();checkShortcutUpload(true);if(shortcutRunPending){shortcutRunPending=false;if($("run-sync-dialog").open)$("run-sync-dialog").close();pull(false);}else syncIfNewUpload();}}});
  watchForUpdates();
  window.addEventListener("load",handleNotificationAction);
- if(new URLSearchParams(location.search).get("auth")==="denied"){history.replaceState(null,"","/#sync");navigate("sync");toast("This email isn’t on the list yet. Ask the person who invited you.");}
+ if(new URLSearchParams(location.search).get("auth")==="denied"){var back=location.hash==="#checkin"?"checkin":"sync";history.replaceState(null,"","/#"+back);navigate(back);toast("This email isn’t on the list yet. Ask the person who invited you.");}
  if(new URLSearchParams(location.search).get("sync")==="1"){history.replaceState(null,"","/#checkin");navigate("checkin");if(state.token)pull(false);}
  else syncIfNewUpload();
 }
@@ -796,6 +808,13 @@ function handleNotificationAction(){
   runShortcut();
  }
 }
-globalThis.EvenApp={alarms:function(){return state.alarms;},resets:function(){return state.resets;},logReset:function(){state.resets.push(new Date().toISOString());state.resets=state.resets.slice(-500);persist();},personalEvents:function(){return state.events.filter(function(e){return !e.demo;});},personalHealth:function(){return state.health.filter(function(h){return !h.demo;});},personalMoods:function(){return state.moods.filter(function(m){return !m.demo;});},refresh:refresh,runShortcut:runShortcut,refreshCoach:refreshCoach,addReflection:function(r){state.reflections.push(r);if(persist())render();},toast:toast,formatTime:formatTime,deviceToken:function(){return state.token;}};
+// What first-run setup needs to know. Synced means an upload arrived or synced records are here.
+function setup(){
+ var paired=!!state.token&&!!state.syncOwnerEmail&&!!state.deviceId;
+ var synced=!!(shortcutStatus&&shortcutStatus.lastDataUploadAt)||state.alarms.length>0||state.health.some(function(h){return h.source==="shortcut";})||state.events.some(function(e){return e.source==="shortcut";});
+ return {ios:isIOS(),installed:isInstalled(),deviceName:thisDeviceName(),online:navigator.onLine,signedIn:!!authEmail,authKnown:authKnown,email:authEmail,connected:paired,connectedBefore:!!state.pairedAt,connecting:connecting,moodSync:!!state.moodSync,
+  shortcutUrl:shortcutLink(),shortcutConnected:!!(shortcutStatus&&shortcutStatus.installedShortcutVersion),synced:synced,checkedIn:state.moods.some(function(m){return !m.demo;})};
+}
+globalThis.EvenApp={setup:setup,signIn:signIn,connect:issueDevice,isInstalled:isInstalled,isIOS:isIOS,alarms:function(){return state.alarms;},resets:function(){return state.resets;},logReset:function(){state.resets.push(new Date().toISOString());state.resets=state.resets.slice(-500);persist();},personalEvents:function(){return state.events.filter(function(e){return !e.demo;});},personalHealth:function(){return state.health.filter(function(h){return !h.demo;});},personalMoods:function(){return state.moods.filter(function(m){return !m.demo;});},refresh:refresh,runShortcut:runShortcut,refreshCoach:refreshCoach,addReflection:function(r){state.reflections.push(r);if(persist())render();},toast:toast,formatTime:formatTime,deviceToken:function(){return state.token;}};
 init();
 })();

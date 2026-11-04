@@ -13,6 +13,7 @@ const RULES=[
  [coach,/NEAR_EVENT_MS=5400000\b/,/up to 90 minutes after/],
  [coach,/SHORT_SLEEP=6\.5\b/,/under 6\.5 hours/],
  [coach,/EARLY_ALARM=420\b/,/before 7 AM/],
+ [coach,/REFLECTION_DAYS=7\b/,/Offered 7 days after the first check-in/],
  [coach,/r\.gap>=0\.3/,/difference of 0\.3 points/],
  [coach,/ANTICIPATE_GAP=0\.4\b/,/A prompt needs at least 0\.4/],
  [coach,/HELP_SAMPLES=5\b/,/at least 5 check-ins each way/],

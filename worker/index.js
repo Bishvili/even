@@ -10,7 +10,7 @@ async function approved(env,email){
  if(ownerEmails(env).includes(email))return true;
  return !!await env.DB.prepare("SELECT 1 AS allowed FROM even_approved_emails WHERE email=?").bind(email).first();
 }
-const MIME={"index.html":"text/html; charset=utf-8","styles.css":"text/css; charset=utf-8","app.js":"text/javascript; charset=utf-8","reminders.js":"text/javascript; charset=utf-8","intake.js":"text/javascript; charset=utf-8","whitepaper.html":"text/html; charset=utf-8","whitepaper.css":"text/css; charset=utf-8","invites.js":"text/javascript; charset=utf-8","coach.js":"text/javascript; charset=utf-8","refresh.js":"text/javascript; charset=utf-8","sw.js":"text/javascript; charset=utf-8","manifest.webmanifest":"application/manifest+json","icon.svg":"image/svg+xml","icon-192.png":"image/png","icon-512.png":"image/png"};
+const MIME={"index.html":"text/html; charset=utf-8","styles.css":"text/css; charset=utf-8","app.js":"text/javascript; charset=utf-8","reminders.js":"text/javascript; charset=utf-8","onboarding.js":"text/javascript; charset=utf-8","intake.js":"text/javascript; charset=utf-8","whitepaper.html":"text/html; charset=utf-8","whitepaper.css":"text/css; charset=utf-8","invites.js":"text/javascript; charset=utf-8","coach.js":"text/javascript; charset=utf-8","refresh.js":"text/javascript; charset=utf-8","sw.js":"text/javascript; charset=utf-8","manifest.webmanifest":"application/manifest+json","icon.svg":"image/svg+xml","icon-192.png":"image/png","icon-512.png":"image/png"};
 const SECURITY={"X-Content-Type-Options":"nosniff","Referrer-Policy":"no-referrer","X-Frame-Options":"DENY","Permissions-Policy":"camera=(), microphone=(), geolocation=()","Content-Security-Policy":"default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'"};
 const METRICS={sleepHours:[0,24],steps:[0,100000],hrv:[0,500],restingHR:[20,250],workoutMin:[0,1440]};
 const SEMVER=/^\d{1,3}\.\d{1,3}\.\d{1,3}$/,UTC_OFFSET=/^(Z|[+-]\d{2}:\d{2})$/;
@@ -197,7 +197,8 @@ async function markUpload(env,dev,version,at){
 async function sendInvite(env,to){
  if(!env.RESEND_API_KEY)return false;
  const url="https://even.bishvili.workers.dev/";
- const steps=["Open the link in Safari on your iPhone, tap Share, then Add to Home Screen.","Open Even, go to Sync, and sign in with this email. We'll send you a one-time code.","Tap Get Shortcut, then Run Even Sync, to bring in your Health and calendar data."];
+ // The same steps, in the same words, as the setup card in the app.
+ const steps=["Open the link in Safari on your iPhone. Tap Share (or ••• and then Share), then Add to Home Screen.","Open Even from your Home Screen and sign in with this email. We'll send you a one-time code.","Tap Get Even Sync, then Run Even Sync, to bring in your sleep, activity, calendar and alarms."];
  try{
   const sent=await fetch("https://api.resend.com/emails",{method:"POST",headers:{"Authorization":"Bearer "+env.RESEND_API_KEY,"Content-Type":"application/json"},body:JSON.stringify({
    from:"Even <hello@bishvili.org>",to:[to],subject:"You're invited to try Even",
@@ -209,12 +210,12 @@ async function sendInvite(env,to){
 }
 async function authApi(request,env,ctx,path){
  const email=await authIdentity(request,env,ctx);
- if(!email&&path==="/api/auth/start"&&request.method==="GET")return new Response(null,{status:303,headers:{...SECURITY,"Cache-Control":"no-store","Location":new URL(request.url).origin+"/?auth=denied#sync"}});
- if(!email)return error("Sign in with an approved email.",401,"sign_in_required");
+ // Sign-in returns to the screen it started from: the setup card on Check in, or Sync.
  if(path==="/api/auth/start"&&request.method==="GET"){
-  const url=new URL(request.url);
-  return new Response(null,{status:303,headers:{...SECURITY,"Cache-Control":"no-store","Location":url.origin+"/?auth=ready#sync"}});
+  const url=new URL(request.url),view=url.searchParams.get("to")==="checkin"?"checkin":"sync";
+  return new Response(null,{status:303,headers:{...SECURITY,"Cache-Control":"no-store","Location":url.origin+(email?"/#":"/?auth=denied#")+view}});
  }
+ if(!email)return error("Sign in with an approved email.",401,"sign_in_required");
  if(path==="/api/auth/me"&&request.method==="GET"){
   // Sign-in may supply a name. Testers are listed by it.
   try{
@@ -701,7 +702,7 @@ async function syncApi(request,env,path){
  return error("Not found",404,"not_found");
 }
 async function api(request,env,ctx,path){
- if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:"Even",version:"2.10.0",sync:"email-access"});
+ if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:"Even",version:"2.11.0",sync:"email-access"});
  if(path.startsWith("/api/auth/"))return authApi(request,env,ctx,path);
  return syncApi(request,env,path);
 }

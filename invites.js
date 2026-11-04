@@ -63,6 +63,8 @@
  }
  $("tester-form").addEventListener("submit",add);
  $("share-even").addEventListener("click",share);
- document.addEventListener("visibilitychange",function(){if(!document.hidden)load();});
- load();
+ // Only release accounts see testers, so the list loads once Developer tools appears.
+ var card=$("release-card");
+ new MutationObserver(function(){if(!card.hidden)load();}).observe(card,{attributes:true,attributeFilter:["hidden"]});
+ document.addEventListener("visibilitychange",function(){if(!document.hidden&&!card.hidden)load();});
 })();
