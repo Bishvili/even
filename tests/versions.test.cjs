@@ -25,6 +25,7 @@ test("nothing asks a person to paste a device key",()=>{
  assert.doesNotMatch(read("shortcuts/even-sync.cherri"),/prompt\(/);
  assert.doesNotMatch(read("index.html"),/paste/i);
 });
-test("the installed app hands the helper download to Safari",()=>{
- assert.match(read("app.js"),/navigator\.standalone===true\)\$\("setup-helper"\)\.href="x-safari-https:\/\/"/);
+test("the helper installs from an iCloud link and the paper opens in Safari",()=>{
+ assert.match(read("index.html"),/id="setup-helper" href="https:\/\/www\.icloud\.com\/shortcuts\/[a-f0-9]{32}"/);
+ assert.match(read("app.js"),/navigator\.standalone===true\)\$\("whitepaper-link"\)\.href="x-safari-https:\/\/"/);
 });
