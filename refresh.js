@@ -1,7 +1,7 @@
 // Pull down to refresh, or keep pulling to run Even Sync.
 (function(){
- var app=globalThis.EvenApp,REFRESH_AT=70,RUN_AT=170,MAX_SHIFT=150,RING=75.4;
- var indicator=document.getElementById("pull-indicator"),label=document.getElementById("pull-label"),ring=document.getElementById("pull-ring"),fillCircle=document.getElementById("pull-fill");
+ var app=globalThis.EvenApp,REFRESH_AT=70,RUN_AT=170,MAX_SHIFT=150,LINE_DONE=REFRESH_AT/0.9,SUN_DEPTH=170;
+ var indicator=document.getElementById("pull-indicator"),label=document.getElementById("pull-label"),line=document.getElementById("pull-line"),sun=document.getElementById("pull-sun");
  var page=[document.querySelector(".topbar"),document.getElementById("main")];
  var startX=0,startY=0,distance=0,tracking=false,pulling=false;
 
@@ -9,11 +9,11 @@
  function stage(){return distance>=RUN_AT&&canRun()?"run":distance>=REFRESH_AT?"refresh":"pull";}
  function shift(value,settling){page.forEach(function(part){part.classList.toggle("pull-settling",settling);part.style.transform=value?"translateY("+value+"px)":"";});}
  function paint(){
-  var current=stage(),fill=canRun()?Math.max(0,Math.min((distance-REFRESH_AT)/(RUN_AT-REFRESH_AT),1)):0;
+  var current=stage(),rise=canRun()?Math.max(0,Math.min((distance-LINE_DONE)/(RUN_AT-LINE_DONE),1)):0;
   label.textContent=current==="run"?"Release to run Even Sync":current==="refresh"?(canRun()?"Release to refresh. Keep pulling to run Even Sync.":"Release to refresh"):"Pull to refresh";
-  // The ring closes as refresh becomes ready, then the circle fills until the Shortcut is ready.
-  ring.style.strokeDashoffset=String(RING*(1-Math.min(distance/REFRESH_AT,1)));
-  fillCircle.style.transform="scale("+fill+")";
+  // The horizon draws first, then the sun rises above it until the Shortcut is ready.
+  line.style.strokeDashoffset=String(1-Math.min(distance/LINE_DONE,1));
+  sun.setAttribute("transform","translate(0 "+SUN_DEPTH*(1-rise)+")");
   indicator.style.opacity=String(Math.min(distance/40,1));
   shift(Math.min(distance*0.5,MAX_SHIFT),false);
  }
