@@ -10,7 +10,7 @@ async function approved(env,email){
  if(ownerEmails(env).includes(email))return true;
  return !!await env.DB.prepare("SELECT 1 AS allowed FROM even_approved_emails WHERE email=?").bind(email).first();
 }
-const MIME={"index.html":"text/html; charset=utf-8","styles.css":"text/css; charset=utf-8","app.js":"text/javascript; charset=utf-8","reminders.js":"text/javascript; charset=utf-8","intake.js":"text/javascript; charset=utf-8","invites.js":"text/javascript; charset=utf-8","coach.js":"text/javascript; charset=utf-8","refresh.js":"text/javascript; charset=utf-8","sw.js":"text/javascript; charset=utf-8","manifest.webmanifest":"application/manifest+json","icon.svg":"image/svg+xml","icon-192.png":"image/png","icon-512.png":"image/png"};
+const MIME={"index.html":"text/html; charset=utf-8","styles.css":"text/css; charset=utf-8","app.js":"text/javascript; charset=utf-8","reminders.js":"text/javascript; charset=utf-8","intake.js":"text/javascript; charset=utf-8","whitepaper.html":"text/html; charset=utf-8","whitepaper.css":"text/css; charset=utf-8","invites.js":"text/javascript; charset=utf-8","coach.js":"text/javascript; charset=utf-8","refresh.js":"text/javascript; charset=utf-8","sw.js":"text/javascript; charset=utf-8","manifest.webmanifest":"application/manifest+json","icon.svg":"image/svg+xml","icon-192.png":"image/png","icon-512.png":"image/png"};
 const SECURITY={"X-Content-Type-Options":"nosniff","Referrer-Policy":"no-referrer","X-Frame-Options":"DENY","Permissions-Policy":"camera=(), microphone=(), geolocation=()","Content-Security-Policy":"default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'"};
 const METRICS={sleepHours:[0,24],steps:[0,100000],hrv:[0,500],restingHR:[20,250],heartRate:[20,250],workoutMin:[0,1440]};
 const CATS=["Meeting","Work","Exercise","Social","Family","Rest","Commute","Other"];
@@ -48,6 +48,32 @@ async function validDevice(request,env){
  const device=await env.DB.prepare("SELECT device_id,owner_email,revoked_at FROM even_devices WHERE token_hash=?").bind(tokenHash).first();
  if(!device||device.revoked_at||!await approved(env,device.owner_email))return null;
  return {id:device.device_id,owner:device.owner_email};
+}
+const WEEKDAYS=["sunday","monday","tuesday","wednesday","thursday","friday","saturday"];
+function alarmDays(text){
+ const value=String(text||"").toLowerCase();
+ if(/every ?day|daily/.test(value))return [0,1,2,3,4,5,6];
+ const days=new Set();
+ if(/weekdays/.test(value))[1,2,3,4,5].forEach(d=>days.add(d));
+ if(/weekends/.test(value))[0,6].forEach(d=>days.add(d));
+ WEEKDAYS.forEach((name,day)=>{if(value.includes(name))days.add(day);});
+ return [...days].sort();
+}
+// Records and fields use separator characters, because a repeat list can span several lines.
+function readAlarms(text){
+ return String(text||"").split("\u241e").map(record=>record.split("\u241f")).flatMap(fields=>{
+  const match=/^(\d{2}):(\d{2})$/.exec(String(fields[0]||"").trim());
+  if(!match||Number(match[1])>23||Number(match[2])>59)return [];
+  const state=String(fields[2]||"").trim().toLowerCase(),name=String(fields[3]||"").trim();
+  const enabled=/^(yes|true|on|1)$/.test(state)?1:/^(no|false|off|0)$/.test(state)?0:null;
+  const label=!name||/^alarm$/i.test(name)||/^\d{1,2}[:.]\d{2}/.test(name)?null:name.slice(0,60);
+  return [{timeMin:Number(match[1])*60+Number(match[2]),days:alarmDays(fields[1]),enabled,label}];
+ }).slice(0,40);
+}
+function firstAlarm(alarms,day){
+ const weekday=new Date(day+"T12:00:00Z").getUTCDay();
+ const times=alarms.filter(a=>a.enabled!==0&&a.timeMin<720&&(!a.days.length||a.days.includes(weekday))).map(a=>a.timeMin);
+ return times.length?Math.min(...times):null;
 }
 function dateOnly(value){
  const day=String(value||"").trim();if(!/^\d{4}-\d{2}-\d{2}$/.test(day))return null;
@@ -273,11 +299,32 @@ function dueTarget(times,minutes){
  const targets=times.map(t=>{const[h,m]=t.split(":").map(Number);return h*60+m;}).filter(t=>t<=minutes&&minutes-t<60);
  return targets.length?Math.max(...targets):null;
 }
+const SYNC_STALE_MS=72000000,DUE_WINDOW_MS=3600000;
+// Sent ahead of an anticipated hard moment. The device fills in the specific message.
+async function sendAnticipation(env,key,sub,now){
+ const last=sub.last_stress_at?Date.parse(sub.last_stress_at):0;
+ const due=JSON.parse(sub.stress_times||"[]").filter(at=>{const t=Date.parse(at);return t<=now.getTime()&&now.getTime()-t<DUE_WINDOW_MS&&t>last;}).sort();
+ if(!due.length)return;
+ const at=due[due.length-1];
+ const sent=await deliverPush(env,key,sub,now,pushPayload("A harder stretch may be coming. Take a minute?","/?do=reset",{stressAt:at}));
+ if(sent.ok)await env.DB.prepare("UPDATE even_push_subscriptions SET last_stress_at=? WHERE endpoint=?").bind(at,sub.endpoint).run();
+}
+// Only for people who have synced before and haven't lately.
+async function sendSyncReminder(env,key,sub,now,local){
+ if(!sub.sync_at||sub.last_sync_prompt_day===local.day||!sub.last_used_at)return;
+ if(now.getTime()-Date.parse(sub.last_used_at)<SYNC_STALE_MS)return;
+ const [hour,minute]=sub.sync_at.split(":").map(Number),at=hour*60+minute;
+ if(local.minutes<at||local.minutes-at>=60)return;
+ const sent=await deliverPush(env,key,sub,now,pushPayload("Time to sync. Tap to run Even Sync.","/?do=sync"));
+ if(sent.ok)await env.DB.prepare("UPDATE even_push_subscriptions SET last_sync_prompt_day=? WHERE endpoint=?").bind(local.day,sub.endpoint).run();
+}
 async function sendReminders(env,now=new Date()){
  const key=pushKey(env);if(!key)return;
- const subs=await env.DB.prepare("SELECT s.endpoint,s.p256dh,s.auth,s.mode,s.times,s.bedtime_at,s.brief_at,s.hard_at,s.weekends,s.time_zone,s.last_sent_day,s.last_sent_target,s.last_check_in_at FROM even_push_subscriptions s JOIN even_devices d ON d.device_id=s.device_id WHERE d.revoked_at IS NULL AND s.p256dh IS NOT NULL AND s.times IS NOT NULL").bind().all();
+ const subs=await env.DB.prepare("SELECT s.endpoint,s.p256dh,s.auth,s.mode,s.times,s.bedtime_at,s.brief_at,s.hard_at,s.weekends,s.sync_at,s.last_sync_prompt_day,s.stress_times,s.last_stress_at,d.last_used_at,s.time_zone,s.last_sent_day,s.last_sent_target,s.last_check_in_at FROM even_push_subscriptions s JOIN even_devices d ON d.device_id=s.device_id WHERE d.revoked_at IS NULL AND s.p256dh IS NOT NULL AND s.times IS NOT NULL").bind().all();
  for(const sub of subs.results||[]){
   const local=localTime(sub.time_zone,now),target=dueTarget(JSON.parse(sub.times),local.minutes);
+  await sendAnticipation(env,key,sub,now);
+  await sendSyncReminder(env,key,sub,now,local);
   if(target===null||(sub.last_sent_day===local.day&&sub.last_sent_target>=target))continue;
   if(sub.weekends===0&&[0,6].includes(new Date(local.day+"T12:00:00Z").getUTCDay()))continue;
   // A smart reminder isn't needed right after a check-in.
@@ -332,9 +379,11 @@ async function syncApi(request,env,path){
   if(!endpoint||!["smart","custom"].includes(mode)||!Array.isArray(times)||!times.length||times.length>24||!times.every(t=>REMIND_AT.test(String(t))))return error("Invalid reminder request");
   const smartTime=value=>mode==="smart"&&REMIND_AT.test(String(value||""))?String(value):null;
   const bedtimeAt=smartTime(input?.bedtimeAt),briefAt=smartTime(input?.briefAt),hardAt=smartTime(input?.hardAt),weekends=input?.weekends===false?0:1;
+  const syncAt=REMIND_AT.test(String(input?.syncAt||""))?String(input.syncAt):null;
+  const stressTimes=Array.isArray(input?.stressTimes)?input.stressTimes.slice(0,14).map(String).filter(at=>Number.isFinite(Date.parse(at))):[];
   const schedule=JSON.stringify([...new Set(times.map(String))].sort());
   try{localTime(timeZone,new Date());}catch(e){return error("Invalid reminder request");}
-  await env.DB.prepare("INSERT INTO even_push_subscriptions(endpoint,owner_email,device_id,mode,times,time_zone,created_at,p256dh,auth,bedtime_at,brief_at,hard_at,weekends) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(endpoint) DO UPDATE SET bedtime_at=excluded.bedtime_at,brief_at=excluded.brief_at,hard_at=excluded.hard_at,weekends=excluded.weekends,p256dh=excluded.p256dh,auth=excluded.auth,owner_email=excluded.owner_email,device_id=excluded.device_id,mode=excluded.mode,times=excluded.times,time_zone=excluded.time_zone").bind(endpoint,owner,dev.id,mode,schedule,timeZone,new Date().toISOString(),p256dh,auth,bedtimeAt,briefAt,hardAt,weekends).run();
+  await env.DB.prepare("INSERT INTO even_push_subscriptions(endpoint,owner_email,device_id,mode,times,time_zone,created_at,p256dh,auth,bedtime_at,brief_at,hard_at,weekends,sync_at,stress_times) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(endpoint) DO UPDATE SET sync_at=excluded.sync_at,stress_times=excluded.stress_times, bedtime_at=excluded.bedtime_at,brief_at=excluded.brief_at,hard_at=excluded.hard_at,weekends=excluded.weekends,p256dh=excluded.p256dh,auth=excluded.auth,owner_email=excluded.owner_email,device_id=excluded.device_id,mode=excluded.mode,times=excluded.times,time_zone=excluded.time_zone").bind(endpoint,owner,dev.id,mode,schedule,timeZone,new Date().toISOString(),p256dh,auth,bedtimeAt,briefAt,hardAt,weekends,syncAt,JSON.stringify(stressTimes)).run();
   return reply({ok:true});
  }
  if(path==="/api/push/synced"&&request.method==="POST"){
@@ -397,15 +446,16 @@ async function syncApi(request,env,path){
  }
 
  if(path==="/api/pull"&&request.method==="GET"){
-  const [health,events]=await Promise.all([
+  const [health,events,alarms]=await Promise.all([
    env.DB.prepare("SELECT day,metric,value FROM even_health_metrics WHERE owner_email=? ORDER BY day DESC LIMIT 3000").bind(owner).all(),
-   env.DB.prepare("SELECT event_id,start_time,end_time,title,category FROM even_calendar_events WHERE owner_email=? AND (calendar IS NULL OR calendar NOT IN (SELECT name FROM even_calendars WHERE owner_email=? AND enabled=0)) ORDER BY start_time DESC LIMIT 1200").bind(owner,owner).all()
+   env.DB.prepare("SELECT event_id,start_time,end_time,title,category FROM even_calendar_events WHERE owner_email=? AND (calendar IS NULL OR calendar NOT IN (SELECT name FROM even_calendars WHERE owner_email=? AND enabled=0)) ORDER BY start_time DESC LIMIT 1200").bind(owner,owner).all(),
+   env.DB.prepare("SELECT time_min,days,enabled,label FROM even_alarms WHERE owner_email=? ORDER BY time_min").bind(owner).all()
   ]);
   const grouped={};for(const h of health.results||[]){
    if(!grouped[h.day])grouped[h.day]={date:h.day,source:"shortcut"};
    grouped[h.day][h.metric]=h.value;
   }
-  return reply({ok:true,email:owner,health:Object.values(grouped),events:(events.results||[]).map(e=>({id:e.event_id,start:e.start_time,end:e.end_time,title:e.title,category:e.category,source:"shortcut"})),syncAt:new Date().toISOString()});
+  return reply({ok:true,email:owner,health:Object.values(grouped),events:(events.results||[]).map(e=>({id:e.event_id,start:e.start_time,end:e.end_time,title:e.title,category:e.category,source:"shortcut"})),alarms:(alarms.results||[]).map(a=>({timeMin:a.time_min,days:a.days?a.days.split(",").map(Number):[],enabled:a.enabled!==0,label:a.label||null})),syncAt:new Date().toISOString()});
  }
  if(path==="/api/ingest"&&request.method==="POST"){
   let input;
@@ -422,6 +472,16 @@ async function syncApi(request,env,path){
    const to=new Date(from.getTime()+86400000);
    const result=await env.DB.prepare("DELETE FROM even_calendar_events WHERE owner_email=? AND start_time>=? AND start_time<? AND updated_at<?").bind(owner,from.toISOString(),to.toISOString(),started.toISOString()).run();
    return reply({ok:true,state:"reconciled",removed:result.meta?.changes||0});
+  }
+  if(kind==="alarms"){
+   const raw=String(input.alarms||""),alarms=readAlarms(raw),day=dateOnly(input.date);
+   if(!day||(raw.trim()&&!alarms.length))return error("Invalid alarm details");
+   const at=new Date().toISOString(),first=firstAlarm(alarms,day);
+   const statements=[env.DB.prepare("DELETE FROM even_alarms WHERE owner_email=?").bind(owner)];
+   alarms.forEach((a,position)=>statements.push(env.DB.prepare("INSERT INTO even_alarms(owner_email,position,time_min,days,enabled,label,updated_at) VALUES(?,?,?,?,?,?,?)").bind(owner,position,a.timeMin,a.days.join(","),a.enabled,a.label,at)));
+   if(first!==null)statements.push(env.DB.prepare("INSERT INTO even_health_metrics(owner_email,day,metric,value,updated_at) VALUES(?,?,?,?,?) ON CONFLICT(owner_email,day,metric) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at").bind(owner,day,"firstAlarmMin",first,at));
+   await env.DB.batch(statements);
+   return reply({ok:true,state:"accepted",alarms:alarms.length});
   }
   if(!["health","calendar","batch"].includes(kind)){
    await recordSyncFailure(env,dev,"invalid_kind");return error("Use kind=health, calendar, or batch");
@@ -453,14 +513,15 @@ async function syncApi(request,env,path){
   await env.DB.batch([
    env.DB.prepare("DELETE FROM even_health_metrics WHERE owner_email=?").bind(owner),
    env.DB.prepare("DELETE FROM even_calendar_events WHERE owner_email=?").bind(owner),
-   env.DB.prepare("DELETE FROM even_calendars WHERE owner_email=?").bind(owner)
+   env.DB.prepare("DELETE FROM even_calendars WHERE owner_email=?").bind(owner),
+   env.DB.prepare("DELETE FROM even_alarms WHERE owner_email=?").bind(owner)
   ]);
   return reply({ok:true,erased:true,email:owner});
  }
  return error("Not found",404);
 }
 async function api(request,env,ctx,path){
- if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:"Even",version:"2.6.0",sync:"email-access"});
+ if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:"Even",version:"2.7.0",sync:"email-access"});
  if(path.startsWith("/api/auth/"))return authApi(request,env,ctx,path);
  return syncApi(request,env,path);
 }

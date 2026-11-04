@@ -43,6 +43,7 @@
      <p id="today-brief-text"></p>
      <button type="button" class="btn secondary" id="open-reset">Take a minute</button>
     </section>
+    <section class="next-actions" id="next-actions" aria-label="Next steps" hidden></section>
     <section class="reflection-prompt" id="reflection-prompt" hidden>
      <p><strong>Weekly reflection</strong>Four quick questions about your week.</p>
      <button type="button" class="btn secondary" id="open-reflection">Start</button>
@@ -126,6 +127,12 @@
    <section id="view-sources" class="view" aria-labelledby="sources-title">
     <h1 class="page-title" id="sources-title">Sources</h1>
     <div class="source-counts"><div><strong id="health-count">No health records</strong><small>Sleep, movement and recovery</small></div><div><strong id="calendar-count">No calendar events</strong><small>Meetings, plans and activities</small></div></div>
+    <section class="card" aria-labelledby="alarm-title">
+     <h2 id="alarm-title">Alarms</h2>
+     <p class="muted">Alarm names and times are saved to your account, like your Health data.</p>
+     <p class="muted" id="alarm-empty">Run Even Sync to bring in your alarms.</p>
+     <div id="alarm-list"></div>
+    </section>
     <div class="section-heading"><h2>Recent context</h2><span class="muted" id="context-count">0 items</span></div>
     <div id="context-list" class="entry-list"></div>
     <details class="card disclosure"><summary>Add a health day</summary>
@@ -245,6 +252,7 @@
      <h3 class="plan-heading">Your day</h3>
      <div id="reminder-plan"></div>
      <p class="muted plan-note" id="reminder-plan-note"></p>
+     <div id="reminder-extras"></div>
      <h3 class="plan-heading">Tune</h3>
      <div class="calendar-list">
       <div id="reminder-window">
@@ -258,6 +266,9 @@
        <label class="calendar-row"><span>Morning brief</span><input type="checkbox" role="switch" id="reminder-brief"></label>
        <label class="calendar-row"><span>Wind-down before bed</span><input type="checkbox" role="switch" id="reminder-wind-down"></label>
       </div>
+      <label class="calendar-row"><span>Nudge before harder moments</span><input type="checkbox" role="switch" id="reminder-stress"></label>
+      <label class="calendar-row"><span>Remind me to sync</span><input type="checkbox" role="switch" id="reminder-sync"></label>
+      <label class="calendar-row" id="reminder-sync-time-row"><span>Sync reminder time</span><input type="time" id="reminder-sync-time"></label>
       <label class="calendar-row"><span>Send on weekends</span><input type="checkbox" role="switch" id="reminder-weekends"></label>
       <div id="reminder-times"><div id="reminder-time-list"></div><button type="button" class="btn subtle full" id="add-reminder-time">Add a time</button></div>
      </div>
@@ -289,7 +300,7 @@
      <a class="btn secondary full" id="setup-helper" href="/install/Even%20Release.shortcut" target="_blank" rel="noopener noreferrer">Set Up Release Helper <span aria-hidden="true">↗</span></a>
      <a class="btn secondary full" href="shortcuts://run-shortcut?name=Even%20Release">Run Release Helper <span aria-hidden="true">↗</span></a>
     </section>
-    <div class="card"><h2>About the insights</h2><p class="muted">Comparisons need at least 3 check-ins in each group. Mood data is subjective and gaps can skew results. Nothing here is a diagnosis or proves a cause.</p><p class="muted">Version <span id="version">2.6.0</span> · No ads or analytics</p></div>
+    <div class="card"><h2>About the insights</h2><p class="muted">Comparisons need at least 3 check-ins in each group. Mood data is subjective and gaps can skew results. Nothing here is a diagnosis or proves a cause.</p><a class="btn subtle full" id="whitepaper-link" href="/whitepaper.html" target="_blank" rel="noopener">How Even works <span aria-hidden="true">↗</span></a><p class="muted">Version <span id="version">2.7.0</span> · No ads or analytics</p></div>
     <div class="card"><h2>Explore a sample month</h2><p class="muted">See 28 days of fictional check-ins and events. They stay separate from your own data and are never uploaded.</p><button class="btn secondary full" id="demo-button">Load 28-day calendar demo</button><button class="btn subtle full" id="clear-demo-button">Remove demo data</button></div>
    </section>
   </main>
@@ -323,6 +334,12 @@
    <a class="btn primary full" id="welcome-improve" target="_blank" rel="noopener noreferrer">Improve This Site with Claude <span aria-hidden="true">↗</span></a>
    <button type="button" class="btn subtle full" id="welcome-close">Maybe later</button>
    <p class="muted welcome-note">You’ll find this anytime in Settings, under Developer tools.</p>
+  </dialog>
+  <dialog class="welcome" id="run-sync-dialog" aria-labelledby="run-sync-title">
+   <h2 id="run-sync-title">Run Even Sync</h2>
+   <p class="muted">Brings in your sleep, today’s calendar and your alarms.</p>
+   <button type="button" class="btn primary full" id="run-sync-now">Run Even Sync</button>
+   <button type="button" class="btn subtle full" id="run-sync-later">Not now</button>
   </dialog>
   <dialog class="welcome reset" id="reset-dialog" aria-labelledby="reset-title">
    <h2 id="reset-title">Take a minute</h2>

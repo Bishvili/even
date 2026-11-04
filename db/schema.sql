@@ -55,6 +55,10 @@ CREATE TABLE IF NOT EXISTS even_push_subscriptions (
   brief_at TEXT,
   hard_at TEXT,
   weekends INTEGER NOT NULL DEFAULT 1,
+  sync_at TEXT,
+  last_sync_prompt_day TEXT,
+  stress_times TEXT,
+  last_stress_at TEXT,
   times TEXT,
   last_sent_target INTEGER,
   last_check_in_at TEXT,
@@ -69,4 +73,14 @@ CREATE TABLE IF NOT EXISTS even_approved_emails (
   email TEXT PRIMARY KEY,
   added_by TEXT NOT NULL,
   created_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS even_alarms (
+  owner_email TEXT NOT NULL REFERENCES even_users(email),
+  position INTEGER NOT NULL,
+  time_min INTEGER NOT NULL,
+  days TEXT NOT NULL,
+  enabled INTEGER,
+  label TEXT,
+  updated_at TEXT NOT NULL,
+  PRIMARY KEY(owner_email,position)
 );

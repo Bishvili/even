@@ -114,7 +114,8 @@ Read the relevant files before changing behavior:
 | Testers and sharing | invites.js | Sharing the link and managing who can sign in |
 | Install prompt and notifications | reminders.js, intake.js, coach.js, sw.js | Home Screen prompt, the notification questions, seeing and tuning the day's plan |
 | Pull to refresh | refresh.js | Refresh gesture and running the Shortcut |
-| Coaching | coach.js | Stress outlook, patterns, daily brief, reset exercise |
+| Coaching | coach.js | Stress outlook, patterns, anticipated stress, next actions, alarm context, daily brief, reset exercise |
+| Explainer | whitepaper.html, whitepaper.css | How Even works, written for clinicians. Keep it true when behavior changes. |
 | Edge API | worker/index.js | Authentication boundaries, device credentials, ingestion and retrieval |
 | Data model | db/schema.sql | D1 owner-scoped health, calendar, user, and device records |
 | Cloud configuration | wrangler.jsonc | Worker, KV assets, and D1 bindings |

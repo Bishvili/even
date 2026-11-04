@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>How Even Works</title>
+<meta name="description" content="How Even turns mood check-ins, sleep, calendar and alarms into timely prompts, and where its evidence stops.">
+<link rel="stylesheet" href="/whitepaper.css">
+</head>
+<body>
+<main>
+<header>
+<h1>How Even Works</h1>
+</header>
+<p class="lede">A guide for clinicians to what the app collects, how it reaches its suggestions, and where its evidence stops.</p>
+
+<div class="glance">
+ <div><h3>What it is</h3><ul>
+  <li>A quick mood and stress diary on the iPhone</li>
+  <li>A personal comparison of those entries with sleep, activity, calendar and alarms</li>
+  <li>Prompts timed before moments that have been harder for that person</li>
+ </ul></div>
+ <div><h3>What it is not</h3><ul>
+  <li>Not a diagnostic tool or a treatment</li>
+  <li>Not monitored by anyone, and not a crisis service</li>
+  <li>Not yet studied for benefit. It is used by a small invited group.</li>
+ </ul></div>
+</div>
+
+<h2>The clinical idea</h2>
+<p>Two established ideas shape the app. <strong>Ecological momentary assessment</strong> records how someone feels in daily life, close to the moment, which reduces recall bias compared with asking at a later visit [1]. <strong>Just-in-time adaptive interventions</strong> try to offer support at the moment a person is likely to need it and able to use it, based on information that changes over time [2].</p>
+<p>Even applies both at the scale of one person. It does not compare anyone with a population or a norm. Each suggestion comes from that person’s own earlier entries.</p>
+
+<figure>
+ <div class="scroll"><svg viewBox="0 0 720 300" role="img" aria-label="A four-step cycle: record, compare, anticipate, act, then back to record.">
+  <defs><marker id="a1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="head" d="M0 0L10 5L0 10Z"/></marker></defs>
+  <rect class="soft" x="30" y="40" width="280" height="90" rx="12"/><text class="strong" x="50" y="72">1. Record</text><text class="small" x="50" y="94">Mood, optional stress, notes and tags</text><text class="small" x="50" y="112">Sleep, activity, calendar, alarms</text>
+  <rect class="box" x="410" y="40" width="280" height="90" rx="12"/><text class="strong" x="430" y="72">2. Compare</text><text class="small" x="430" y="94">Is stress higher on some days, or near</text><text class="small" x="430" y="112">some events, than at other times?</text>
+  <rect class="box" x="410" y="180" width="280" height="90" rx="12"/><text class="strong" x="430" y="212">3. Anticipate</text><text class="small" x="430" y="234">Does a similar moment lie ahead,</text><text class="small" x="430" y="252">with enough earlier entries behind it?</text>
+  <rect class="sun" x="30" y="180" width="280" height="90" rx="12"/><text class="strong ontext" x="50" y="212">4. Act</text><text class="small ontext" x="50" y="234">A prompt, breathing exercise, sleep</text><text class="small ontext" x="50" y="252">target, or a question about how it’s going</text>
+  <path class="wire" marker-end="url(#a1)" d="M310 85H408"/><path class="wire" marker-end="url(#a1)" d="M550 130V178"/><path class="wire" marker-end="url(#a1)" d="M410 225H312"/><path class="wire" marker-end="url(#a1)" d="M170 180V132"/>
+ </svg></div>
+ <figcaption><strong>Figure 1.</strong> The cycle. Each check-in adds to the comparison, so what the app says can change over time.</figcaption>
+</figure>
+
+<h2>What it collects</h2>
+<div class="table"><table>
+ <thead><tr><th>Signal</th><th>Detail</th><th>Source</th><th>Stored</th></tr></thead>
+ <tbody>
+  <tr><td>Mood</td><td>Five levels, Rough to Great</td><td>Self-report</td><td>This iPhone only</td></tr>
+  <tr><td>Stress</td><td>Optional, 1 to 5</td><td>Self-report</td><td>This iPhone only</td></tr>
+  <tr><td>Notes and tags</td><td>Free text and labels</td><td>Self-report</td><td>This iPhone only</td></tr>
+  <tr><td>Sleep</td><td>Hours asleep and bedtime</td><td>Apple Health</td><td>Account and iPhone</td></tr>
+  <tr><td>Heart and activity</td><td>Resting and average heart rate, heart rate variability, steps, exercise minutes</td><td>Apple Health</td><td>Account and iPhone</td></tr>
+  <tr><td>Calendar</td><td>Today’s events: title, time, calendar name and a category. Calendars can be turned off.</td><td>iPhone Calendar</td><td>Account and iPhone</td></tr>
+  <tr><td>Alarms</td><td>Name, time and repeat days</td><td>iPhone Clock</td><td>Account and iPhone</td></tr>
+  <tr><td>Weekly reflection</td><td>Four questions on temper, recovery and rest, shown as a 0 to 100 score. Written for the app and not a validated scale.</td><td>Self-report</td><td>This iPhone only</td></tr>
+ </tbody>
+</table></div>
+<p class="note">Health values are read by an Apple Shortcut when it runs. The app can’t read Apple Health directly, and the iPhone must be unlocked for the Shortcut to read it.</p>
+
+<figure>
+ <div class="scroll"><svg viewBox="0 0 720 340" role="img" aria-label="Health, calendar and clock data pass through a Shortcut to the private account, then to the app. Mood entries stay in the app. Only notification times go to the account, which sends notifications back.">
+  <defs><marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="head" d="M0 0L10 5L0 10Z"/></marker></defs>
+  <rect class="band" x="10" y="10" width="480" height="320" rx="14"/><text class="small" x="26" y="34">The person’s iPhone</text>
+  <rect class="band" x="530" y="10" width="180" height="320" rx="14"/><text class="small" x="546" y="34">Private account</text>
+  <rect class="box" x="30" y="50" width="130" height="86" rx="10"/><text class="strong" x="44" y="76">Apple apps</text><text class="small" x="44" y="98">Health, Calendar,</text><text class="small" x="44" y="116">Clock</text>
+  <rect class="box" x="210" y="50" width="130" height="86" rx="10"/><text class="strong" x="224" y="76">Even Sync</text><text class="small" x="224" y="98">Runs when the</text><text class="small" x="224" y="116">person allows it</text>
+  <rect class="soft" x="550" y="50" width="140" height="86" rx="10"/><text class="strong" x="564" y="76">Synced records</text><text class="small" x="564" y="98">Tied to one</text><text class="small" x="564" y="116">verified owner</text>
+  <rect class="sun" x="210" y="200" width="250" height="110" rx="10"/><text class="strong ontext" x="226" y="228">Even app</text><text class="small ontext" x="226" y="250">Mood, stress and notes stay here.</text><text class="small ontext" x="226" y="268">All comparisons and wording</text><text class="small ontext" x="226" y="286">are worked out here.</text>
+  <rect class="soft" x="550" y="200" width="140" height="110" rx="10"/><text class="strong" x="564" y="228">Notification</text><text class="strong" x="564" y="248">schedule</text><text class="small" x="564" y="270">Times only, plus the</text><text class="small" x="564" y="288">last check-in time</text>
+  <path class="wire" marker-end="url(#a2)" d="M160 93H208"/><path class="wire" marker-end="url(#a2)" d="M340 93H548"/>
+  <path class="wire" marker-end="url(#a2)" d="M620 136V168H400V198"/><text class="small" x="440" y="162">synced records come back</text>
+  <path class="wire" marker-end="url(#a2)" d="M460 240H548"/><text class="small" x="470" y="232">times</text>
+  <path class="wire" marker-end="url(#a2)" d="M550 285H462"/><text class="small" x="466" y="304">alerts</text>
+ </svg></div>
+ <figcaption><strong>Figure 2.</strong> Where information goes. The account never receives what the person writes or their mood and stress ratings.</figcaption>
+</figure>
+
+<h2>How a pattern is found</h2>
+<p>Even uses simple comparisons of averages. There is no machine-learning model, and no statistical test is applied. The rules are short enough to list:</p>
+<div class="table"><table>
+ <thead><tr><th>Question</th><th>Rule</th></tr></thead>
+ <tbody>
+  <tr><td>Is a weekday harder?</td><td>Last 8 weeks. At least 3 rated check-ins on that weekday, and an average at least 0.4 points above the overall average.</td></tr>
+  <tr><td>Do certain events go with stress?</td><td>Compares check-ins during an event or up to 90 minutes after it with all others. At least 3 in each group.</td></tr>
+  <tr><td>Does short sleep go with stress?</td><td>Compares days after under 6.5 hours of sleep with other days. At least 3 in each group.</td></tr>
+  <tr><td>Do early alarms go with stress?</td><td>Compares days with a first alarm before 7 AM with days with a later one. At least 3 in each group.</td></tr>
+  <tr><td>When is it shown?</td><td>Patterns appear at a difference of 0.3 points. A prompt needs at least 0.4.</td></tr>
+ </tbody>
+</table></div>
+<p><strong>A fictional example.</strong> Suppose check-ins near work events average 3.8 and all other check-ins average 3.0. The difference of 0.8 passes the threshold if each group has at least 3 entries. The app would say that stress “tended to be” higher, with the counts available. It would not say work causes stress.</p>
+
+<h2>Proactive support</h2>
+<p>Notifications are optional, and the person can see each one and why it was planned. A short set of questions sets the first schedule, and every setting can be changed afterward.</p>
+<div class="table"><table>
+ <thead><tr><th>Type</th><th>When</th><th>What a tap does</th></tr></thead>
+ <tbody>
+  <tr><td>Morning brief</td><td>15 minutes after the morning alarm, or 30 minutes into the day</td><td>Opens a check-in</td></tr>
+  <tr><td>Check-in</td><td>Spread across the day, favoring usual check-in times. Skipped after a check-in in the last 90 minutes.</td><td>Opens a check-in</td></tr>
+  <tr><td>Harder time of day</td><td>The part of the day the person named as hardest</td><td>Opens a check-in</td></tr>
+  <tr><td>Before a harder moment</td><td>15 to 30 minutes ahead of an anticipated moment. At most 2 a day, 2 hours apart.</td><td>Opens the breathing exercise</td></tr>
+  <tr><td>Wind-down</td><td>20 minutes before usual bedtime, or earlier when tomorrow’s alarm calls for it</td><td>Opens a check-in</td></tr>
+  <tr><td>Sync reminder</td><td>A chosen time, only if nothing has synced in 20 hours</td><td>Offers to run Even Sync</td></tr>
+ </tbody>
+</table></div>
+
+<figure>
+ <div class="scroll"><svg viewBox="0 0 720 470" role="img" aria-label="Decision flow. If an upcoming moment has not been harder before, no prompt. If there are too few entries, no prompt. If it is outside the person's hours or over the daily limit, no prompt. Otherwise a prompt is sent that opens the breathing exercise.">
+  <defs><marker id="a3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="head" d="M0 0L10 5L0 10Z"/></marker></defs>
+  <rect class="soft" x="150" y="14" width="300" height="56" rx="10"/><text class="strong" x="170" y="38">Something lies ahead</text><text class="small" x="170" y="58">An event today, a harder weekday, a short night</text>
+  <rect class="box" x="150" y="100" width="300" height="56" rx="10"/><text class="strong" x="170" y="133">Have similar moments been harder?</text>
+  <rect class="box" x="150" y="186" width="300" height="56" rx="10"/><text class="strong" x="170" y="210">Is the evidence sufficient?</text><text class="small" x="170" y="230">Enough entries and a 0.4 point difference</text>
+  <rect class="box" x="150" y="272" width="300" height="56" rx="10"/><text class="strong" x="170" y="296">Does it suit the person’s day?</text><text class="small" x="170" y="316">Within their hours and under 2 a day</text>
+  <rect class="sun" x="150" y="372" width="300" height="76" rx="10"/><text class="strong ontext" x="170" y="398">Send the prompt ahead of it</text><text class="small ontext" x="170" y="418">Tap opens the breathing exercise.</text><text class="small ontext" x="170" y="436">The reason is available in the app.</text>
+  <rect class="box" x="560" y="186" width="130" height="56" rx="10"/><text class="strong" x="584" y="219">No prompt</text>
+  <path class="wire" marker-end="url(#a3)" d="M300 70V98"/><path class="wire" marker-end="url(#a3)" d="M300 156V184"/><path class="wire" marker-end="url(#a3)" d="M300 242V270"/><path class="wire" marker-end="url(#a3)" d="M300 328V370"/>
+  <text class="small" x="308" y="176">Yes</text><text class="small" x="308" y="262">Yes</text><text class="small" x="308" y="354">Yes</text>
+  <path class="wire" marker-end="url(#a3)" d="M450 128H625V184"/><path class="wire" marker-end="url(#a3)" d="M450 214H558"/><path class="wire" marker-end="url(#a3)" d="M450 300H625V244"/>
+  <text class="small" x="470" y="120">No</text><text class="small" x="470" y="206">No</text><text class="small" x="470" y="292">No</text>
+ </svg></div>
+ <figcaption><strong>Figure 3.</strong> How a prompt is decided. Without earlier evidence the app stays quiet, so a new user gets no prompts of this type.</figcaption>
+</figure>
+
+<figure>
+ <div class="scroll"><svg viewBox="0 0 720 210" role="img" aria-label="An example day: alarm at 6:30 AM, morning brief at 6:45, sync reminder at 8:00, a prompt at 1:30 PM before a harder afternoon, a check-in at 5:00 PM and wind-down at 10:10 PM.">
+  <line class="axis" x1="30" y1="110" x2="690" y2="110"/>
+  <g><circle class="sun" cx="60" cy="110" r="7"/><text class="strong" x="30" y="72">6:30 AM</text><text class="small" x="30" y="90">Gym alarm</text></g>
+  <g><circle class="sun" cx="82" cy="110" r="7"/><text class="strong" x="58" y="142">6:45</text><text class="small" x="58" y="160">Morning brief</text></g>
+  <g><circle class="sun" cx="145" cy="110" r="7"/><text class="strong" x="140" y="72">8:00</text><text class="small" x="140" y="90">Sync reminder</text></g>
+  <g><circle class="sun" cx="370" cy="110" r="7"/><text class="strong" x="310" y="72">1:30 PM</text><text class="small" x="310" y="90">Before a harder afternoon</text></g>
+  <g><circle class="sun" cx="510" cy="110" r="7"/><text class="strong" x="480" y="142">5:00</text><text class="small" x="480" y="160">Check-in</text></g>
+  <g><circle class="sun" cx="660" cy="110" r="7"/><text class="strong" x="600" y="72">10:10 PM</text><text class="small" x="600" y="90">Wind-down</text></g>
+  <text class="small" x="30" y="195">Fictional example. A real day depends on the person’s answers, alarms and check-ins.</text>
+ </svg></div>
+ <figcaption><strong>Figure 4.</strong> A sample day. The wind-down sits 20 minutes before the bedtime that would allow a usual night’s sleep before tomorrow’s alarm.</figcaption>
+</figure>
+
+<h3>What the person is asked to do</h3>
+<ul>
+ <li><strong>A breathing exercise.</strong> Four rounds of four-second inhale, hold, exhale and hold, which is under 4 breaths a minute, and about a minute in all. Reviews link slow breathing with changes in heart rate variability and with relaxation, though studies are small and varied [3]. The app says to breathe normally and stop if it feels uncomfortable.</li>
+ <li><strong>A sleep target.</strong> In the evening, the app works back from tomorrow’s alarm using the person’s usual recent sleep, or 8 hours when there’s too little data. That sits within the 7 to 9 hours recommended for most adults [5]. Sleep loss has been shown experimentally to heighten negative responses to mild stressors [4], which is why sleep is a central signal here.</li>
+ <li><strong>A plain next step.</strong> The first screen lists up to three things to do, such as “take a minute” or “sync now”, each with its reason where there is one.</li>
+</ul>
+
+<h2>Safety</h2>
+<ul>
+ <li>If a person rates stress 4 or 5 on at least 3 of the last 4 days, the app suggests talking to someone and links to support.</li>
+ <li>Settings lists crisis contacts, including 911 and the 988 Lifeline, and says plainly that the app can’t respond in a crisis.</li>
+ <li><strong>Nobody reviews entries.</strong> There is no clinician view and no escalation. High scores alert no one. Even should not be relied on for monitoring risk.</li>
+ <li>The app does not screen for depression, anxiety or any other condition, and does not advise on medication.</li>
+</ul>
+
+<h2>What limits these results</h2>
+<div class="table"><table>
+ <thead><tr><th>Limit</th><th>Why it matters</th></tr></thead>
+ <tbody>
+  <tr><td>Very small samples</td><td>Three entries per group is enough to display a pattern, and far too few to be confident in it. Counts are shown so readers can judge.</td></tr>
+  <tr><td>Many comparisons</td><td>Tags, event types, weekdays, sleep and alarms are all checked with no correction for multiple comparisons, so some patterns will be chance.</td></tr>
+  <tr><td>Confounding</td><td>Short sleep, early alarms and busy days often coincide. The comparisons consider one factor at a time.</td></tr>
+  <tr><td>Who checks in, and when</td><td>People may record more on bad days, or stop when struggling. Prompted entries may also differ from unprompted ones. Self-monitoring can itself change mood [1].</td></tr>
+  <tr><td>Expectation</td><td>Being told a hard moment is coming could raise anxiety in some people. This has not been measured in Even, and the prompts can be turned off.</td></tr>
+  <tr><td>Missing data</td><td>Sync needs the person’s iPhone, unlocked. Calendar data covers only the current day, and old alarms aren’t kept unless a sync recorded them that day.</td></tr>
+  <tr><td>Wearable accuracy</td><td>Sleep and heart measures come from consumer devices and vary by device. Alarms that were skipped once may still appear.</td></tr>
+  <tr><td>Delivery</td><td>iPhone settings such as Focus can hold back or hide notifications, and the app can’t tell whether one was seen.</td></tr>
+  <tr><td>No outcome data</td><td>Even has not been evaluated for whether it reduces stress or improves wellbeing.</td></tr>
+ </tbody>
+</table></div>
+
+<h2>Privacy</h2>
+<ul>
+ <li>Mood, stress, notes and reflections stay on the iPhone. If the app is deleted without a backup, they’re gone.</li>
+ <li>Synced records are limited to the verified account that owns them, and each person can erase them from the app.</li>
+ <li>Data travels over encrypted connections. It is not end-to-end encrypted, so the service’s operators could technically access synced records, including calendar titles and alarm names.</li>
+ <li>The app has no ads or analytics. It is not a covered clinical record system, and should not hold information a clinic would be required to protect.</li>
+</ul>
+
+<h2>Where a clinician’s view would help</h2>
+<ol>
+ <li>Are the thresholds too eager, and how should uncertainty be shown to a lay user?</li>
+ <li>Could prompting before a predicted hard moment do harm, and for whom?</li>
+ <li>Is a breathing exercise the right default, and for whom should it be avoided?</li>
+ <li>Should the “talk to someone” suggestion appear sooner, or read differently?</li>
+ <li>What would a small study need to measure to show real benefit?</li>
+</ol>
+
+<h2>References</h2>
+<ol class="refs">
+ <li>Shiffman S, Stone AA, Hufford MR. Ecological momentary assessment. <em>Annu Rev Clin Psychol.</em> 2008;4:1–32. <a href="https://pubmed.ncbi.nlm.nih.gov/18509902/">PubMed</a></li>
+ <li>Nahum-Shani I, Smith SN, Spring BJ, et al. Just-in-time adaptive interventions (JITAIs) in mobile health. <em>Ann Behav Med.</em> 2018;52(6):446–462. <a href="https://link.springer.com/doi/10.1007/s12160-016-9830-8">Article</a></li>
+ <li>Zaccaro A, Piarulli A, Laurino M, et al. How breath-control can change your life: a systematic review on psycho-physiological correlates of slow breathing. <em>Front Hum Neurosci.</em> 2018;12:353. <a href="https://pubmed.ncbi.nlm.nih.gov/30245619/">PubMed</a></li>
+ <li>Minkel JD, Banks S, Htaik O, et al. Sleep deprivation and stressors: evidence for elevated negative affect in response to mild stressors when sleep deprived. <em>Emotion.</em> 2012;12(5):1015–1020. <a href="https://pubmed.ncbi.nlm.nih.gov/22309720/">PubMed</a></li>
+ <li>Hirshkowitz M, Whiton K, Albert SM, et al. National Sleep Foundation’s updated sleep duration recommendations: final report. <em>Sleep Health.</em> 2015;1(4):233–243. <a href="https://discover.luc.edu/works/26111">Record</a></li>
+</ol>
+</main>
+</body>
+</html>

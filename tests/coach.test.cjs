@@ -120,3 +120,48 @@ test("a harder-time check-in stays clear of the brief and outside hours are drop
  assert.equal(moved.hardAt,"10:30");
  assert.equal(smartPlan([],[],"13:00","21:00",3,today,{brief:false,windDown:true,hardest:"morning"}).hardAt,null);
 });
+
+const {anticipate,nextActions,bedtimeForAlarm,morningAlarm}=globalThis.EvenCoach;
+const hours=(base,offsetDays,hour)=>{const d=new Date(base);d.setDate(d.getDate()+offsetDays);d.setHours(hour,0,0,0);return d;};
+test("alarms move the brief and bring the wind-down forward only when earlier",()=>{
+ const monday=new Date("2026-11-09T12:00:00");
+ const alarms=[{timeMin:390,days:[1,2],enabled:true,label:"Gym"},{timeMin:600,days:[6],enabled:false,label:null}];
+ assert.equal(morningAlarm(alarms,monday).label,"Gym");
+ assert.equal(morningAlarm(alarms,new Date("2026-11-14T12:00:00")),null);
+ assert.equal(bedtimeForAlarm(alarms,[],monday).bed,"22:30");
+ const plan=smartPlan([],[],"07:00","23:30",3,monday,{brief:true,windDown:true,hardest:"varies",alarms});
+ assert.equal(plan.briefAt,"06:45");
+ assert.equal(plan.bedtimeAt,"22:10");
+ assert.equal(plan.slots.find(s=>s.kind==="bedtime").source,"alarm");
+ const late=smartPlan([],[],"07:00","21:00",3,monday,{brief:true,windDown:true,hardest:"varies",alarms:[{timeMin:600,days:[2],enabled:true,label:null}]});
+ assert.equal(late.bedtimeAt,"20:40");
+});
+test("a harder moment is anticipated only with evidence, and capped each day",()=>{
+ const now=new Date("2026-11-09T08:00:00");
+ const prefs={from:"07:00",to:"22:00",weekends:true};
+ assert.deepEqual(anticipate([],[],[],now,prefs),[]);
+ const moods=[];
+ for(let week=1;week<=6;week++){moods.push({ts:hours(now,-7*week,15).toISOString(),stress:5});moods.push({ts:hours(now,-7*week,16).toISOString(),stress:5});moods.push({ts:hours(now,-7*week+1,10).toISOString(),stress:1});}
+ const found=anticipate(moods,[],[],now,prefs);
+ const monday=found.find(item=>new Date(item.at).getDay()===1);
+ assert.ok(monday);
+ assert.equal(new Date(monday.at).getHours(),13);
+ assert.match(monday.message,/Monday afternoons/);
+ const events=[1,2,3].map(n=>({start:hours(now,-n*7-2,11).toISOString(),end:hours(now,-n*7-2,12).toISOString(),category:"Work"}));
+ const stressed=events.map(e=>({ts:e.start,stress:5}));
+ const calm=[1,2,3].map(n=>({ts:hours(now,-n*7-3,20).toISOString(),stress:1}));
+ const soon=[{start:hours(now,0,17).toISOString(),end:hours(now,0,18).toISOString(),category:"Work"}];
+ const eventNudge=anticipate(stressed.concat(calm),events.concat(soon),[],now,prefs)[0];
+ assert.equal(new Date(eventNudge.at).getHours(),16);
+ assert.equal(new Date(eventNudge.at).getMinutes(),45);
+ assert.match(eventNudge.why,/points higher/);
+ assert.ok(Object.values(found.reduce((c,i)=>{const k=i.at.slice(0,10);c[k]=(c[k]||0)+1;return c;},{})).every(n=>n<=2));
+});
+test("next actions offer a stale sync and tomorrow's alarm in the evening",()=>{
+ const evening=new Date("2026-11-09T19:00:00");
+ const alarms=[{timeMin:390,days:[2],enabled:true,label:"Gym"}];
+ const actions=nextActions({moods:[],events:[],health:[],alarms,connected:true,lastUpload:"2026-11-08T08:00:00Z"},evening,{from:"07:00",to:"22:00"});
+ assert.match(actions[0].text,/Gym/);
+ assert.equal(actions[1].action,"sync");
+ assert.deepEqual(nextActions({moods:[],events:[],health:[],alarms:[],connected:false},evening,{from:"07:00",to:"22:00"}),[]);
+});

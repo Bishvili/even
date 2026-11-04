@@ -99,6 +99,18 @@ KEY_FILE = "even-device-key.txt"
 STEP_GROUPING_PATTERN = r"(?<=\d)[,\s](?=\d{3}(?:\D|$))"
 
 
+def check_alarms(actions) -> None:
+    """Alarm details exist only as variable properties, so confirm they survive compiling."""
+    identifiers = [a.get("WFWorkflowActionIdentifier") for a in actions]
+    if "com.apple.mobiletimer-framework.MobileTimerIntents.MTGetAlarmsIntent" not in identifiers:
+        raise AssertionError("Even Sync does not read alarms")
+    compiled = plistlib.dumps({"actions": actions}).decode()
+    for name in ("Time", "Repeat", "Is Enabled", "Name"):
+        if f"<string>{name}</string>" not in compiled:
+            raise AssertionError(f"Alarm property {name} is missing from the compiled Shortcut")
+    print("Even Sync reads alarms with their time, repeat, state and name.")
+
+
 def check_connection_and_steps(document, actions) -> None:
     if document.get("WFWorkflowImportQuestions", []):
         raise AssertionError("Even Sync cannot ask for a device key when reinstalled")
@@ -218,6 +230,7 @@ def check(plist_path: Path) -> None:
         raise AssertionError(f"Expected numeric thresholds 0 and 1, got {numbers}")
     check_calendar_timestamps(actions)
     check_connection_and_steps(document, actions)
+    check_alarms(actions)
     print("All twenty-eight If comparisons have explicit, expected right-hand values.")
 
 
