@@ -27,13 +27,12 @@
   else if(!app.deviceToken())blocked="Sign in under Sync to turn on reminders.";
   else if(Notification.permission==="denied")blocked="Notifications are off. Turn them on in Settings.";
   blockedReason=blocked;toggle.checked=!blocked&&settings.on;
-  $("test-reminder").hidden=!toggle.checked;
   $("reminder-time").value=settings.time;
   note.textContent=blocked||"Your reminder time and time zone are saved to your account.";
  }
  function keyBytes(key){var text=atob(key.replace(/-/g,"+").replace(/_/g,"/"));return Uint8Array.from(text,function(c){return c.charCodeAt(0);});}
  async function subscribe(){
-  var permission=await Notification.requestPermission();
+  var permission=Notification.permission==="granted"?"granted":await Notification.requestPermission();
   if(permission!=="granted")throw Error("Notifications are off. Turn them on in Settings.");
   var keyResponse=await fetch("/api/push/key",{headers:deviceHeaders(),cache:"no-store"});
   var key=keyResponse.ok?(await keyResponse.json()).key:null;
@@ -48,17 +47,6 @@
   if(!subscription)return;
   await fetch("/api/push/unsubscribe",{method:"POST",headers:deviceHeaders(),cache:"no-store",body:JSON.stringify({endpoint:subscription.endpoint})});
   await subscription.unsubscribe();
- }
- async function sendTest(){
-  var button=$("test-reminder");button.disabled=true;
-  try{
-   var registration=await navigator.serviceWorker.ready,subscription=await registration.pushManager.getSubscription();
-   if(!subscription)throw Error("Turn your reminder off and on again.");
-   var sent=await fetch("/api/push/test",{method:"POST",headers:deviceHeaders(),cache:"no-store",body:JSON.stringify({endpoint:subscription.endpoint})});
-   if(!sent.ok)throw Error("Couldn’t send a test. Turn your reminder off and on again.");
-   toast("Test sent. It should arrive in a moment.");
-  }catch(e){toast(e.message);}
-  button.disabled=false;
  }
  async function updateReminder(on){
   var toggle=$("reminder-toggle");toggle.disabled=true;
@@ -78,8 +66,12 @@
   if(blockedReason){this.checked=false;toast(blockedReason);return;}
   updateReminder(this.checked);
  });
- $("test-reminder").addEventListener("click",sendTest);
- $("reminder-time").addEventListener("change",function(){if(!this.value)return;settings.time=this.value;saveSettings();if(settings.on)updateReminder(true);});
+ // The time picker reports every turn of its wheels, so save only once it closes.
+ $("reminder-time").addEventListener("blur",function(){
+  if(!this.value||this.value===settings.time)return;
+  settings.time=this.value;saveSettings();
+  if(settings.on)updateReminder(true);
+ });
  document.addEventListener("visibilitychange",function(){if(!document.hidden)renderReminder();});
  renderNudge();renderReminder();
 })();

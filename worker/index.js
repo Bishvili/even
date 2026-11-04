@@ -205,14 +205,6 @@ async function syncApi(request,env,path){
   await env.DB.prepare("INSERT INTO even_push_subscriptions(endpoint,owner_email,device_id,remind_at,time_zone,created_at) VALUES(?,?,?,?,?,?) ON CONFLICT(endpoint) DO UPDATE SET owner_email=excluded.owner_email,device_id=excluded.device_id,remind_at=excluded.remind_at,time_zone=excluded.time_zone,last_sent_day=NULL").bind(endpoint,owner,dev.id,remindAt,timeZone,new Date().toISOString()).run();
   return reply({ok:true});
  }
- if(path==="/api/push/test"&&request.method==="POST"){
-  let input;try{input=await payload(request);}catch(e){return error("Invalid reminder request");}
-  const key=pushKey(env);if(!key)return error("Reminders aren't available right now",503);
-  const saved=await env.DB.prepare("SELECT endpoint FROM even_push_subscriptions WHERE endpoint=? AND owner_email=?").bind(String(input?.endpoint||""),owner).first();
-  if(!saved)return error("Reminder not found",404);
-  const sent=await deliverPush(env,key,saved.endpoint,new Date());
-  return sent.ok?reply({ok:true}):error("The reminder couldn't be sent",502);
- }
  if(path==="/api/push/unsubscribe"&&request.method==="POST"){
   let input;try{input=await payload(request);}catch(e){return error("Invalid reminder request");}
   await env.DB.prepare("DELETE FROM even_push_subscriptions WHERE endpoint=? AND owner_email=?").bind(String(input?.endpoint||""),owner).run();
@@ -324,7 +316,7 @@ async function syncApi(request,env,path){
  return error("Not found",404);
 }
 async function api(request,env,ctx,path){
- if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:"Even",version:"2.0.4",sync:"email-access"});
+ if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:"Even",version:"2.0.5",sync:"email-access"});
  if(path.startsWith("/api/auth/"))return authApi(request,env,ctx,path);
  return syncApi(request,env,path);
 }

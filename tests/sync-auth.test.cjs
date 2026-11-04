@@ -21,7 +21,6 @@ function harness({verified=false}={}){
  const env={GITHUB_API_KEY:"server-only",APPROVED_SYNC_EMAILS:JSON.stringify(allowed),ASSETS:{async get(key){return key==="config:shortcut:latest"?release:null;}},DB:{
   prepare(sql){return{bind(...args){return {
    async first(){
-    if(sql.startsWith("SELECT endpoint FROM even_push_subscriptions")){const s=rows.subs.get(args[0]);return s&&s.owner===args[1]?{endpoint:s.endpoint}:null;}
     if(sql.includes("SELECT display_name"))return args[0]==="owner-a@example.com"&&!rows.welcomed?{display_name:"Ada"}:null;
     if(sql.includes("FROM even_release_emails"))return args[0]==="owner-a@example.com"?{allowed:1}:null;
     if(sql.includes("SELECT device_id,owner_email,revoked_at"))return rows.devices.get(args[0])||null;
@@ -139,11 +138,6 @@ test("reminders are validated, owner-scoped, sent once a day, and stop when a de
  await call("/api/push/unsubscribe",{method:"POST",body:{endpoint},headers:B});
  assert.equal(rows.subs.size,1);
  const send=at=>runtime.sendReminders(env,new Date(at));
- assert.equal((await call("/api/push/test",{method:"POST",body:{endpoint}})).status,401);
- assert.equal((await call("/api/push/test",{method:"POST",body:{endpoint},headers:B})).status,404);
- assert.equal((await call("/api/push/test",{method:"POST",body:{endpoint},headers:A})).status,200);
- assert.equal(dispatches.length,1);
- dispatches.length=0;
  await send("2026-11-04T03:00:00Z");
  assert.equal(dispatches.length,0);
  await send("2026-11-04T04:05:00Z");
