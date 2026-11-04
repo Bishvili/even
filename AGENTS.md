@@ -24,7 +24,7 @@ The repository owner grants these, using the new developer's own accounts:
 
 1. **GitHub:** add them as a collaborator on `Bishvili/even` with write access.
 2. **Cloudflare:** invite them to the Bishvili account with access to Workers, KV, and D1. Pushes deploy through Workers Builds, so this is not needed just to deploy.
-3. **App sign-in:** to let them use Sync, add their email to the Cloudflare Access policy and to the `APPROVED_SYNC_EMAILS` Worker secret. Sign-in fails until both include it.
+3. **App sign-in:** add testers in Even → **Sync** → **Developer tools**, which stores them in the `even_approved_emails` D1 table. Accounts in `even_release_emails` can do this. Access verifies who someone is and allows any email, and the Worker decides who is approved using that table and the `APPROVED_SYNC_EMAILS` secret.
 4. **Releases:** add their email to the `even_release_emails` D1 table. Set `display_name` to welcome them on first sign-in with a guide to improving the site.
 5. **RoutineHub:** releases use the `ROUTINEHUB_API_KEY` repository secret, so they can publish through the workflow without their own key. Only share the listing's RoutineHub account deliberately.
 
@@ -111,6 +111,7 @@ Read the relevant files before changing behavior:
 | --- | --- | --- |
 | Application UI and analysis | index.html, app.js, styles.css | Check-ins, client-side state, calendar/health insights |
 | Install and offline support | manifest.webmanifest, sw.js, icon assets | Home Screen integration, cache management |
+| Testers and sharing | invites.js | Sharing the link and managing who can sign in |
 | Install prompt and reminders | reminders.js, sw.js | Home Screen prompt, daily check-in reminders |
 | Pull to refresh | refresh.js | Refresh gesture and running the Shortcut |
 | Coaching | coach.js | Stress outlook, patterns, daily brief, reset exercise |
@@ -119,7 +120,7 @@ Read the relevant files before changing behavior:
 | Cloud configuration | wrangler.jsonc | Worker, KV assets, and D1 bindings |
 | Tests | tests/*.test.cjs | Domain logic and isolation/security regression tests |
 
-Cloudflare Access handles approved-email sign-in. Approved addresses are managed in Access and the server-only APPROVED_SYNC_EMAILS secret. A cloud device credential is an owner-scoped bearer token; do not mistake it for a signed-in browser session.
+Cloudflare Access handles approved-email sign-in. Access verifies identity. Approved addresses are the server-only APPROVED_SYNC_EMAILS secret and the even_approved_emails table. A cloud device credential is an owner-scoped bearer token; do not mistake it for a signed-in browser session.
 
 Current UI is plain JavaScript and CSS. Do not rewrite it merely to adopt a framework. As screens, state, and flows become substantially more complex, prefer a deliberate migration to a maintained TypeScript + Vite application with a widely used UI framework such as React, reusable components, and typed domain modules. Complete migrations rather than running parallel implementations indefinitely.
 
@@ -148,7 +149,7 @@ Current UI is plain JavaScript and CSS. Do not rewrite it merely to adopt a fram
 1. Authenticate via Cloudflare Access's validated runtime identity for browser account operations. Never trust a user-supplied email, arbitrary request header, or device ID as proof of identity.
 2. Restrict issuance and revocation of device credentials to the verified owner. Use cryptographically random device tokens, store only hashes server-side, support revocation, and do not log or embed tokens.
 3. Every read, write, export, and delete of cloud data must be scoped to the derived account owner on the server. Test cross-user isolation and revocation.
-4. Keep the email allowlist and all credentials in Cloudflare secrets / Access policy configuration, never checked into the public repository or served in production assets.
+4. Keep the email allowlist in Cloudflare secrets or private D1 tables and all credentials in Cloudflare secrets, never checked into the public repository or served in production assets.
 5. Treat calendar titles and Health metrics as sensitive personal data. Collect the minimum, allow omission of identifying calendar titles, avoid third-party trackers, redact logs, and use HTTPS.
 6. Avoid claiming end-to-end encryption, clinical-grade reliability, automatic Apple Health permissions, or sync capabilities the product does not implement.
 7. Provide explicit data deletion, safe export, and account-switching behavior. Do not silently combine local data from two accounts.

@@ -1,6 +1,6 @@
 // Pull down to refresh, or keep pulling to run Even Sync.
 (function(){
- var app=globalThis.EvenApp,REFRESH_AT=70,RUN_AT=170,MAX_SHIFT=150,LINE_DONE=REFRESH_AT/0.9,SUN_DEPTH=170;
+ var app=globalThis.EvenApp,REFRESH_AT=70,RUN_AT=170,MAX_SHIFT=170,HEADER_GAP=24,LINE_DONE=REFRESH_AT/0.9,SUN_DEPTH=170;
  var indicator=document.getElementById("pull-indicator"),label=document.getElementById("pull-label"),line=document.getElementById("pull-line"),sun=document.getElementById("pull-sun");
  var page=[document.querySelector(".topbar"),document.getElementById("main")];
  var startX=0,startY=0,distance=0,tracking=false,pulling=false;
@@ -14,10 +14,11 @@
   // The horizon draws first, then the sun rises above it until the Shortcut is ready.
   line.style.strokeDashoffset=String(1-Math.min(distance/LINE_DONE,1));
   sun.setAttribute("transform","translate(0 "+SUN_DEPTH*(1-rise)+")");
-  indicator.style.opacity=String(Math.min(distance/40,1));
-  shift(Math.min(distance*0.7,MAX_SHIFT),false);
+  var moved=Math.min(distance*1.1,MAX_SHIFT);shift(moved,false);
+  // The indicator emerges from above the page, so it never covers the header.
+  indicator.style.transform="translateY("+Math.min(0,moved+HEADER_GAP-indicator.offsetHeight)+"px)";
  }
- function reset(){tracking=false;pulling=false;distance=0;indicator.hidden=true;shift(0,true);}
+ function reset(){tracking=false;pulling=false;distance=0;indicator.hidden=true;indicator.style.transform="";shift(0,true);}
  function eligible(event){
   return event.touches.length===1&&window.scrollY<=0&&!document.querySelector("dialog[open]")&&!event.target.closest("input,textarea,select,.bottom-nav");
  }

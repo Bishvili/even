@@ -1,6 +1,6 @@
 (function () {
 "use strict";
-var VERSION = "2.4.2";
+var VERSION = "2.5.0";
 var SHORTCUT_PAGE = "https://routinehub.co/shortcut/26978/";
 var STORAGE_KEY = "even:v1";
 var MOOD_NAMES = ["","Rough","Low","Okay","Good","Great"];
@@ -666,6 +666,7 @@ function init(){
  window.addEventListener("online",function(){refreshAuth();if(state.token){loadShortcutRelease();loadCalendars();checkShortcutUpload(true);syncIfNewUpload();}});
  document.addEventListener("visibilitychange",function(){if(!document.hidden){refreshAuth();if(state.token){loadShortcutRelease();loadCalendars();checkShortcutUpload(true);if(shortcutRunPending){shortcutRunPending=false;pull(false);}else syncIfNewUpload();}}});
  watchForUpdates();
+ if(new URLSearchParams(location.search).get("auth")==="denied"){history.replaceState(null,"","/#sync");navigate("sync");toast("This email isn’t on the list yet. Ask the person who invited you.");}
  if(new URLSearchParams(location.search).get("sync")==="1"){history.replaceState(null,"","/#sync");navigate("sync");if(state.token)pull(false);}
  else syncIfNewUpload();
 }

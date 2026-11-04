@@ -62,3 +62,8 @@ CREATE TABLE IF NOT EXISTS even_push_subscriptions (
   auth TEXT,
   created_at TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS even_approved_emails (
+  email TEXT PRIMARY KEY,
+  added_by TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);

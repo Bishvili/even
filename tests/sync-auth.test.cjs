@@ -20,11 +20,12 @@ function harness({verified=false}={}){
   dispatches.push({url,init});return new Response(null,{status:204});}};
  vm.runInNewContext(loaded,runtime,{timeout:2500,filename:"worker/index.js"});
  const allowed=["owner-a@example.com","owner-b@example.com"];
- const rows={subs:new Map(),calendars:new Map(),users:new Map(),devices:new Map(),health:new Map(),events:new Map()};
+ const rows={approved:new Map(),subs:new Map(),calendars:new Map(),users:new Map(),devices:new Map(),health:new Map(),events:new Map()};
  const release=JSON.stringify({version:"1.0.0",url:"https://www.icloud.com/shortcuts/82109f53491f4d95a0a8b8437c4090f2",publishedAt:"2026-11-01",notes:"First shared release",verified});
  const env={GITHUB_API_KEY:"server-only",APPROVED_SYNC_EMAILS:JSON.stringify(allowed),ASSETS:{async get(key){return key==="config:shortcut:latest"?release:null;}},DB:{
   prepare(sql){return{bind(...args){return {
    async first(){
+    if(sql.includes("FROM even_approved_emails WHERE email"))return rows.approved.has(args[0])?{allowed:1}:null;
     if(sql.includes("SELECT display_name"))return args[0]==="owner-a@example.com"&&!rows.welcomed?{display_name:"Ada"}:null;
     if(sql.startsWith("SELECT endpoint,p256dh,auth FROM even_push_subscriptions")){return [...rows.subs.values()].find(x=>x.device_id===args[0]&&x.owner===args[1])||null;}
     if(sql.startsWith("SELECT shortcut_version FROM even_devices")){const d=[...rows.devices.values()].find(x=>x.device_id===args[0]);return d||null;}
@@ -37,6 +38,7 @@ function harness({verified=false}={}){
     throw new Error("Unexpected first: "+sql);
    },
    async all(){
+    if(sql.startsWith("SELECT email FROM even_approved_emails"))return{results:[...rows.approved.keys()].map(email=>({email}))};
     if(sql.startsWith("SELECT s.endpoint"))return{results:[...rows.subs.values()].filter(s=>[...rows.devices.values()].some(d=>d.device_id===s.device_id&&!d.revoked_at))};
     if(sql.startsWith("SELECT name FROM even_calendars"))return{results:[...rows.calendars.values()].filter(c=>c.owner===args[0]&&!c.enabled)};
     if(sql.startsWith("SELECT name,enabled FROM even_calendars"))return{results:[...rows.calendars.values()].filter(c=>c.owner===args[0])};
@@ -53,6 +55,8 @@ function harness({verified=false}={}){
     if(sql.startsWith("UPDATE even_devices SET last_used_at")){for(const d of rows.devices.values())if(d.device_id===args[3]&&d.owner_email===args[4]&&!d.revoked_at){d.last_used_at=args[0];d.last_attempt_at=args[1];d.last_error_code=null;d.shortcut_version=args[2]||d.shortcut_version;}return{meta:{changes:1}};}
     if(sql.startsWith("INSERT INTO even_health_metrics")){rows.health.set(args[0]+"|"+args[1]+"|"+args[2],{owner:args[0],day:args[1],metric:args[2],value:args[3]});return{meta:{changes:1}};}
     if(sql.startsWith("INSERT INTO even_push_subscriptions")){rows.subs.set(args[0],{endpoint:args[0],owner:args[1],device_id:args[2],mode:args[3],times:args[4],time_zone:args[5],p256dh:args[7],auth:args[8],bedtime_at:args[9],last_sent_day:null,last_sent_target:null,last_check_in_at:null});return{meta:{changes:1}};}
+    if(sql.startsWith("INSERT OR IGNORE INTO even_approved_emails")){rows.approved.set(args[0],args[1]);return{meta:{changes:1}};}
+    if(sql.startsWith("DELETE FROM even_approved_emails")){rows.approved.delete(args[0]);return{meta:{changes:1}};}
     if(sql.includes("SET last_check_in_at")){for(const x of rows.subs.values())if(x.owner===args[1])x.last_check_in_at=args[0];return{meta:{changes:1}};}
     if(sql.includes("SET last_push_status"))return{meta:{changes:1}};
     if(sql.startsWith("UPDATE even_push_subscriptions")){const s=rows.subs.get(args[2]);s.last_sent_day=args[0];s.last_sent_target=args[1];return{meta:{changes:1}};}
@@ -256,6 +260,26 @@ test("each night's bedtime is its earliest sleep, ignoring naps and bad values",
  assert.equal(byDay["2026-11-02"],22*60+50);
  assert.equal(rows.length,2);
  assert.equal(runtime.readBedtimes("").length,0);
+});
+test("release accounts manage testers, and removal ends a tester's access",async()=>{
+ const{call,ctx}=harness();
+ const a=ctx("owner-a@example.com"),b=ctx("owner-b@example.com"),tester=ctx("new@example.com");
+ assert.equal((await call("/api/auth/me",{context:tester})).status,401);
+ const denied=await call("/api/auth/start",{context:tester});
+ assert.equal(denied.status,303);
+ assert.equal((await call("/api/auth/testers",{context:b})).status,403);
+ assert.equal((await call("/api/auth/testers",{method:"POST",body:{email:"new@example.com"},context:b})).status,403);
+ assert.equal((await call("/api/auth/testers",{method:"POST",body:{email:"new@example.com"}})).status,401);
+ assert.equal((await call("/api/auth/testers",{method:"POST",body:{email:"nope"},context:a})).status,400);
+ assert.equal((await call("/api/auth/testers",{method:"POST",body:{email:"New@Example.com"},headers:{Origin:"https://evil.example"},context:a})).status,403);
+ assert.equal((await call("/api/auth/testers",{method:"POST",body:{email:"New@Example.com"},context:a})).status,200);
+ assert.deepEqual((await call("/api/auth/testers",{context:a})).data.testers,["new@example.com"]);
+ assert.equal((await call("/api/auth/me",{context:tester})).status,200);
+ const device=await call("/api/auth/device",{method:"POST",body:{label:"T"},context:tester});
+ assert.equal((await call("/api/sync/status",{headers:{Authorization:"Bearer "+device.data.token}})).status,200);
+ assert.equal((await call("/api/auth/testers/remove",{method:"POST",body:{email:"new@example.com"},context:a})).status,200);
+ assert.equal((await call("/api/auth/me",{context:tester})).status,401);
+ assert.equal((await call("/api/sync/status",{headers:{Authorization:"Bearer "+device.data.token}})).status,401);
 });
 test("owner A data cannot be read or erased by owner B",async()=>{
  const{call,ctx}=harness();

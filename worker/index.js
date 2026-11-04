@@ -5,8 +5,12 @@
 const ACCESS_AUD="b15746656eee885f25c4f4b0605491289c01776b8710cc8339fb507f4574f745";
 const ICLOUD_SHORTCUT=/^https:\/\/www\.icloud\.com\/shortcuts\/[a-f0-9]{32}$/i;
 async function canRelease(env,email){return !!await env.DB.prepare("SELECT 1 AS allowed FROM even_release_emails WHERE email=?").bind(email).first();}
-function approved(env,email){try{return JSON.parse(env.APPROVED_SYNC_EMAILS||"[]").includes(email);}catch(e){return false;}}
-const MIME={"index.html":"text/html; charset=utf-8","styles.css":"text/css; charset=utf-8","app.js":"text/javascript; charset=utf-8","reminders.js":"text/javascript; charset=utf-8","coach.js":"text/javascript; charset=utf-8","refresh.js":"text/javascript; charset=utf-8","sw.js":"text/javascript; charset=utf-8","manifest.webmanifest":"application/manifest+json","icon.svg":"image/svg+xml","icon-192.png":"image/png","icon-512.png":"image/png"};
+function ownerEmails(env){try{return JSON.parse(env.APPROVED_SYNC_EMAILS||"[]");}catch(e){return [];}}
+async function approved(env,email){
+ if(ownerEmails(env).includes(email))return true;
+ return !!await env.DB.prepare("SELECT 1 AS allowed FROM even_approved_emails WHERE email=?").bind(email).first();
+}
+const MIME={"index.html":"text/html; charset=utf-8","styles.css":"text/css; charset=utf-8","app.js":"text/javascript; charset=utf-8","reminders.js":"text/javascript; charset=utf-8","invites.js":"text/javascript; charset=utf-8","coach.js":"text/javascript; charset=utf-8","refresh.js":"text/javascript; charset=utf-8","sw.js":"text/javascript; charset=utf-8","manifest.webmanifest":"application/manifest+json","icon.svg":"image/svg+xml","icon-192.png":"image/png","icon-512.png":"image/png"};
 const SECURITY={"X-Content-Type-Options":"nosniff","Referrer-Policy":"no-referrer","X-Frame-Options":"DENY","Permissions-Policy":"camera=(), microphone=(), geolocation=()","Content-Security-Policy":"default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'"};
 const METRICS={sleepHours:[0,24],steps:[0,100000],hrv:[0,500],restingHR:[20,250],heartRate:[20,250],workoutMin:[0,1440]};
 const CATS=["Meeting","Work","Exercise","Social","Family","Rest","Commute","Other"];
@@ -29,7 +33,7 @@ async function authIdentity(request,env,ctx){
  try{
   const identity=await ctx.access.getIdentity();
   const email=String(identity?.email||"").trim().toLowerCase();
-  return approved(env,email)?email:null;
+  return await approved(env,email)?email:null;
  }catch(e){return null;}
 }
 function browserPostAllowed(request){
@@ -42,7 +46,7 @@ async function validDevice(request,env){
  if(!match)return null;
  const tokenHash=await digest(match[1].toLowerCase());
  const device=await env.DB.prepare("SELECT device_id,owner_email,revoked_at FROM even_devices WHERE token_hash=?").bind(tokenHash).first();
- if(!device||device.revoked_at||!approved(env,device.owner_email))return null;
+ if(!device||device.revoked_at||!await approved(env,device.owner_email))return null;
  return {id:device.device_id,owner:device.owner_email};
 }
 function dateOnly(value){
@@ -92,6 +96,7 @@ function readEvent(x){
 }
 async function authApi(request,env,ctx,path){
  const email=await authIdentity(request,env,ctx);
+ if(!email&&path==="/api/auth/start"&&request.method==="GET")return new Response(null,{status:303,headers:{...SECURITY,"Cache-Control":"no-store","Location":new URL(request.url).origin+"/?auth=denied#sync"}});
  if(!email)return error("An approved Cloudflare Access login is required",401);
  if(path==="/api/auth/start"&&request.method==="GET"){
   const url=new URL(request.url);
@@ -112,6 +117,26 @@ async function authApi(request,env,ctx,path){
   await env.DB.prepare("INSERT OR IGNORE INTO even_users(email,created_at) VALUES(?,?)").bind(email,at).run();
   await env.DB.prepare("INSERT INTO even_devices(token_hash,device_id,owner_email,label,created_at) VALUES(?,?,?,?,?)").bind(await digest(token),deviceId,email,label,at).run();
   return reply({ok:true,email,token,deviceId,label,createdAt:at});
+ }
+ if(path.startsWith("/api/auth/testers")){
+  if(!await canRelease(env,email))return error("This account can't manage testers",403);
+  if(path==="/api/auth/testers"&&request.method==="GET"){
+   const rows=await env.DB.prepare("SELECT email FROM even_approved_emails ORDER BY email").bind().all();
+   return reply({ok:true,testers:(rows.results||[]).map(r=>r.email)});
+  }
+  if(!browserPostAllowed(request))return error("Same-origin JSON POST required",403);
+  let input;try{input=await payload(request);}catch(e){return error("Invalid request");}
+  const tester=String(input?.email||"").trim().toLowerCase();
+  if(tester.length>254||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(tester))return error("Enter a valid email address.");
+  if(path==="/api/auth/testers"){
+   await env.DB.prepare("INSERT OR IGNORE INTO even_approved_emails(email,added_by,created_at) VALUES(?,?,?)").bind(tester,email,new Date().toISOString()).run();
+   return reply({ok:true});
+  }
+  if(path==="/api/auth/testers/remove"){
+   await env.DB.prepare("DELETE FROM even_approved_emails WHERE email=?").bind(tester).run();
+   return reply({ok:true});
+  }
+  return error("Not found",404);
  }
  if(path==="/api/auth/welcomed"){
   if(!browserPostAllowed(request))return error("Same-origin JSON POST required",403);
@@ -408,7 +433,7 @@ async function syncApi(request,env,path){
  return error("Not found",404);
 }
 async function api(request,env,ctx,path){
- if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:"Even",version:"2.4.2",sync:"email-access"});
+ if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:"Even",version:"2.5.0",sync:"email-access"});
  if(path.startsWith("/api/auth/"))return authApi(request,env,ctx,path);
  return syncApi(request,env,path);
 }
