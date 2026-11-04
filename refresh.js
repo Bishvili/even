@@ -15,7 +15,7 @@
   line.style.strokeDashoffset=String(1-Math.min(distance/LINE_DONE,1));
   sun.setAttribute("transform","translate(0 "+SUN_DEPTH*(1-rise)+")");
   indicator.style.opacity=String(Math.min(distance/40,1));
-  shift(Math.min(distance*0.5,MAX_SHIFT),false);
+  shift(Math.min(distance*0.7,MAX_SHIFT),false);
  }
  function reset(){tracking=false;pulling=false;distance=0;indicator.hidden=true;shift(0,true);}
  function eligible(event){
