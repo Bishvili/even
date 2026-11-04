@@ -90,3 +90,33 @@ test("the bedtime reminder counts toward the daily total and stays inside the wi
  assert.equal(outside.times.length,2);
  assert.ok(outside.times.every(time=>time>="09:00"&&time<="21:00"));
 });
+
+test("answers shape the plan and every notification keeps its reason",()=>{
+ const plan=smartPlan([],[],"07:00","22:00",4,today,{brief:true,windDown:true,hardest:"afternoon"});
+ assert.equal(plan.briefAt,"07:30");
+ assert.equal(plan.bedtimeAt,"21:40");
+ assert.equal(plan.hardAt,"15:00");
+ assert.equal(plan.times.length,4);
+ assert.deepEqual([...plan.times].sort(),plan.times);
+ assert.equal(plan.slots.find(s=>s.kind==="hard").part,"afternoon");
+ assert.equal(plan.slots.filter(s=>s.kind==="spaced").length,1);
+ assert.deepEqual(plan.left,[]);
+});
+test("a small daily total keeps the most useful notifications and names the rest",()=>{
+ const plan=smartPlan([],[],"07:00","22:00",1,today,{brief:true,windDown:true,hardest:"afternoon"});
+ assert.deepEqual(plan.times,["21:40"]);
+ assert.equal(plan.briefAt,null);
+ assert.deepEqual(plan.left,["brief","hard"]);
+});
+test("turning off the wind-down and brief leaves only check-ins",()=>{
+ const plan=smartPlan([],[],"09:00","21:00",2,today,{brief:false,windDown:false,hardest:"varies"});
+ assert.equal(plan.bedtimeAt,null);
+ assert.equal(plan.briefAt,null);
+ assert.equal(plan.times.length,2);
+});
+test("a harder-time check-in stays clear of the brief and outside hours are dropped",()=>{
+ const moved=smartPlan([],[],"09:00","21:00",3,today,{brief:true,windDown:true,hardest:"morning"});
+ assert.equal(moved.briefAt,"09:30");
+ assert.equal(moved.hardAt,"10:30");
+ assert.equal(smartPlan([],[],"13:00","21:00",3,today,{brief:false,windDown:true,hardest:"morning"}).hardAt,null);
+});

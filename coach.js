@@ -84,9 +84,9 @@
  function minutesOf(time){var p=time.split(":");return Number(p[0])*60+Number(p[1]);}
  function timeOf(minutes){return String(Math.floor(minutes/60)).padStart(2,"0")+":"+String(minutes%60).padStart(2,"0");}
  // Spreads reminders across the window, favoring the times check-ins usually happen.
- function smartTimes(moods,from,to,count,today){
-  var start=minutesOf(from),end=minutesOf(to),cutoff=new Date(today).getTime()-30*DAY_MS,buckets={},times=[];
-  if(end<=start)return[];
+ function smartSlots(moods,from,to,count,today){
+  var start=minutesOf(from),end=minutesOf(to),cutoff=new Date(today).getTime()-30*DAY_MS,buckets={},slots=[];
+  if(end<=start||count<1)return[];
   moods.forEach(function(m){
    var d=new Date(m.ts);if(d.getTime()<cutoff)return;
    var at=Math.floor((d.getHours()*60+d.getMinutes())/30)*30;buckets[at]=(buckets[at]||0)+1;
@@ -95,15 +95,16 @@
   for(var i=0;i<count;i++){
    var low=start+span*i,high=low+span,best=null;
    Object.keys(buckets).map(Number).forEach(function(at){if(at>=low&&at<high&&(best===null||buckets[at]>buckets[best]))best=at;});
-   times.push(timeOf(best===null?Math.round((low+span/2)/5)*5:best));
+   slots.push({time:timeOf(best===null?Math.round((low+span/2)/5)*5:best),kind:best===null?"spaced":"usual"});
   }
-  return times.filter(function(t,n){return times.indexOf(t)===n;});
+  return slots.filter(function(slot,n){return slots.findIndex(function(o){return o.time===slot.time;})===n;});
  }
+ function smartTimes(moods,from,to,count,today){return smartSlots(moods,from,to,count,today).map(function(slot){return slot.time;});}
  function median(values){var sorted=values.slice().sort(function(a,b){return a-b;});return sorted[Math.floor(sorted.length/2)];}
  // Times after midnight count as late evening, so 00:30 sorts after 23:30.
  function nightMinutes(minutes){return minutes<720?minutes+1440:minutes;}
  // Prefers recorded sleep, then the last check-in of each day, then the end of the window.
- function bedtimeReminder(health,moods,to,today){
+ function bedtimeEstimate(health,moods,to,today){
   var cutoff=new Date(today).getTime()-14*DAY_MS,slept=[],lastByDay={},estimate;
   // Friday and Saturday nights often run later, so compare like with like when there's enough data.
   function weekendNight(day){return day===5||day===6;}
@@ -117,17 +118,47 @@
   if(matching.length>=3)slept=matching;
   moods.forEach(function(m){var d=new Date(m.ts);if(d.getTime()<cutoff)return;var key=localDay(d),at=nightMinutes(d.getHours()*60+d.getMinutes());if(!lastByDay[key]||at>lastByDay[key])lastByDay[key]=at;});
   var evenings=Object.keys(lastByDay).map(function(k){return lastByDay[k];}).filter(function(at){return at>=1080;});
-  if(slept.length>=3)estimate=median(slept);
-  else if(evenings.length>=5)estimate=median(evenings)+30;
+  var source="window";
+  if(slept.length>=3){estimate=median(slept);source="sleep";}
+  else if(evenings.length>=5){estimate=median(evenings)+30;source="evenings";}
   else estimate=nightMinutes(minutesOf(to));
-  return timeOf((estimate-20+1440)%1440);
+  return{time:timeOf((estimate-20+1440)%1440),source:source};
  }
- // The bedtime reminder takes one of the day's slots when it falls inside the window.
- function smartPlan(moods,health,from,to,count,today){
-  var bedtime=bedtimeReminder(health,moods,to,today),inWindow=bedtime>=from&&bedtime<=to;
-  if(!inWindow)return{times:smartTimes(moods,from,to,count,today),bedtimeAt:null};
-  var earlier=count>1?smartTimes(moods,from,bedtime,count-1,today):[];
-  return{times:earlier.filter(function(t){return t!==bedtime;}).concat(bedtime),bedtimeAt:bedtime};
+ function bedtimeReminder(health,moods,to,today){return bedtimeEstimate(health,moods,to,today).time;}
+ var HARD_TIMES={morning:"09:30",midday:"12:00",afternoon:"15:00",evening:"18:30"},SLOT_GAP=30;
+ function nearby(a,b){return Math.abs(minutesOf(a)-minutesOf(b))<45;}
+ // Moves the harder-time check-in clear of the brief and wind-down, or drops it if there's no room.
+ function hardTime(hardest,from,to,bedtime,briefAt){
+  var at=HARD_TIMES[hardest];
+  if(!at)return null;
+  if(briefAt&&nearby(at,briefAt))at=timeOf(minutesOf(briefAt)+60);
+  if(bedtime&&nearby(at,bedtime))at=timeOf(minutesOf(bedtime)-60);
+  var clear=(!briefAt||!nearby(at,briefAt))&&(!bedtime||!nearby(at,bedtime));
+  return clear&&at>=from&&at<=to?at:null;
+ }
+ // Fills the gaps between fixed notifications, giving the longest gaps the most.
+ function fillGaps(moods,fixed,from,to,count,today){
+  var edges=fixed.map(minutesOf).sort(function(a,b){return a-b;}),gaps=[],start=minutesOf(from);
+  edges.forEach(function(at){gaps.push({from:start,to:at-SLOT_GAP,count:0});start=at+SLOT_GAP;});
+  gaps.push({from:start,to:minutesOf(to),count:0});
+  gaps=gaps.filter(function(g){return g.to>g.from;});
+  if(!gaps.length)return[];
+  for(var n=0;n<count;n++)gaps.reduce(function(a,b){return(a.to-a.from)/(a.count+1)>=(b.to-b.from)/(b.count+1)?a:b;}).count++;
+  return gaps.reduce(function(slots,g){return slots.concat(smartSlots(moods,timeOf(g.from),timeOf(g.to),g.count,today));},[]);
+ }
+ // Fixed notifications count toward the daily total, most useful first.
+ function smartPlan(moods,health,from,to,count,today,preferences){
+  var prefs=Object.assign({windDown:true,brief:false,hardest:"varies"},preferences);
+  var estimate=bedtimeEstimate(health,moods,to,today),bedtime=prefs.windDown&&estimate.time>=from&&estimate.time<=to?estimate.time:null;
+  var morning=timeOf(minutesOf(from)+30),briefAt=prefs.brief&&morning<=to&&morning!==bedtime?morning:null;
+  var hardAt=hardTime(prefs.hardest,from,to,bedtime,briefAt),wanted=[];
+  if(bedtime)wanted.push({time:bedtime,kind:"bedtime",source:estimate.source});
+  if(briefAt)wanted.push({time:briefAt,kind:"brief"});
+  if(hardAt)wanted.push({time:hardAt,kind:"hard",part:prefs.hardest});
+  var kept=wanted.slice(0,count),fixed=kept.map(function(slot){return slot.time;});
+  function at(kind){var slot=kept.find(function(s){return s.kind===kind;});return slot?slot.time:null;}
+  var slots=kept.concat(fillGaps(moods,fixed,from,to,count-kept.length,today)).sort(function(a,b){return a.time<b.time?-1:1;});
+  return{slots:slots,times:slots.map(function(slot){return slot.time;}),bedtimeAt:at("bedtime"),briefAt:at("brief"),hardAt:at("hard"),left:wanted.slice(count).map(function(slot){return slot.kind;})};
  }
  function repeatTimes(from,to,everyHours){
   var times=[],end=minutesOf(to);

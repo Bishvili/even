@@ -10,7 +10,7 @@ async function approved(env,email){
  if(ownerEmails(env).includes(email))return true;
  return !!await env.DB.prepare("SELECT 1 AS allowed FROM even_approved_emails WHERE email=?").bind(email).first();
 }
-const MIME={"index.html":"text/html; charset=utf-8","styles.css":"text/css; charset=utf-8","app.js":"text/javascript; charset=utf-8","reminders.js":"text/javascript; charset=utf-8","invites.js":"text/javascript; charset=utf-8","coach.js":"text/javascript; charset=utf-8","refresh.js":"text/javascript; charset=utf-8","sw.js":"text/javascript; charset=utf-8","manifest.webmanifest":"application/manifest+json","icon.svg":"image/svg+xml","icon-192.png":"image/png","icon-512.png":"image/png"};
+const MIME={"index.html":"text/html; charset=utf-8","styles.css":"text/css; charset=utf-8","app.js":"text/javascript; charset=utf-8","reminders.js":"text/javascript; charset=utf-8","intake.js":"text/javascript; charset=utf-8","invites.js":"text/javascript; charset=utf-8","coach.js":"text/javascript; charset=utf-8","refresh.js":"text/javascript; charset=utf-8","sw.js":"text/javascript; charset=utf-8","manifest.webmanifest":"application/manifest+json","icon.svg":"image/svg+xml","icon-192.png":"image/png","icon-512.png":"image/png"};
 const SECURITY={"X-Content-Type-Options":"nosniff","Referrer-Policy":"no-referrer","X-Frame-Options":"DENY","Permissions-Policy":"camera=(), microphone=(), geolocation=()","Content-Security-Policy":"default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'"};
 const METRICS={sleepHours:[0,24],steps:[0,100000],hrv:[0,500],restingHR:[20,250],heartRate:[20,250],workoutMin:[0,1440]};
 const CATS=["Meeting","Work","Exercise","Social","Family","Rest","Commute","Other"];
@@ -247,8 +247,9 @@ async function encryptPush(text,p256dh,auth){
 function pushPayload(body,path,extra={}){
  return JSON.stringify({web_push:8030,mutable:true,...extra,notification:{title:"Even",body,navigate:"https://even.bishvili.workers.dev"+path}});
 }
-function reminderMessage(minutes,atBedtime){
+function reminderMessage(minutes,atBedtime,atHardTime){
  if(atBedtime)return "Bedtime soon. Take a moment to check in, then rest.";
+ if(atHardTime)return "This is often a harder part of your day. How are you doing?";
  if(minutes<660)return "Good morning. How are you starting the day?";
  if(minutes<840)return "How is your day going so far?";
  if(minutes<1020)return "Afternoon check-in. How is your energy?";
@@ -274,15 +275,16 @@ function dueTarget(times,minutes){
 }
 async function sendReminders(env,now=new Date()){
  const key=pushKey(env);if(!key)return;
- const subs=await env.DB.prepare("SELECT s.endpoint,s.p256dh,s.auth,s.mode,s.times,s.bedtime_at,s.time_zone,s.last_sent_day,s.last_sent_target,s.last_check_in_at FROM even_push_subscriptions s JOIN even_devices d ON d.device_id=s.device_id WHERE d.revoked_at IS NULL AND s.p256dh IS NOT NULL AND s.times IS NOT NULL").bind().all();
+ const subs=await env.DB.prepare("SELECT s.endpoint,s.p256dh,s.auth,s.mode,s.times,s.bedtime_at,s.brief_at,s.hard_at,s.weekends,s.time_zone,s.last_sent_day,s.last_sent_target,s.last_check_in_at FROM even_push_subscriptions s JOIN even_devices d ON d.device_id=s.device_id WHERE d.revoked_at IS NULL AND s.p256dh IS NOT NULL AND s.times IS NOT NULL").bind().all();
  for(const sub of subs.results||[]){
   const local=localTime(sub.time_zone,now),target=dueTarget(JSON.parse(sub.times),local.minutes);
   if(target===null||(sub.last_sent_day===local.day&&sub.last_sent_target>=target))continue;
+  if(sub.weekends===0&&[0,6].includes(new Date(local.day+"T12:00:00Z").getUTCDay()))continue;
   // A smart reminder isn't needed right after a check-in.
   const quiet=sub.mode==="smart"&&sub.last_check_in_at&&now.getTime()-new Date(sub.last_check_in_at).getTime()<SMART_QUIET_MS;
-  const [hour,minute]=(sub.bedtime_at||"99:99").split(":").map(Number);
-  const smart=sub.mode==="smart",body=smart?reminderMessage(target,hour*60+minute===target):"How are you feeling?";
-  const sent=quiet?{ok:true}:await deliverPush(env,key,sub,now,pushPayload(body,"/#checkin",{brief:smart&&target<660}));
+  const isTarget=time=>{if(!time)return false;const[hour,minute]=time.split(":").map(Number);return hour*60+minute===target;};
+  const smart=sub.mode==="smart",body=smart?reminderMessage(target,isTarget(sub.bedtime_at),isTarget(sub.hard_at)):"How are you feeling?";
+  const sent=quiet?{ok:true}:await deliverPush(env,key,sub,now,pushPayload(body,"/#checkin",{brief:smart&&isTarget(sub.brief_at)}));
   if(sent.ok)await env.DB.prepare("UPDATE even_push_subscriptions SET last_sent_day=?,last_sent_target=? WHERE endpoint=?").bind(local.day,target,sub.endpoint).run();
  }
 }
@@ -328,10 +330,11 @@ async function syncApi(request,env,path){
   const p256dh=String(input?.keys?.p256dh||""),auth=String(input?.keys?.auth||"");
   try{if(fromBase64url(p256dh).length!==65||fromBase64url(auth).length!==16)return error("Invalid reminder request");}catch(e){return error("Invalid reminder request");}
   if(!endpoint||!["smart","custom"].includes(mode)||!Array.isArray(times)||!times.length||times.length>24||!times.every(t=>REMIND_AT.test(String(t))))return error("Invalid reminder request");
-  const bedtimeAt=mode==="smart"&&REMIND_AT.test(String(input?.bedtimeAt||""))?String(input.bedtimeAt):null;
+  const smartTime=value=>mode==="smart"&&REMIND_AT.test(String(value||""))?String(value):null;
+  const bedtimeAt=smartTime(input?.bedtimeAt),briefAt=smartTime(input?.briefAt),hardAt=smartTime(input?.hardAt),weekends=input?.weekends===false?0:1;
   const schedule=JSON.stringify([...new Set(times.map(String))].sort());
   try{localTime(timeZone,new Date());}catch(e){return error("Invalid reminder request");}
-  await env.DB.prepare("INSERT INTO even_push_subscriptions(endpoint,owner_email,device_id,mode,times,time_zone,created_at,p256dh,auth,bedtime_at) VALUES(?,?,?,?,?,?,?,?,?,?) ON CONFLICT(endpoint) DO UPDATE SET bedtime_at=excluded.bedtime_at,p256dh=excluded.p256dh,auth=excluded.auth,owner_email=excluded.owner_email,device_id=excluded.device_id,mode=excluded.mode,times=excluded.times,time_zone=excluded.time_zone").bind(endpoint,owner,dev.id,mode,schedule,timeZone,new Date().toISOString(),p256dh,auth,bedtimeAt).run();
+  await env.DB.prepare("INSERT INTO even_push_subscriptions(endpoint,owner_email,device_id,mode,times,time_zone,created_at,p256dh,auth,bedtime_at,brief_at,hard_at,weekends) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(endpoint) DO UPDATE SET bedtime_at=excluded.bedtime_at,brief_at=excluded.brief_at,hard_at=excluded.hard_at,weekends=excluded.weekends,p256dh=excluded.p256dh,auth=excluded.auth,owner_email=excluded.owner_email,device_id=excluded.device_id,mode=excluded.mode,times=excluded.times,time_zone=excluded.time_zone").bind(endpoint,owner,dev.id,mode,schedule,timeZone,new Date().toISOString(),p256dh,auth,bedtimeAt,briefAt,hardAt,weekends).run();
   return reply({ok:true});
  }
  if(path==="/api/push/synced"&&request.method==="POST"){
@@ -457,7 +460,7 @@ async function syncApi(request,env,path){
  return error("Not found",404);
 }
 async function api(request,env,ctx,path){
- if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:"Even",version:"2.5.2",sync:"email-access"});
+ if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:"Even",version:"2.6.0",sync:"email-access"});
  if(path.startsWith("/api/auth/"))return authApi(request,env,ctx,path);
  return syncApi(request,env,path);
 }

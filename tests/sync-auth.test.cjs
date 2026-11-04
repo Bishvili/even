@@ -56,7 +56,7 @@ function harness({verified=false}={}){
     if(sql.startsWith("UPDATE even_devices SET last_attempt_at")){for(const d of rows.devices.values())if(d.device_id===args[2]&&d.owner_email===args[3]&&!d.revoked_at){d.last_attempt_at=args[0];if(sql.includes("last_error_code=NULL,shortcut_version=?")){d.last_error_code=null;d.shortcut_version=args[1];}else d.last_error_code=args[1];}return{meta:{changes:1}};}
     if(sql.startsWith("UPDATE even_devices SET last_used_at")){for(const d of rows.devices.values())if(d.device_id===args[3]&&d.owner_email===args[4]&&!d.revoked_at){d.last_used_at=args[0];d.last_attempt_at=args[1];d.last_error_code=null;d.shortcut_version=args[2]||d.shortcut_version;}return{meta:{changes:1}};}
     if(sql.startsWith("INSERT INTO even_health_metrics")){rows.health.set(args[0]+"|"+args[1]+"|"+args[2],{owner:args[0],day:args[1],metric:args[2],value:args[3]});return{meta:{changes:1}};}
-    if(sql.startsWith("INSERT INTO even_push_subscriptions")){rows.subs.set(args[0],{endpoint:args[0],owner:args[1],device_id:args[2],mode:args[3],times:args[4],time_zone:args[5],p256dh:args[7],auth:args[8],bedtime_at:args[9],last_sent_day:null,last_sent_target:null,last_check_in_at:null});return{meta:{changes:1}};}
+    if(sql.startsWith("INSERT INTO even_push_subscriptions")){rows.subs.set(args[0],{endpoint:args[0],owner:args[1],device_id:args[2],mode:args[3],times:args[4],time_zone:args[5],p256dh:args[7],auth:args[8],bedtime_at:args[9],brief_at:args[10],hard_at:args[11],weekends:args[12],last_sent_day:null,last_sent_target:null,last_check_in_at:null});return{meta:{changes:1}};}
     if(sql.startsWith("INSERT OR IGNORE INTO even_approved_emails")){rows.approved.set(args[0],args[1]);return{meta:{changes:1}};}
     if(sql.startsWith("DELETE FROM even_approved_emails")){rows.approved.delete(args[0]);return{meta:{changes:1}};}
     if(sql.includes("SET last_check_in_at")){for(const x of rows.subs.values())if(x.owner===args[1])x.last_check_in_at=args[0];return{meta:{changes:1}};}
@@ -218,6 +218,24 @@ test("several reminder times each send once, and a check-in quiets smart reminde
  checkedIn.last_check_in_at="2026-11-04T20:00:00Z";checkedIn.last_sent_day=null;
  await send("2026-11-04T23:35:00Z");
  assert.equal(dispatches.length,3);
+});
+test("weekends can be skipped and only the chosen slot carries the brief",async()=>{
+ const{call,ctx,env,rows,runtime,dispatches}=harness();
+ const device=await call("/api/auth/device",{method:"POST",body:{label:"A"},context:ctx("owner-a@example.com")});
+ const pair=await webcrypto.subtle.generateKey({name:"ECDSA",namedCurve:"P-256"},true,["sign"]);
+ env.VAPID_PRIVATE_KEY=JSON.stringify(await webcrypto.subtle.exportKey("jwk",pair.privateKey));
+ const{publicKey}=await webcrypto.subtle.generateKey({name:"ECDH",namedCurve:"P-256"},true,["deriveBits"]);
+ const keys={p256dh:Buffer.from(await webcrypto.subtle.exportKey("raw",publicKey)).toString("base64url"),auth:Buffer.alloc(16,1).toString("base64url")};
+ const saved=await call("/api/push/subscribe",{method:"POST",headers:{Authorization:"Bearer "+device.data.token},body:{endpoint:"https://web.push.apple.com/weekend",keys,mode:"smart",times:["09:00","15:00"],briefAt:"09:00",hardAt:"15:00",weekends:false,timeZone:"UTC"}});
+ assert.equal(saved.status,200);
+ const sub=rows.subs.get("https://web.push.apple.com/weekend");
+ assert.equal(sub.weekends,0);assert.equal(sub.brief_at,"09:00");assert.equal(sub.hard_at,"15:00");
+ await runtime.sendReminders(env,new Date("2026-11-07T09:05:00Z"));
+ assert.equal(dispatches.length,0);
+ await runtime.sendReminders(env,new Date("2026-11-09T09:05:00Z"));
+ assert.equal(dispatches.length,1);
+ assert.match(runtime.reminderMessage(900,false,true),/harder part of your day/);
+ assert.equal(runtime.reminderMessage(900,true,true),runtime.reminderMessage(1300,true,false));
 });
 test("the helper's release state compares installed, latest and published, and wrong links are refused",async()=>{
  const{call,ctx,rows,dispatches}=harness();

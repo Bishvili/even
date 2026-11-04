@@ -112,7 +112,7 @@ Read the relevant files before changing behavior:
 | Application UI and analysis | index.html, app.js, styles.css | Check-ins, client-side state, calendar/health insights |
 | Install and offline support | manifest.webmanifest, sw.js, icon assets | Home Screen integration, cache management |
 | Testers and sharing | invites.js | Sharing the link and managing who can sign in |
-| Install prompt and reminders | reminders.js, sw.js | Home Screen prompt, daily check-in reminders |
+| Install prompt and notifications | reminders.js, intake.js, coach.js, sw.js | Home Screen prompt, the notification questions, seeing and tuning the day's plan |
 | Pull to refresh | refresh.js | Refresh gesture and running the Shortcut |
 | Coaching | coach.js | Stress outlook, patterns, daily brief, reset exercise |
 | Edge API | worker/index.js | Authentication boundaries, device credentials, ingestion and retrieval |

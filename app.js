@@ -1,6 +1,6 @@
 (function () {
 "use strict";
-var VERSION = "2.5.2";
+var VERSION = "2.6.0";
 var SHORTCUT_PAGE = "https://routinehub.co/shortcut/26978/";
 var STORAGE_KEY = "even:v1";
 var MOOD_NAMES = ["","Rough","Low","Okay","Good","Great"];

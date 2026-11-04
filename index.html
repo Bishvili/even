@@ -17,6 +17,7 @@
   <title>Even</title>
   <script src="/app.js" defer></script>
   <script src="/coach.js" defer></script>
+  <script src="/intake.js" defer></script>
   <script src="/reminders.js" defer></script>
   <script src="/refresh.js" defer></script>
   <script src="/invites.js" defer></script>
@@ -47,6 +48,11 @@
      <button type="button" class="btn secondary" id="open-reflection">Start</button>
     </section>
     <div class="hard-stretch" id="hard-stretch" role="note" hidden>It’s been a hard few days. Talking to someone can help. <a href="#settings" data-go="settings">Find support</a></div>
+    <section class="card intake-card" id="intake-card" aria-labelledby="intake-card-title" hidden>
+     <h2 id="intake-card-title">Fit notifications to your day</h2>
+     <p class="muted">Five quick questions.</p>
+     <div class="intake-card-actions"><button type="button" class="btn primary" id="intake-start">Start</button><button type="button" class="btn subtle" id="intake-later">Not now</button></div>
+    </section>
     <div class="card mood-card">
      <div class="card-top"><span class="mini-heading">RIGHT NOW</span><span class="muted" id="current-time">—</span></div>
      <div class="mood-grid" role="group" aria-label="Choose your mood">
@@ -228,14 +234,18 @@
    <section id="view-settings" class="view" aria-labelledby="settings-title">
     <h1 class="page-title" id="settings-title">Settings</h1>
     <section class="card" aria-labelledby="reminder-title">
-     <h2 id="reminder-title">Reminders</h2>
+     <h2 id="reminder-title">Notifications</h2>
      <p class="muted" id="reminder-note"></p>
      <div class="calendar-list">
-      <label class="calendar-row"><span>Send reminders and my brief</span><input type="checkbox" role="switch" id="reminder-toggle"></label>
+      <label class="calendar-row"><span>Send notifications</span><input type="checkbox" role="switch" id="reminder-toggle"></label>
       </div>
-     <div class="range-switch reminder-modes" role="group" aria-label="Reminder type">
+     <div class="range-switch reminder-modes" role="group" aria-label="Notification type">
       <button type="button" data-reminder-mode="smart">Smart</button><button type="button" data-reminder-mode="times">Set times</button><button type="button" data-reminder-mode="repeat">Repeat</button>
      </div>
+     <h3 class="plan-heading">Your day</h3>
+     <div id="reminder-plan"></div>
+     <p class="muted plan-note" id="reminder-plan-note"></p>
+     <h3 class="plan-heading">Tune</h3>
      <div class="calendar-list">
       <div id="reminder-window">
        <label class="calendar-row"><span>From</span><input type="time" id="reminder-from"></label>
@@ -243,8 +253,15 @@
       </div>
       <label class="calendar-row" id="reminder-count-row"><span>Notifications a day</span><select id="reminder-count"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option></select></label>
       <label class="calendar-row" id="reminder-every-row"><span>Every</span><select id="reminder-every"><option value="1">1 hour</option><option value="2">2 hours</option><option value="3">3 hours</option><option value="4">4 hours</option><option value="6">6 hours</option></select></label>
+      <div id="reminder-tune">
+       <label class="calendar-row"><span>Hardest part of the day</span><select id="reminder-hardest"><option value="morning">Morning</option><option value="midday">Midday</option><option value="afternoon">Afternoon</option><option value="evening">Evening</option><option value="varies">It varies</option></select></label>
+       <label class="calendar-row"><span>Morning brief</span><input type="checkbox" role="switch" id="reminder-brief"></label>
+       <label class="calendar-row"><span>Wind-down before bed</span><input type="checkbox" role="switch" id="reminder-wind-down"></label>
+      </div>
+      <label class="calendar-row"><span>Send on weekends</span><input type="checkbox" role="switch" id="reminder-weekends"></label>
       <div id="reminder-times"><div id="reminder-time-list"></div><button type="button" class="btn subtle full" id="add-reminder-time">Add a time</button></div>
      </div>
+     <button type="button" class="btn subtle full" id="intake-retake">Answer the questions again</button>
     </section>
     <div class="card"><h2>Your local data</h2><p class="muted">Mood check-ins, notes and locally imported health/calendar data stay in this app's storage on this device. Clearing site data or deleting the Home Screen app may erase them.</p><div class="settings-meta" id="storage-summary"></div><button class="btn secondary full" id="backup-button">Download backup</button><label class="file-label">Restore from backup <input type="file" id="restore-input" accept="application/json,.json"></label><button class="btn danger full" id="erase-local">Erase all data on this device</button></div>
     
@@ -272,7 +289,7 @@
      <a class="btn secondary full" id="setup-helper" href="/install/Even%20Release.shortcut" target="_blank" rel="noopener noreferrer">Set Up Release Helper <span aria-hidden="true">↗</span></a>
      <a class="btn secondary full" href="shortcuts://run-shortcut?name=Even%20Release">Run Release Helper <span aria-hidden="true">↗</span></a>
     </section>
-    <div class="card"><h2>About the insights</h2><p class="muted">Comparisons need at least 3 check-ins in each group. Mood data is subjective and gaps can skew results. Nothing here is a diagnosis or proves a cause.</p><p class="muted">Version <span id="version">2.5.2</span> · No ads or analytics</p></div>
+    <div class="card"><h2>About the insights</h2><p class="muted">Comparisons need at least 3 check-ins in each group. Mood data is subjective and gaps can skew results. Nothing here is a diagnosis or proves a cause.</p><p class="muted">Version <span id="version">2.6.0</span> · No ads or analytics</p></div>
     <div class="card"><h2>Explore a sample month</h2><p class="muted">See 28 days of fictional check-ins and events. They stay separate from your own data and are never uploaded.</p><button class="btn secondary full" id="demo-button">Load 28-day calendar demo</button><button class="btn subtle full" id="clear-demo-button">Remove demo data</button></div>
    </section>
   </main>
@@ -284,6 +301,15 @@
    <button class="nav-item" data-go="sync"><span class="nav-glyph" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 0 1 13.7-5.6L20 8.5M20 4v4.5h-4.5M20 12a8 8 0 0 1-13.7 5.6L4 15.5M4 20v-4.5h4.5"/></svg></span><span>Sync</span></button>
    <button class="nav-item" data-go="settings"><span class="nav-glyph" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2.2"/><circle cx="9" cy="17" r="2.2"/></svg></span><span>Settings</span></button>
   </nav>
+  <dialog class="welcome intake" id="intake-dialog" aria-labelledby="intake-title">
+   <p class="muted intake-progress" id="intake-progress"></p>
+   <h2 id="intake-title" tabindex="-1"></h2>
+   <p class="muted" id="intake-hint" hidden></p>
+   <div id="intake-body"></div>
+   <p class="intake-error" id="intake-error" role="alert" hidden></p>
+   <button type="button" class="btn primary full" id="intake-next">Next</button>
+   <button type="button" class="btn subtle full" id="intake-back"></button>
+  </dialog>
   <dialog class="welcome" id="welcome-dialog" aria-labelledby="welcome-title">
    <h2 id="welcome-title"></h2>
    <p class="muted">You can improve this site with Claude. Here’s how to start:</p>
