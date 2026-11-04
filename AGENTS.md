@@ -65,6 +65,7 @@ Only an iPhone proves iOS behavior, and each round trip costs the owner time. Be
 - Trace a feature from a fresh install, from an upgraded install with old saved state, signed out, and offline.
 
 **Push notifications**
+- A notification can open the app, but only a tap inside the app is sure to launch a Shortcut. Anything opened from a notification needs a visible button as a fallback.
 - `201` means Apple accepted a push, not that it appeared. Check `last_push_status` and `last_sent_day`, then the phone's Focus and notification settings.
 - Send encrypted payloads with a declarative notification. iOS removes subscriptions after repeated pushes that show nothing, so every push must show one.
 
@@ -74,15 +75,18 @@ Only an iPhone proves iOS behavior, and each round trip costs the owner time. Be
 - A Shortcut must never wait for an answer on a normal run, because automations can't respond. Use notifications, and stop with a clear alert only when it can't continue.
 - A result limit applies before grouping, so read grouped values from the first group.
 - Health data can't be read while the iPhone is locked.
+- Clock alarm details exist only as variable properties, whose names can differ across iOS versions. Confirm in the Shortcuts editor and in Even → **Sources** that names, times and on/off state arrive. Keep alarms at the end of the run, because an error there can't be caught.
 
 **Cloud and naming**
 - Worker, repository and address renames need dashboard steps. Push only after they're done, because a mismatch can deploy to the wrong place.
 - Change a live D1 schema before pushing code that needs it, with additive changes only.
+- After someone adds a Worker secret, list the secret names and compare them with what the code reads. A misspelled name fails silently.
+- Every page and asset is served with a strict content security policy, so inline styles and scripts are blocked. Use separate files, and add each to `scripts/deploy.sh` and the Worker's type list.
 - Check the Workers Builds result for the exact commit, then the deployed code. When you can't test something on a device, say so plainly.
 
 ## Product and quality bar
 
-**Working mode:** iterate quickly. Commit directly to `main`, without feature branches, waiting on CI, or approval steps. The interface should still look and read like a finished App Store app.
+**Working mode:** iterate quickly. Commit directly to `main`, with no feature branches or approval steps. Don't wait on CI before pushing, but check the result afterward. The interface should still look and read like a finished App Store app.
 
 Even is an iPhone-first, installable progressive web app for quick mood check-ins and useful context from calendars and selected health metrics. Hold the interface to the finish, consistency, speed, and restraint of a popular App Store app, while remaining truthful about web-platform capabilities.
 
@@ -121,7 +125,7 @@ Read the relevant files before changing behavior:
 | Cloud configuration | wrangler.jsonc | Worker, KV assets, and D1 bindings |
 | Tests | tests/*.test.cjs | Domain logic and isolation/security regression tests |
 
-Cloudflare Access handles approved-email sign-in. Access verifies identity. Approved addresses are the server-only APPROVED_SYNC_EMAILS secret and the even_approved_emails table. A cloud device credential is an owner-scoped bearer token; do not mistake it for a signed-in browser session.
+A cloud device credential is an owner-scoped bearer token; do not mistake it for a signed-in browser session. Sign-in itself is described under **Owner steps**.
 
 Current UI is plain JavaScript and CSS. Do not rewrite it merely to adopt a framework. As screens, state, and flows become substantially more complex, prefer a deliberate migration to a maintained TypeScript + Vite application with a widely used UI framework such as React, reusable components, and typed domain modules. Complete migrations rather than running parallel implementations indefinitely.
 
@@ -171,20 +175,15 @@ Current UI is plain JavaScript and CSS. Do not rewrite it merely to adopt a fram
 4. Add or update tests at the right layer. Run the existing Node test suite with: node --test tests/*.test.cjs. Add WebKit/browser end-to-end tests as the UI grows.
 5. For UI changes, review at iPhone widths and in installed standalone mode. Exercise safe areas, keyboard, scroll, offline, focus, reduced motion, light/dark appearance, and empty/error states.
 6. For API or D1 changes, test invalid credentials, unauthorized requests, multiuser isolation, malformed payloads, idempotency, and rollback behavior.
-7. Update documentation, migration instructions, and the PWA service-worker cache version in the same change when necessary.
+7. Update documentation, migration instructions, the PWA service-worker cache version, and `whitepaper.html` in the same change. Any change to what Even collects, where data goes, how patterns or prompts are decided, what notifications do, or safety behavior must be reflected in the paper. `tests/whitepaper.test.cjs` catches the numeric rules; check the prose by reading it. If you edit the paper, keep its plain, clinician-facing language and its limits section.
 8. Pushes to `main` deploy through Workers Builds using `scripts/deploy.sh`. Check that the build succeeded rather than assuming a commit is live.
-9. Verify the **deployed** version and its functionality before describing it as live. Prefer staging and a rollback path for changes involving auth or personal data.
+9. Verify the **deployed** version and its functionality before describing it as live. There is no staging, so for changes involving auth or personal data, plan how to roll back before pushing.
 10. Leave the branch, test suite, and docs coherent. Avoid stray test scripts, stale comments, or unresolved TODOs with no owner.
 
-## Project hygiene and immediate technical debt
+## Project hygiene
 
-The shared-sync tables and pairing endpoint were removed after confirming the legacy tables were empty. A source archive is no longer served by the application; GitHub is the authoritative source repository. Remaining cleanup priorities are large single-file UI modules. Prefer one source-controlled deployment flow, small modules, automated regression checks, and signed versioned Shortcut releases.
+GitHub is the authoritative source repository. Large single-file UI modules are the main cleanup priority. Prefer one source-controlled deployment flow, small modules, automated regression checks, and signed versioned Shortcut releases.
 
 ## Design and platform references
 
-- Frontend implementation guide: .agents/skills/ios-pwa-frontend/SKILL.md
-- Original Frontend Design reference: https://agenticskills.io/skills/frontend-design
-- Apple Human Interface Guidelines: https://developer.apple.com/design/human-interface-guidelines/
-- Apple layout guidance: https://developer.apple.com/design/human-interface-guidelines/layout
-- Apple tab bar guidance: https://developer.apple.com/design/human-interface-guidelines/tab-bars
-- WebKit and Safari platform behavior: https://webkit.org/
+See the references at the end of `.agents/skills/ios-pwa-frontend/SKILL.md`.

@@ -37,16 +37,7 @@ When a design needs a distinctive moment, spend the visual emphasis once: an exc
 
 The product is called Even: a calm, private health coach. Use serif headlines from the system stack (ui-serif, New York), system sans for everything else, pill buttons, deep green hero surfaces, and warm yellow as the single accent. Colors live in the CSS custom properties in styles.css, with a complete dark palette; never add literal colors outside them. Consolidate values into CSS custom properties or typed theme tokens rather than continuing to sprinkle magic hex literals.
 
-| Role | Starting value | Use |
-| --- | --- | --- |
-| Ink | #173536 | Primary text, navigation, stable visual anchor |
-| Canvas | #F5F6F2 | Calm app background |
-| Pine | #28685B | Primary interactive elements and selected controls |
-| Mist | #E7F2EB | Soft surfaces and relevant selected states |
-| Warm signal | #F4D798 | Sparse emphasis on a meaningful highlight |
-| Quiet text | #62786F | Secondary information with verified contrast |
-
-White elevated surfaces are allowed when necessary; dark appearance requires a complete alternative palette, not simply inverting the canvas. Contrast must be tested. A warm accent should encode relevant emphasis, not decorate every card.
+The token values in `styles.css` are the source of truth. Their roles are ink for text, canvas for the background, pine for interactive elements, mist for soft surfaces, warm yellow for sparse meaningful emphasis, and quiet text for secondary information. White raised surfaces are allowed. Test contrast in both appearances, because dark mode is its own palette, not an inversion.
 
 Typography:
 - Use the native system stack: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif. On iOS this follows the system face without loading remote font assets.
@@ -106,25 +97,26 @@ Spacing and shape:
 - Fictional demo data must remain visibly separate from personal data in every chart, metric, and summary.
 
 ### Sources and sync
-- Distinguish device-local information from Cloudflare-synced records.
+- Distinguish device-local information from synced records.
 - Explain precisely what Apple permissions are requested and how the Shortcut operates.
-- Make login, connection, device-key creation, revoke, sync freshness, and error recovery easy to find.
-- Do not show a device as linked before the server confirms it. Never show a token again after it has been lost or revoked.
+- Make sign-in, connection, removing a device, sync freshness, and error recovery easy to find.
+- Do not show a device as linked before the server confirms it. Never show a device key.
 - Do not display an actionable install link until a real, verified iCloud Shortcut link exists.
 
 ### Settings and privacy
 - Present export, restore, clear local data, erase synced data, and device revoke as clearly different actions.
 - Confirm destructive operations with explicit scope and a recoverability note.
+- Keep `whitepaper.html` true when a change alters behavior described there, as AGENTS.md requires.
 - Keep privacy explanations brief, accurate, and accessible from the action that needs them.
 
 ## Copywriting
 
 Write natural product copy for a thoughtful wellness tool.
 
-- Buttons state verbs and outcomes: "Save check-in", "Connect calendar", "Generate device key", "Remove device".
+- Buttons state verbs and outcomes: "Save check-in", "Run Even Sync", "Remove device".
 - Error messages explain what failed, what remains safe, and the next step.
 - Empty states guide action without making someone feel judged.
-- Use specific facts, not broad reassurance. Do not claim that storing health data on Cloudflare is equivalent to on-device storage or end-to-end encryption.
+- Use specific facts, not broad reassurance. Do not claim that synced health data is equivalent to on-device storage or end-to-end encryption.
 - Avoid artificially enthusiastic praise, generic status badges, marketing superlatives, and patterned "label / tagline / adjective" layouts.
 
 ## Motion and feedback
