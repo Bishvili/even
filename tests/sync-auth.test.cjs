@@ -161,6 +161,12 @@ test("the first sign-in welcome is per account and stops once seen",async()=>{
  assert.equal((await call("/api/auth/welcomed",{method:"POST",body:{},context:a})).status,200);
  assert.equal((await call("/api/auth/me",{context:a})).data.welcomeName,null);
 });
+test("the release helper downloads under the name the app runs",async()=>{
+ const{runtime,env}=harness();
+ const response=await runtime.__worker.fetch(new Request("https://even.bishvili.workers.dev/install/Even%20Release.shortcut"),env,{});
+ assert.equal(response.status,200);
+ assert.match(response.headers.get("Content-Disposition"),/filename="Even Release\.shortcut"/);
+});
 test("owner A data cannot be read or erased by owner B",async()=>{
  const{call,ctx}=harness();
  const a=await call("/api/auth/device",{method:"POST",body:{label:"A iPhone"},context:ctx("owner-a@example.com")});

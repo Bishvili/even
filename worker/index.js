@@ -311,11 +311,18 @@ async function syncApi(request,env,path){
  return error("Not found",404);
 }
 async function api(request,env,ctx,path){
- if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:"Even",version:"2.0.0",sync:"email-access"});
+ if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:"Even",version:"2.0.1",sync:"email-access"});
  if(path.startsWith("/api/auth/"))return authApi(request,env,ctx,path);
  return syncApi(request,env,path);
 }
 
+// iOS names an imported Shortcut after its file, and release assets can't contain spaces.
+const RELEASE_HELPER_PATH="/install/Even%20Release.shortcut";
+async function releaseHelper(){
+ const file=await fetch("https://github.com/Bishvili/even/releases/download/shortcut-latest/Even-Release.shortcut");
+ if(!file.ok)return new Response("Shortcut unavailable",{status:502,headers:SECURITY});
+ return new Response(file.body,{headers:{...SECURITY,"Content-Type":"application/octet-stream","Content-Disposition":'attachment; filename="Even Release.shortcut"',"Cache-Control":"no-store"}});
+}
 async function asset(path,env){
  const key=path==="/"?"index.html":path.slice(1);
  if(!Object.prototype.hasOwnProperty.call(MIME,key))return new Response("Not found",{status:404,headers:SECURITY});
@@ -326,7 +333,7 @@ async function asset(path,env){
  return new Response(data,{headers});
 }
 export default {async fetch(request,env,ctx){
- try{const path=new URL(request.url).pathname;if(path.startsWith("/api/"))return await api(request,env,ctx,path);
+ try{const path=new URL(request.url).pathname;if(path===RELEASE_HELPER_PATH&&request.method==="GET")return await releaseHelper();if(path.startsWith("/api/"))return await api(request,env,ctx,path);
  if(request.method!=="GET"&&request.method!=="HEAD")return new Response("Method not allowed",{status:405,headers:SECURITY});
  return await asset(path,env);
  }catch(e){return error("Request could not be processed",500);}
