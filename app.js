@@ -1,6 +1,6 @@
 (function () {
 "use strict";
-var VERSION = "2.3.1";
+var VERSION = "2.3.2";
 var SHORTCUT_PAGE = "https://routinehub.co/shortcut/26978/";
 var STORAGE_KEY = "even:v1";
 var MOOD_NAMES = ["","Rough","Low","Okay","Good","Great"];
@@ -633,6 +633,8 @@ function init(){
  $("install-shortcut").addEventListener("click",function(e){if(!state.token||!shortcutRelease||!this.href){e.preventDefault();toast("Connect your device to open the current Shortcut.");}});
  $("check-shortcut-upload").addEventListener("click",function(){checkShortcutUpload(false);});
  $("device-list").addEventListener("click",function(e){var b=e.target.closest("[data-revoke-device]");if(b)revokeDevice(b.dataset.revokeDevice);});
+ // An installed app can't save downloads, so hand this one to Safari.
+ if(navigator.standalone===true)$("setup-helper").href="x-safari-https://"+location.host+"/install/Even%20Release.shortcut";
  $("welcome-close").addEventListener("click",closeWelcome);$("welcome-improve").addEventListener("click",closeWelcome);
  var navTouch=null;
  document.querySelector(".bottom-nav").addEventListener("touchstart",function(ev){var t=ev.changedTouches[0];navTouch={x:t.clientX,y:t.clientY};},{passive:true});

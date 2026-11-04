@@ -61,6 +61,7 @@ Only an iPhone proves iOS behavior, and each round trip costs the owner time. Be
 - `position: fixed` breaks inside a transformed parent. Keep fixed elements out of anything you transform.
 - `env(safe-area-inset-top)` doesn't clear the Dynamic Island's blur. Leave extra room above the header.
 - Installed apps resume without reloading. Bump the version in `app.js`, `sw.js`, `worker/index.js` and `index.html`, and a new script must be added to all of `index.html`, `sw.js`, `scripts/deploy.sh` and the Worker's type list. `tests/versions.test.cjs` checks this.
+- An installed app shows same-site downloads as a blank page. Open them in Safari with an `x-safari-https://` link.
 - Trace a feature from a fresh install, from an upgraded install with old saved state, signed out, and offline.
 
 **Push notifications**

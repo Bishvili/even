@@ -25,3 +25,6 @@ test("nothing asks a person to paste a device key",()=>{
  assert.doesNotMatch(read("shortcuts/even-sync.cherri"),/prompt\(/);
  assert.doesNotMatch(read("index.html"),/paste/i);
 });
+test("the installed app hands the helper download to Safari",()=>{
+ assert.match(read("app.js"),/navigator\.standalone===true\)\$\("setup-helper"\)\.href="x-safari-https:\/\/"/);
+});
