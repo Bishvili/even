@@ -1,6 +1,6 @@
 (function () {
 "use strict";
-var VERSION = "2.8.0";
+var VERSION = "2.8.1";
 var SHORTCUT_PAGE = "https://routinehub.co/shortcut/26978/";
 var STORAGE_KEY = "even:v1";
 var MOOD_NAMES = ["","Rough","Low","Okay","Good","Great"];
@@ -40,17 +40,22 @@ function navigate(view){if(!["checkin","insights","sources","sync","settings"].i
  if(location.hash!=="#"+view)history.replaceState(null,"","#"+view);
  window.scrollTo(0,0);render();
 }
+function alarmRow(a){
+ var names=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"],row=document.createElement("div"),time=document.createElement("span"),who=document.createElement("div"),title=document.createElement("strong"),when=document.createElement("small"),clock=new Date(2024,0,1);
+ clock.setHours(0,a.timeMin,0,0);
+ row.className="plan-row";time.className="plan-time";time.textContent=formatTime(clock);
+ title.textContent=a.label||"Alarm";
+ when.textContent=a.days.length===7?"Every day":a.days.length?a.days.map(function(d){return names[d];}).join(", "):"One time";
+ who.appendChild(title);who.appendChild(when);row.appendChild(time);row.appendChild(who);
+ return row;
+}
 function renderAlarms(){
- var list=$("alarm-list"),names=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];list.textContent="";
+ var on=state.alarms.filter(function(a){return a.enabled!==false;}),off=state.alarms.filter(function(a){return a.enabled===false;});
  $("alarm-empty").hidden=state.alarms.length>0;
- state.alarms.forEach(function(a){
-  var row=document.createElement("div"),time=document.createElement("span"),who=document.createElement("div"),title=document.createElement("strong"),when=document.createElement("small"),clock=new Date(2024,0,1);
-  clock.setHours(0,a.timeMin,0,0);
-  row.className="plan-row";time.className="plan-time";time.textContent=formatTime(clock);
-  title.textContent=a.label||"Alarm";
-  when.textContent=(a.enabled===false?"Off · ":"")+(a.days.length===7?"Every day":a.days.length?a.days.map(function(d){return names[d];}).join(", "):"One time");
-  who.appendChild(title);who.appendChild(when);row.appendChild(time);row.appendChild(who);list.appendChild(row);
- });
+ $("alarm-list").replaceChildren.apply($("alarm-list"),on.map(alarmRow));
+ $("alarm-off-list").replaceChildren.apply($("alarm-off-list"),off.map(alarmRow));
+ $("alarm-off").hidden=!off.length;
+ $("alarm-off-count").textContent=off.length+(off.length===1?" alarm off":" alarms off");
 }
 function refreshCoach(){renderAlarms();if(globalThis.EvenCoach&&globalThis.EvenCoach.render)globalThis.EvenCoach.render({moods:state.moods,events:state.events,health:state.health,reflections:state.reflections,alarms:state.alarms,resets:state.resets,connected:!!state.token,lastUpload:shortcutStatus&&shortcutStatus.lastDataUploadAt,notifyPrefs:globalThis.EvenReminders?globalThis.EvenReminders.preferences():{from:"09:00",to:"21:00",weekends:true},scope:insightScope});}
 function render(){
