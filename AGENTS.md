@@ -24,7 +24,7 @@ The repository owner grants these, using the new developer's own accounts:
 
 1. **GitHub:** add them as a collaborator on `Bishvili/even` with write access.
 2. **Cloudflare:** invite them to the Bishvili account with access to Workers, KV, and D1. Pushes deploy through Workers Builds, so this is not needed just to deploy.
-3. **App sign-in:** add testers in Even → **Sync** → **Developer tools**, which stores them in the `even_approved_emails` D1 table. Accounts in `even_release_emails` can do this. Access verifies who someone is and allows any email, and the Worker decides who is approved using that table and the `APPROVED_SYNC_EMAILS` secret.
+3. **App sign-in:** add testers in Even → **Sync** → **Developer tools**, which stores them in the `even_approved_emails` D1 table. Accounts in `even_release_emails` can do this. Access verifies who someone is and allows any email, and the Worker decides who is approved using that table and the `APPROVED_SYNC_EMAILS` secret. Invitations are sent through Resend from `bishvili.org` with the `RESEND_API_KEY` Worker secret.
 4. **Releases:** add their email to the `even_release_emails` D1 table. Set `display_name` to welcome them on first sign-in with a guide to improving the site.
 5. **RoutineHub:** releases use the `ROUTINEHUB_API_KEY` repository secret, so they can publish through the workflow without their own key. Only share the listing's RoutineHub account deliberately.
 

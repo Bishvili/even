@@ -94,6 +94,19 @@ function readEvent(x){
  const category=CATS.includes(x.category)?x.category:classifyCalendarTitle(title);
  return {start:start.toISOString(),end:end.toISOString(),title,category,calendar:String(x.calendar||"").trim().slice(0,100)||null};
 }
+async function sendInvite(env,to){
+ if(!env.RESEND_API_KEY)return false;
+ const url="https://even.bishvili.workers.dev/";
+ const steps=["Open the link in Safari on your iPhone, tap Share, then Add to Home Screen.","Open Even, go to Sync, and sign in with this email. We'll send you a one-time code.","Tap Get Shortcut, then Run Even Sync, to bring in your Health and calendar data."];
+ try{
+  const sent=await fetch("https://api.resend.com/emails",{method:"POST",headers:{"Authorization":"Bearer "+env.RESEND_API_KEY,"Content-Type":"application/json"},body:JSON.stringify({
+   from:"Even <hello@bishvili.org>",to:[to],subject:"You're invited to try Even",
+   text:"You've been invited to try Even, a private way to understand your harder days.\n\n"+url+"\n\n"+steps.map((s,i)=>(i+1)+". "+s).join("\n"),
+   html:'<p>You\'ve been invited to try Even, a private way to understand your harder days.</p><p><a href="'+url+'">Open Even</a></p><ol>'+steps.map(s=>"<li>"+s+"</li>").join("")+"</ol>"
+  })});
+  return sent.ok;
+ }catch(e){return false;}
+}
 async function authApi(request,env,ctx,path){
  const email=await authIdentity(request,env,ctx);
  if(!email&&path==="/api/auth/start"&&request.method==="GET")return new Response(null,{status:303,headers:{...SECURITY,"Cache-Control":"no-store","Location":new URL(request.url).origin+"/?auth=denied#sync"}});
@@ -130,7 +143,7 @@ async function authApi(request,env,ctx,path){
   if(tester.length>254||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(tester))return error("Enter a valid email address.");
   if(path==="/api/auth/testers"){
    await env.DB.prepare("INSERT OR IGNORE INTO even_approved_emails(email,added_by,created_at) VALUES(?,?,?)").bind(tester,email,new Date().toISOString()).run();
-   return reply({ok:true});
+   return reply({ok:true,emailed:await sendInvite(env,tester)});
   }
   if(path==="/api/auth/testers/remove"){
    await env.DB.prepare("DELETE FROM even_approved_emails WHERE email=?").bind(tester).run();
@@ -433,7 +446,7 @@ async function syncApi(request,env,path){
  return error("Not found",404);
 }
 async function api(request,env,ctx,path){
- if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:"Even",version:"2.5.0",sync:"email-access"});
+ if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:"Even",version:"2.5.1",sync:"email-access"});
  if(path.startsWith("/api/auth/"))return authApi(request,env,ctx,path);
  return syncApi(request,env,path);
 }

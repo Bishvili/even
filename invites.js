@@ -29,8 +29,9 @@
   button.disabled=true;
   try{
    var r=await send("/api/auth/testers",email);
-   if(!r.ok)throw Error((await r.json()).error||"Couldn’t add that email.");
-   input.value="";app.toast(email+" can now sign in.");await load();
+   var result=await r.json();
+   if(!r.ok)throw Error(result.error||"Couldn’t add that email.");
+   input.value="";app.toast(result.emailed?"Invitation sent to "+email+".":email+" can sign in, but the email didn’t send. Share the link instead.");await load();
   }catch(e){app.toast(e.message);}
   button.disabled=false;
  }

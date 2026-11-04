@@ -262,7 +262,7 @@ test("each night's bedtime is its earliest sleep, ignoring naps and bad values",
  assert.equal(runtime.readBedtimes("").length,0);
 });
 test("release accounts manage testers, and removal ends a tester's access",async()=>{
- const{call,ctx}=harness();
+ const{call,ctx,env,dispatches}=harness();
  const a=ctx("owner-a@example.com"),b=ctx("owner-b@example.com"),tester=ctx("new@example.com");
  assert.equal((await call("/api/auth/me",{context:tester})).status,401);
  const denied=await call("/api/auth/start",{context:tester});
@@ -272,7 +272,11 @@ test("release accounts manage testers, and removal ends a tester's access",async
  assert.equal((await call("/api/auth/testers",{method:"POST",body:{email:"new@example.com"}})).status,401);
  assert.equal((await call("/api/auth/testers",{method:"POST",body:{email:"nope"},context:a})).status,400);
  assert.equal((await call("/api/auth/testers",{method:"POST",body:{email:"New@Example.com"},headers:{Origin:"https://evil.example"},context:a})).status,403);
- assert.equal((await call("/api/auth/testers",{method:"POST",body:{email:"New@Example.com"},context:a})).status,200);
+ assert.equal((await call("/api/auth/testers",{method:"POST",body:{email:"New@Example.com"},context:a})).data.emailed,false);
+ env.RESEND_API_KEY="server-only";
+ assert.equal((await call("/api/auth/testers",{method:"POST",body:{email:"New@Example.com"},context:a})).data.emailed,true);
+ assert.equal(dispatches.at(-1).url,"https://api.resend.com/emails");
+ assert.deepEqual(JSON.parse(dispatches.at(-1).init.body).to,["new@example.com"]);
  assert.deepEqual((await call("/api/auth/testers",{context:a})).data.testers,["new@example.com"]);
  assert.equal((await call("/api/auth/me",{context:tester})).status,200);
  const device=await call("/api/auth/device",{method:"POST",body:{label:"T"},context:tester});
