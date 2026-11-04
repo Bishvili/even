@@ -1,6 +1,6 @@
 // Pull down to refresh, or keep pulling to run Even Sync.
 (function(){
- var app=globalThis.EvenApp,REFRESH_AT=80,RUN_AT=300,MAX_SHIFT=150,RING=75.4;
+ var app=globalThis.EvenApp,REFRESH_AT=70,RUN_AT=170,MAX_SHIFT=150,RING=75.4;
  var indicator=document.getElementById("pull-indicator"),label=document.getElementById("pull-label"),ring=document.getElementById("pull-ring");
  var page=[document.querySelector(".topbar"),document.getElementById("main")];
  var startX=0,startY=0,distance=0,tracking=false,pulling=false;

@@ -69,6 +69,9 @@ test("the release helper holds no credentials and publishes through the app",()=
  assert.match(helper,/releases\/download\/shortcut-latest\/Even-Sync\.shortcut/);
  assert.match(helper,/\/api\/shortcut\/publish/);
  assert.doesNotMatch(helper,/api\.github\.com/);
+ assert.doesNotMatch(helper,/searchShortcuts/);
+ assert.match(helper,/getShortcuts\(\)/);
+ assert.match(helper,/\/api\/shortcut\/release-state/);
  assert.doesNotMatch(helper,/github_pat_[A-Za-z0-9]{10}|ghp_[A-Za-z0-9]{10}/);
 });
 

@@ -211,15 +211,38 @@ async function sendReminders(env,now=new Date()){
   if(sent.ok)await env.DB.prepare("UPDATE even_push_subscriptions SET last_sent_day=?,last_sent_target=? WHERE endpoint=?").bind(local.day,target,sub.endpoint).run();
  }
 }
+const BUILDS="https://github.com/Bishvili/even/releases/download/shortcut-latest/";
+async function latestBuildVersion(){
+ const file=await fetch(BUILDS+"Even-Sync-version.txt");
+ if(!file.ok)return null;
+ const version=(await file.text()).trim();
+ return /^\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(version)?version:null;
+}
+// Published versions can't be edited, so a link only passes if it names Even Sync.
+async function linkIsEvenSync(link){
+ try{
+  const record=await fetch("https://www.icloud.com/shortcuts/api/records/"+link.split("/").pop());
+  return record.ok&&(await record.json())?.fields?.name?.value==="Even Sync";
+ }catch(e){return false;}
+}
 async function syncApi(request,env,path){
  const dev=await validDevice(request,env);
  if(!dev)return error("A valid non-revoked device key is required",401);
  const owner=dev.owner;
+ if(path==="/api/shortcut/release-state"&&request.method==="GET"){
+  if(!await canRelease(env,owner))return error("This account can't publish releases",403);
+  const latest=await latestBuildVersion();
+  if(!latest)return error("The latest build couldn't be checked",502);
+  const device=await env.DB.prepare("SELECT shortcut_version FROM even_devices WHERE device_id=? AND owner_email=?").bind(dev.id,owner).first();
+  const published=(await loadShortcutRelease(env))?.version||null,installed=device?.shortcut_version||null;
+  return reply({ok:true,state:installed!==latest?"install":published!==latest?"publish":"current",latest,installed,published});
+ }
  if(path==="/api/shortcut/publish"&&request.method==="POST"){
   if(!await canRelease(env,owner))return error("This account can't publish releases",403);
   let input;try{input=await payload(request);}catch(e){return error("Invalid release request");}
   const link=String(input?.link||"").trim();
   if(!ICLOUD_SHORTCUT.test(link))return error("A valid Shortcut link is required");
+  if(!await linkIsEvenSync(link))return error("That link isn't Even Sync, so nothing was published.");
   const started=await fetch("https://api.github.com/repos/Bishvili/even/actions/workflows/routinehub-publish.yml/dispatches",{method:"POST",headers:{"Authorization":"Bearer "+env.GITHUB_API_KEY,"Accept":"application/vnd.github+json","Content-Type":"application/json","User-Agent":"even","X-GitHub-Api-Version":"2022-11-28"},body:JSON.stringify({ref:"main",inputs:{icloud_link:link}})});
   return started.status===204?reply({ok:true}):error("Publishing couldn't start",502);
  }
@@ -349,7 +372,7 @@ async function syncApi(request,env,path){
  return error("Not found",404);
 }
 async function api(request,env,ctx,path){
- if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:"Even",version:"2.2.0",sync:"email-access"});
+ if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:"Even",version:"2.2.1",sync:"email-access"});
  if(path.startsWith("/api/auth/"))return authApi(request,env,ctx,path);
  return syncApi(request,env,path);
 }
@@ -357,7 +380,7 @@ async function api(request,env,ctx,path){
 // iOS names an imported Shortcut after its file, and release assets can't contain spaces.
 const RELEASE_HELPER_PATH="/install/Even%20Release.shortcut";
 async function releaseHelper(){
- const file=await fetch("https://github.com/Bishvili/even/releases/download/shortcut-latest/Even-Release.shortcut");
+ const file=await fetch(BUILDS+"Even-Release.shortcut");
  if(!file.ok)return new Response("Shortcut unavailable",{status:502,headers:SECURITY});
  return new Response(file.body,{headers:{...SECURITY,"Content-Type":"application/octet-stream","Content-Disposition":'attachment; filename="Even Release.shortcut"',"Cache-Control":"no-store"}});
 }

@@ -13,7 +13,11 @@ function harness({verified=false}={}){
  const loaded=source.replace("export default {","globalThis.sendReminders = sendReminders;globalThis.__worker = {");
  assert.notEqual(source,loaded,"Worker ESM export not found");
  const dispatches=[];
- const runtime={crypto:webcrypto,TextEncoder,Response,URL,atob,btoa,Intl,Uint8Array,console,async fetch(url,init){dispatches.push({url,init});return new Response(null,{status:204});}};
+ const runtime={crypto:webcrypto,TextEncoder,Response,URL,atob,btoa,Intl,Uint8Array,console,async fetch(url,init){
+  if(String(url).includes("/shortcuts/api/records/"))return new Response(JSON.stringify({fields:{name:{value:String(url).endsWith("00000000000000000000000000000000")?"Other Shortcut":"Even Sync"}}}));
+  if(String(url).endsWith("Even-Sync-version.txt"))return new Response("2.5.0\n");
+  if(String(url).endsWith(".shortcut"))return new Response("file");
+  dispatches.push({url,init});return new Response(null,{status:204});}};
  vm.runInNewContext(loaded,runtime,{timeout:2500,filename:"worker/index.js"});
  const allowed=["owner-a@example.com","owner-b@example.com"];
  const rows={subs:new Map(),calendars:new Map(),users:new Map(),devices:new Map(),health:new Map(),events:new Map()};
@@ -22,6 +26,7 @@ function harness({verified=false}={}){
   prepare(sql){return{bind(...args){return {
    async first(){
     if(sql.includes("SELECT display_name"))return args[0]==="owner-a@example.com"&&!rows.welcomed?{display_name:"Ada"}:null;
+    if(sql.startsWith("SELECT shortcut_version FROM even_devices")){const d=[...rows.devices.values()].find(x=>x.device_id===args[0]);return d||null;}
     if(sql.includes("FROM even_release_emails"))return args[0]==="owner-a@example.com"?{allowed:1}:null;
     if(sql.includes("SELECT device_id,owner_email,revoked_at"))return rows.devices.get(args[0])||null;
     if(sql.includes("SELECT last_used_at,last_attempt_at,last_error_code,shortcut_version")){const d=[...rows.devices.values()].find(d=>d.device_id===args[0]&&d.owner_email===args[1]&&!d.revoked_at);return d||null;}
@@ -206,6 +211,23 @@ test("several reminder times each send once, and a check-in quiets smart reminde
  checkedIn.last_check_in_at="2026-11-04T20:00:00Z";checkedIn.last_sent_day=null;
  await send("2026-11-04T23:35:00Z");
  assert.equal(dispatches.length,3);
+});
+test("the helper's release state compares installed, latest and published, and wrong links are refused",async()=>{
+ const{call,ctx,rows,dispatches}=harness();
+ const a=await call("/api/auth/device",{method:"POST",body:{label:"A"},context:ctx("owner-a@example.com")});
+ const b=await call("/api/auth/device",{method:"POST",body:{label:"B"},context:ctx("owner-b@example.com")});
+ const A={Authorization:"Bearer "+a.data.token};
+ assert.equal((await call("/api/shortcut/release-state")).status,401);
+ assert.equal((await call("/api/shortcut/release-state",{headers:{Authorization:"Bearer "+b.data.token}})).status,403);
+ const device=[...rows.devices.values()].find(d=>d.owner_email==="owner-a@example.com");
+ assert.equal((await call("/api/shortcut/release-state",{headers:A})).data.state,"install");
+ device.shortcut_version="2.5.0";
+ const state=await call("/api/shortcut/release-state",{headers:A});
+ assert.equal(state.data.state,"publish");
+ assert.equal(state.data.latest,"2.5.0");
+ const wrong=await call("/api/shortcut/publish",{method:"POST",body:{link:"https://www.icloud.com/shortcuts/00000000000000000000000000000000"},headers:A});
+ assert.equal(wrong.status,400);
+ assert.equal(dispatches.length,0);
 });
 test("owner A data cannot be read or erased by owner B",async()=>{
  const{call,ctx}=harness();

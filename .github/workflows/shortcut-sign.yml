@@ -111,4 +111,5 @@ jobs:
           gh release view shortcut-latest >/dev/null 2>&1 || gh release create shortcut-latest --title "Latest Shortcut builds" --notes "Signed builds from main." --prerelease
           cp "dist/Even Sync.shortcut" dist/Even-Sync.shortcut
           cp "dist/Even Release.shortcut" dist/Even-Release.shortcut
-          gh release upload shortcut-latest dist/Even-Sync.shortcut dist/Even-Release.shortcut --clobber
+          grep -oE '"shortcutVersion": "[0-9.]+"' shortcuts/even-sync.cherri | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' > dist/Even-Sync-version.txt
+          gh release upload shortcut-latest dist/Even-Sync.shortcut dist/Even-Release.shortcut dist/Even-Sync-version.txt --clobber

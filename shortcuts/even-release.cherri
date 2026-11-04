@@ -14,39 +14,75 @@ action 'is.workflow.actions.file.createfolder' createKeyFolder(&variable locatio
 
 action 'is.workflow.actions.documentpicker.open' readSavedDeviceKey(&variable folder: 'WFFile'): text {"WFGetFilePath":"even-device-key.txt","WFFileErrorIfNotFound":false,"WFShowFilePicker":false}
 
-const tasks = list("Install latest build", "Publish installed build")
-const picked = chooseFromList(tasks, "Even Release")
-const task = getText(picked)
+const keyFolder = createKeyFolder(onMyIPhone)
 
-if task == "Install latest build" {
+// Look up Even Sync by its exact name, so no other Shortcut can be chosen.
+const allShortcuts = getShortcuts()
+@hasSync = 0
+for candidate in allShortcuts {
+    const candidateName = getShortcutDetail(@candidate, "Name")
+    const candidateText = getText(candidateName)
+    if candidateText == "Even Sync" {
+        @hasSync = 1
+    }
+}
+
+@state = "install"
+@credential = ""
+@latest = ""
+if @hasSync == 1 {
+    // Running it reports the installed version and shows its result before anything goes public.
+    const runRequest = text("release check")
+    run("Even Sync", runRequest)
+
+    const savedKeyFile = readSavedDeviceKey(keyFolder)
+    @credential = getText(savedKeyFile)
+    const stateRaw = downloadURL("https://even.bishvili.workers.dev/api/shortcut/release-state", {"Authorization": "{@credential}"})
+    const stateInfo = getDictionary(stateRaw)
+    const stateValue = getValue(stateInfo, "state")
+    @state = getText(stateValue)
+    const latestValue = getValue(stateInfo, "latest")
+    @latest = getText(latestValue)
+}
+
+if @state == "install" {
+    showNotification("Tap Replace, then run this helper again.", "Even Release")
     const build = downloadURL("https://github.com/Bishvili/even/releases/download/shortcut-latest/Even-Sync.shortcut")
     const namedBuild = setName(build, "Even Sync.shortcut")
     openFile(namedBuild)
     stop()
 }
 
-// Run the installed build so its result can be checked before it goes public.
-const runRequest = text("release check")
-run("Even Sync", runRequest)
+if @state == "current" {
+    alert("The latest version is installed and published.", "Even Release")
+    stop()
+}
+
+if @state != "publish" {
+    alert("Open Even, go to Sync, and tap Run Even Sync, then try again.", "Couldn't check the version")
+    stop()
+}
+
 const confirmOptions = list("Publish", "Cancel")
-const confirmed = chooseFromList(confirmOptions, "Did Even Sync work?")
+const confirmed = chooseFromList(confirmOptions, "Did Even Sync work? This publishes version {@latest}.")
 const decision = getText(confirmed)
 if decision != "Publish" {
     stop()
 }
 
-const matches = searchShortcuts("Even Sync")
-const syncShortcut = getFirstItem(matches)
-const linkResult = createShortcutLink(syncShortcut)
-const shareLink = getText(linkResult)
-
-const keyFolder = createKeyFolder(onMyIPhone)
-const savedKeyFile = readSavedDeviceKey(keyFolder)
-const credential = getText(savedKeyFile)
+@shareLink = ""
+for linkCandidate in allShortcuts {
+    const linkName = getShortcutDetail(@linkCandidate, "Name")
+    const linkText = getText(linkName)
+    if linkText == "Even Sync" {
+        const linkResult = createShortcutLink(@linkCandidate)
+        @shareLink = getText(linkResult)
+    }
+}
 
 const publishRaw = jsonRequest("https://even.bishvili.workers.dev/api/shortcut/publish", "POST", {
-    "link": "{shareLink}"
-}, {"Authorization": "{credential}"})
+    "link": "{@shareLink}"
+}, {"Authorization": "{@credential}"})
 const publish = getDictionary(publishRaw)
 const errorValue = getValue(publish, "error")
 const errorText = getText(errorValue)
@@ -55,4 +91,4 @@ if errorLength >= 1 {
     alert("{errorText}", "Publishing didn't start")
     stop()
 }
-showNotification("Publishing started.", "Even Release")
+showNotification("Publishing version {@latest}.", "Even Release")

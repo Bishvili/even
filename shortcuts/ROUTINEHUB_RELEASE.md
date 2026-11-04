@@ -11,9 +11,10 @@ Even Sync is listed at [#26978](https://routinehub.co/shortcut/26978/). A new ve
 
 ## Publish a version
 
-1. Update the version in `shortcuts/even-sync.cherri` and push to `main`. **Build signed Even Sync** posts the signed files to the `shortcut-latest` release.
-2. Tap **Run Release Helper**, choose **Install latest build**, and approve the replacement.
-3. Run it again and choose **Publish installed build**. It runs Sync, asks whether it worked, creates the iCloud link, and sends it with the device key to the Worker, which starts **Publish Even Sync to RoutineHub**.
+1. Update the version in `shortcuts/even-sync.cherri` and push to `main`. **Build signed Even Sync** posts the signed files and the build's version to the `shortcut-latest` release.
+2. Tap **Run Release Helper**. It runs Even Sync and asks the Worker to compare the installed, latest and published versions.
+3. If the installed version is older, it downloads the latest. Tap **Replace** and run the helper again.
+4. If the latest isn't published, confirm that Sync worked. The helper finds Even Sync by exact name, creates the iCloud link, and sends it to the Worker with the device key. The Worker checks that the link is named Even Sync, then starts **Publish Even Sync to RoutineHub**.
 
 The workflow reads the version from the source, rejects a configured bearer token, confirms RoutineHub's response, and commits `shortcuts/release.json`. The next deploy then publishes that release to the app and Shortcut.
 

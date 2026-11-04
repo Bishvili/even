@@ -37,7 +37,7 @@ The repository owner grants these, using the new developer's own accounts:
 5. **To work on the Shortcuts:** nobody ever copies a key. Signing in on Even → **Sync** connects the iPhone automatically, and running Even Sync from the app passes the key to the Shortcut, which saves it in On My iPhone for later runs and automations.
    - **Even Sync** is the Shortcut everyone installs. Its version is in `shortcuts/even-sync.cherri` and must change for each release.
    - **Even Release** is the developer helper, in `shortcuts/even-release.cherri`. It holds no credentials. Install it with **Set Up Release Helper**; it is served as `/install/Even%20Release.shortcut` because iOS names a Shortcut after its file and release assets can't contain spaces.
-   - **To release:** push to `main` and wait for **Build signed Even Sync**, which signs through a service that sometimes times out, so rerun it. Then use **Run Release Helper** → **Install latest build** → **Replace**, run Even Sync, compare the data with Apple Health, and choose **Publish installed build**. Only an iPhone can create the iCloud link, so a person does this last step.
+   - **To release:** push to `main` and wait for **Build signed Even Sync**, which signs through a service that sometimes times out, so rerun it. Tap **Run Release Helper**. It runs Even Sync and asks the Worker for the state: an older installed version downloads the latest (tap **Replace** and run it again), an unpublished version asks for confirmation and publishes, and otherwise it reports that everything is current. The Worker refuses any link not named Even Sync. Only an iPhone can create the iCloud link.
    - The card appears for accounts listed in `even_release_emails`, and **Improve This Site with Claude** opens a new session on this repository that starts with this onboarding. See [RoutineHub releases](shortcuts/ROUTINEHUB_RELEASE.md).
 6. **To test Sync:** sign in on Even → **Sync** with their own account. Device keys belong to one account, so never reuse someone else's.
 
@@ -69,6 +69,7 @@ Only an iPhone proves iOS behavior, and each round trip costs the owner time. Be
 
 **Shortcuts**
 - Find Health Samples ends the run when a type has no samples, and Shortcuts can't catch errors. Check `recentTypes` first and never query a type it doesn't list.
+- Look up Shortcuts by exact name with Get My Shortcuts. Search results passed to Create iCloud Link can make iOS show a menu of every Shortcut.
 - A Shortcut must never wait for an answer on a normal run, because automations can't respond. Use notifications, and stop with a clear alert only when it can't continue.
 - A result limit applies before grouping, so read grouped values from the first group.
 - Health data can't be read while the iPhone is locked.
