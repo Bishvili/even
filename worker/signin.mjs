@@ -22,7 +22,8 @@ export function createAuth(env,{isApproved,deliverCode}){
   socialProviders:google,
   // The Worker's rate limit bindings cover sign-in, and an isolate's memory wouldn't.
   rateLimit:{enabled:false},
-  advanced:{cookiePrefix:"even",ipAddress:{disableIpTracking:true}},
+  // The schema is managed by db/migrations and checked by tests, so the library needn't read it on every request.
+  advanced:{cookiePrefix:"even",ipAddress:{disableIpTracking:true},database:{validateSchema:false}},
   plugins:[emailOTP({otpLength:6,expiresIn:600,allowedAttempts:5,storeOTP:"hashed",
    sendVerificationOTP:async({email,otp})=>deliverCode(email,otp)})],
   databaseHooks:{
