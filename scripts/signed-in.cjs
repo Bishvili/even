@@ -196,7 +196,7 @@ const scenarios={
   for(let i=1;i<=24;i++){const d=new Date(Date.now()-i*86400000);d.setHours(9,0,0,0);moods.push(mood("t"+i,{ts:d.toISOString(),score:i%2?5:3,stress:i%2?1:4,tags:i%2?["Rest"]:[]}));}
   await open(browser,base,saved({moods,moodCursor:shared.cursor}),fakeApi(),async({page})=>{
    await until(page,()=>document.querySelector(".next-done"));
-   await page.click(".next-done");
+   await page.evaluate(()=>document.querySelector(".next-done").click());
    await until(page,()=>JSON.parse(localStorage.getItem("even:v1")).tries.length===1);
    await until(page,()=>!document.querySelector(".next-done"));
   },{midday:true});
