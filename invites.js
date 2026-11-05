@@ -1,4 +1,4 @@
-// Sharing Even and managing who can sign in. Shown to developer accounts.
+// Sharing the app and managing who can sign in. Shown to developer accounts.
 (function(){
  var app=globalThis.EvenApp,SHARE_URL=location.origin+"/";
  function $(id){return document.getElementById(id);}
@@ -74,7 +74,7 @@
   button.disabled=false;
  }
  async function share(){
-  var details={title:"Even",text:"Try Even, a private way to understand your harder days.",url:SHARE_URL};
+  var details={title:"{{name}}",text:"Try {{name}}, {{pitch}}.",url:SHARE_URL};
   try{
    if(navigator.share){await navigator.share(details);return;}
    await navigator.clipboard.writeText(SHARE_URL);app.toast("Link copied.");

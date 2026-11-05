@@ -1,4 +1,4 @@
-// First-run setup: full-screen steps before the app (Home Screen, sign in, Even Sync), then a card on Check in for what remains.
+// First-run setup: full-screen steps before the app (Home Screen, sign in, the Shortcut), then a card on Check in for what remains.
 // Skipped steps and progress stay on this device.
 (function(root){
  "use strict";
@@ -13,7 +13,7 @@
   if(c.notify!=="unavailable")list.push("notifications");
   return list;
  }
- // The full-screen step that stands before the app, if any. Only Even Sync can be put off, because the app still works without it.
+ // The full-screen step that stands before the app, if any. Only the Shortcut can be put off, because the app still works without it.
  // Offline never locks anyone out of what's already on the device.
  function gateStep(c){
   // Sign-in lives at the current address, so a copy left at the earlier one only shows how to move.
@@ -63,20 +63,20 @@
  if(typeof document==="undefined"||!root.EvenApp)return;
 
  var COPY={
-  "install:share":{title:"Add Even to your Home Screen",text:"In Safari, tap Share (or ••• and then Share), then Add to Home Screen."},
-  "install:prompt":{title:"Install Even",text:"Open Even in its own window, with notifications for check-ins.",action:"Install"},
-  "install:safari":{title:"Open Even in Safari",text:"To add Even to your Home Screen, open this page in Safari.",safari:true},
+  "install:share":{title:"Add {{name}} to your Home Screen",text:"In Safari, tap Share (or ••• and then Share), then Add to Home Screen."},
+  "install:prompt":{title:"Install {{name}}",text:"Open {{name}} in its own window, with notifications for check-ins.",action:"Install"},
+  "install:safari":{title:"Open {{name}} in Safari",text:"To add {{name}} to your Home Screen, open this page in Safari.",safari:true},
   "signin:other":{title:"This {device} has another account’s records",text:"Back them up and erase them to use this account, or sign out and use the account they belong to.",action:"Sign out"},
   "signin:signin":{title:"Sign in",text:"Use your invited email for a one-time code, or use Google.",action:"Sign in",privacy:true},
   "signin:pending":{title:"Finishing sign-in…",text:"One moment.",busy:true},
   "signin:connecting":{title:"Connecting this {device}…",text:"",busy:true},
-  "signin:connect":{title:"Connect this {device}",text:"Connecting lets Even Sync send your Health and calendar data to your account.",otherText:"Connecting brings in what Even Sync sends from your iPhone.",action:"Connect this {device}"},
-  "shortcut:get":{title:"Add Even Sync",text:"This Shortcut brings in your sleep, activity, calendar and alarms. Add it, then come back here.",link:true,alt:"run"},
-  "shortcut:run":{title:"Run Even Sync",text:"Run it once from here, and allow access to Health and Calendar when asked.",action:"Run Even Sync",alt:"get"},
-  "shortcut:again":{title:"Run Even Sync again",text:"It connected, but nothing arrived. Run it again, and allow access to Health and Calendar when asked.",action:"Run Even Sync",alt:"get"},
+  "signin:connect":{title:"Connect this {device}",text:"Connecting lets {{sync}} send your Health and calendar data to your account.",otherText:"Connecting brings in what {{sync}} sends from your iPhone.",action:"Connect this {device}"},
+  "shortcut:get":{title:"Add {{sync}}",text:"This Shortcut brings in your sleep, activity, calendar and alarms. Add it, then come back here.",link:true,alt:"run"},
+  "shortcut:run":{title:"Run {{sync}}",text:"Run it once from here, and allow access to Health and Calendar when asked.",action:"Run {{sync}}",alt:"get"},
+  "shortcut:again":{title:"Run {{sync}} again",text:"It connected, but nothing arrived. Run it again, and allow access to Health and Calendar when asked.",action:"Run {{sync}}",alt:"get"},
   "notifications:start":{title:"Fit notifications to your day",text:"Five quick questions, then you choose whether to turn them on.",action:"Start"}
  };
- var OFFLINE={signin:"Connect to the internet to sign in.",connect:"Connect to the internet to connect this device.",get:"Connect to the internet to get Even Sync.",run:"Connect to the internet to run Even Sync.",again:"Connect to the internet to run Even Sync."};
+ var OFFLINE={signin:"Connect to the internet to sign in.",connect:"Connect to the internet to connect this device.",get:"Connect to the internet to get {{sync}}.",run:"Connect to the internet to run {{sync}}.",again:"Connect to the internet to run {{sync}}."};
  var app=root.EvenApp,installEvent=null,progress=readProgress(),current=null,replay=null;
  function $(id){return document.getElementById(id);}
  function readProgress(){
@@ -124,9 +124,9 @@
   $("gate-privacy").hidden=!copy.privacy;
   var url=copy.link?s.shortcutUrl:copy.safari?"x-safari-"+location.href:"";
   $("gate-link").hidden=!url;
-  $("gate-link-text").textContent=copy.safari?"Open in Safari":"Get Even Sync";
+  $("gate-link-text").textContent=copy.safari?"Open in Safari":"Get {{sync}}";
   if(url)$("gate-link").href=url;else $("gate-link").removeAttribute("href");
-  var label=copy.action?named(copy.action):copy.link&&!url?"Get Even Sync":"";
+  var label=copy.action?named(copy.action):copy.link&&!url?"Get {{sync}}":"";
   $("gate-action").hidden=!label;$("gate-action").textContent=label;
   $("gate-skip").hidden=step.id!=="shortcut";
   var altRun=copy.alt==="run",altGet=copy.alt==="get"&&!!s.shortcutUrl;
@@ -156,7 +156,7 @@
   $("setup-link").hidden=!url;
   if(url)$("setup-link").href=url;else $("setup-link").removeAttribute("href");
   // Without a link to open, the same label says why when tapped.
-  var label=finished?"":copy.action?named(copy.action):copy.link&&!url?"Get Even Sync":"";
+  var label=finished?"":copy.action?named(copy.action):copy.link&&!url?"Get {{sync}}":"";
   $("setup-action").hidden=!label;$("setup-action").textContent=label;
   $("setup-skip").hidden=!!copy.busy&&!current.replay;
   $("setup-skip").textContent=current.replay?(current.last?"Done":"Next"):"Not now";

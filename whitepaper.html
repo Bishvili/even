@@ -3,14 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>How Even Works</title>
-<meta name="description" content="How Even turns mood check-ins, sleep, calendar and alarms into timely prompts, and where its evidence stops.">
+<title>How {{name}} Works</title>
+<meta name="description" content="How {{name}} turns mood check-ins, sleep, calendar and alarms into timely prompts, and where its evidence stops.">
 <link rel="stylesheet" href="/whitepaper.css">
 </head>
 <body>
 <main>
 <header>
-<h1>How Even Works</h1>
+<h1>How {{name}} Works</h1>
 </header>
 <p class="lede">A guide for clinicians to what the app collects, how it reaches its suggestions, and where its evidence stops.</p>
 
@@ -29,7 +29,7 @@
 
 <h2>The clinical idea</h2>
 <p>Two established ideas shape the app. <strong>Ecological momentary assessment</strong> records how someone feels in daily life, close to the moment, which reduces recall bias compared with asking at a later visit [1]. <strong>Just-in-time adaptive interventions</strong> try to offer support at the moment a person is likely to need it and able to use it, based on information that changes over time [2].</p>
-<p>Even applies both at the scale of one person. It does not compare anyone with a population or a norm. Each suggestion comes from that person’s own earlier entries.</p>
+<p>{{name}} applies both at the scale of one person. It does not compare anyone with a population or a norm. Each suggestion comes from that person’s own earlier entries.</p>
 
 <figure>
  <div class="scroll"><svg viewBox="0 0 720 300" role="img" aria-label="A four-step cycle: record, compare, anticipate, act, then back to record.">
@@ -68,9 +68,9 @@
   <rect class="band" x="10" y="10" width="480" height="320" rx="14"/><text class="small" x="26" y="34">The person’s iPhone</text>
   <rect class="band" x="530" y="10" width="180" height="320" rx="14"/><text class="small" x="546" y="34">Private account</text>
   <rect class="box" x="30" y="50" width="130" height="86" rx="10"/><text class="strong" x="44" y="76">Apple apps</text><text class="small" x="44" y="98">Health, Calendar,</text><text class="small" x="44" y="116">Clock</text>
-  <rect class="box" x="210" y="50" width="130" height="86" rx="10"/><text class="strong" x="224" y="76">Even Sync</text><text class="small" x="224" y="98">Runs when the</text><text class="small" x="224" y="116">person allows it</text>
+  <rect class="box" x="210" y="50" width="130" height="86" rx="10"/><text class="strong" x="224" y="76">{{sync}}</text><text class="small" x="224" y="98">Runs when the</text><text class="small" x="224" y="116">person allows it</text>
   <rect class="soft" x="550" y="50" width="140" height="86" rx="10"/><text class="strong" x="564" y="76">Synced records</text><text class="small" x="564" y="98">Tied to one</text><text class="small" x="564" y="116">verified owner</text>
-  <rect class="sun" x="210" y="200" width="250" height="110" rx="10"/><text class="strong ontext" x="226" y="228">Even app</text><text class="small ontext" x="226" y="250">Mood, stress and notes start here.</text><text class="small ontext" x="226" y="268">All comparisons and wording</text><text class="small ontext" x="226" y="286">are worked out here.</text>
+  <rect class="sun" x="210" y="200" width="250" height="110" rx="10"/><text class="strong ontext" x="226" y="228">{{name}} app</text><text class="small ontext" x="226" y="250">Mood, stress and notes start here.</text><text class="small ontext" x="226" y="268">All comparisons and wording</text><text class="small ontext" x="226" y="286">are worked out here.</text>
   <rect class="soft" x="550" y="200" width="140" height="110" rx="10"/><text class="strong" x="564" y="228">Notification</text><text class="strong" x="564" y="248">schedule</text><text class="small" x="564" y="270">Times and purpose, plus</text><text class="small" x="564" y="288">last check-in time</text>
   <path class="wire" marker-end="url(#a2)" d="M160 93H208"/><path class="wire" marker-end="url(#a2)" d="M340 93H548"/>
   <path class="wire" marker-end="url(#a2)" d="M620 136V168H400V198"/><text class="small" x="440" y="162">synced records come back</text>
@@ -81,7 +81,7 @@
 </figure>
 
 <h2>How a pattern is found</h2>
-<p>Even uses simple comparisons of averages. There is no machine-learning model, and no statistical test is applied. The rules are short enough to list:</p>
+<p>{{name}} uses simple comparisons of averages. There is no machine-learning model, and no statistical test is applied. The rules are short enough to list:</p>
 <div class="table"><table>
  <thead><tr><th>Question</th><th>Rule</th></tr></thead>
  <tbody>
@@ -104,7 +104,7 @@
   <tr><td>Around calendar events</td><td>A check-in that would land during a timed event moves to 5 minutes after it ends and stays at least 45 minutes from other notifications. If it no longer fits the day, it’s left out. The wind-down plans for tomorrow’s first timed morning event as if an alarm rang an hour before it. All-day events are ignored.</td><td>The plan in Settings shows the same times</td></tr>
   <tr><td>Before a harder moment</td><td>About 20 to 30 minutes ahead of an anticipated moment. At most 2 a day, 2 hours apart.</td><td>Opens the breathing exercise</td></tr>
   <tr><td>Wind-down</td><td>20 minutes before usual bedtime, or earlier when tomorrow’s alarm calls for it</td><td>Opens a check-in</td></tr>
-  <tr><td>Sync reminder</td><td>A chosen time, only if nothing has synced in 20 hours</td><td>Offers to run Even Sync</td></tr>
+  <tr><td>Sync reminder</td><td>A chosen time, only if nothing has synced in 20 hours</td><td>Offers to run {{sync}}</td></tr>
  </tbody>
 </table></div>
 
@@ -144,11 +144,11 @@
  <li><strong>A breathing exercise.</strong> Four rounds of four-second inhale, hold, exhale and hold, which is under 4 breaths a minute, and about a minute in all. Reviews link slow breathing with changes in heart rate variability and with relaxation, though studies are small and varied [3]. The app says to breathe normally and stop if it feels uncomfortable.</li>
  <li><strong>A sleep target.</strong> In the evening, the app works back from tomorrow’s alarm using the person’s usual recent sleep, or 8 hours when there’s too little data. That sits within the 7 to 9 hours recommended for most adults [5]. Sleep loss has been shown experimentally to heighten negative responses to mild stressors [4], which is why sleep is a central signal here.</li>
  <li><strong>Something from their own history.</strong> If workouts have tended to go with lower stress and there’s been none today, the app suggests some movement. A check-in with high stress, low mood or low energy in the last 6 hours steers the choice toward what has gone with relief from that. The wording stays at “tended to”, and the counts are one tap away.</li>
- <li><strong>A plain next step.</strong> The first screen lists up to three things to do, such as “take a minute” or “run Even Sync”, each with its reason where there is one. Until setup is finished, it shows one setup step at a time instead: add Even to the Home Screen, sign in, add and run Even Sync, and, after the first check-in, choose notifications. Each step can be put off, and checking in never waits for setup.</li>
+ <li><strong>A plain next step.</strong> The first screen lists up to three things to do, such as “take a minute” or “run {{sync}}”, each with its reason where there is one. Until setup is finished, it shows one setup step at a time instead: add {{name}} to the Home Screen, sign in, add and run {{sync}}, and, after the first check-in, choose notifications. Each step can be put off, and checking in never waits for setup.</li>
 </ul>
 
 <h2>Garmin, Peloton and other apps</h2>
-<p>Even reads Apple Health, so an app that shares with Apple Health needs no separate connection. Apple Health is the recommended route because it adds one consent screen and no new accounts. Direct connections add cost and more companies holding the data.</p>
+<p>{{name}} reads Apple Health, so an app that shares with Apple Health needs no separate connection. Apple Health is the recommended route because it adds one consent screen and no new accounts. Direct connections add cost and more companies holding the data.</p>
 <div class="table"><table>
  <thead><tr><th>App</th><th>Through Apple Health</th><th>Not available this way</th><th>Direct connection</th></tr></thead>
  <tbody>
@@ -157,13 +157,13 @@
   <tr><td>Hume Health</td><td>Hume reads from Apple Health. Its help pages don’t say whether body measurements are written back.</td><td>Possibly body composition</td><td>No public route found</td></tr>
  </tbody>
 </table></div>
-<p class="note">Workouts recorded by another app may not count toward exercise minutes, which is the measure Even reads today. Until that’s confirmed on a phone, the Exercise tag on a check-in is a reliable way to record them. This assessment reflects published information in November 2026, and these services can change.</p>
+<p class="note">Workouts recorded by another app may not count toward exercise minutes, which is the measure {{name}} reads today. Until that’s confirmed on a phone, the Exercise tag on a check-in is a reliable way to record them. This assessment reflects published information in November 2026, and these services can change.</p>
 
 <h2>Safety</h2>
 <ul>
  <li>If a person rates stress 4 or 5, or mood Rough or Low, on at least 3 of the last 4 calendar days, counting today, the app suggests talking to someone and links to support.</li>
  <li>Settings lists crisis contacts, including 911 and the 988 Lifeline, and says plainly that the app can’t respond in a crisis.</li>
- <li><strong>Nobody reviews entries.</strong> There is no clinician view and no escalation. High scores alert no one. Even should not be relied on for monitoring risk.</li>
+ <li><strong>Nobody reviews entries.</strong> There is no clinician view and no escalation. High scores alert no one. {{name}} should not be relied on for monitoring risk.</li>
  <li>The app does not screen for depression, anxiety or any other condition, and does not advise on medication.</li>
 </ul>
 
@@ -178,18 +178,18 @@
   <tr><td>Confounding</td><td>Short sleep, early alarms and busy days often coincide. The comparisons consider one factor at a time.</td></tr>
   <tr><td>Direction of effect</td><td>Exercise may lift mood, or feeling well may make exercise more likely. Daily totals can’t separate the two, or show whether a workout came before or after a check-in.</td></tr>
   <tr><td>Who checks in, and when</td><td>People may record more on bad days, or stop when struggling. Prompted entries may also differ from unprompted ones. Self-monitoring can itself change mood [1].</td></tr>
-  <tr><td>Expectation</td><td>Being told a hard moment is coming could raise anxiety in some people. This has not been measured in Even, and the prompts can be turned off.</td></tr>
+  <tr><td>Expectation</td><td>Being told a hard moment is coming could raise anxiety in some people. This has not been measured in {{name}}, and the prompts can be turned off.</td></tr>
   <tr><td>Missing data</td><td>Sync needs the person’s iPhone, unlocked. Each run fills in up to 7 days of steps, exercise, resting heart rate and heart rate variability, so a longer gap stays empty. Calendar data covers today and the next 7 days, so its history builds up one sync at a time, and old alarms aren’t kept unless a sync recorded them that day.</td></tr>
   <tr><td>Wearable accuracy</td><td>Sleep and heart measures come from consumer devices and vary by device. When two devices record the same night, overlapping time is counted once, but the devices can still disagree. Alarms that were skipped once may still appear.</td></tr>
   <tr><td>Energy ratings</td><td>Energy is only counted when someone sets it. Older check-ins hold 3 for an untouched slider, which can hide a real difference.</td></tr>
   <tr><td>Delivery</td><td>iPhone settings such as Focus can hold back or hide notifications, and the app can’t tell whether one was seen.</td></tr>
-  <tr><td>No outcome data</td><td>Even has not been evaluated for whether it reduces stress or improves wellbeing.</td></tr>
+  <tr><td>No outcome data</td><td>{{name}} has not been evaluated for whether it reduces stress or improves wellbeing.</td></tr>
  </tbody>
 </table></div>
 
 <h2>Privacy</h2>
 <ul>
- <li>Using Even requires an account, so mood, stress and notes are stored on the device and in the account as readable text. Erasing synced data removes them from the account and from the person’s devices. Reflections, breathing sessions, suggestions marked done and which planned check-ins were answered stay on the device. Check-ins saved while offline are lost if the app is deleted before they upload.</li>
+ <li>Using {{name}} requires an account, so mood, stress and notes are stored on the device and in the account as readable text. Erasing synced data removes them from the account and from the person’s devices. Reflections, breathing sessions, suggestions marked done and which planned check-ins were answered stay on the device. Check-ins saved while offline are lost if the app is deleted before they upload.</li>
  <li>Synced records are limited to the verified account that owns them, and each person can erase them or delete their account from the app. Removing a tester deletes their synced data, and devices unused for 90 days disconnect.</li>
  <li>Data travels over encrypted connections. It is not end-to-end encrypted, so the service’s operators could technically access synced records, including calendar titles, alarm names and any synced check-ins and notes.</li>
  <li>A first name can appear in notifications at the start and end of the day and at hard moments, so it can show on the Lock Screen.</li>

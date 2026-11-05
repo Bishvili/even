@@ -21,7 +21,7 @@ test("Even Sync keeps its stable name and has no install question",()=>{
  assert.doesNotMatch(sync,/^#define name.*v\d/m);
  assert.doesNotMatch(sync,/#question|prompt\(/);
  assert.doesNotMatch(sync,/\brun\("/);
- assert.match(html,/id="run-shortcut"[^>]*href="shortcuts:\/\/run-shortcut\?name=Even%20Sync"/);
+ assert.match(html,/id="run-shortcut"[^>]*href="shortcuts:\/\/run-shortcut\?name=\{\{syncUrl\}\}"/);
  assert.doesNotMatch(html,/Bearer [a-f0-9]{64}/i);
 });
 

@@ -1,4 +1,4 @@
-// Pull down to refresh, or keep pulling to run Even Sync.
+// Pull down to refresh, or keep pulling to run the Shortcut.
 (function(){
  var app=globalThis.EvenApp,REFRESH_AT=70,RUN_AT=170,MAX_SHIFT=170,HEADER_GAP=24,LINE_DONE=REFRESH_AT/0.9,SUN_DEPTH=170;
  var indicator=document.getElementById("pull-indicator"),label=document.getElementById("pull-label"),line=document.getElementById("pull-line"),sun=document.getElementById("pull-sun");
@@ -10,7 +10,7 @@
  function shift(value,settling){page.forEach(function(part){part.classList.toggle("pull-settling",settling);part.style.transform=value?"translateY("+value+"px)":"";});}
  function paint(){
   var current=stage(),rise=canRun()?Math.max(0,Math.min((distance-LINE_DONE)/(RUN_AT-LINE_DONE),1)):0;
-  label.textContent=current==="run"?"Release to run Even Sync":current==="refresh"?(canRun()?"Release to refresh. Keep pulling to run Even Sync.":"Release to refresh"):"Pull to refresh";
+  label.textContent=current==="run"?"Release to run {{sync}}":current==="refresh"?(canRun()?"Release to refresh. Keep pulling to run {{sync}}.":"Release to refresh"):"Pull to refresh";
   // The horizon draws first, then the sun rises above it until the Shortcut is ready.
   line.style.strokeDashoffset=String(1-Math.min(distance/LINE_DONE,1));
   sun.setAttribute("transform","translate(0 "+SUN_DEPTH*(1-rise)+")");

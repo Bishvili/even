@@ -131,7 +131,7 @@ input::-webkit-date-and-time-value{text-align:left}
 .breath-circle[data-step="0"],.breath-circle[data-step="1"]{transform:scale(1)}
 .breath-label{font-size:1.176rem;font-weight:650;margin:0 0 8px;min-height:28px}
 @media(prefers-reduced-motion:reduce){.breath-circle{transition:none;transform:scale(.8)!important}}
-/* Even */
+
 .page-title,.intro h1,.card h2,.section-heading h2,.brand-type strong,.today-brief p,.welcome h2,.breath-label{font-family:var(--serif);font-weight:500;letter-spacing:-.4px}
 .page-title{font-size:2rem;letter-spacing:-.7px}.intro h1{font-size:2.118rem;letter-spacing:-.7px;line-height:1.1}
 .card h2,.section-heading h2{font-size:1.176rem}

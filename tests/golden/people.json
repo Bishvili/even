@@ -1025,7 +1025,7 @@
     ""
    ],
    [
-    "Run Even Sync to bring in last night’s sleep and your calendar.",
+    "Run {{sync}} to bring in last night’s sleep and your calendar.",
     "sync"
    ]
   ],

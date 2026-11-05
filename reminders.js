@@ -43,7 +43,7 @@
  function timeLabel(value){var parts=value.split(":"),date=new Date();date.setHours(Number(parts[0]),Number(parts[1]),0,0);return app.formatTime(date);}
 
  function blocked(){
-  if(!canPush())return app.isIOS()&&!app.isInstalled()?"Add Even to your Home Screen to turn on notifications.":"This browser can’t show notifications.";
+  if(!canPush())return app.isIOS()&&!app.isInstalled()?"Add {{name}} to your Home Screen to turn on notifications.":"This browser can’t show notifications.";
   if(!app.deviceToken())return "Sign in under Data to turn on notifications.";
   if(Notification.permission==="denied")return "Notifications are off. Turn them on in Settings.";
   return "";
@@ -105,7 +105,7 @@
    line.className="plan-row";time.className="plan-time";time.textContent=when;name.textContent=title;small.textContent=why;
    who.appendChild(name);who.appendChild(small);line.appendChild(time);line.appendChild(who);box.appendChild(line);
   }
-  if(settings.syncReminder)row(timeLabel(syncTime(settings)),"Sync reminder","If Even hasn’t synced in 20 hours. Tap to run it.");
+  if(settings.syncReminder)row(timeLabel(syncTime(settings)),"Sync reminder","If {{name}} hasn’t synced in 20 hours. Tap to run it.");
   items.forEach(function(item){var at=new Date(item.at),today=at.toDateString()===new Date().toDateString();row((today?"":at.toLocaleDateString([],{weekday:"short"})+" ")+app.formatTime(at),"Before a harder moment",item.message);});
   if(settings.stressNudges&&!items.length)row("—","Before a harder moment","Nothing ahead yet. These appear once your check-ins show a pattern.");
   $("reminder-sync-time-row").hidden=!settings.syncReminder;

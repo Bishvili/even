@@ -1,7 +1,7 @@
 // Send feedback: a mail draft with a short summary the person reads first. It never holds check-ins, notes, Health or calendar values, titles or names.
 (function(){
  "use strict";
- var SUPPORT="support@bishvili.org";
+ var SUPPORT="{{support}}";
  var $=function(id){return document.getElementById(id);};
  function deviceSoftware(){
   var match=/OS (\d+)[_.](\d+)/.exec(navigator.userAgent);
@@ -14,7 +14,7 @@
    "Software":deviceSoftware(),
    "Opened from":app.isInstalled()?"Home Screen":"Browser",
    "Signed in":app.signedIn()?"Yes":"No",
-   "Even Sync version":status.installedShortcutVersion||"None",
+   "{{sync}} version":status.installedShortcutVersion||"None",
    "Last upload":status.lastDataUploadAt||"None",
    "Last error":status.lastErrorCode||"None"
   };
@@ -23,7 +23,7 @@
  function open(){$("feedback-summary").textContent=summaryText();$("feedback-sheet").showModal();}
  function send(){
   var body="What happened?\n\n\n---\n"+summaryText();
-  window.location.href="mailto:"+SUPPORT+"?subject="+encodeURIComponent("Even feedback")+"&body="+encodeURIComponent(body);
+  window.location.href="mailto:"+SUPPORT+"?subject="+encodeURIComponent("{{name}} feedback")+"&body="+encodeURIComponent(body);
   $("feedback-sheet").close();
  }
  function init(){

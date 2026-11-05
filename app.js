@@ -1,6 +1,6 @@
 (function () {
 "use strict";
-var VERSION = "2.43.0";
+var VERSION = "2.43.1";
 // Brings saved data over from the earlier storage names. Remove once no installed copy has them.
 function moveSavedData(){
  [["even:v1","health:v1"],["even-reminder","health-reminder"],["even-setup","health-setup"]].forEach(function(pair){
@@ -159,7 +159,7 @@ function renderSources(){
  return '<div class="entry"><span class="entry-emoji" aria-hidden="true">♥︎</span><div class="entry-main"><strong>Health · '+esc(h.date)+'</strong><small>'+esc(summary||"Health day")+'</small></div><button class="entry-delete" aria-label="Delete health day" data-delete-health="'+esc(h.date)+'">×</button></div>';}
  var e=x.e;
  return '<div class="entry"><span class="entry-emoji" aria-hidden="true">▦︎</span><div class="entry-main"><strong>'+esc(e.title||"Calendar event")+'</strong><small>'+esc(formatDate(e.start)+" "+formatTime(e.start)+" · "+e.category)+'</small></div><button class="entry-delete" aria-label="Delete calendar event" data-delete-event="'+esc(e.id)+'">×</button></div>';
- }).join(""):blank(state.token?"Nothing here yet. Run Even Sync, or add a day or event below.":"Nothing here yet. Sign in to bring in your data, or add a day or event below.");
+ }).join(""):blank(state.token?"Nothing here yet. Run {{sync}}, or add a day or event below.":"Nothing here yet. Sign in to bring in your data, or add a day or event below.");
 }
 function compareVersions(left,right){
  if(!/^\d+\.\d+\.\d+$/.test(left||"")||!/^\d+\.\d+\.\d+$/.test(right||""))return 0;
@@ -182,7 +182,7 @@ function askConfirm(text,action){
 // The header says how fresh the data is, and tapping it does the next useful thing: sync, or what stands in the way.
 var syncLightAction="signin";
 function tapSyncLight(){
- if(syncLightAction==="offline"){toast("You’re offline. Even Sync needs a connection.");return;}
+ if(syncLightAction==="offline"){toast("You’re offline. {{sync}} needs a connection.");return;}
  if(syncLightAction==="signin"){signIn();return;}
  if(syncLightAction==="connect"){issueDevice();return;}
  if(syncLightAction==="run"){runShortcut();return;}
@@ -194,7 +194,7 @@ function renderSyncLight(paired){
  var otherAccount=!!(authEmail&&state.syncOwnerEmail&&authEmail!==state.syncOwnerEmail);
  syncLightAction=!navigator.onLine?"offline":!authEmail&&!paired?"signin":otherAccount||(!paired&&!authKnown)?"data":!paired?"connect":!last?"data":"run";
  $("sync-light-text").textContent=text;
- $("sync-light").setAttribute("aria-label",text+{offline:". Even Sync needs a connection.",signin:"",connect:"",data:". Open Data.",run:". Run Even Sync."}[syncLightAction]);
+ $("sync-light").setAttribute("aria-label",text+{offline:". {{sync}} needs a connection.",signin:"",connect:"",data:". Open Data.",run:". Run {{sync}}."}[syncLightAction]);
  $("sync-light").classList.toggle("connected",navigator.onLine&&paired&&!!last&&minutes<1440);
 }
 var MEASURES=[["sleepHours","Sleep","sleep"],["steps","Steps","steps"],["workoutMin","Exercise","workout"],["restingHR","Resting heart rate","restingHR"],["hrv","Heart rate variability","hrv"]];
@@ -213,7 +213,7 @@ function renderMeasures(){
   row.appendChild(name);row.appendChild(when);box.appendChild(row);
  });
  var sent=shortcutStatus.lastUpload||{};
- if(missing&&sent.healthSeen>0&&sent.healthMatched===0)note.textContent="Even Sync found Health data but couldn’t read it. It reads Health in English only for now.";
+ if(missing&&sent.healthSeen>0&&sent.healthMatched===0)note.textContent="{{sync}} found Health data but couldn’t read it. It reads Health in English only for now.";
  else if(missing&&shortcutStatus.lastDataUploadAt)note.textContent="If something isn’t arriving, check Health > Sharing > Apps > Shortcuts, and that a device is recording it.";
 }
 function renderSync(){
@@ -248,11 +248,11 @@ function renderSync(){
  else{install.removeAttribute("href");install.setAttribute("aria-disabled","true");install.setAttribute("tabindex","-1");}
  $("shortcut-release-version").textContent=shortcutStatus&&shortcutStatus.installedShortcutVersion?"Connected · v"+shortcutStatus.installedShortcutVersion:"Not connected";
  $("shortcut-install-help").textContent=canInstall
-  ?"Then tap Run Even Sync to connect it."
+  ?"Then tap Run {{sync}} to connect it."
   :mismatch?"Sign in with this iPhone’s account to continue."
-  :paired&&!navigator.onLine?"Connect to the internet to get Even Sync."
-  :paired?"Even Sync isn’t available right now. Try again soon."
-  :"Sign in to get Even Sync.";
+  :paired&&!navigator.onLine?"Connect to the internet to get {{sync}}."
+  :paired?"{{sync}} isn’t available right now. Try again soon."
+  :"Sign in to get {{sync}}.";
  $("check-shortcut-upload").disabled=shortcutStatusLoading;
  var installed=shortcutStatus&&shortcutStatus.installedShortcutVersion||"";
  $("shortcut-update-badge").hidden=!(canInstall&&publishedRelease&&installed&&compareVersions(publishedRelease.version,installed)>0);
@@ -293,7 +293,7 @@ async function keepStorage(){try{if(navigator.storage&&navigator.storage.persist
 async function renderStorageNote(){
  var kept=null;
  try{if(navigator.storage&&navigator.storage.persisted)kept=await navigator.storage.persisted();}catch(e){/* Unknown; the note stays empty. */}
- $("storage-note").textContent=kept===true?"This device won’t clear your data on its own.":kept===false?"This browser can clear your data if you don’t use Even for a while. Keep a backup, or add Even to your Home Screen.":"";
+ $("storage-note").textContent=kept===true?"This device won’t clear your data on its own.":kept===false?"This browser can clear your data if you don’t use {{name}} for a while. Keep a backup, or add {{name}} to your Home Screen.":"";
  var nearLimit=state.moods.length>=LIMITS.moods*.9||state.health.length>=LIMITS.healthDays*.9||state.events.length>=LIMITS.events*.9;
  $("limit-note").hidden=!nearLimit;
 }
@@ -682,8 +682,8 @@ function accountPath(route){return "/api/user/"+route;}
 function signIn(){globalThis.EvenSignin.open();}
 function syncErrorLabel(code){
  var reasons={
-  invalid_body:"Even couldn’t read the last upload.",
-  invalid_kind:"Even couldn’t read the last upload.",
+  invalid_body:"{{name}} couldn’t read the last upload.",
+  invalid_kind:"{{name}} couldn’t read the last upload.",
   no_valid_records:"Some data in the last upload wasn’t valid."
  };
  return reasons[code]||"The last upload didn’t go through.";
@@ -798,12 +798,12 @@ async function checkShortcutUpload(silent){
    throw Error("This iPhone was disconnected. Sign in to connect it again.");
   }
   if(!r.ok||!data.credentialValid)throw Error(data.error||"Couldn’t check the connection.");
-  if(data.deviceId!==state.deviceId)throw Error("Even couldn’t confirm this iPhone. Sign in to connect it again.");
+  if(data.deviceId!==state.deviceId)throw Error("{{name}} couldn’t confirm this iPhone. Sign in to connect it again.");
   shortcutStatus=data;
   if(!silent){
-   if(data.lastErrorCode)renderSyncDiagnostic(syncErrorLabel(data.lastErrorCode)+" Run Even Sync again.","error");
+   if(data.lastErrorCode)renderSyncDiagnostic(syncErrorLabel(data.lastErrorCode)+" Run {{sync}} again.","error");
    else if(data.lastDataUploadAt)renderSyncDiagnostic("Connected. Last upload "+formatDate(data.lastDataUploadAt)+" at "+formatTime(data.lastDataUploadAt)+". Tap Bring in data to see it.","success");
-   else renderSyncDiagnostic("Connected, but no data has arrived yet. Run Even Sync.","error");
+   else renderSyncDiagnostic("Connected, but no data has arrived yet. Run {{sync}}.","error");
   }
  }catch(err){
   if(!silent)renderSyncDiagnostic(err.message||"Couldn’t check the connection. Try again.","error");
@@ -871,7 +871,7 @@ async function signOut(){
 async function revokeDevice(id){
  if(!authEmail){toast("Sign in to disconnect a device.");return;}
  var own=id===state.deviceId;
- if(!await askConfirm((own?"Disconnect this iPhone?":"Disconnect this device?")+" Even Sync stops sending data from it. What’s already synced stays in your account.","Disconnect"))return;
+ if(!await askConfirm((own?"Disconnect this iPhone?":"Disconnect this device?")+" {{sync}} stops sending data from it. What’s already synced stays in your account.","Disconnect"))return;
  try{
   var r=await fetch(accountPath("revoke"),{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({deviceId:id}),cache:"no-store"});
   var result=await r.json();if(!r.ok||!result.revoked)throw Error(result.error||"Couldn’t disconnect the device.");
@@ -880,7 +880,7 @@ async function revokeDevice(id){
  }catch(e){toast(e.message||"Couldn’t disconnect the device.");}
 }
 var shortcutRunPending=false;
-function runShortcut(){shortcutRunPending=true;window.location.href="shortcuts://run-shortcut?name=Even%20Sync&input=text&text="+encodeURIComponent("Bearer "+state.token);}
+function runShortcut(){shortcutRunPending=true;window.location.href="shortcuts://run-shortcut?name={{syncUrl}}&input=text&text="+encodeURIComponent("Bearer "+state.token);}
 async function pull(silent){
  if(!state.token){if(!silent)toast("Sign in under Data to bring in your data.");return;}
  var button=$("pull-button");button.disabled=true;button.textContent="Bringing in…";
@@ -1053,7 +1053,7 @@ function handleNotificationAction(){
  history.replaceState(null,"","/#checkin");
  if(action==="reset")globalThis.EvenCoach.openReset();
  if(action==="sync"){
-  if(!state.token){navigate("data");toast("Sign in to run Even Sync.");return;}
+  if(!state.token){navigate("data");toast("Sign in to run {{sync}}.");return;}
   $("run-sync-dialog").showModal();
   runShortcut();
  }

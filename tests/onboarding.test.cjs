@@ -72,8 +72,8 @@ test("the invitation, the setup card and Sync name the same steps",()=>{
   assert.ok(invite.includes(words),"invitation: "+words);
   assert.ok(card.includes(words),"card: "+words);
  }
- for(const words of ["Get Even Sync","Run Even Sync"]){
-  assert.ok(invite.includes(words),"invitation: "+words);
+ for(const[verb,words]of[["Get","Get {{sync}}"],["Run","Run {{sync}}"]]){
+  assert.ok(invite.includes(verb+' "+STABLE.sync'),"invitation: "+words);
   assert.ok(card.includes(words)||html.includes('id="setup-link"'),"card: "+words);
   assert.ok(sync.includes(words),"Sync: "+words);
  }

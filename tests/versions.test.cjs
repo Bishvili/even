@@ -59,8 +59,8 @@ test("the phone and the account keep the same limits",()=>{
  assert.equal(limits("app.js"),limits("worker/index.js"));
 });
 test("feedback holds only the listed details",()=>{
- const source=read("feedback.js"),keys=[...source.slice(source.indexOf("function summary()"),source.indexOf("function summaryText()")).matchAll(/^\s*"([A-Z][\w ]+)":/gm)].map(m=>m[1]);
- assert.deepEqual(keys,["App version","Software","Opened from","Signed in","Even Sync version","Last upload","Last error"]);
+ const source=read("feedback.js"),keys=[...source.slice(source.indexOf("function summary()"),source.indexOf("function summaryText()")).matchAll(/^\s*"([\w{} ]+)":/gm)].map(m=>m[1]);
+ assert.deepEqual(keys,["App version","Software","Opened from","Signed in","{{sync}} version","Last upload","Last error"]);
  assert.ok(read("index.html").includes('id="feedback-open"'));
 });
 test("startup images exist for every size the page lists",()=>{

@@ -98,7 +98,7 @@
     measured=measured||Number.isFinite(value);
     entry[key]=Number.isFinite(value)?{status:value===0?"zero":"known",value:value}:{status:"missing",value:null};
    });
-   // Even Sync leaves out days without exercise. It's a real zero only for a day the sync covered, for someone who exercises, and never today, because it may still come.
+   // The Shortcut leaves out days without exercise. It's a real zero only for a day the sync covered, for someone who exercises, and never today, because it may still come.
    if(entry.workoutMin.status==="missing"&&measured&&exercises&&h.date!==today)entry.workoutMin={status:"zero",value:0};
    days[h.date]=entry;
   });
