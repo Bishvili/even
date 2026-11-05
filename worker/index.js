@@ -415,7 +415,7 @@ function semverNewer(latest,installed){
  for(let i=0;i<3;i++)if(a[i]!==b[i])return a[i]>b[i];
  return false;
 }
-const NO_VALID_RECORDS="No valid records. Check date, metric values, and event start/end formats";
+const NO_VALID_RECORDS="Some data in this upload wasn't valid.";
 // Remembers each calendar it sees, then drops events from calendars the owner turned off.
 async function enabledEvents(env,owner,events){
  const names=[...new Set(events.map(e=>e.calendar).filter(Boolean))];
@@ -793,17 +793,9 @@ async function syncApi(request,env,path){
    await recordSyncFailure(env,dev,"invalid_body");return error("Even couldn't read this upload.",400,"invalid_body");
   }
   const kind=String(input.kind||"").toLowerCase();
-  // Older Shortcuts ignore the settings, so they're applied here too.
+  // A setting changed since the handshake still applies to this upload.
   const off=await syncOff(env,owner);
-  if((off.has("calendar")&&["calendar","calendar_days","calendar_complete"].includes(kind))||(off.has("alarms")&&kind==="alarms"))return reply({ok:true,state:"accepted",skipped:true});
-  if(kind==="calendar_complete"){
-   const day=dateOnly(input.date),offset=String(input.utcOffset||"").trim(),started=new Date(input.startedAt);
-   if(!day||!UTC_OFFSET.test(offset)||!Number.isFinite(started.getTime())||Date.now()-started.getTime()>21600000)return error("Invalid calendar sync details",400,"invalid_calendar_details");
-   const from=new Date(day+"T00:00:00"+offset);
-   const to=new Date(from.getTime()+86400000);
-   const result=await env.DB.prepare("DELETE FROM even_calendar_events WHERE owner_email=? AND start_time>=? AND start_time<? AND updated_at<?").bind(owner,from.toISOString(),to.toISOString(),started.toISOString()).run();
-   return reply({ok:true,state:"reconciled",removed:result.meta?.changes||0});
-  }
+  if((off.has("calendar")&&kind==="calendar_days")||(off.has("alarms")&&kind==="alarms"))return reply({ok:true,state:"accepted",skipped:true});
   if(kind==="calendar_days"){
    const day=dateOnly(input.date),offset=String(input.utcOffset||"").trim();
    if(!day||!UTC_OFFSET.test(offset))return error("Invalid calendar sync details",400,"invalid_calendar_details");
@@ -826,28 +818,20 @@ async function syncApi(request,env,path){
    await env.DB.batch(statements);
    return reply({ok:true,state:"accepted",alarms:alarms.length});
   }
-  if(!["health","calendar","batch"].includes(kind)){
+  if(kind!=="health"){
    await recordSyncFailure(env,dev,"invalid_kind");return error("Even couldn't read this upload.",400,"invalid_kind");
   }
-  const healthInput=kind==="batch"?(Array.isArray(input.health)?input.health.slice(0,75):[]):kind==="health"?(Array.isArray(input.days)?input.days.slice(0,75):[input]):[];
-  const eventInput=kind==="batch"?(Array.isArray(input.events)?input.events.slice(0,125):[]):kind==="calendar"?(Array.isArray(input.events)?input.events.slice(0,125):[input]):[];
-  const allMetrics=healthInput.flatMap(readHealth),metrics=allMetrics.filter(x=>!off.has(METRIC_KINDS[x.metric]));
-  if(allMetrics.length&&!metrics.length&&!eventInput.length)return reply({ok:true,state:"accepted",skipped:true});
-  const received=off.has("calendar")?[]:eventInput.map(readEvent).filter(Boolean);
-  const events=await enabledEvents(env,owner,received);
-  if(!metrics.length&&received.length&&!events.length)return reply({ok:true,state:"skipped",error:NO_VALID_RECORDS});
-  // Nothing new to keep, such as average heart rate from an older Shortcut, isn't a failed upload.
-  if(!metrics.length&&!eventInput.length&&!healthInput.some(sentHealth))return reply({ok:true,state:"accepted",healthMetrics:0,calendarEvents:0});
-  if(!metrics.length&&!events.length){
+  const allMetrics=(Array.isArray(input.days)?input.days.slice(0,75):[input]).flatMap(readHealth),metrics=allMetrics.filter(x=>!off.has(METRIC_KINDS[x.metric]));
+  if(allMetrics.length&&!metrics.length)return reply({ok:true,state:"accepted",skipped:true});
+  if(!metrics.length){
    await recordSyncFailure(env,dev,"no_valid_records");
    return error(NO_VALID_RECORDS,400,"no_valid_records");
   }
   const at=new Date().toISOString(),statements=[];
   metrics.forEach(x=>statements.push(env.DB.prepare("INSERT INTO even_health_metrics(owner_email,day,metric,value,updated_at) VALUES(?,?,?,?,?) ON CONFLICT(owner_email,day,metric) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at").bind(owner,x.day,x.metric,x.value,at)));
-  for(const e of events)statements.push(await eventStatement(env,owner,e,at));
   for(let i=0;i<statements.length;i+=50)await env.DB.batch(statements.slice(i,i+50));
-  const clientVersion=await markUpload(env,dev,input.shortcutVersion,at,kind==="batch"?{health:metrics.length,events:events.length}:metrics.length?{health:metrics.length}:{events:events.length});
-  return reply({ok:true,state:"accepted",receivedAt:at,kind,healthMetrics:metrics.length,calendarEvents:events.length,shortcutVersion:clientVersion});
+  const clientVersion=await markUpload(env,dev,input.shortcutVersion,at,{health:metrics.length});
+  return reply({ok:true,state:"accepted",receivedAt:at,kind,healthMetrics:metrics.length,shortcutVersion:clientVersion});
  }
  if(path==="/api/account/delete"&&request.method==="POST"){
   await env.DB.batch(accountStatements(env,owner));
@@ -867,7 +851,7 @@ async function syncApi(request,env,path){
  return error("Not found",404,"not_found");
 }
 async function api(request,env,ctx,path){
- if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:"Even",version:"2.26.0",sync:"email-access"});
+ if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:"Even",version:"2.27.0",sync:"email-access"});
  if(path.startsWith("/api/signin/"))return signinApi(request,env,ctx,path);
  if(path.startsWith("/api/user/"))return authApi(request,env,ctx,path);
  return syncApi(request,env,path);

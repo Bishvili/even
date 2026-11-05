@@ -1,6 +1,6 @@
 (function () {
 "use strict";
-var VERSION = "2.26.0";
+var VERSION = "2.27.0";
 var STORAGE_KEY = "even:v1";
 var MOOD_NAMES = ["","Rough","Low","Okay","Good","Great"];
 var MOOD_EMOJI = ["","😣","😕","😐","🙂","😄"];
@@ -272,7 +272,7 @@ function renderInsights(){
  $("insight-average").textContent=score(average(moods.map(function(m){return m.score;})))+"/5";
  refreshCoach();
  $("insight-samples").textContent=moods.length+" "+(isDemo?"fictional":"personal")+" check-ins over "+insightDays+" days";
- drawTrend(moods);drawTimes(moods);drawActivity(moods);drawCalendar(moods,events);drawHealth(moods,health);
+ drawTrend(moods);drawTimes(moods);drawCalendar(moods,events);
 }
 function drawTrend(moods){
  var byDay={};moods.forEach(function(m){var k=dateKey(m.ts);(byDay[k]||(byDay[k]=[])).push(m.score);});
@@ -290,43 +290,31 @@ function drawTrend(moods){
 }
 function timeGroup(ts){var h=new Date(ts).getHours();return h>=5&&h<11?0:h>=11&&h<15?1:h>=15&&h<20?2:3;}
 function plural(count,word){return count+" "+word+(count===1?"":"s");}
-// Averages need at least 3 check-ins. Bars are SVG, because the security policy blocks inline styles.
+// Averages need at least 5 check-ins. Bars are SVG, because the security policy blocks inline styles.
 function timeRows(moods){
  return ["Morning","Midday","Afternoon","Evening"].map(function(name,i){
   var scores=moods.filter(function(m){return timeGroup(m.ts)===i;}).map(function(m){return m.score;});
-  return {name:name,count:scores.length,average:scores.length>=3?average(scores):null};
+  return {name:name,count:scores.length,average:scores.length>=5?average(scores):null};
  });
 }
 function drawTimes(moods){
  $("time-insights").innerHTML=moods.length?timeRows(moods).map(function(row){
   var known=row.average!==null,bar=known?'<svg class="bar-chart" width="100%" height="10" aria-hidden="true"><rect class="bar-back" width="100%" height="10" rx="5"/><rect class="bar-value" width="'+((row.average/5)*100).toFixed(1)+'%" height="10" rx="5"/></svg>':'<span class="bar-empty">Not enough check-ins</span>';
   return '<div class="bar-row"><div class="bar-name">'+row.name+'<span class="bar-sub">'+plural(row.count,"check-in")+'</span></div><div>'+bar+'</div><div class="bar-number">'+(known?row.average.toFixed(1):"—")+'</div></div>';
- }).join("")+'<p class="muted">Each time of day needs at least 3 check-ins.</p>':blank("Log moods at different times to see when you tend to feel better.");
+ }).join("")+'<p class="muted">Each time of day needs at least 5 check-ins.</p>':blank("Log moods at different times to see when you tend to feel better.");
 }
-function diffHtml(label,yes,no){
- var d=average(yes)-average(no),cls=d>0.05?"positive":d<-0.05?"negative":"",v=(d>0?"+":"")+d.toFixed(1);
- return '<div class="diff-row"><div><strong>'+esc(label)+'</strong><p>'+yes.length+' with · '+no.length+' without</p></div><div class="diff '+cls+'">'+v+' / 5</div></div>';
-}
-function drawActivity(moods){
- var rows=[];
- ACTIVITY_LABELS.forEach(function(tag){var yes=moods.filter(function(m){return (m.tags||[]).includes(tag);}).map(function(m){return m.score;}),no=moods.filter(function(m){return !(m.tags||[]).includes(tag);}).map(function(m){return m.score;});if(yes.length>=3&&no.length>=3)rows.push({tag:tag,yes:yes,no:no,d:average(yes)-average(no)});});
- rows.sort(function(a,b){return Math.abs(b.d)-Math.abs(a.d);});
- $("activity-insights").innerHTML=rows.length?rows.slice(0,6).map(function(r){return diffHtml(r.tag,r.yes,r.no);}).join(""):blank("Add activity tags to at least 3 check-ins, with at least 3 others for comparison.");
-}
+// Each event's closest check-in before and after, with the same minimum and smallest difference as every other comparison.
 function calendarPatternSummary(moods,events){
  var windowMs=90*60000;
- var samples=moods.map(function(m){return {time:new Date(m.ts).getTime(),ts:m.ts,score:m.score};})
+ var samples=moods.map(function(m){return {time:new Date(m.ts).getTime(),score:m.score};})
   .filter(function(m){return Number.isFinite(m.time)&&m.score>=1&&m.score<=5;});
  var valid=events.map(function(e){
   return {category:e.category,start:new Date(e.start).getTime(),end:new Date(e.end).getTime()};
  }).filter(function(e){return CATEGORIES.includes(e.category)&&Number.isFinite(e.start)&&Number.isFinite(e.end)&&e.end>e.start;});
- var unaffected=samples.filter(function(m){return !valid.some(function(e){return m.time>=e.start&&m.time<=e.end+windowMs;});});
- var paired=[],compared=[];
+ var paired=[];
  CATEGORIES.forEach(function(category){
-  var relevant=valid.filter(function(e){return e.category===category;});
-  if(!relevant.length)return;
   var before=[],after=[];
-  relevant.forEach(function(e){
+  valid.filter(function(e){return e.category===category;}).forEach(function(e){
    var pre=null,post=null;
    samples.forEach(function(m){
     if(m.time>=e.start-windowMs&&m.time<e.start&&(!pre||m.time>pre.time))pre=m;
@@ -334,54 +322,24 @@ function calendarPatternSummary(moods,events){
    });
    if(pre&&post){before.push(pre.score);after.push(post.score);}
   });
-  if(before.length>=3){
-   paired.push({category:category,count:before.length,before:average(before),after:average(after),delta:average(after)-average(before)});
-  }
-  var exposed=samples.filter(function(m){return relevant.some(function(e){return m.time>=e.start&&m.time<=e.end+windowMs;});});
-  if(exposed.length>=3){
-   var buckets=new Set(exposed.map(function(m){return timeGroup(m.ts);}));
-   var controls=unaffected.filter(function(m){return buckets.has(timeGroup(m.ts));});
-   if(controls.length>=3)compared.push({category:category,withCount:exposed.length,withoutCount:controls.length,withMood:average(exposed.map(function(m){return m.score;})),withoutMood:average(controls.map(function(m){return m.score;})),delta:average(exposed.map(function(m){return m.score;}))-average(controls.map(function(m){return m.score;}))});
-  }
+  if(before.length<5)return;
+  var delta=average(after)-average(before);
+  if(Math.abs(delta)>=0.4)paired.push({category:category,count:before.length,before:average(before),after:average(after),delta:delta});
  });
  paired.sort(function(a,b){return Math.abs(b.delta)-Math.abs(a.delta);});
- compared.sort(function(a,b){return Math.abs(b.delta)-Math.abs(a.delta);});
- return {paired:paired,compared:compared,eventCount:valid.length};
+ return {paired:paired,eventCount:valid.length};
 }
 function signedScore(delta){return (delta>0?"+":"")+delta.toFixed(1);}
 function drawCalendar(moods,events){
- if(!moods.length||!events.length){
-  $("calendar-insights").innerHTML=blank("Log mood before and after calendar events, or load the fictional calendar scenario in Settings.");
+ var patterns=calendarPatternSummary(moods,events);
+ if(!patterns.paired.length){
+  $("calendar-insights").innerHTML=blank("Needs at least 5 events of the same type, each with a check-in within 90 minutes before it starts and after it ends.");
   return;
  }
- var patterns=calendarPatternSummary(moods,events);
- var html='<div class="calendar-analysis-header"><span class="mini-heading">MOOD BEFORE → AFTER AN EVENT</span><span class="muted">90-minute windows</span></div>';
- if(patterns.paired.length){
-  html+=patterns.paired.map(function(r){
-   var cls=r.delta>0.05?"positive":r.delta<-0.05?"negative":"";
-   return '<div class="calendar-pair"><div class="calendar-pair-label"><strong>'+esc(r.category)+'</strong><small>'+r.count+' paired event'+(r.count===1?"":"s")+'</small></div><div class="calendar-pair-scores">'+score(r.before)+' <span aria-hidden="true">→</span> '+score(r.after)+'</div><span class="calendar-delta '+cls+'">'+signedScore(r.delta)+'</span></div>';
-  }).join("");
- }else html+='<p class="muted calendar-empty">Need at least 3 events of the same type with a check-in within 90 minutes before the start and within 90 minutes after the end.</p>';
- html+='<div class="calendar-subsection"><div class="calendar-analysis-header"><span class="mini-heading">NEAR EVENTS VS OTHER CHECK-INS</span><span class="muted">5-point mood scale</span></div>';
- if(patterns.compared.length){
-  html+=patterns.compared.map(function(r){
-   var cls=r.delta>0.05?"positive":r.delta<-0.05?"negative":"";
-   return '<div class="diff-row"><div><strong>'+esc(r.category)+'</strong><p>'+r.withCount+' near events · '+r.withoutCount+' other check-ins in similar parts of the day</p></div><span class="diff '+cls+'">'+signedScore(r.delta)+' / 5</span></div>';
-  }).join("");
- }else html+='<p class="muted calendar-empty">More check-ins outside calendar events are needed for a same-time-of-day comparison.</p>';
- html+='</div><p class="calendar-explainer">Paired changes compare the closest check-ins before and after an event. “Near” includes the event itself and up to 90 minutes afterward. These are associations, not proof of cause; overlapping events can share check-ins.</p>';
- $("calendar-insights").innerHTML=html;
-}
-function drawHealth(moods,health){
- var d={};moods.forEach(function(m){(d[dateKey(m.ts)]||(d[dateKey(m.ts)]=[])).push(m.score);});
- var joined=health.filter(function(h){return d[h.date]&&d[h.date].length;}).map(function(h){return {h:h,mood:average(d[h.date])};});
- var comps=[{name:"Sleep 7h or more",key:"sleepHours",test:function(v){return v>=7;}},{name:"6,000+ steps",key:"steps",test:function(v){return v>=6000;}},{name:"Any workout",key:"workoutMin",test:function(v){return v>0;}}];
- var rows=[];
- comps.forEach(function(c){var valid=joined.filter(function(x){return x.h[c.key]!=null&&Number.isFinite(number(x.h[c.key]));}),yes=valid.filter(function(x){return c.test(number(x.h[c.key]));}).map(function(x){return x.mood;}),no=valid.filter(function(x){return !c.test(number(x.h[c.key]));}).map(function(x){return x.mood;});if(yes.length>=3&&no.length>=3)rows.push({name:c.name,yes:yes,no:no});});
- var hrv=joined.filter(function(x){return x.h.hrv!=null&&Number.isFinite(number(x.h.hrv));});
- if(hrv.length>=6){var sorted=hrv.map(function(x){return number(x.h.hrv);}).sort(function(a,b){return a-b;}),med=(sorted[Math.floor((sorted.length-1)/2)]+sorted[Math.ceil((sorted.length-1)/2)])/2;
- var yes=hrv.filter(function(x){return number(x.h.hrv)>=med;}).map(function(x){return x.mood;}),no=hrv.filter(function(x){return number(x.h.hrv)<med;}).map(function(x){return x.mood;});if(yes.length>=3&&no.length>=3)rows.push({name:"Higher-than-median HRV",yes:yes,no:no});}
- $("health-insights").innerHTML=rows.length?rows.map(function(r){return diffHtml(r.name,r.yes,r.no);}).join("")+'<p class="muted">One daily mood average per date · '+joined.length+' matched days</p>':blank("To compare sleep or activity, log mood on at least 6 days with health records in both groups.");
+ $("calendar-insights").innerHTML=patterns.paired.map(function(r){
+  var cls=r.delta>0?"positive":"negative";
+  return '<div class="calendar-pair"><div class="calendar-pair-label"><strong>'+esc(r.category)+'</strong><small>'+plural(r.count,"paired event")+'</small></div><div class="calendar-pair-scores">'+score(r.before)+' <span aria-hidden="true">→</span> '+score(r.after)+'</div><span class="calendar-delta '+cls+'">'+signedScore(r.delta)+'</span></div>';
+ }).join("")+'<p class="calendar-explainer">These are associations, not proof of cause. Overlapping events can share check-ins.</p>';
 }
 function selectMood(n){selectedMood=n;document.querySelectorAll("[data-mood]").forEach(function(b){b.setAttribute("aria-pressed",String(Number(b.dataset.mood)===n));});$("save-mood").classList.toggle("save-ready",!!n);}
 var energyTouched=false;

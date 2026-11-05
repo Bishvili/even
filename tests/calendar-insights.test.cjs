@@ -57,8 +57,6 @@ test("demo event effects are visible and supported by enough paired check-ins", 
  assert.ok(byCategory.Commute.delta<-.7);
  assert.ok(byCategory.Exercise.delta>1.5);
  assert.ok(byCategory.Social.delta>.7);
- assert.ok(patterns.compared.length>=4,"At least four categories need a control comparison");
- assert.ok(patterns.compared.every(x=>x.withCount>=3&&x.withoutCount>=3));
 });
 
 test("one mood check-in cannot produce a paired calendar effect", () => {
@@ -88,10 +86,10 @@ test("personal insights and daily statistics exclude fictional records", () => {
  assert.match(elements.get("calendar-insights").innerHTML,/Meeting/);
 });
 
-test("time of day shows an average only from 3 check-ins, with bars to scale",()=>{
+test("time of day shows an average only from 5 check-ins, with bars to scale",()=>{
  const {api,elements}=loadAppWithoutStartingUI();
  const at=hour=>{const d=new Date();d.setHours(hour,0,0,0);return d.toISOString();};
- const moods=[{ts:at(8),score:5},{ts:at(8),score:5},{ts:at(8),score:5},{ts:at(12),score:1}];
+ const moods=[{ts:at(8),score:5},{ts:at(8),score:5},{ts:at(8),score:5},{ts:at(8),score:5},{ts:at(8),score:5},{ts:at(12),score:1}];
  api.drawTimes(moods);
  const html=elements.get("time-insights").innerHTML;
  assert.match(html,/class="bar-value" width="100\.0%"/);

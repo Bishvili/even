@@ -2,7 +2,7 @@
 const test=require("node:test");
 const assert=require("node:assert/strict");
 require("../coach.js");
-const {outlook,patterns,brief,hardStretch,steadiness,reflectionDue,smartTimes,repeatTimes,bedtimeReminder,smartPlan,REFLECTION}=globalThis.EvenCoach;
+const {outlook,findings,brief,hardStretch,steadiness,reflectionDue,smartTimes,repeatTimes,bedtimeReminder,smartPlan,REFLECTION}=globalThis.EvenCoach;
 const today=new Date(2026,10,3,12);// a Tuesday
 const at=(daysAgo,hour=12)=>{const d=new Date(today);d.setDate(d.getDate()-daysAgo);d.setHours(hour);return d.toISOString();};
 
@@ -22,18 +22,21 @@ test("history older than eight weeks is left out",()=>{
  const moods=[70,77,84].map(n=>({ts:at(n),stress:5}));
  assert.equal(outlook(moods,today)[0].samples,0);
 });
-test("patterns need samples on both sides, show only higher stress, and rank by gap",()=>{
+test("findings need 5 check-ins each way and a 0.4 point difference, and name each subject once",()=>{
  const moods=[];
- for(let i=0;i<4;i++)moods.push({ts:at(i*2),stress:5,tags:["Commute"]},{ts:at(i*2+1),stress:2,tags:[]});
+ for(let i=0;i<5;i++)moods.push({ts:at(i*2),stress:5,tags:["Commute"]},{ts:at(i*2+1),stress:2,tags:[]});
  moods.push({ts:at(20),stress:1,tags:["Rest"]});
- const rows=patterns(moods,[],[]);
+ const rows=findings(moods,[],[],[],new Date());
  assert.deepEqual(rows.map(r=>r.label),["Commute"]);
- assert.equal(rows[0].withCount,4);
+ assert.equal(rows[0].effect.withCount,5);
+ assert.equal(rows[0].effect.name,"higher stress");
+ assert.deepEqual(findings(moods.slice(0,8),[],[],[],new Date()),[]);
 });
-test("short sleep is compared against rested days",()=>{
+test("short sleep is compared against rested days, and sleep appears once",()=>{
  const moods=[],health=[];
- for(let i=0;i<6;i++){moods.push({ts:at(i),stress:i<3?5:2,tags:[]});const d=new Date(at(i));health.push({date:d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"),sleepHours:i<3?5:8});}
- assert.equal(patterns(moods,[],health)[0].label,"After under 6.5 hours of sleep");
+ for(let i=0;i<12;i++){moods.push({ts:at(i),stress:i<6?5:2,tags:[]});const d=new Date(at(i));health.push({date:d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"),sleepHours:i<6?5:8});}
+ const rows=findings(moods,[],health,[],new Date());
+ assert.equal(rows.filter(r=>/sleep/.test(r.label)).length,1);
 });
 test("brief language states tendencies and avoids diagnosis or alarm",()=>{
  for(const level of ["harder","easier","typical","unknown"])
@@ -153,9 +156,9 @@ test("a harder moment is anticipated only with evidence, and capped each day",()
  assert.ok(monday);
  assert.equal(new Date(monday.at).getHours(),13);
  assert.match(monday.message,/Monday afternoons/);
- const events=[1,2,3].map(n=>({start:hours(now,-n*7-2,11).toISOString(),end:hours(now,-n*7-2,12).toISOString(),category:"Work"}));
+ const events=[1,2,3,4,5].map(n=>({start:hours(now,-n*7-2,11).toISOString(),end:hours(now,-n*7-2,12).toISOString(),category:"Work"}));
  const stressed=events.map(e=>({ts:e.start,stress:5}));
- const calm=[1,2,3].map(n=>({ts:hours(now,-n*7-3,20).toISOString(),stress:1}));
+ const calm=[1,2,3,4,5].map(n=>({ts:hours(now,-n*7-3,20).toISOString(),stress:1}));
  const soon=[{start:hours(now,0,17).toISOString(),end:hours(now,0,18).toISOString(),category:"Work"}];
  const eventNudge=anticipate(stressed.concat(calm),events.concat(soon),[],now,prefs)[0];
  assert.equal(new Date(eventNudge.at).getHours(),16);
@@ -259,8 +262,8 @@ test("the week's plan skips weekends when asked, and places a time after midnigh
 });
 test("a nudge before an event is planned 20 minutes ahead",()=>{
  const now=new Date("2026-11-09T08:00:00");
- const events=[1,2,3].map(n=>({start:hours(now,-n*7-2,11).toISOString(),end:hours(now,-n*7-2,12).toISOString(),category:"Work"}));
- const moods=events.map(e=>({ts:e.start,stress:5})).concat([1,2,3].map(n=>({ts:hours(now,-n*7-3,20).toISOString(),stress:1})));
+ const events=[1,2,3,4,5].map(n=>({start:hours(now,-n*7-2,11).toISOString(),end:hours(now,-n*7-2,12).toISOString(),category:"Work"}));
+ const moods=events.map(e=>({ts:e.start,stress:5})).concat([1,2,3,4,5].map(n=>({ts:hours(now,-n*7-3,20).toISOString(),stress:1})));
  const soon=[{start:hours(now,0,17).toISOString(),end:hours(now,0,18).toISOString(),category:"Work"}];
  const nudge=new Date(anticipate(moods,events.concat(soon),[],now,{from:"07:00",to:"22:00",weekends:true})[0].at);
  assert.equal(nudge.getHours(),16);assert.equal(nudge.getMinutes(),40);

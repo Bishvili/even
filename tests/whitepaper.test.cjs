@@ -7,14 +7,13 @@ const read=file=>fs.readFileSync(require("node:path").join(__dirname,"..",file),
 const paper=read("whitepaper.html"),coach=read("coach.js"),worker=read("worker/index.js");
 
 const RULES=[
- [coach,/MIN_SAMPLES=3\b/,/At least 3 in each group/],
+ [coach,/MIN_SAMPLES=3\b/,/At least 3 rated check-ins/],
  [coach,/MIN_GAP=0\.4\b/,/at least 0\.4 points above/],
  [coach,/HISTORY_DAYS=56\b/,/Last 8 weeks/],
  [coach,/NEAR_EVENT_MS=5400000\b/,/up to 90 minutes after/],
  [coach,/SHORT_SLEEP=6\.5\b/,/under 6\.5 hours/],
  [coach,/EARLY_ALARM=420\b/,/before 7 AM/],
  [coach,/REFLECTION_DAYS=7\b/,/Offered 7 days after the first check-in/],
- [coach,/r\.gap>=0\.3/,/difference of 0\.3 points/],
  [coach,/ANTICIPATE_GAP=0\.4\b/,/A prompt needs at least 0\.4/],
  [coach,/HELP_SAMPLES=5\b/,/at least 5 check-ins each way/],
  [coach,/HELP_GAP=0\.4\b/,/each way and a 0\.4 point difference/],

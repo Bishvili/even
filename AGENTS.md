@@ -84,11 +84,10 @@ Only an iPhone proves iOS behavior, and each round trip costs the owner time. Be
 - A result limit applies before grouping, so read grouped values from the first group.
 - Health data can't be read while the iPhone is locked.
 - Clock alarm details exist only as variable properties, whose names can differ across iOS versions. Confirm in the Shortcuts editor and in Even → **Data** that names, times and on/off state arrive. Keep alarms at the end of the run, because an error there can't be caught.
-- Clients check an error's `code`, never its message. Even Sync 2.9.0 still matches the skipped-event message (`NO_VALID_RECORDS` in `worker/index.js`) word for word, so keep that message until 2.9.0 is out of use.
-- Even Sync follows the settings the handshake returns: `sync…` values for each kind of data, and `calendarsOff`, a pattern of turned-off calendars. Older versions ignore them, so the Worker also applies them on arrival.
+- Clients check an error's `code`, never its message.
+- Even Sync follows the settings the handshake returns: `sync…` values for each kind of data, and `calendarsOff`, a pattern of turned-off calendars. The Worker also applies them on arrival, in case they changed during the run.
 - A run makes five requests: the handshake, today's and tomorrow's events, all Health measures, alarms, and the final notification. Every request is a round trip from the phone, often on cellular or inside an automation, so add fields to one of these instead of adding requests.
-- The Worker accepts both Even Sync 2.9.0's one-at-a-time uploads and 3.0.0's batches. Remove the old paths once 3.0.0 is the only version in use (#35).
-- Sleep arrives as asleep intervals that the Worker merges per night, so two wearables count once. A batch that reached its sample limit leaves its oldest night alone, because that night may be cut off. Even Sync 2.9.0 still adds up the last 24 hours.
+- Sleep arrives as asleep intervals that the Worker merges per night, so two wearables count once. A batch that reached its sample limit leaves its oldest night alone, because that night may be cut off.
 
 **Cloud and naming**
 - Attaching Workers Static Assets removes `ctx.access` from the Worker, which once refused every sign-in. Even's sign-in doesn't use it.
@@ -104,12 +103,12 @@ Only an iPhone proves iOS behavior, and each round trip costs the owner time. Be
 **Data and privacy**
 - Fictional records live only in `state.demo`, and `state.moods`, `state.health` and `state.events` hold only personal ones. Never pass demo records through `upsertHealth` or `upsertEvent`, and only the demo view reads `state.demo`.
 - A new table or column that holds an owner's data must be covered by erase, account deletion and the cross-account tests in the same change.
-- Resting heart rate is synced, but no feature uses it yet; #37 makes it personal context. Average heart rate is no longer kept: the Worker ignores it and Even Sync 3 doesn't read it. Don't add another measure without a feature that uses it.
+- Resting heart rate is synced, but no feature uses it yet; #37 makes it personal context. Don't add another measure without a feature that uses it.
 - When what Even collects, sends or stores changes, update the **Data inventory**, Data → Help and privacy, Settings, the README's Privacy section and `whitepaper.html` in the same commit.
 
 **Analysis and copy**
 - Use a first name only where it adds care: messages that start or close the day, a hard moment, and invitations. Keep it out of routine check-ins, sync messages, insights and errors.
-- Each comparison has one implementation: stress in `coach.js`, and mood in `app.js` until #32 merges them. Extend those rather than adding another.
+- Comparisons come from one implementation, `effectsOf` in `coach.js`: at least 5 check-ins each way and a 0.4 point difference. Weekday outlooks need at least 3. Extend it rather than adding another.
 - Give each comparison one minimum count and one threshold. Never show an average below the minimum, and use the same numbers in the interface and How Even Works.
 - Write counts with the right singular or plural form: "1 entry", never "1 entries".
 - Confirmations for destructive actions say whose data, which data, and whether it can be undone.
@@ -217,8 +216,7 @@ What Even holds and where it goes. Write every privacy statement from this table
 | Steps, exercise minutes, sleep hours, HRV | Even Sync, from Apple Health. Sleep arrives as asleep intervals from recent nights, up to a month on the first sync | Yes | Yes | Insights and coaching. HRV: Insights only. |
 | Bedtimes | Worked out from the sleep intervals | Yes | Yes | Bedtime estimate and wind-down |
 | Resting heart rate | Even Sync, from Apple Health | Yes | Yes | Shown on the Data tab only (#37) |
-| Average heart rate | Even Sync 2.9.0 only | No | No: discarded on arrival | Nothing |
-| Today's and tomorrow's calendar events: title, start, end, calendar name | Even Sync reads calendars left on (2.9.0 reads today only, 3.0.0 reads all). Saved events from a turned-off calendar can be removed in the app; the Worker adds a category | Yes, without the calendar name | Yes, except events from turned-off calendars, which are discarded on arrival | Insights, coaching and nudges before events |
+| Today's and tomorrow's calendar events: title, start, end, calendar name | Even Sync reads calendars left on. Saved events from a turned-off calendar can be removed in the app; the Worker adds a category | Yes, without the calendar name | Yes, except events from turned-off calendars, which are discarded on arrival | Insights, coaching and nudges before events |
 | Calendar names and on/off state | Even Sync and the app | No | Yes | Calendar settings |
 | What Even Sync sends, and whether check-ins sync | The app | Yes | Yes | Followed by Even Sync and the Worker |
 | Alarms: time, repeat days, on/off, name | Even Sync, from Clock | Yes | Yes, plus each synced day's first morning alarm | Brief, wind-down, next steps and the early-alarm pattern |

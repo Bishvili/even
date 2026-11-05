@@ -8,6 +8,7 @@ const vm=require("node:vm");
 const {webcrypto}=require("node:crypto");
 const {TextEncoder}=require("node:util");
 
+const days=(date,records)=>({kind:"calendar_days",date,utcOffset:"+00:00",events:records.map(r=>r.join("\u241f")).join("\u241e")});
 function harness({verified=false,buildVersion="2.8.0",helperBuild="2.0.0",sourceVersions=null,helperLink=null}={}){
  const source=fs.readFileSync(path.join(__dirname,"..","worker","index.js"),"utf8");
  const session='{createAuth:()=>({api:{getSession:async({headers})=>{const m=/even\\.session_token=([^;]+)/.exec(headers.get("cookie")||"");return m?{user:JSON.parse(decodeURIComponent(m[1]))}:null;}}})}';
@@ -160,7 +161,7 @@ test("turned-off calendars are owner-scoped, reversible, and skip new events",as
  const a=await call("/api/user/device",{method:"POST",body:{label:"A"},context:ctx("owner-a@example.com")});
  const b=await call("/api/user/device",{method:"POST",body:{label:"B"},context:ctx("owner-b@example.com")});
  const A={Authorization:"Bearer "+a.data.token},B={Authorization:"Bearer "+b.data.token};
- const event=calendar=>({kind:"calendar",title:"Private",calendar,start:"2026-11-03T10:00:00Z",end:"2026-11-03T11:00:00Z"});
+ const event=calendar=>days("2026-11-03",[["2026-11-03T10:00:00Z","2026-11-03T11:00:00Z",calendar,"Private"]]);
  await call("/api/ingest",{method:"POST",body:event("Work"),headers:A});
  await call("/api/ingest",{method:"POST",body:event("Work"),headers:B});
  assert.deepEqual((await call("/api/calendars",{headers:A})).data.calendars.map(c=>[c.name,c.enabled]),[["Work",true]]);
@@ -171,8 +172,9 @@ test("turned-off calendars are owner-scoped, reversible, and skip new events",as
  assert.equal((await call("/api/pull",{headers:A})).data.events.length,0);
  assert.equal((await call("/api/pull",{headers:B})).data.events.length,1);
  const skipped=await call("/api/ingest",{method:"POST",body:event("Work"),headers:A});
- assert.equal(skipped.data.state,"skipped");
+ assert.equal(skipped.data.calendarEvents,0);
  await call("/api/calendars",{method:"POST",body:{name:"Work",enabled:true},headers:A});
+ await call("/api/ingest",{method:"POST",body:event("Work"),headers:A});
  assert.equal((await call("/api/pull",{headers:A})).data.events.length,1);
  assert.equal((await call("/api/calendars",{headers:B})).data.calendars[0].enabled,true);
 });
@@ -355,8 +357,8 @@ test("owner A data cannot be read or erased by owner B",async()=>{
  const b=await call("/api/user/device",{method:"POST",body:{label:"B iPhone"},context:ctx("owner-b@example.com")});
  assert.equal(a.status,200);assert.equal(b.status,200);
  const keyA={Authorization:"Bearer "+a.data.token},keyB={Authorization:"Bearer "+b.data.token};
- const input={kind:"batch",health:[{date:"2026-10-31",steps:7000}],events:[{start:"2026-10-31T09:00:00-07:00",end:"2026-10-31T10:00:00-07:00",title:"Private appointment",category:"Other"}]};
- assert.equal((await call("/api/ingest",{method:"POST",body:input,headers:keyA})).status,200);
+ assert.equal((await call("/api/ingest",{method:"POST",body:{kind:"health",date:"2026-10-31",steps:7000},headers:keyA})).status,200);
+ assert.equal((await call("/api/ingest",{method:"POST",body:days("2026-10-31",[["2026-10-31T09:00:00-07:00","2026-10-31T10:00:00-07:00","","Private appointment"]]),headers:keyA})).status,200);
  const pullB=await call("/api/pull",{headers:keyB});assert.deepEqual(Array.from(pullB.data.health),[]);assert.deepEqual(Array.from(pullB.data.events),[]);
  const pullA=await call("/api/pull",{headers:keyA});assert.equal(pullA.data.health[0].steps,7000);assert.equal(pullA.data.events[0].title,"Private appointment");
  assert.equal((await call("/api/erase",{method:"POST",headers:keyB})).status,200);
@@ -462,21 +464,6 @@ test("Shortcut release comparison only offers upgrades",async()=>{
  assert.equal(newer.data.updateAvailable,false);
  assert.equal(newer.data.updateStatus,"current");
 });
-test("calendar_complete removes only this owner's older events in that day",async()=>{
- const{call,ctx,rows}=harness();
- const a=await call("/api/user/device",{method:"POST",body:{label:"A"},context:ctx("owner-a@example.com")});
- const auth={Authorization:"Bearer "+a.data.token};
- const started=new Date().toISOString(),old=new Date(Date.now()-60000).toISOString();
- rows.events.set("stale",{owner:"owner-a@example.com",start:"2026-11-02T18:00:00.000Z",updated:old});
- rows.events.set("otherday",{owner:"owner-a@example.com",start:"2026-11-04T18:00:00.000Z",updated:old});
- rows.events.set("otherowner",{owner:"owner-b@example.com",start:"2026-11-02T18:00:00.000Z",updated:old});
- rows.events.set("fresh",{owner:"owner-a@example.com",start:"2026-11-02T19:00:00.000Z",updated:new Date(Date.now()+1000).toISOString()});
- const done=await call("/api/ingest",{method:"POST",headers:auth,body:{kind:"calendar_complete",date:"2026-11-02",utcOffset:"-08:00",startedAt:started}});
- assert.equal(done.status,200);assert.equal(done.data.removed,1);
- assert.deepEqual([...rows.events.keys()].sort(),["fresh","otherday","otherowner"]);
- assert.equal((await call("/api/ingest",{method:"POST",headers:auth,body:{kind:"calendar_complete",date:"2026-11-02",utcOffset:"bad",startedAt:started}})).status,400);
- assert.equal((await call("/api/ingest",{method:"POST",headers:auth,body:{kind:"calendar_complete",date:"2026-11-02",utcOffset:"-08:00",startedAt:"2020-01-01T00:00:00Z"}})).status,400);
-});
 
 test("alarm records parse labels, repeats and on or off state, and bad times are dropped",()=>{
  const{runtime}=harness();
@@ -533,7 +520,7 @@ test("today's and tomorrow's events arrive together, and events the run didn't s
  const a=await call("/api/user/device",{method:"POST",body:{label:"A"},context:ctx("owner-a@example.com")});
  await call("/api/user/device",{method:"POST",body:{label:"B"},context:ctx("owner-b@example.com")});
  const A={Authorization:"Bearer "+a.data.token};
- await call("/api/ingest",{method:"POST",body:{kind:"calendar",title:"Earlier",calendar:"Private",start:"2026-11-01T10:00:00Z",end:"2026-11-01T11:00:00Z"},headers:A});
+ await call("/api/ingest",{method:"POST",body:days("2026-11-01",[["2026-11-01T10:00:00Z","2026-11-01T11:00:00Z","Private","Earlier"]]),headers:A});
  await call("/api/calendars",{method:"POST",body:{name:"Private",enabled:false},headers:A});
  const old=new Date(Date.now()-60000).toISOString();
  rows.events.set("stale",{owner:"owner-a@example.com",start:"2026-11-04T17:00:00.000Z",updated:old});
@@ -563,7 +550,7 @@ test("today's and tomorrow's events arrive together, and events the run didn't s
  assert.equal(bad.status,400);
  assert.equal(bad.data.code,"invalid_calendar_details");
 });
-test("Health takes each measure with its own date, reads comma decimals, and ignores average heart rate quietly",async()=>{
+test("Health takes each measure with its own date, and reads comma decimals",async()=>{
  const{call,ctx,rows}=harness();
  const a=await call("/api/user/device",{method:"POST",body:{label:"A"},context:ctx("owner-a@example.com")});
  const A={Authorization:"Bearer "+a.data.token};
@@ -572,11 +559,6 @@ test("Health takes each measure with its own date, reads comma decimals, and ign
  assert.equal(sent.data.healthMetrics,2);
  assert.equal(rows.health.get("owner-a@example.com|2026-11-04|steps").value,5200);
  assert.equal(rows.health.get("owner-a@example.com|2026-11-03|hrv").value,45.5);
- const ignored=await call("/api/ingest",{method:"POST",body:{kind:"health",date:"2026-11-04",heartRate:"64",shortcutVersion:"2.9.0"},headers:A});
- assert.equal(ignored.status,200);
- assert.equal(ignored.data.healthMetrics,0);
- assert.equal([...rows.health.values()].some(h=>h.metric==="heartRate"),false);
- assert.equal((await call("/api/sync/status",{headers:A})).data.lastErrorCode,null);
  const bad=await call("/api/ingest",{method:"POST",body:{kind:"health",date:"2026-11-04",steps:"lots"},headers:A});
  assert.equal(bad.status,400);
  assert.equal(bad.data.code,"no_valid_records");
@@ -874,8 +856,8 @@ test("one calendar's saved events can be removed, for that owner and calendar on
  const a=await call("/api/user/device",{method:"POST",body:{label:"A"},context:ctx("owner-a@example.com")});
  const b=await call("/api/user/device",{method:"POST",body:{label:"B"},context:ctx("owner-b@example.com")});
  const A={Authorization:"Bearer "+a.data.token},B={Authorization:"Bearer "+b.data.token};
- const event=(calendar,hour)=>({start:`2026-11-04T${hour}:00:00-08:00`,end:`2026-11-04T${hour}:30:00-08:00`,title:calendar+" event",calendar});
- const send=headers=>call("/api/ingest",{method:"POST",headers,body:{kind:"batch",events:[event("Work","09"),event("Home","10")]}});
+ const event=(calendar,hour)=>[`2026-11-04T${hour}:00:00-08:00`,`2026-11-04T${hour}:30:00-08:00`,calendar,calendar+" event"];
+ const send=headers=>call("/api/ingest",{method:"POST",headers,body:days("2026-11-04",[event("Work","09"),event("Home","10")])});
  await send(A);await send(B);
  const off=await call("/api/calendars",{method:"POST",headers:A,body:{name:"Work",enabled:false}});
  assert.equal(off.data.savedEvents,1);
@@ -908,12 +890,11 @@ test("one session request carries the status, release, calendars and choices, an
  const device=await call("/api/user/device",{method:"POST",context:owner,body:{label:"iPhone"}});
  const A={Authorization:"Bearer "+device.data.token};
  assert.equal((await call("/api/session")).status,401);
- await call("/api/ingest",{method:"POST",headers:A,body:{kind:"batch",shortcutVersion:"3.0.0",health:[{date:"2026-11-01",steps:100}],events:[]}});
+ await call("/api/ingest",{method:"POST",headers:A,body:{kind:"health",shortcutVersion:"3.0.0",date:"2026-11-01",steps:100}});
  let session=await call("/api/session",{headers:A});
  assert.equal(session.status,200);
  assert.equal(session.data.status.deviceId,device.data.deviceId);
  assert.equal(session.data.status.lastUpload.health,1);
- assert.equal(session.data.status.lastUpload.events,0);
  assert.deepEqual(session.data.calendars,[]);
  assert.ok(Object.keys(session.data.settings).length>0);
  assert.equal(session.data.moods.enabled,false);
@@ -932,7 +913,7 @@ test("over the limit, invitations and uploads are refused with a code, and every
  const invite=await call("/api/user/testers",{method:"POST",context:owner,headers:origin,body:{email:"new@example.com"}});
  assert.equal(invite.status,429);
  assert.equal(invite.data.code,"rate_limited");
- const upload=await call("/api/ingest",{method:"POST",headers:{Authorization:"Bearer "+device.data.token},body:{kind:"batch",health:[],events:[]}});
+ const upload=await call("/api/ingest",{method:"POST",headers:{Authorization:"Bearer "+device.data.token},body:{kind:"health",date:"2026-11-01",steps:100}});
  assert.equal(upload.status,429);
  assert.equal(upload.data.code,"rate_limited");
  assert.doesNotMatch(require("node:fs").readFileSync("worker/index.js","utf8"),/\berror\("[^"]*",\d+\)/);
