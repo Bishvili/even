@@ -19,5 +19,4 @@
  function median(values){var sorted=values.slice().sort(function(a,b){return a-b;});return sorted[Math.floor(sorted.length/2)];}
  function localDay(date){var d=new Date(date);return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");}
  root.EvenDay={RULES:RULES,DAY_MS:DAY_MS,mean:mean,median:median,localDay:localDay};
- if(typeof module==="object"&&module.exports)module.exports=root.EvenDay;
 })(globalThis);
