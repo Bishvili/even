@@ -539,6 +539,19 @@ test("alarms belong to one owner, replace on each sync, and go with an erase",as
  assert.equal((await call("/api/pull",{headers:A})).data.alarms.length,0);
 });
 
+test("a run that says it read a week keeps a week, and earlier Shortcuts still keep two days",async()=>{
+ const{call,ctx,rows}=harness();
+ const a=await call("/api/user/device",{method:"POST",body:{label:"A"},context:ctx("owner-a@example.com")}),A={Authorization:"Bearer "+a.data.token};
+ const record=(start,title)=>[start,start.replace("09:00","10:00"),"Work",title].join("␟");
+ const events=["",record("2026-11-04T09:00:00-08:00","Today"),record("2026-11-11T09:00:00-08:00","Last day"),record("2026-11-12T09:00:00-08:00","Too far")].join("␞");
+ const week=await call("/api/ingest",{method:"POST",headers:A,body:{...days("2026-11-04",[]),events,calendarDays:"8",utcOffset:"-08:00"}});
+ assert.equal(week.data.calendarEvents,2);
+ const two=await call("/api/ingest",{method:"POST",headers:A,body:{...days("2026-11-04",[]),events,utcOffset:"-08:00"}});
+ assert.equal(two.data.calendarEvents,1);
+ const huge=await call("/api/ingest",{method:"POST",headers:A,body:{...days("2026-11-04",[]),events,calendarDays:"500",utcOffset:"-08:00"}});
+ assert.equal(huge.data.calendarEvents,2);
+ assert.ok(rows.events.size>=1);
+});
 test("today's and tomorrow's events arrive together, and events the run didn't send are removed",async()=>{
  const{call,ctx,rows}=harness();
  const a=await call("/api/user/device",{method:"POST",body:{label:"A"},context:ctx("owner-a@example.com")});

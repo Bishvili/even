@@ -60,7 +60,7 @@ test("a run makes five requests, each with one version, and learns about updates
  assert.match(sync,/showNotification\("A new version is ready in Even > Sync\.", "Even Sync"\)/);
 });
 
-test("today's and tomorrow's events go up together as records with full timestamps",()=>{
+test("the next week's events go up together as records with full timestamps",()=>{
  for(const [name,source] of [["startISO","startDate"],["endISO","endDate"],["upcomingStartISO","upcomingStart"],["upcomingEndISO","upcomingEnd"]])
   assert.ok(sync.includes(`const ${name} = formatTimestamp(${source}, "Custom", "None", "${TIMESTAMP}")`),name);
  assert.ok(sync.includes('@eventRecords = "{@eventRecords}␞{startISO}␟{endISO}␟{calendarName}␟{title}"'));
@@ -73,7 +73,7 @@ test("today's and tomorrow's events go up together as records with full timestam
  assert.match(worker,/category=CATS\.includes\(x\.category\)\?x\.category:classifyCalendarTitle\(title\)/);
  assert.doesNotMatch(sync,/(?:alert|showNotification)\("[^"]*\{(?:title|upcomingTitle)\}/);
  assert.deepEqual([rows("todayEventsFilter")[0].Property,rows("todayEventsFilter")[0].Operator],["Start Date",1002]);
- assert.deepEqual([rows("upcomingEventsFilter")[0].Property,rows("upcomingEventsFilter")[0].Operator,rows("upcomingEventsFilter")[0].Values],["Start Date",1000,{Number:"2",Unit:16}]);
+ assert.deepEqual([rows("upcomingEventsFilter")[0].Property,rows("upcomingEventsFilter")[0].Operator,rows("upcomingEventsFilter")[0].Values],["Start Date",1000,{Number:"9",Unit:16}]);
  for(const name of ["todayEventsFilter","upcomingEventsFilter"])assert.equal(filters[name].WFSerializationType,"WFContentPredicateTableTemplate");
 });
 

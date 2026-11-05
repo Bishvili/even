@@ -86,7 +86,7 @@ Only an iPhone proves iOS behavior, and each round trip costs the owner time. Be
 - Clock alarm details exist only as variable properties, whose names can differ across iOS versions. Confirm in the Shortcuts editor and in Even → **Data** that names, times and on/off state arrive. Keep alarms at the end of the run, because an error there can't be caught.
 - Clients check an error's `code`, never its message.
 - Even Sync follows the settings the handshake returns: `sync…` values for each kind of data, and `calendarsOff`, a pattern of turned-off calendars. The Worker also applies them on arrival, in case they changed during the run.
-- A run makes five requests: the handshake, today's and tomorrow's events, all Health measures, alarms, and the final notification. Every request is a round trip from the phone, often on cellular or inside an automation, so add fields to one of these instead of adding requests.
+- A run makes five requests: the handshake, the next week's events, all Health measures, alarms, and the final notification. Every request is a round trip from the phone, often on cellular or inside an automation, so add fields to one of these instead of adding requests.
 - Sleep arrives as asleep intervals that the Worker merges per night, so two wearables count once. A batch that reached its sample limit leaves its oldest night alone, because that night may be cut off.
 
 **Cloud and naming**
@@ -142,7 +142,7 @@ Even is an iPhone-first, installable progressive web app for quick mood check-in
   - Using Even requires an account: signing in is required on every device, and adding Even to the Home Screen is required on an iPhone or iPad. Even Sync is strongly asked for but can be put off, because the app still works without it.
   - Even Sync is installed only from the iCloud link the app offers. There is no third-party listing.
   - Resting heart rate becomes personal recovery context, compared with the person's own usual level (planned in #37). Average heart rate is no longer collected.
-  - Even Sync also sends tomorrow's events, so the wind-down and morning brief can plan around the first commitment. Even Sync 3 sends them; coaching starts using them in #37.
+  - Even Sync sends events for today and the next 7 days, so plans can work around them.
 - Where `README.md` disagrees with this guide, this guide is current. #34 brings the README up to date.
 
 ## Product language and code quality
@@ -221,7 +221,7 @@ What Even holds and where it goes. Write every privacy statement from this table
 | Steps, exercise minutes, sleep hours, HRV | Even Sync, from Apple Health, up to the last 7 days each run. Sleep arrives as asleep intervals from recent nights, up to a month on the first sync | Yes | Yes | Insights and coaching. HRV: Insights only. |
 | Bedtimes | Worked out from the sleep intervals | Yes | Yes | Bedtime estimate and wind-down |
 | Resting heart rate | Even Sync, from Apple Health | Yes | Yes | Insights: compared with the person's own usual level |
-| Today's and tomorrow's calendar events: title, start, end, calendar name | Even Sync reads calendars left on. Saved events from a turned-off calendar can be removed in the app; the Worker adds a category | Yes, without the calendar name | Yes, except events from turned-off calendars, which are discarded on arrival | Insights, coaching and nudges before events |
+| Calendar events for today and the next 7 days: title, start, end, calendar name | Even Sync reads calendars left on. Saved events from a turned-off calendar can be removed in the app; the Worker adds a category | Yes, without the calendar name | Yes, except events from turned-off calendars, which are discarded on arrival | Insights, coaching and nudges before events |
 | Calendar names, on/off state and what each is for | Even Sync and the app | No | Yes | Calendar settings and event categories |
 | What Even Sync sends | The app | Yes | Yes | Followed by Even Sync and the Worker |
 | Alarms: time, repeat days, on/off, name | Even Sync, from Clock | Yes | Yes, plus each synced day's first morning alarm | Brief, wind-down, next steps and the early-alarm pattern |

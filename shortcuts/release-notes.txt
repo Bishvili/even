@@ -1,1 +1,1 @@
-Fills in up to a week of days you missed.
+Brings in the week ahead from your calendar.

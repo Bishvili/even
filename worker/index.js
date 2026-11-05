@@ -38,7 +38,7 @@ async function payload(request){
  if(type.includes("application/x-www-form-urlencoded"))return Object.fromEntries(new URLSearchParams(text));
  try{return JSON.parse(text);}catch(e){return Object.fromEntries(new URLSearchParams(text));}
 }
-const VERSION_NAME="2.42.2";
+const VERSION_NAME="2.43.0";
 function normalEmail(value){return String(value||"").trim().toLowerCase();}
 async function signinAuth(env,ctx){
  const {createAuth}=await import("./signin.mjs");
@@ -224,11 +224,13 @@ function readEvent(x){
  const category=CATS.includes(x.category)?x.category:classifyCalendarTitle(title);
  return {start:start.toISOString(),end:end.toISOString(),title,category,calendar:String(x.calendar||"").trim().slice(0,100)||null};
 }
-// Even Sync 3 sends today's and tomorrow's events as records of start, end, calendar and title, so both days arrive complete.
+// Even Sync sends upcoming events as records of start, end, calendar and title, so each day it covers arrives complete.
+// What Even Sync reads in one search. It repeats part of the day, so a run can hold more.
+const EVENT_LIMIT=150;
 function readEventRecords(text){
  const seen=new Set(),events=[];
  for(const record of String(text||"").split("\u241e")){
-  if(events.length>=150)break;
+  if(events.length>=EVENT_LIMIT*2)break;
   const [start="",end="",calendar="",...title]=record.split("\u241f");
   const day=dateOnly(start.trim().slice(0,10)),event=day&&readEvent({start:start.trim(),end:end.trim(),calendar,title:title.join("\u241f")});
   if(!event||seen.has(event.start+"|"+event.end+"|"+event.title))continue;
@@ -842,11 +844,14 @@ async function syncApi(request,env,path){
   if(kind==="calendar_days"){
    const day=dateOnly(input.date),offset=String(input.utcOffset||"").trim();
    if(!day||!UTC_OFFSET.test(offset))return error("Invalid calendar sync details",400,"invalid_calendar_details");
-   const tomorrow=nextDay(day),events=await enabledEvents(env,owner,readEventRecords(input.events).filter(e=>e.day===day||e.day===tomorrow));
+   // Even Sync says how many days it read, from today. Earlier versions read 2 and don't say.
+   const calendarDays=Math.min(8,Math.max(2,Number(input.calendarDays)||2)),included=new Set();
+   for(let i=0,next=day;i<calendarDays;i++,next=nextDay(next))included.add(next);
+   const records=readEventRecords(input.events),events=await enabledEvents(env,owner,records.filter(e=>included.has(e.day)));
    const at=new Date().toISOString(),statements=await Promise.all(events.map(e=>eventStatement(env,owner,e,at)));
    for(let i=0;i<statements.length;i+=50)await env.DB.batch(statements.slice(i,i+50));
-   // Both days are complete, so anything the run didn't send was edited or deleted.
-   const from=new Date(day+"T00:00:00"+offset),to=new Date(from.getTime()+172800000);
+   // Those days are complete, so anything the run didn't send was edited or deleted. A run cut off at its limit says nothing about the days past its last event.
+   const from=new Date(day+"T00:00:00"+offset),last=records.length>=EVENT_LIMIT?Math.max(...records.map(e=>Date.parse(e.start))):Infinity,to=new Date(Math.min(from.getTime()+calendarDays*86400000,last));
    const removed=await env.DB.prepare("DELETE FROM health_calendar_events WHERE owner_email=? AND start_time>=? AND start_time<? AND updated_at<?").bind(owner,from.toISOString(),to.toISOString(),at).run();
    const shortcutVersion=await markUpload(env,dev,input.shortcutVersion,at,{events:events.length});
    return reply({ok:true,state:"accepted",receivedAt:at,calendarEvents:events.length,removed:removed.meta?.changes||0,shortcutVersion});

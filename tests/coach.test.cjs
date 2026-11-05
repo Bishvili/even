@@ -451,3 +451,9 @@ test("fictional records stay out of a person's own day model",()=>{
  assert.notEqual(Day.build({health:person.health,events:person.events},TODAY).days[day(1)].steps.value,99999);
  assert.equal(own.days[day(1)].steps.value,person.health[1].steps);
 });
+test("a week of synced events ahead doesn't count toward what's usual",()=>{
+ const events=[];
+ for(let i=1;i<=7;i++)events.push(span(i,9,60,"Meeting"));
+ for(let i=-7;i<0;i++)events.push(span(i,9,600,"Meeting"));
+ assert.equal(Day.build({health:[],events},TODAY).usual.busyMinutes,60);
+});

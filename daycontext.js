@@ -20,7 +20,7 @@
  function localDay(date){var d=new Date(date);return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");}
  // A person's own usual level: the median of the last 28 days, once there are 7 values.
  function baseline(values,now){
-  var cutoff=new Date(now).getTime()-RULES.usualDays*DAY_MS,kept=values.filter(function(item){return Number.isFinite(item.value)&&new Date(item.date+"T12:00:00").getTime()>=cutoff;}).map(function(item){return item.value;});
+  var latest=new Date(now).getTime(),cutoff=latest-RULES.usualDays*DAY_MS,kept=values.filter(function(item){var at=new Date(item.date+"T00:00:00").getTime();return Number.isFinite(item.value)&&at+DAY_MS/2>=cutoff&&at<=latest;}).map(function(item){return item.value;});
   return kept.length>=RULES.usualMinimum?median(kept):null;
  }
  // The only day-part table. Each part also has its own time to nudge before it starts.
