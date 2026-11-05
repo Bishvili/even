@@ -10,7 +10,6 @@ async function approved(env,email){
  if(ownerEmails(env).includes(email))return true;
  return !!await env.DB.prepare("SELECT 1 AS allowed FROM even_approved_emails WHERE email=?").bind(email).first();
 }
-const MIME={"index.html":"text/html; charset=utf-8","styles.css":"text/css; charset=utf-8","app.js":"text/javascript; charset=utf-8","reminders.js":"text/javascript; charset=utf-8","onboarding.js":"text/javascript; charset=utf-8","intake.js":"text/javascript; charset=utf-8","whitepaper.html":"text/html; charset=utf-8","whitepaper.css":"text/css; charset=utf-8","invites.js":"text/javascript; charset=utf-8","coach.js":"text/javascript; charset=utf-8","refresh.js":"text/javascript; charset=utf-8","sw.js":"text/javascript; charset=utf-8","manifest.webmanifest":"application/manifest+json","icon.svg":"image/svg+xml","icon-192.png":"image/png","icon-512.png":"image/png"};
 const SECURITY={"X-Content-Type-Options":"nosniff","Referrer-Policy":"no-referrer","X-Frame-Options":"DENY","Permissions-Policy":"camera=(), microphone=(), geolocation=()","Content-Security-Policy":"default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'"};
 const METRICS={sleepHours:[0,24],steps:[0,100000],hrv:[0,500],restingHR:[20,250],workoutMin:[0,1440]};
 const SEMVER=/^\d{1,3}\.\d{1,3}\.\d{1,3}$/,UTC_OFFSET=/^(Z|[+-]\d{2}:\d{2})$/;
@@ -830,25 +829,25 @@ async function syncApi(request,env,path){
  return error("Not found",404,"not_found");
 }
 async function api(request,env,ctx,path){
- if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:"Even",version:"2.19.0",sync:"email-access"});
+ if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:"Even",version:"2.19.1",sync:"email-access"});
  if(path.startsWith("/api/auth/"))return authApi(request,env,ctx,path);
  return syncApi(request,env,path);
 }
 
 // iOS names an imported Shortcut after its file, and release assets can't contain spaces.
-async function asset(path,env){
- const key=path==="/"?"index.html":path.slice(1);
- if(!Object.prototype.hasOwnProperty.call(MIME,key))return new Response("Not found",{status:404,headers:SECURITY});
- const val=await env.ASSETS.get("asset:"+key);if(val===null)return new Response("Asset unavailable",{status:503,headers:SECURITY});
- const data=key.endsWith(".png")?Uint8Array.from(atob(val),x=>x.charCodeAt(0)):val;
- const headers={...SECURITY,"Content-Type":MIME[key],"Cache-Control":"no-cache, max-age=0, must-revalidate"};
- if(key==="sw.js")headers["Service-Worker-Allowed"]="/";
- return new Response(data,{headers});
+// Files come from the deployed version, so code and pages always match. The Worker runs first to add its headers.
+async function asset(request,env,path){
+ const file=await env.STATIC.fetch(new Request(new URL(path==="/"?"/index.html":path,request.url),request));
+ const headers=new Headers(file.headers);
+ for(const [name,value] of Object.entries(SECURITY))headers.set(name,value);
+ headers.set("Cache-Control","no-cache, max-age=0, must-revalidate");
+ if(path==="/sw.js")headers.set("Service-Worker-Allowed","/");
+ return new Response(file.body,{status:file.status,headers});
 }
 export default {async fetch(request,env,ctx){
  try{const path=new URL(request.url).pathname;if(path.startsWith("/api/"))return await api(request,env,ctx,path);
  if(request.method!=="GET"&&request.method!=="HEAD")return new Response("Method not allowed",{status:405,headers:SECURITY});
- return await asset(path,env);
+ return await asset(request,env,path);
  }catch(e){return error("Request could not be processed",500,"server_error");}
 },
 async scheduled(event,env,ctx){ctx.waitUntil(sendReminders(env));}};

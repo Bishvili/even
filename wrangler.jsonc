@@ -5,6 +5,13 @@
   "triggers": {
     "crons": ["*/5 * * * *"]
   },
+  "assets": {
+    "directory": "dist",
+    "binding": "STATIC",
+    "run_worker_first": true,
+    "html_handling": "none",
+    "not_found_handling": "none"
+  },
   "kv_namespaces": [
     {
       "binding": "ASSETS",
