@@ -63,7 +63,7 @@ test("feedback holds only the listed details",()=>{
  assert.deepEqual(keys,["App version","Software","Opened from","Signed in","{{sync}} version","Last upload","Last error"]);
  assert.ok(read("index.html").includes('id="feedback-open"'));
 });
-test("startup images exist for every size the page lists",()=>{
- for(const [,file] of read("index.html").matchAll(/apple-touch-startup-image"[^>]*href="\/([\w.-]+)"/g))assert.ok(fs.existsSync(require("node:path").join(__dirname,"..",file)),file);
+test("startup images are built for every size the page lists",()=>{
+ for(const [,file] of read("index.html").matchAll(/apple-touch-startup-image"[^>]*href="\/([\w.-]+)"/g))assert.ok(read("sw.js").includes('"/'+file+'"'),file);
  assert.ok(read("sw.js").includes("/launch-390x844-3-dark.png"));
 });

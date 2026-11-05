@@ -90,6 +90,7 @@ Only an iPhone proves iOS behavior, and each round trip costs the owner time. Be
 - Sleep arrives as asleep intervals that the Worker merges per night, so two wearables count once. A batch that reached its sample limit leaves its oldest night alone, because that night may be cut off.
 
 **Cloud and naming**
+- Icons and launch images are not stored: the build draws every PNG the service worker lists from `brand/logo.svg` and the palette, with `@resvg/resvg-js`. If it can't, the deploy stops. Browser checks draw the same images with Playwright, so a change to the logo needs a look at the deployed icon.
 - The app's name comes from `brand/brand.json`, and the Shortcut names from `brand/stable.json`. Write `{{name}}`, `{{installName}}`, `{{sync}}`, `{{helper}}` or `{{syncUrl}}` in shipped files, which the build fills in (`scripts/build-assets.cjs`), and `BRAND.name` or `STABLE.sync` in the Worker. Never write the name itself. `tests/brand.test.cjs` rebuilds under a made-up name and checks nothing is left over. Only change `stable.json` together with the Shortcut sources.
 - Attaching Workers Static Assets removes `ctx.access` from the Worker, which once refused every sign-in. Even's sign-in doesn't use it.
 - Failures log one JSON line through `logEvent` in `worker/index.js`, from named fields only. Each cron run records itself in `health_service`, and Developer tools shows the last run. Lint runs as a test (`tests/lint.test.cjs`), so it stops a deploy.

@@ -51,3 +51,16 @@ test("every color comes from the palette, with a value for each appearance",()=>
   for(const role of Object.keys(palette[group]))assert.ok(css.includes("var(--"+role+")")||group==="app"&&fs.readFileSync("index.html","utf8").includes("color."+role+".")||role==="contrast"||role==="on-contrast",file+" never uses --"+role);
  }
 });
+test("every listed image can be drawn, at its real size, from the logo",()=>{
+ const{imageSpec}=require("../scripts/build-assets.cjs"),palette=JSON.parse(fs.readFileSync("brand/palette.json","utf8"));
+ const logo=fs.readFileSync("brand/logo.svg","utf8"),files=publicFiles(fs.readFileSync("sw.js","utf8")).filter(file=>file.endsWith(".png"));
+ assert.equal(files.length,25);
+ assert.equal(imageSpec("icon-180.png",logo,palette).width,180);
+ const launch=imageSpec("launch-390x844-3-dark.png",logo,palette);
+ assert.equal(launch.width,1170);
+ assert.equal(launch.height,2532);
+ assert.match(launch.svg,/height="2532"/);
+ assert.ok(launch.svg.includes(palette.app.page.dark));
+ for(const file of files)imageSpec(file,logo,palette);
+ assert.ok(!fs.existsSync("icon-180.png"),"images are built, not stored");
+});

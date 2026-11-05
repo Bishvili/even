@@ -1,6 +1,6 @@
 (function () {
 "use strict";
-var VERSION = "2.43.2";
+var VERSION = "2.43.3";
 // Brings saved data over from the earlier storage names. Remove once no installed copy has them.
 function moveSavedData(){
  [["even:v1","health:v1"],["even-reminder","health-reminder"],["even-setup","health-setup"]].forEach(function(pair){

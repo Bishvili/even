@@ -1,10 +1,11 @@
 {
-  "name": "even",
+  "name": "health",
   "private": true,
   "dependencies": {
     "better-auth": "~1.7.15"
   },
   "devDependencies": {
+    "@resvg/resvg-js": "^2.6.2",
     "eslint": "^10.0.0",
     "@eslint/js": "^10.0.0",
     "globals": "^17.0.0"
