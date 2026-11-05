@@ -433,3 +433,21 @@ test("paired check-ins appear only after the opt-in, at most one pair a day, and
  assert.equal(plan.slots.filter(s=>s.kind==="pair").length,2);
  assert.equal(plan.slots.length,without.slots.length);
 });
+test("the people with limits get the stated behavior",()=>{
+ const{weekSchedule}=globalThis.EvenCoach;
+ const shift=people.shiftWorker(),plan=weekSchedule(shift.moods,shift.health,{...shift.prefs,alarms:[],events:[]},TODAY);
+ assert.ok(plan.every(item=>{const h=new Date(item.at).getHours();return h>=17||h<=6;}));
+ assert.ok(plan.filter(item=>item.part==="evening").length>0);
+ const none=people.noCalendar();
+ assert.ok(findings(none.moods,[],none.health,[],TODAY).every(r=>!/calendar|event|stretch/i.test(r.label)));
+ const noHealth=people.noHealth();
+ assert.ok(findings(noHealth.moods,noHealth.events,[],[],TODAY).every(r=>!/sleep|steps|workout/i.test(r.label)));
+ assert.equal(globalThis.EvenCoach.nextActions({...noHealth,connected:false},TODAY,noHealth.prefs).some(a=>a.action==="sync"),false);
+});
+test("fictional records stay out of a person's own day model",()=>{
+ const person=people.regular(),demo=[{date:day(1),source:"demo",steps:99999}];
+ const own=Day.build({health:person.health,events:person.events},TODAY);
+ Day.build({health:demo,events:[]},TODAY);
+ assert.notEqual(Day.build({health:person.health,events:person.events},TODAY).days[day(1)].steps.value,99999);
+ assert.equal(own.days[day(1)].steps.value,person.health[1].steps);
+});

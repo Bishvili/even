@@ -425,7 +425,7 @@
   var now=new Date(today),rows=[],window=Day.evidence(moods,now);
   helpFactors(moods,events,health,resets,now,tries).forEach(function(factor){
    if(!factor.tip)return;
-   if(factor.tag)factor.done=moods.some(function(m){return localDay(m.ts)===localDay(now)&&(m.tags||[]).indexOf(factor.tag)>=0;});
+   if(factor.tag)factor.done=factor.done||moods.some(function(m){return localDay(m.ts)===localDay(now)&&(m.tags||[]).indexOf(factor.tag)>=0;});
    var effects=effectsOf(factor,window).filter(function(e){return e.gap>0;});
    if(effects.length)rows.push({id:factor.id,label:factor.label,tip:factor.tip,action:factor.action,done:factor.done,effects:effects});
   });

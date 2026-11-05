@@ -39,6 +39,7 @@ async function open(browser,base,state,api,check,device={}){
  page.on("pageerror",error=>errors.push(error.message));
  await page.addInitScript(([value])=>{if(sessionStorage.getItem("seeded"))return;sessionStorage.setItem("seeded","1");localStorage.setItem("even:v1",value);},[typeof state==="string"?state:JSON.stringify(state)]);
  if(device.installed)await page.addInitScript(()=>Object.defineProperty(navigator,"standalone",{value:true}));
+ if(device.midday){const noon=new Date();noon.setHours(12,0,0,0);await page.clock.setFixedTime(noon);}
  await context.route("**/api/**",api.handle);
  await page.goto(base+"/");
  try{
@@ -189,6 +190,16 @@ const scenarios={
    await until(page,()=>document.getElementById("calendar-off-count").textContent==="1 calendar off");
    assert.equal(await page.locator("#calendar-list .calendar-row").count(),2);
   });
+ },
+ "a suggestion marked done is logged, and it goes away for today":async(browser,base)=>{
+  const moods=[];
+  for(let i=1;i<=24;i++){const d=new Date(Date.now()-i*86400000);d.setHours(9,0,0,0);moods.push(mood("t"+i,{ts:d.toISOString(),score:i%2?5:3,stress:i%2?1:4,tags:i%2?["Rest"]:[]}));}
+  await open(browser,base,saved({moods,moodCursor:shared.cursor}),fakeApi(),async({page})=>{
+   await until(page,()=>document.querySelector(".next-done"));
+   await page.click(".next-done");
+   await until(page,()=>JSON.parse(localStorage.getItem("even:v1")).tries.length===1);
+   await until(page,()=>!document.querySelector(".next-done"));
+  },{midday:true});
  },
  "the sync label says what a tap does":async(browser,base)=>{
   const api=fakeApi();api.status={lastDataUploadAt:new Date(Date.now()-3*3600000).toISOString()};
