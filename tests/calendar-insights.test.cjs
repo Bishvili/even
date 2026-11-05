@@ -9,7 +9,7 @@ const original = fs.readFileSync(path.join(__dirname, "..", "app.js"), "utf8");
 
 function loadAppWithoutStartingUI() {
  const instrumented = original.replace(/init\(\);\s*\}\)\(\);\s*$/, [
-  "globalThis.__testApi={drawTimes,buildDemoCalendarScenario,calendarPatternSummary,",
+  "globalThis.__testApi={withDemoApart,upsertHealth,normalizeHealth,renderSettings,drawTimes,buildDemoCalendarScenario,calendarPatternSummary,",
   "renderInsights,renderStats,getState:()=>state,setScope:s=>{insightScope=s;},dateKey};",
   "})();"
  ].join(""));
@@ -72,9 +72,8 @@ test("personal insights and daily statistics exclude fictional records", () => {
  const {api,elements}=loadAppWithoutStartingUI();
  const fixture=api.buildDemoCalendarScenario(new Date());
  const state=api.getState();
- state.moods.push(...fixture.moods,{id:"personal-test",ts:new Date().toISOString(),score:4,tags:[],energy:4,note:""});
- state.events.push(...fixture.events);
- state.health.push(...fixture.health);
+ state.demo=fixture;
+ state.moods.push({id:"personal-test",ts:new Date().toISOString(),score:4,tags:[],energy:4,note:""});
  api.setScope("personal");
  api.renderInsights();
  assert.match(elements.get("insight-samples").textContent,/1 personal check-ins/);
@@ -99,4 +98,24 @@ test("time of day shows an average only from 3 check-ins, with bars to scale",()
  assert.match(html,/Not enough check-ins/);
  assert.match(html,/1 check-in</);
  assert.doesNotMatch(html,/style="/);
+});
+
+test("fictional records stay apart, and old saved state moves them out once",()=>{
+ const {api}=loadAppWithoutStartingUI();
+ const moved=api.withDemoApart({moods:[{id:"a",demo:true},{id:"b"}],health:[{date:"2026-01-01",steps:9,demo:true}],events:[]},undefined);
+ assert.deepEqual(moved.moods.map(m=>m.id),["b"]);
+ assert.equal(moved.health.length,0);
+ assert.equal(moved.demo.moods[0].id,"a");
+ assert.equal(moved.demo.health[0].steps,9);
+ assert.equal(api.withDemoApart({moods:[],health:[],events:[]},{moods:[{id:"kept"}],health:[],events:[]}).demo.moods[0].id,"kept");
+});
+test("a real health day on a demo date carries nothing over from the demo",()=>{
+ const {api}=loadAppWithoutStartingUI();
+ const state=api.getState(),fixture=api.buildDemoCalendarScenario(new Date()),date=fixture.health[0].date;
+ state.demo=fixture;
+ api.upsertHealth(api.normalizeHealth({date,steps:1234},"manual"));
+ assert.equal(state.health.length,1);
+ assert.equal(state.health[0].steps,1234);
+ assert.equal(state.health[0].sleepHours,undefined);
+ assert.equal(state.demo.health.find(h=>h.date===date).demo,true);
 });

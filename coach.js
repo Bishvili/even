@@ -354,8 +354,8 @@
   caches.open(BRIEF_CACHE).then(function(cache){return cache.put("/brief",new Response(JSON.stringify(body)));}).catch(function(){});
  }
  function renderToday(data){
-  var personal=data.moods.filter(function(m){return !m.demo;}),now=new Date(),days=outlook(personal,now);
-  var real=function(x){return !x.demo;},helper=whatHelps(personal,data.events.filter(real),data.health.filter(real),data.resets,now).filter(function(row){return row.id!=="sleep";})[0];
+  var personal=data.moods,now=new Date(),days=outlook(personal,now);
+  var helper=whatHelps(personal,data.events,data.health,data.resets,now).filter(function(row){return row.id!=="sleep";})[0];
   $("today-brief-text").textContent=brief(days[0],helper,data.firstName);
   $("hard-stretch").hidden=!hardStretch(personal,now);
   $("hard-stretch-text").textContent="It’s been a hard few days"+(data.firstName?", "+data.firstName:"")+". Talking to someone can help.";
@@ -363,7 +363,7 @@
   renderActions(data,personal,now);
  }
  function renderActions(data,personal,now){
-  var box=$("next-actions"),actions=nextActions({moods:personal,events:data.events.filter(function(e){return !e.demo;}),health:data.health.filter(function(h){return !h.demo;}),alarms:data.alarms,resets:data.resets,connected:data.connected,lastUpload:data.lastUpload},now,data.notifyPrefs);
+  var box=$("next-actions"),actions=nextActions({moods:personal,events:data.events,health:data.health,alarms:data.alarms,resets:data.resets,connected:data.connected,lastUpload:data.lastUpload},now,data.notifyPrefs);
   box.textContent="";box.hidden=!actions.length;
   actions.forEach(function(item){
    var row=element("div","next-action"),text=element("div");
@@ -458,12 +458,13 @@
  }
  function render(data){
   renderToday(data);
-  $("reflection-prompt").hidden=reflectionSnoozed||!reflectionDue(data.reflections,data.moods.filter(function(m){return !m.demo;}),new Date());
-  renderReflections(data.reflections);
-  var scoped=function(x){return !!x.demo===(data.scope==="demo");};
-  renderOutlook(data.moods.filter(scoped));
-  renderPatterns(data.moods.filter(scoped),data.events.filter(scoped),data.health.filter(scoped));
-  renderHelps(data.moods.filter(scoped),data.events.filter(scoped),data.health.filter(scoped),data.scope==="demo"?[]:data.resets);
+  $("reflection-prompt").hidden=reflectionSnoozed||!reflectionDue(data.reflections,data.moods,new Date());
+  // The demo view shows only fictional records.
+  var isDemo=data.scope==="demo",source=isDemo?data.demo:data;
+  renderReflections(isDemo?[]:data.reflections);
+  renderOutlook(source.moods);
+  renderPatterns(source.moods,source.events,source.health);
+  renderHelps(source.moods,source.events,source.health,isDemo?[]:data.resets);
  }
  api.render=render;
  api.openReset=openReset;

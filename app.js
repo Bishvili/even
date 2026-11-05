@@ -1,6 +1,6 @@
 (function () {
 "use strict";
-var VERSION = "2.15.3";
+var VERSION = "2.15.4";
 var SHORTCUT_PAGE = "https://routinehub.co/shortcut/26978/";
 var STORAGE_KEY = "even:v1";
 var MOOD_NAMES = ["","Rough","Low","Okay","Good","Great"];
@@ -13,11 +13,22 @@ var state = readState();
 var authEmail = "", authDevices = [], authChecking = false, authKnown = false, authCanRelease = false, authHelper = "", connecting = false;
 var shortcutRelease = null, shortcutStatus = null, shortcutStatusLoading = false;
 function $(id){ return document.getElementById(id); }
-function emptyState(){ return {moods:[],health:[],events:[],reflections:[],alarms:[],resets:[],moodSync:false,deletedMoods:[],firstName:"",name:"",token:"",deviceId:"",syncOwnerEmail:"",pairedAt:null,lastSync:null}; }
+function emptyState(){ return {demo:{moods:[],health:[],events:[]},moods:[],health:[],events:[],reflections:[],alarms:[],resets:[],moodSync:false,deletedMoods:[],firstName:"",name:"",token:"",deviceId:"",syncOwnerEmail:"",pairedAt:null,lastSync:null}; }
+// Fictional records live apart from personal ones. Older saved state kept them together, marked demo.
+function withDemoApart(loaded,saved){
+ var demo={};
+ ["moods","health","events"].forEach(function(kind){
+  demo[kind]=(saved&&Array.isArray(saved[kind])?saved[kind]:[]).concat(loaded[kind].filter(function(x){return x.demo;}));
+  loaded[kind]=loaded[kind].filter(function(x){return !x.demo;});
+ });
+ loaded.demo=demo;
+ return loaded;
+}
 function readState(){
  try { var raw=JSON.parse(localStorage.getItem(STORAGE_KEY)||"null"); if(!raw || typeof raw!=="object")return emptyState();
  var owner=typeof raw.syncOwnerEmail==="string"?raw.syncOwnerEmail.toLowerCase():"",deviceId=typeof raw.deviceId==="string"?raw.deviceId:"";
- return {moods:Array.isArray(raw.moods)?raw.moods.slice(-6000):[],health:Array.isArray(raw.health)?raw.health.slice(-1200):[],events:Array.isArray(raw.events)?raw.events.slice(-2000):[],reflections:Array.isArray(raw.reflections)?raw.reflections.slice(-200):[],alarms:Array.isArray(raw.alarms)?raw.alarms.slice(0,40):[],resets:Array.isArray(raw.resets)?raw.resets.slice(-500):[],moodSync:raw.moodSync===true,deletedMoods:Array.isArray(raw.deletedMoods)?raw.deletedMoods.slice(-500):[],firstName:typeof raw.firstName==="string"?raw.firstName.slice(0,60):"",name:typeof raw.name==="string"?raw.name.slice(0,60):"",token:owner&&deviceId&&typeof raw.token==="string"?raw.token:"",deviceId:deviceId,syncOwnerEmail:owner,pairedAt:raw.pairedAt||null,lastSync:raw.lastSync||null};
+ var loaded={moods:Array.isArray(raw.moods)?raw.moods.slice(-6000):[],health:Array.isArray(raw.health)?raw.health.slice(-1200):[],events:Array.isArray(raw.events)?raw.events.slice(-2000):[],reflections:Array.isArray(raw.reflections)?raw.reflections.slice(-200):[],alarms:Array.isArray(raw.alarms)?raw.alarms.slice(0,40):[],resets:Array.isArray(raw.resets)?raw.resets.slice(-500):[],moodSync:raw.moodSync===true,deletedMoods:Array.isArray(raw.deletedMoods)?raw.deletedMoods.slice(-500):[],firstName:typeof raw.firstName==="string"?raw.firstName.slice(0,60):"",name:typeof raw.name==="string"?raw.name.slice(0,60):"",token:owner&&deviceId&&typeof raw.token==="string"?raw.token:"",deviceId:deviceId,syncOwnerEmail:owner,pairedAt:raw.pairedAt||null,lastSync:raw.lastSync||null};
+ return withDemoApart(loaded,raw.demo);
  } catch(e){return emptyState();}
 }
 function persist(){ try{localStorage.setItem(STORAGE_KEY,JSON.stringify(state));return true;}catch(e){toast("Storage is full. Export a backup and free device storage.");return false;} }
@@ -88,7 +99,7 @@ function resetPageScroll(){
  page.scrollTop=0;
  setTimeout(function(){page.style.overflowY="";page.scrollTop=0;},60);
 }
-function refreshCoach(){renderAlarms();if(globalThis.EvenCoach&&globalThis.EvenCoach.render)globalThis.EvenCoach.render({moods:state.moods,events:state.events,health:state.health,reflections:state.reflections,alarms:state.alarms,resets:state.resets,firstName:state.firstName,connected:!!state.token,lastUpload:shortcutStatus&&shortcutStatus.lastDataUploadAt,notifyPrefs:globalThis.EvenReminders?globalThis.EvenReminders.preferences():{from:"09:00",to:"21:00",weekends:true},scope:insightScope});}
+function refreshCoach(){renderAlarms();if(globalThis.EvenCoach&&globalThis.EvenCoach.render)globalThis.EvenCoach.render({moods:state.moods,events:state.events,health:state.health,demo:state.demo,reflections:state.reflections,alarms:state.alarms,resets:state.resets,firstName:state.firstName,connected:!!state.token,lastUpload:shortcutStatus&&shortcutStatus.lastDataUploadAt,notifyPrefs:globalThis.EvenReminders?globalThis.EvenReminders.preferences():{from:"09:00",to:"21:00",weekends:true},scope:insightScope});}
 function render(){
  $("date-label").textContent=formatPrettyDate(now());
  $("current-time").textContent=formatTime(now());
@@ -96,9 +107,9 @@ function render(){
  if($("view-insights").classList.contains("active"))renderInsights();
  refreshCoach();
 }
-function getRecent(days){var cutoff=Date.now()-days*86400000;return state.moods.filter(function(m){return m.ts&&new Date(m.ts).getTime()>=cutoff&&m.score>=1&&m.score<=5;});}
+function getRecent(days,moods){var cutoff=Date.now()-days*86400000;return (moods||state.moods).filter(function(m){return m.ts&&new Date(m.ts).getTime()>=cutoff&&m.score>=1&&m.score<=5;});}
 function renderStats(){
- var personal=state.moods.filter(function(m){return !m.demo;}), today=dateKey(now()), cutoff=Date.now()-7*86400000;
+ var personal=state.moods, today=dateKey(now()), cutoff=Date.now()-7*86400000;
  var counts=personal.filter(function(m){return new Date(m.ts).getTime()>=cutoff;}), days=new Set(personal.map(function(m){return dateKey(m.ts);}));
  var todayCount=personal.filter(function(m){return dateKey(m.ts)===today;}).length;
  $("stat-today").textContent=todayCount;$("stat-today-unit").textContent=todayCount===1?"check-in":"check-ins";
@@ -109,10 +120,10 @@ function renderStats(){
  $("stat-streak").textContent=streak;$("stat-streak-unit").textContent=streak===1?"day":"days";
 }
 function renderRecent(){
- var moods=state.moods.filter(function(m){return !m.demo;}).sort(function(a,b){return new Date(b.ts)-new Date(a.ts);});
+ var moods=state.moods.slice().sort(function(a,b){return new Date(b.ts)-new Date(a.ts);});
  $("entries-count").textContent=plural(moods.length,"personal entry","personal entries");
  $("recent-list").innerHTML=moods.length?moods.slice(0,12).map(function(m){
- var tags=(m.tags||[]).join(" · "),sub=formatDate(m.ts)+" at "+formatTime(m.ts)+(tags?" · "+tags:"")+(m.demo?" · DEMO":"");
+ var tags=(m.tags||[]).join(" · "),sub=formatDate(m.ts)+" at "+formatTime(m.ts)+(tags?" · "+tags:"");
  return '<div class="entry"><span class="entry-emoji">'+MOOD_EMOJI[m.score]+'</span><div class="entry-main"><strong>'+MOOD_NAMES[m.score]+(m.note?" · "+esc(m.note):"")+'</strong><small>'+esc(sub)+'</small></div><div class="entry-side">'+m.score+'/5</div><button class="entry-delete" aria-label="Delete check-in" data-delete-mood="'+esc(m.id)+'">×</button></div>';
  }).join(""):blank("Your first check-in will appear here. It takes less than ten seconds.");
 }
@@ -125,9 +136,9 @@ function renderSources(){
  $("context-count").textContent=plural(all.length,"item","items");
  $("context-list").innerHTML=all.length?all.slice(0,12).map(function(x){
  if(x.kind==="health"){var h=x.h, summary=[h.sleepHours!=null?Math.round(h.sleepHours*10)/10+"h sleep":"",h.steps!=null?h.steps.toLocaleString()+" steps":"",h.hrv!=null?Math.round(h.hrv)+" ms HRV":"",h.restingHR!=null?Math.round(h.restingHR)+" bpm resting":"",h.workoutMin!=null?Math.round(h.workoutMin)+" min exercise":""].filter(Boolean).join(" · ");
- return '<div class="entry"><span class="entry-emoji" aria-hidden="true">♥︎</span><div class="entry-main"><strong>Health · '+esc(h.date)+'</strong><small>'+esc(summary||"Health day")+(h.demo?" · DEMO":"")+'</small></div><button class="entry-delete" aria-label="Delete health day" data-delete-health="'+esc(h.date)+'">×</button></div>';}
+ return '<div class="entry"><span class="entry-emoji" aria-hidden="true">♥︎</span><div class="entry-main"><strong>Health · '+esc(h.date)+'</strong><small>'+esc(summary||"Health day")+'</small></div><button class="entry-delete" aria-label="Delete health day" data-delete-health="'+esc(h.date)+'">×</button></div>';}
  var e=x.e;
- return '<div class="entry"><span class="entry-emoji" aria-hidden="true">▦︎</span><div class="entry-main"><strong>'+esc(e.title||"Calendar event")+'</strong><small>'+esc(formatDate(e.start)+" "+formatTime(e.start)+" · "+e.category+(e.demo?" · DEMO":""))+'</small></div><button class="entry-delete" aria-label="Delete calendar event" data-delete-event="'+esc(e.id)+'">×</button></div>';
+ return '<div class="entry"><span class="entry-emoji" aria-hidden="true">▦︎</span><div class="entry-main"><strong>'+esc(e.title||"Calendar event")+'</strong><small>'+esc(formatDate(e.start)+" "+formatTime(e.start)+" · "+e.category)+'</small></div><button class="entry-delete" aria-label="Delete calendar event" data-delete-event="'+esc(e.id)+'">×</button></div>';
  }).join(""):blank("No context yet. Add a health day, calendar event, or connect Shortcuts.");
 }
 function compareVersions(left,right){
@@ -202,10 +213,10 @@ function renderDevices(){
 function renderSettings(){
  renderMoodSync();
  $("demo-button").textContent=hasDemoData()?"Refresh the calendar demo":"Load 28-day calendar demo";
- $("storage-summary").textContent=state.moods.length+" mood check-ins · "+state.health.length+" health days · "+state.events.length+" calendar events";
+ $("storage-summary").textContent=state.moods.length+" mood check-ins · "+state.health.length+" health days · "+state.events.length+" calendar events"+(hasDemoData()?" · Demo month loaded":"");
  $("version").textContent=VERSION;
 }
-function hasDemoData(){return state.moods.some(function(m){return !!m.demo;});}
+function hasDemoData(){return state.demo.moods.length>0;}
 function renderInsights(){
  var demoAvailable=hasDemoData();
  if(!demoAvailable)insightScope="personal";
@@ -216,9 +227,10 @@ function renderInsights(){
  });
  $("demo-insight-note").hidden=insightScope!=="demo";
  var isDemo=insightScope==="demo";
- var moods=getRecent(insightDays).filter(function(m){return !!m.demo===isDemo;}).sort(function(a,b){return new Date(a.ts)-new Date(b.ts);});
- var events=state.events.filter(function(e){return !!e.demo===isDemo;});
- var health=state.health.filter(function(h){return !!h.demo===isDemo;});
+ var source=isDemo?state.demo:state;
+ var moods=getRecent(insightDays,source.moods).sort(function(a,b){return new Date(a.ts)-new Date(b.ts);});
+ var events=source.events;
+ var health=source.health;
  $("insight-average").textContent=score(average(moods.map(function(m){return m.score;})))+"/5";
  refreshCoach();
  $("insight-samples").textContent=moods.length+" "+(isDemo?"fictional":"personal")+" check-ins over "+insightDays+" days";
@@ -356,7 +368,7 @@ async function syncMoods(){
   var gone={},remote={},local={};
   body.deleted.concat(pending).forEach(function(id){gone[id]=true;});
   body.moods.forEach(function(m){remote[m.id]=true;});
-  state.moods=state.moods.filter(function(m){return m.demo||!gone[m.id];});
+  state.moods=state.moods.filter(function(m){return !gone[m.id];});
   state.moods.forEach(function(m){local[m.id]=true;});
   body.moods.forEach(function(m){
    if(local[m.id]||gone[m.id])return;
@@ -366,7 +378,7 @@ async function syncMoods(){
   });
   state.moods.sort(function(a,b){return new Date(a.ts)-new Date(b.ts);});
   persist();render();
-  var missing=state.moods.filter(function(m){return !m.demo&&!remote[m.id];});
+  var missing=state.moods.filter(function(m){return !remote[m.id];});
   for(var n=0;n<missing.length;n+=100)await moodRequest({moods:missing.slice(n,n+100)});
  }catch(e){}
  finally{moodSyncing=false;}
@@ -435,20 +447,20 @@ function handleMoodSave(){
 function normalizeHealth(h,source){
  if(!h||typeof h!=="object")return null;
  var date=String(h.date||"");if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||dateKey(date+"T12:00:00")!==date)return null;
- var item={date:date,source:source||h.source||"manual"};if(h.demo)item.demo=true;
+ var item={date:date,source:source||h.source||"manual"};
  [["sleepHours",0,24],["steps",0,100000],["hrv",0,500],["restingHR",20,250],["bedtimeMin",0,1439],["workoutMin",0,1440],["firstAlarmMin",0,719]].forEach(function(t){if(h[t[0]]!==undefined&&h[t[0]]!==null&&h[t[0]]!==""){var n=number(h[t[0]]);if(Number.isFinite(n)&&n>=t[1]&&n<=t[2])item[t[0]]=n;}});
  return Object.keys(item).some(function(k){return ["sleepHours","steps","hrv","restingHR","workoutMin"].includes(k);})?item:null;
 }
-function upsertHealth(h){var idx=state.health.findIndex(function(x){return x.date===h.date;});if(idx<0)state.health.push(h);else{var merged=Object.assign({},state.health[idx],h);if(!h.demo)delete merged.demo;state.health[idx]=merged;}}
+function upsertHealth(h){var idx=state.health.findIndex(function(x){return x.date===h.date;});if(idx<0)state.health.push(h);else state.health[idx]=Object.assign({},state.health[idx],h);}
 function normalizeEvent(e,source){
  if(!e||typeof e!=="object")return null;
  var st=new Date(e.start),en=new Date(e.end);
  if(!Number.isFinite(st.getTime())||!Number.isFinite(en.getTime())||en<=st||en-st>86400000*2)return null;
  var title=String(e.title||"Calendar event").trim().slice(0,100);var cat=CATEGORIES.includes(e.category)?e.category:"Other";
  var id=String(e.id||("event:"+st.toISOString()+"|"+en.toISOString()+"|"+title)).slice(0,220);
- return {id:id,start:st.toISOString(),end:en.toISOString(),title:title,category:cat,source:source||e.source||"manual",demo:!!e.demo};
+ return {id:id,start:st.toISOString(),end:en.toISOString(),title:title,category:cat,source:source||e.source||"manual"};
 }
-function upsertEvent(e){var idx=state.events.findIndex(function(x){return x.id===e.id||x.start===e.start&&x.end===e.end&&x.title===e.title;});if(idx<0)state.events.push(e);else{var merged=Object.assign({},state.events[idx],e);if(!e.demo)delete merged.demo;state.events[idx]=merged;}}
+function upsertEvent(e){var idx=state.events.findIndex(function(x){return x.id===e.id||x.start===e.start&&x.end===e.end&&x.title===e.title;});if(idx<0)state.events.push(e);else state.events[idx]=Object.assign({},state.events[idx],e);}
 function handleHealthForm(ev){
  ev.preventDefault();var h=normalizeHealth({date:$("health-date").value,sleepHours:$("health-sleep").value,steps:$("health-steps").value,hrv:$("health-hrv").value,workoutMin:$("health-workout").value},"manual");
  if(!h){toast("Enter a valid date and at least one health metric.");return;}
@@ -521,9 +533,9 @@ async function restoreBackup(file){
  if(data.account&&state.syncOwnerEmail&&data.account!==state.syncOwnerEmail)throw Error("This backup belongs to another account");
  if(!confirm("Replace locally saved mood, health and calendar data with this backup? Your sync pairing will remain."))return;
  state.reflections=Array.isArray(data.reflections)?data.reflections.slice(-200):[];
- state.moods=data.moods.slice(-6000).filter(function(x){return Number.isInteger(x.score)&&x.score>=1&&x.score<=5&&!isNaN(new Date(x.ts).getTime());}).map(function(x){return {id:String(x.id||newId()),ts:new Date(x.ts).toISOString(),score:x.score,energy:Number(x.energy)||3,tags:Array.isArray(x.tags)?x.tags.filter(function(y){return ACTIVITY_LABELS.includes(y);}).slice(0,10):[],note:String(x.note||"").slice(0,400),stress:Number.isInteger(x.stress)&&x.stress>=1&&x.stress<=5?x.stress:undefined,demo:!!x.demo};});
- state.health=[];data.health.slice(-1200).forEach(function(x){var h=normalizeHealth(x,x.source);if(h)upsertHealth(h);});
- state.events=[];data.events.slice(-2000).forEach(function(x){var e=normalizeEvent(x,x.source);if(e)upsertEvent(e);});
+ state.moods=data.moods.slice(-6000).filter(function(x){return !x.demo&&Number.isInteger(x.score)&&x.score>=1&&x.score<=5&&!isNaN(new Date(x.ts).getTime());}).map(function(x){return {id:String(x.id||newId()),ts:new Date(x.ts).toISOString(),score:x.score,energy:Number(x.energy)||3,tags:Array.isArray(x.tags)?x.tags.filter(function(y){return ACTIVITY_LABELS.includes(y);}).slice(0,10):[],note:String(x.note||"").slice(0,400),stress:Number.isInteger(x.stress)&&x.stress>=1&&x.stress<=5?x.stress:undefined,demo:!!x.demo};});
+ state.health=[];data.health.slice(-1200).filter(function(x){return !x.demo;}).forEach(function(x){var h=normalizeHealth(x,x.source);if(h)upsertHealth(h);});
+ state.events=[];data.events.slice(-2000).filter(function(x){return !x.demo;}).forEach(function(x){var e=normalizeEvent(x,x.source);if(e)upsertEvent(e);});
  persist();render();toast("Backup restored.");
  }catch(e){toast("This file is not a valid backup.");}
 }
@@ -564,22 +576,16 @@ function buildDemoCalendarScenario(base){
  return result;
 }
 function demo(){
- var scenario=buildDemoCalendarScenario(new Date());
- state.moods=state.moods.filter(function(m){return !m.demo;}).concat(scenario.moods);
- state.events=state.events.filter(function(e){return !e.demo;});
- state.health=state.health.filter(function(h){return !h.demo;});
- scenario.health.forEach(function(h){if(!state.health.some(function(existing){return existing.date===h.date;}))upsertHealth(h);});
- scenario.events.forEach(upsertEvent);
+ state.demo=buildDemoCalendarScenario(new Date());
  insightScope="demo";
  if(!persist())return;
  navigate("insights");
  toast("28 fictional days loaded. Compare mood before and after calendar events.");
 }
 function clearDemo(){
- var a=state.moods.length,b=state.events.length,c=state.health.length;
  insightScope="personal";
- state.moods=state.moods.filter(function(x){return !x.demo;});state.events=state.events.filter(function(x){return !x.demo;});state.health=state.health.filter(function(x){return !x.demo;});
- persist();render();toast("Removed "+(a-state.moods.length+b-state.events.length+c-state.health.length)+" demo records.");
+ state.demo={moods:[],health:[],events:[]};
+ persist();render();toast("Demo month removed.");
 }
 function signIn(view){window.location.assign("/api/auth/start"+(view==="checkin"?"?to=checkin":""));}
 function syncErrorLabel(code){
@@ -694,7 +700,7 @@ function accountSafe(email){
   return false;
  }
  if(!state.syncOwnerEmail){
-  var personal=state.moods.some(function(m){return !m.demo;})||state.health.some(function(h){return !h.demo;})||state.events.some(function(e){return !e.demo;});
+  var personal=state.moods.length||state.health.length||state.events.length;
   if(personal&&!confirm("This iPhone already has check-ins or other records. Keep them with "+email+"? Choose Cancel if they’re someone else’s."))return false;
  }
  return true;
@@ -857,8 +863,8 @@ function setup(){
  var paired=!!state.token&&!!state.syncOwnerEmail&&!!state.deviceId;
  var synced=!!(shortcutStatus&&shortcutStatus.lastDataUploadAt)||state.alarms.length>0||state.health.some(function(h){return h.source==="shortcut";})||state.events.some(function(e){return e.source==="shortcut";});
  return {ios:isIOS(),installed:isInstalled(),deviceName:thisDeviceName(),online:navigator.onLine,signedIn:!!authEmail,authKnown:authKnown,email:authEmail,connected:paired,connectedBefore:!!state.pairedAt,connecting:connecting,moodSync:!!state.moodSync,
-  shortcutUrl:shortcutLink(),shortcutConnected:!!(shortcutStatus&&shortcutStatus.installedShortcutVersion),synced:synced,checkedIn:state.moods.some(function(m){return !m.demo;})};
+  shortcutUrl:shortcutLink(),shortcutConnected:!!(shortcutStatus&&shortcutStatus.installedShortcutVersion),synced:synced,checkedIn:state.moods.length>0};
 }
-globalThis.EvenApp={firstName:function(){return state.firstName;},navigate:navigate,setup:setup,signIn:signIn,connect:issueDevice,isInstalled:isInstalled,isIOS:isIOS,alarms:function(){return state.alarms;},resets:function(){return state.resets;},logReset:function(){state.resets.push(new Date().toISOString());state.resets=state.resets.slice(-500);persist();},personalEvents:function(){return state.events.filter(function(e){return !e.demo;});},personalHealth:function(){return state.health.filter(function(h){return !h.demo;});},personalMoods:function(){return state.moods.filter(function(m){return !m.demo;});},refresh:refresh,runShortcut:runShortcut,refreshCoach:refreshCoach,addReflection:function(r){state.reflections.push(r);if(persist())render();},toast:toast,formatTime:formatTime,deviceToken:function(){return state.token;}};
+globalThis.EvenApp={firstName:function(){return state.firstName;},navigate:navigate,setup:setup,signIn:signIn,connect:issueDevice,isInstalled:isInstalled,isIOS:isIOS,alarms:function(){return state.alarms;},resets:function(){return state.resets;},logReset:function(){state.resets.push(new Date().toISOString());state.resets=state.resets.slice(-500);persist();},personalEvents:function(){return state.events;},personalHealth:function(){return state.health;},personalMoods:function(){return state.moods;},refresh:refresh,runShortcut:runShortcut,refreshCoach:refreshCoach,addReflection:function(r){state.reflections.push(r);if(persist())render();},toast:toast,formatTime:formatTime,deviceToken:function(){return state.token;}};
 init();
 })();

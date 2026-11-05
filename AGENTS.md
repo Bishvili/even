@@ -100,7 +100,7 @@ Only an iPhone proves iOS behavior, and each round trip costs the owner time. Be
 - `scripts/deploy.sh` copies the files to KV before deploying the Worker, so a failed deploy leaves new pages running against the old Worker. Fix or revert at once (#30).
 
 **Data and privacy**
-- Demo records must never merge into personal ones, and every count must say which records it counts. Read personal data through `EvenApp.personalMoods()`, `personalHealth()` and `personalEvents()`. Until #20, `upsertHealth` can merge a demo day into a real one.
+- Fictional records live only in `state.demo`, and `state.moods`, `state.health` and `state.events` hold only personal ones. Never pass demo records through `upsertHealth` or `upsertEvent`, and only the demo view reads `state.demo`.
 - A new table or column that holds an owner's data must be covered by erase, account deletion and the cross-account tests in the same change.
 - Resting heart rate is synced, but no feature uses it yet; #37 makes it personal context. Average heart rate is no longer kept: the Worker ignores it and Even Sync 3 doesn't read it. Don't add another measure without a feature that uses it.
 - When what Even collects, sends or stores changes, update the **Data inventory**, Sync → Help and privacy, Settings, the README's Privacy section and `whitepaper.html` in the same commit.
