@@ -38,7 +38,7 @@ async function payload(request){
  if(type.includes("application/x-www-form-urlencoded"))return Object.fromEntries(new URLSearchParams(text));
  try{return JSON.parse(text);}catch(e){return Object.fromEntries(new URLSearchParams(text));}
 }
-const VERSION_NAME="2.41.1";
+const VERSION_NAME="2.41.2";
 function normalEmail(value){return String(value||"").trim().toLowerCase();}
 async function signinAuth(env,ctx){
  const {createAuth}=await import("./signin.mjs");
@@ -597,7 +597,7 @@ async function sendScheduled(env,key,sub,now){
  if(sent.ok)await env.DB.prepare("UPDATE even_push_subscriptions SET last_schedule_at=? WHERE endpoint=?").bind(new Date(due.at).toISOString(),sub.endpoint).run();
  return sent.ok&&!quiet;
 }
-const BUILDS="https://github.com/Bishvili/even/releases/download/shortcut-latest/";
+const BUILDS="https://github.com/Bishvili/health/releases/download/shortcut-latest/";
 async function latestBuildVersion(name){
  const file=await fetch(BUILDS+name+"-version.txt");
  if(!file.ok)return null;
@@ -612,7 +612,7 @@ async function shortcutName(link){
  }catch(e){return "";}
 }
 async function startWorkflow(env,file,inputs){
- const started=await fetch("https://api.github.com/repos/Bishvili/even/actions/workflows/"+file+"/dispatches",{method:"POST",headers:{"Authorization":"Bearer "+env.GITHUB_API_KEY,"Accept":"application/vnd.github+json","Content-Type":"application/json","User-Agent":"even","X-GitHub-Api-Version":"2022-11-28"},body:JSON.stringify({ref:"main",inputs})});
+ const started=await fetch("https://api.github.com/repos/Bishvili/health/actions/workflows/"+file+"/dispatches",{method:"POST",headers:{"Authorization":"Bearer "+env.GITHUB_API_KEY,"Accept":"application/vnd.github+json","Content-Type":"application/json","User-Agent":"even","X-GitHub-Api-Version":"2022-11-28"},body:JSON.stringify({ref:"main",inputs})});
  return started.status===204;
 }
 async function calendarList(env,owner){

@@ -174,7 +174,7 @@ test("API returns text outcomes and release requires verification",()=>{
 test("the developer tools card starts onboarding on this repository",()=>{
  const link=new URL(html.match(/id="improve-site" href="([^"]+)"/)[1].replaceAll("&amp;","&"));
  assert.equal(link.origin+link.pathname,"https://claude.ai/code/new");
- assert.equal(link.searchParams.get("repo"),"Bishvili/even");
+ assert.equal(link.searchParams.get("repo"),"Bishvili/health");
  assert.match(link.searchParams.get("q"),/onboarding section of AGENTS\.md/);
 });
 

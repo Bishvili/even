@@ -11,7 +11,7 @@ The first time someone points you at this repository, before starting other work
 | Dependency | Needed for | Required? |
 | --- | --- | --- |
 | `.agents/skills/ios-pwa-frontend/SKILL.md` | All UI and copy changes. It ships with this repository, so there is nothing to install. Read it directly. | Yes |
-| GitHub access to `Bishvili/even` with push rights | Code changes, running workflows, reading build results | Yes |
+| GitHub access to `Bishvili/health` with push rights | Code changes, running workflows, reading build results | Yes |
 | Cloudflare connection with access to the Bishvili account | Checking the Worker and querying the D1 database | Recommended |
 | An iPhone with the Shortcuts app | Testing the Shortcut and creating iCloud links, which nothing else can do | For Shortcut work |
 
@@ -21,7 +21,7 @@ No other skill is required. Compiling and signing the Shortcut happens in GitHub
 
 The repository owner grants these, using the new developer's own accounts:
 
-1. **GitHub:** add them as a collaborator on `Bishvili/even` with write access.
+1. **GitHub:** add them as a collaborator on `Bishvili/health` with write access.
 2. **Cloudflare:** invite them to the Bishvili account with access to Workers, KV, and D1. Pushes deploy through Workers Builds, so this is not needed just to deploy.
 3. **App sign-in:** add testers in Even → **Settings** → **Developer tools**, which stores them in the `even_approved_emails` D1 table. Accounts in `even_release_emails` can do this. Even's own sign-in (`worker/signin.mjs`, using Better Auth) sends email codes or uses Google, and only emails in that table or the `APPROVED_SYNC_EMAILS` secret can get in. Invitations and codes are sent through Resend from `bishvili.org` with the `RESEND_API_KEY` Worker secret. Better Auth also needs `BETTER_AUTH_SECRET`, `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`, all stored as secrets, because a deploy removes plain text variables that aren't in `wrangler.jsonc`.
 4. **Releases:** add their email to the `even_release_emails` D1 table. Set `display_name` to welcome them on first sign-in with a guide to improving the site.
@@ -29,7 +29,7 @@ The repository owner grants these, using the new developer's own accounts:
 ### Developer steps
 
 1. **Connect GitHub** in Claude, and confirm push access without writing anything: listing the repository's collaborators shows their role (`write`, `maintain`, or `admin`), and GitHub only returns that list to accounts with push access. Do not create or push a branch to test access. All work goes to `main`; if a session starts on another branch, switch to `main` before committing.
-2. **Connect Cloudflare** in Claude and select the Bishvili account. It should list one Worker, `even`. The older Workers Bindings server is deprecated in favor of `https://mcp.cloudflare.com/mcp`.
+2. **Connect Cloudflare** in Claude and select the Bishvili account. It should list one Worker, `health`. The older Workers Bindings server is deprecated in favor of `https://mcp.cloudflare.com/mcp`.
 3. **Run the tests:** `node --test tests/*.test.cjs`.
 4. **To work on the Shortcuts:** nobody ever copies a key. Signing in on Even → **Data** connects the iPhone automatically, and running Even Sync from the app passes the key to the Shortcut, which saves it in On My iPhone for later runs and automations.
    - **Even Sync** is the Shortcut everyone installs. Its version is in `shortcuts/even-sync.cherri` and must change for each release, with one plain sentence for people in `shortcuts/release-notes.txt`.

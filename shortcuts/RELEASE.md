@@ -22,4 +22,4 @@ The workflow reads the version from the source, rejects a configured bearer toke
 
 Change `helperVersion` in `shortcuts/even-release.cherri` with every change to the helper, and push to `main`. On its next run, the helper downloads its new build: tap **Replace** and run it again. The updated helper then shares its own iCloud link once. The Worker checks that the link is named Even Release and starts **Share Even Release link**, which commits `shortcuts/helper.json`, so **Set Up Release Helper** installs the new version for everyone.
 
-Even Release 1 can't update itself. Install the first Even Release 2 on the publishing iPhone from `Even-Release.shortcut` in the [`shortcut-latest`](https://github.com/Bishvili/even/releases/tag/shortcut-latest) release.
+Even Release 1 can't update itself. Install the first Even Release 2 on the publishing iPhone from `Even-Release.shortcut` in the [`shortcut-latest`](https://github.com/Bishvili/health/releases/tag/shortcut-latest) release.

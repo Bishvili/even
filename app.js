@@ -1,6 +1,6 @@
 (function () {
 "use strict";
-var VERSION = "2.41.1";
+var VERSION = "2.41.2";
 var STORAGE_KEY = "even:v1";
 var MOOD_NAMES = ["","Rough","Low","Okay","Good","Great"];
 var MOOD_EMOJI = ["","😣","😕","😐","🙂","😄"];
