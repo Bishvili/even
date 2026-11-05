@@ -24,7 +24,7 @@ function harness({verified=false,buildVersion="2.8.0",helperBuild="2.0.0",source
  const rows={approved:new Map(),subs:new Map(),calendars:new Map(),users:new Map(),devices:new Map(),health:new Map(),events:new Map()};
  const release=JSON.stringify({version:"1.0.0",url:"https://www.icloud.com/shortcuts/82109f53491f4d95a0a8b8437c4090f2",publishedAt:"2026-11-01",notes:"First shared release",verified});
  const allow={async limit(){return{success:true};}};
- const env={PUBLIC_ORIGIN:"https://even.bishvili.workers.dev",INVITE_LIMIT:allow,DEVICE_LIMIT:allow,GITHUB_API_KEY:"server-only",APPROVED_SYNC_EMAILS:JSON.stringify(allowed),ASSETS:{async get(key){return {"config:shortcut:latest":release,"config:helper:latest":helperLink&&JSON.stringify(helperLink),"config:shortcut:source":sourceVersions&&JSON.stringify(sourceVersions)}[key]||null;}},DB:{
+ const env={PUBLIC_ORIGIN:"https://even.bishvili.workers.dev",INVITE_LIMIT:allow,DEVICE_LIMIT:allow,SIGNIN_LIMIT:allow,GITHUB_API_KEY:"server-only",APPROVED_SYNC_EMAILS:JSON.stringify(allowed),ASSETS:{async get(key){return {"config:shortcut:latest":release,"config:helper:latest":helperLink&&JSON.stringify(helperLink),"config:shortcut:source":sourceVersions&&JSON.stringify(sourceVersions)}[key]||null;}},DB:{
   prepare(sql){return{bind(...args){return {
    async first(){
     if(sql.startsWith("SELECT (SELECT name FROM even_names")){const email=args[0];return{chosen:rows.names?.get(email)||null,given:email==="owner-a@example.com"?"Ada Lovelace":null,signin:(rows.userFields?.get(email)||{}).name||null};}
@@ -62,6 +62,7 @@ function harness({verified=false,buildVersion="2.8.0",helperBuild="2.0.0",source
     if(sql.startsWith("INSERT OR IGNORE INTO even_users")){rows.users.set(args[0],args[1]);return{meta:{changes:1}};}
     if(sql.startsWith("INSERT INTO even_devices")){rows.devices.set(args[0],{device_id:args[1],owner_email:args[2],label:args[3],created_at:args[4],last_used_at:null,last_attempt_at:null,last_error_code:null,shortcut_version:null,revoked_at:null});return{meta:{changes:1}};}
     if(sql.startsWith("UPDATE even_devices SET last_upload_counts=NULL")){for(const d of rows.devices.values())if(d.owner_email===args[0])d.last_upload_counts=null;return{meta:{changes:1}};}
+    if(sql.startsWith("DELETE FROM even_signin_"))return{meta:{changes:0}};
     if(sql.startsWith("UPDATE even_devices SET revoked_at")){let changes=0;for(const d of rows.devices.values())if(d.device_id===args[1]&&d.owner_email===args[2]&&!d.revoked_at){d.revoked_at=args[0];changes++;}return{meta:{changes}};}
     if(sql.startsWith("UPDATE even_devices SET last_attempt_at")){for(const d of rows.devices.values())if(d.device_id===args[2]&&d.owner_email===args[3]&&!d.revoked_at){d.last_attempt_at=args[0];if(sql.includes("last_error_code=NULL,shortcut_version=?")){d.last_error_code=null;d.shortcut_version=args[1];}else d.last_error_code=args[1];}return{meta:{changes:1}};}
     if(sql.startsWith("UPDATE even_devices SET last_used_at")){for(const d of rows.devices.values())if(d.device_id===args[6]&&d.owner_email===args[7]&&!d.revoked_at){d.last_upload_counts=d.last_used_at>args[3]?JSON.stringify({...JSON.parse(d.last_upload_counts||"{}"),...JSON.parse(args[4])}):args[5];d.last_used_at=args[0];d.last_attempt_at=args[1];d.last_error_code=null;d.shortcut_version=args[2]||d.shortcut_version;}return{meta:{changes:1}};}
@@ -951,4 +952,17 @@ test("the public address is configured once, and owner emails match in any case"
  const{call,ctx,env}=harness();
  env.APPROVED_SYNC_EMAILS=JSON.stringify(["Mixed.Case@Example.com"]);
  assert.equal((await call("/api/auth/me",{context:ctx("mixed.case@example.com")})).status,200);
+});
+
+test("sign-in answers the same for any email, only opens its own routes, and a cookie proves nothing alone",async()=>{
+ const{call}=harness();
+ const send=email=>call("/api/signin/email-otp/send-verification-otp",{method:"POST",body:{email,type:"sign-in"}});
+ const stranger=await send("stranger@example.com");
+ assert.equal(stranger.status,200);
+ assert.equal(stranger.data.success,true);
+ assert.equal((await send("not an email")).status,400);
+ assert.equal((await call("/api/signin/sign-up/email",{method:"POST",body:{}})).status,404);
+ assert.equal((await call("/api/signin/options")).data.google,false);
+ assert.equal((await call("/api/user/me")).status,401);
+ assert.equal((await call("/api/user/me",{headers:{"X-Email":"owner-a@example.com"}})).status,401);
 });

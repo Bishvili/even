@@ -11,7 +11,7 @@ async function approved(env,email){
  if(ownerEmails(env).includes(email))return true;
  return !!await env.DB.prepare("SELECT 1 AS allowed FROM even_approved_emails WHERE email=?").bind(email).first();
 }
-const MIME={"index.html":"text/html; charset=utf-8","styles.css":"text/css; charset=utf-8","app.js":"text/javascript; charset=utf-8","reminders.js":"text/javascript; charset=utf-8","onboarding.js":"text/javascript; charset=utf-8","intake.js":"text/javascript; charset=utf-8","whitepaper.html":"text/html; charset=utf-8","whitepaper.css":"text/css; charset=utf-8","invites.js":"text/javascript; charset=utf-8","coach.js":"text/javascript; charset=utf-8","refresh.js":"text/javascript; charset=utf-8","sw.js":"text/javascript; charset=utf-8","manifest.webmanifest":"application/manifest+json","icon.svg":"image/svg+xml","icon-192.png":"image/png","icon-512.png":"image/png"};
+const MIME={"index.html":"text/html; charset=utf-8","styles.css":"text/css; charset=utf-8","app.js":"text/javascript; charset=utf-8","reminders.js":"text/javascript; charset=utf-8","onboarding.js":"text/javascript; charset=utf-8","intake.js":"text/javascript; charset=utf-8","whitepaper.html":"text/html; charset=utf-8","whitepaper.css":"text/css; charset=utf-8","invites.js":"text/javascript; charset=utf-8","signin-sheet.js":"text/javascript; charset=utf-8","coach.js":"text/javascript; charset=utf-8","refresh.js":"text/javascript; charset=utf-8","sw.js":"text/javascript; charset=utf-8","manifest.webmanifest":"application/manifest+json","icon.svg":"image/svg+xml","icon-192.png":"image/png","icon-512.png":"image/png"};
 const SECURITY={"X-Content-Type-Options":"nosniff","Referrer-Policy":"no-referrer","X-Frame-Options":"DENY","Permissions-Policy":"camera=(), microphone=(), geolocation=()","Content-Security-Policy":"default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'"};
 const METRICS={sleepHours:[0,24],steps:[0,100000],hrv:[0,500],restingHR:[20,250],workoutMin:[0,1440]};
 const SEMVER=/^\d{1,3}\.\d{1,3}\.\d{1,3}$/,UTC_OFFSET=/^(Z|[+-]\d{2}:\d{2})$/;
@@ -33,13 +33,21 @@ async function payload(request){
  if(type.includes("application/x-www-form-urlencoded"))return Object.fromEntries(new URLSearchParams(text));
  try{return JSON.parse(text);}catch(e){return Object.fromEntries(new URLSearchParams(text));}
 }
+function normalEmail(value){return String(value||"").trim().toLowerCase();}
+async function signinAuth(env,ctx){
+ const {createAuth}=await import("./signin.mjs");
+ return createAuth(env,{isApproved:email=>approved(env,email),deliverCode:(email,code)=>{const sent=sendSigninCode(env,email,code);if(ctx?.waitUntil)ctx.waitUntil(sent);}});
+}
+// A signed-in person is proven by Even's session, or by Access on the older /api/auth routes. Never by a header they could set.
 async function authIdentity(request,env,ctx){
- // Only Cloudflare's validated Access runtime identity counts. Never trust headers.
- if(!ctx?.access||ctx.access.aud!==ACCESS_AUD)return null;
  try{
-  const identity=await ctx.access.getIdentity();
-  const email=String(identity?.email||"").trim().toLowerCase();
-  return await approved(env,email)?email:null;
+  let identity=null;
+  if(ctx?.access&&ctx.access.aud===ACCESS_AUD)identity=await ctx.access.getIdentity();
+  else if((request.headers.get("cookie")||"").includes("even.session_token")){
+   identity=(await (await signinAuth(env,ctx)).api.getSession({headers:request.headers}))?.user;
+  }
+  const email=normalEmail(identity?.email);
+  return email&&await approved(env,email)?{email,name:String(identity.name||"").trim().slice(0,80)}:null;
  }catch(e){return null;}
 }
 function browserPostAllowed(request){
@@ -79,6 +87,9 @@ function syncedDataStatements(env,owner){
 function accountStatements(env,owner){
  return [...syncedDataStatements(env,owner),
   env.DB.prepare("DELETE FROM even_devices WHERE owner_email=?").bind(owner),
+  env.DB.prepare("DELETE FROM even_signin_sessions WHERE userId IN (SELECT id FROM even_signin_users WHERE email=?)").bind(owner),
+  env.DB.prepare("DELETE FROM even_signin_accounts WHERE userId IN (SELECT id FROM even_signin_users WHERE email=?)").bind(owner),
+  env.DB.prepare("DELETE FROM even_signin_users WHERE email=?").bind(owner),
   env.DB.prepare("DELETE FROM even_users WHERE email=?").bind(owner)];
 }
 const WEEKDAYS=["sunday","monday","tuesday","wednesday","thursday","friday","saturday"];
@@ -249,8 +260,38 @@ async function sendInvite(env,to,from){
   return sent.ok;
  }catch(e){return false;}
 }
+async function sendSigninCode(env,to,code){
+ if(!env.RESEND_API_KEY)return false;
+ try{
+  const sent=await fetch("https://api.resend.com/emails",{method:"POST",headers:{"Authorization":"Bearer "+env.RESEND_API_KEY,"Content-Type":"application/json"},body:JSON.stringify({
+   from:"Even <sign-in@bishvili.org>",to:[to],subject:"Your Even code: "+code,
+   text:"Your code is "+code+". It works for 10 minutes.\n\nIf you didn't ask for it, you can ignore this email.",
+   html:"<p>Your code is <strong>"+code+"</strong>. It works for 10 minutes.</p><p>If you didn't ask for it, you can ignore this email.</p>"
+  })});
+  return sent.ok;
+ }catch(e){return false;}
+}
+const SIGNIN_ROUTES={"POST /email-otp/send-verification-otp":1,"POST /sign-in/email-otp":1,"POST /sign-in/social":1,"GET /callback/google":1,"POST /callback/google":1,"POST /sign-out":1};
+async function signinApi(request,env,ctx,path){
+ const route=path.slice("/api/signin".length);
+ if(route==="/options"&&request.method==="GET")return reply({ok:true,google:!!(env.GOOGLE_CLIENT_ID&&env.GOOGLE_CLIENT_SECRET)});
+ if(!SIGNIN_ROUTES[request.method+" "+route])return error("Not found",404,"not_found");
+ if(route==="/email-otp/send-verification-otp"||route==="/sign-in/email-otp"){
+  let input;try{input=await request.clone().json();}catch(e){return error("Even couldn't read that request.",400,"invalid_body");}
+  const email=normalEmail(input?.email);
+  if(email.length>254||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))return error("Enter a valid email address.",400,"invalid_email");
+  if(await overLimit(env.SIGNIN_LIMIT,email))return error("Too many tries. Try again in a minute.",429,"rate_limited");
+  // The answer is the same either way, so this can't be used to find out who's approved.
+  if(route==="/email-otp/send-verification-otp"&&(input.type!=="sign-in"||!await approved(env,email)))return reply({success:true});
+ }
+ const response=await (await signinAuth(env,ctx)).handler(request);
+ const headers=new Headers(response.headers);
+ for(const [name,value] of Object.entries(SECURITY))headers.set(name,value);
+ headers.set("Cache-Control","no-store");
+ return new Response(response.body,{status:response.status,headers});
+}
 async function authApi(request,env,ctx,path){
- const email=await authIdentity(request,env,ctx);
+ const identity=await authIdentity(request,env,ctx),email=identity?.email||null;
  // Sign-in returns to the screen it started from: the setup card on Check in, or Sync.
  if(path==="/api/auth/start"&&request.method==="GET"){
   const url=new URL(request.url),view=url.searchParams.get("to")==="checkin"?"checkin":"data";
@@ -260,8 +301,7 @@ async function authApi(request,env,ctx,path){
  if(path==="/api/auth/me"&&request.method==="GET"){
   // Sign-in may supply a name. Testers are listed by it.
   try{
-   const name=String((await ctx.access.getIdentity())?.name||"").trim().slice(0,80);
-   if(name)await env.DB.prepare("UPDATE even_users SET name=? WHERE email=? AND (name IS NULL OR name<>?)").bind(name,email,name).run();
+   if(identity.name)await env.DB.prepare("UPDATE even_users SET name=? WHERE email=? AND (name IS NULL OR name<>?)").bind(identity.name,email,identity.name).run();
   }catch(e){}
   const r=await env.DB.prepare("SELECT device_id,label,created_at,last_used_at,last_attempt_at,last_error_code,shortcut_version,revoked_at FROM even_devices WHERE owner_email=? ORDER BY created_at DESC LIMIT 30").bind(email).all();
   const person=firstName(await displayName(env,email));
@@ -837,8 +877,11 @@ async function syncApi(request,env,path){
  return error("Not found",404,"not_found");
 }
 async function api(request,env,ctx,path){
- if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:"Even",version:"2.21.1",sync:"email-access"});
+ if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:"Even",version:"2.22.0",sync:"email-access"});
+ if(path.startsWith("/api/signin/"))return signinApi(request,env,ctx,path);
  if(path.startsWith("/api/auth/"))return authApi(request,env,ctx,path);
+ // The same account routes, for Even's own sign-in. Cloudflare Access only covers /api/auth/.
+ if(path.startsWith("/api/user/"))return authApi(request,env,ctx,"/api/auth/"+path.slice(10));
  return syncApi(request,env,path);
 }
 

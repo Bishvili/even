@@ -14,14 +14,14 @@
  }
  function resend(email,button){
   button.disabled=true;
-  send("/api/auth/testers/invite",email).then(function(r){return r.json().then(function(data){
+  send(app.accountPath("testers/invite"),email).then(function(r){return r.json().then(function(data){
    app.toast(r.status===429?data.error:r.ok&&data.emailed?"Invitation sent to "+email+".":"The email didn’t send. Share the link instead.");
   });}).catch(function(){app.toast("The email didn’t send. Share the link instead.");}).finally(function(){button.disabled=false;});
  }
  function remove(email){
   app.askConfirm("Remove "+email+"? They’ll lose access, and their synced Health, calendar, alarm and check-in data will be deleted. This can’t be undone.","Remove").then(function(yes){
    if(!yes)return;
-   send("/api/auth/testers/remove",email).then(function(r){if(!r.ok)throw Error();app.toast(email+" removed.");load();}).catch(function(){app.toast("Couldn’t remove that email.");});
+   send(app.accountPath("testers/remove"),email).then(function(r){if(!r.ok)throw Error();app.toast(email+" removed.");load();}).catch(function(){app.toast("Couldn’t remove that email.");});
   });
  }
  function openName(tester){
@@ -35,7 +35,7 @@
   event.preventDefault();
   var dialog=$("tester-name-dialog"),save=$("tester-name-save");
   save.disabled=true;
-  fetch("/api/auth/testers/name",{method:"POST",credentials:"same-origin",cache:"no-store",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:dialog.dataset.email,name:$("tester-name-input").value})})
+  fetch(app.accountPath("testers/name"),{method:"POST",credentials:"same-origin",cache:"no-store",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:dialog.dataset.email,name:$("tester-name-input").value})})
    .then(function(r){if(!r.ok)throw Error();dialog.close();app.toast("Name saved.");load();})
    .catch(function(){app.toast("Couldn’t save that name. Check your connection and try again.");})
    .finally(function(){save.disabled=false;});
@@ -56,7 +56,7 @@
   });
  }
  function load(){
-  return fetch("/api/auth/testers",{credentials:"same-origin",cache:"no-store",headers:{"Accept":"application/json"}})
+  return fetch(app.accountPath("testers"),{credentials:"same-origin",cache:"no-store",headers:{"Accept":"application/json"}})
    .then(function(r){if(!r.ok)throw Error();return r.json();})
    .then(function(data){renderList(data.testers||[]);})
    .catch(function(){});
@@ -66,7 +66,7 @@
   var input=$("tester-email"),button=$("add-tester"),email=input.value.trim().toLowerCase();
   button.disabled=true;
   try{
-   var r=await send("/api/auth/testers",email);
+   var r=await send(app.accountPath("testers"),email);
    var result=await r.json();
    if(!r.ok)throw Error(result.error||"Couldn’t add that email.");
    input.value="";app.toast(result.emailed?"Invitation sent to "+email+".":email+" can sign in, but the email didn’t send. Share the link instead.");await load();

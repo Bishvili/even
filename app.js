@@ -1,6 +1,6 @@
 (function () {
 "use strict";
-var VERSION = "2.21.1";
+var VERSION = "2.22.0";
 var STORAGE_KEY = "even:v1";
 var MOOD_NAMES = ["","Rough","Low","Okay","Good","Great"];
 var MOOD_EMOJI = ["","😣","😕","😐","🙂","😄"];
@@ -466,7 +466,7 @@ async function renameDevice(ev){
  if(!label){toast("Enter a name for this device.");return;}
  var save=$("rename-device-save");save.disabled=true;
  try{
-  var r=await fetch("/api/auth/device/rename",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({deviceId:dialog.dataset.device,label:label}),cache:"no-store"});
+  var r=await fetch(accountPath("device/rename"),{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({deviceId:dialog.dataset.device,label:label}),cache:"no-store"});
   if(!r.ok)throw Error();
   dialog.close();await refreshAuth();render();toast("Device renamed.");
  }catch(e){toast("Couldn’t rename this device. Check your connection and try again.");}
@@ -622,7 +622,17 @@ function clearDemo(){
  state.demo={moods:[],health:[],events:[]};
  persist();render();toast("Demo month removed.");
 }
-function signIn(view){window.location.assign("/api/auth/start"+(view==="checkin"?"?to=checkin":""));}
+// Even's own sign-in, turned on for this browser while it replaces the older sign-in.
+var ownSignIn=false;
+try{
+ if(new URLSearchParams(location.search).get("signin")==="own")localStorage.setItem("even:own-signin","1");
+ ownSignIn=localStorage.getItem("even:own-signin")==="1";
+}catch(e){}
+function accountPath(route){return (ownSignIn?"/api/user/":"/api/auth/")+route;}
+function signIn(view){
+ if(ownSignIn){globalThis.EvenSignin.open();return;}
+ window.location.assign("/api/auth/start"+(view==="checkin"?"?to=checkin":""));
+}
 function syncErrorLabel(code){
  var reasons={
   invalid_body:"Even couldn’t read the last upload.",
@@ -737,14 +747,14 @@ function showWelcome(name){
 }
 function closeWelcome(){
  $("welcome-dialog").close();
- fetch("/api/auth/welcomed",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:"{}",cache:"no-store"}).catch(function(){});
+ fetch(accountPath("welcomed"),{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:"{}",cache:"no-store"}).catch(function(){});
 }
 async function refreshAuth(){
  if(authChecking||!navigator.onLine)return;
  authChecking=true;
  try{
   // A signed-out request is redirected to sign-in, which is only wanted when someone asks to sign in.
-  var r=await fetch("/api/auth/me",{credentials:"same-origin",cache:"no-store",redirect:"manual",headers:{"Accept":"application/json"}});
+  var r=await fetch(accountPath("me"),{credentials:"same-origin",cache:"no-store",redirect:"manual",headers:{"Accept":"application/json"}});
   if(!r.ok||r.redirected||!(r.headers.get("content-type")||"").includes("application/json"))throw Error("No active login");
   var data=await r.json();if(!data.ok||!data.email)throw Error("Identity unavailable");
   authEmail=String(data.email).toLowerCase();applyName(data);authDevices=Array.isArray(data.devices)?data.devices:[];authCanRelease=data.canRelease===true;authHelper=authCanRelease&&data.helper&&/^https:\/\/www\.icloud\.com\/shortcuts\/[a-f0-9]{32}$/i.test(data.helper.url)?data.helper.url:"";if(data.welcomeName)showWelcome(data.welcomeName);
@@ -769,7 +779,7 @@ async function issueDevice(){
  if(connecting||!await accountSafe(authEmail))return;
  var button=$("issue-device");connecting=true;button.disabled=true;button.textContent="Connecting…";renderSync();
  try{
-  var r=await fetch("/api/auth/device",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json","Accept":"application/json"},body:JSON.stringify({label:thisDeviceName()+" · "+new Date().toLocaleDateString([],{month:"short",day:"numeric"})}),cache:"no-store"});
+  var r=await fetch(accountPath("device"),{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json","Accept":"application/json"},body:JSON.stringify({label:thisDeviceName()+" · "+new Date().toLocaleDateString([],{month:"short",day:"numeric"})}),cache:"no-store"});
   var result=await r.json();if(!r.ok||!result.token)throw Error(result.error||"Couldn’t connect this "+thisDeviceName()+". Try again.");
   if(result.email!==authEmail)throw Error("You signed in with a different account, so this "+thisDeviceName()+" wasn’t connected.");
   state.syncOwnerEmail=authEmail;state.deviceId=result.deviceId;state.token=result.token;state.pairedAt=Date.now();state.lastSync=null;
@@ -783,7 +793,7 @@ async function revokeDevice(id){
  var own=id===state.deviceId;
  if(!await askConfirm((own?"Disconnect this iPhone?":"Disconnect this device?")+" Even Sync stops sending data from it. What’s already synced stays in your account.","Disconnect"))return;
  try{
-  var r=await fetch("/api/auth/revoke",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({deviceId:id}),cache:"no-store"});
+  var r=await fetch(accountPath("revoke"),{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({deviceId:id}),cache:"no-store"});
   var result=await r.json();if(!r.ok||!result.revoked)throw Error(result.error||"Couldn’t disconnect the device.");
   if(id===state.deviceId){state.token="";state.deviceId="";state.lastSync=null;shortcutStatus=null;shortcutRelease=null;persist();}
   await refreshAuth();render();toast(own?"This iPhone is disconnected. Its records stay on it.":"That device is disconnected.");
@@ -938,6 +948,6 @@ function setup(){
  return {ios:isIOS(),installed:isInstalled(),deviceName:thisDeviceName(),online:navigator.onLine,signedIn:!!authEmail,authKnown:authKnown,email:authEmail,connected:paired,connectedBefore:!!state.pairedAt,connecting:connecting,moodSync:!!state.moodSync,
   shortcutUrl:shortcutLink(),shortcutConnected:!!(shortcutStatus&&shortcutStatus.installedShortcutVersion),synced:synced,checkedIn:state.moods.length>0};
 }
-globalThis.EvenApp={askConfirm:askConfirm,firstName:function(){return state.firstName;},navigate:navigate,setup:setup,signIn:signIn,connect:issueDevice,isInstalled:isInstalled,isIOS:isIOS,alarms:function(){return state.alarms;},resets:function(){return state.resets;},logReset:function(){state.resets.push(new Date().toISOString());state.resets=state.resets.slice(-500);persist();},personalEvents:function(){return state.events;},personalHealth:function(){return state.health;},personalMoods:function(){return state.moods;},refresh:refresh,runShortcut:runShortcut,refreshCoach:refreshCoach,addReflection:function(r){state.reflections.push(r);if(persist())render();},toast:toast,formatTime:formatTime,deviceToken:function(){return state.token;}};
+globalThis.EvenApp={askConfirm:askConfirm,accountPath:accountPath,refreshAuth:refreshAuth,firstName:function(){return state.firstName;},navigate:navigate,setup:setup,signIn:signIn,connect:issueDevice,isInstalled:isInstalled,isIOS:isIOS,alarms:function(){return state.alarms;},resets:function(){return state.resets;},logReset:function(){state.resets.push(new Date().toISOString());state.resets=state.resets.slice(-500);persist();},personalEvents:function(){return state.events;},personalHealth:function(){return state.health;},personalMoods:function(){return state.moods;},refresh:refresh,runShortcut:runShortcut,refreshCoach:refreshCoach,addReflection:function(r){state.reflections.push(r);if(persist())render();},toast:toast,formatTime:formatTime,deviceToken:function(){return state.token;}};
 init();
 })();

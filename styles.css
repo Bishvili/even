@@ -215,3 +215,5 @@ h1[tabindex]:focus{outline:none}
 .icon-deep{fill:var(--deep)}.icon-sand{fill:var(--sand)}.icon-line{stroke:var(--on-deep)}
 .nav-item span:last-child{white-space:nowrap;font-size:min(.7rem,13px)}
 .all-comparisons{padding:0}.all-comparisons>summary{padding:0 4px}
+.signin-sheet label{display:block;margin:12px 0 6px;font-weight:650}.signin-sheet input{width:100%;margin-bottom:12px}.signin-sheet .btn{margin-top:8px}.signin-error{color:var(--danger);margin:10px 0 0}#signin-code{letter-spacing:.3em;text-align:center}
+@media(prefers-color-scheme:dark){.signin-error{color:var(--danger-soft)}}
