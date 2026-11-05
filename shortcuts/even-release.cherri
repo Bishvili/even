@@ -15,7 +15,7 @@ action 'is.workflow.actions.file.createfolder' createKeyFolder(&variable locatio
 action 'is.workflow.actions.documentpicker.open' readSavedDeviceKey(&variable folder: 'WFFile'): text {"WFGetFilePath":"even-device-key.txt","WFFileErrorIfNotFound":false,"WFShowFilePicker":false}
 
 // Change this with every change to the helper, so it can update itself and share the new link.
-const helperVersion = "2.0.0"
+const helperVersion = "2.0.1"
 
 const keyFolder = createKeyFolder(onMyIPhone)
 
@@ -110,7 +110,7 @@ if @state == "current" {
 }
 
 if @state != "publish" {
-    alert("Open Even, go to Sync, and tap Run Even Sync, then try again.", "Couldn't check the version")
+    alert("Open Even, go to Data, and tap Run Even Sync, then try again.", "Couldn't check the version")
     stop()
 }
 

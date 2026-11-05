@@ -1,1 +1,1 @@
-Follows the choices you make in Even about which data and calendars to sync.
+Points you to the Data tab when this iPhone needs reconnecting.

@@ -37,7 +37,7 @@ if providedKeyCount == 0 {
     const savedKeyMatches = matchText('^Bearer [0-9A-Fa-f]{64}$', @credential)
     const savedKeyMatchCount = count(savedKeyMatches)
     if savedKeyMatchCount == 0 {
-        alert("Open Even, go to Sync, and tap Run Even Sync.", "Not connected")
+        alert("Open Even, go to Data, and tap Run Even Sync.", "Not connected")
         stop()
     }
 }
@@ -45,13 +45,13 @@ if providedKeyCount == 0 {
 // Verify the connection and record the Shortcut's version, even if no health samples are available.
 // The reply also says whether a newer version is ready.
 const handshakeRaw = jsonRequest("https://even.bishvili.workers.dev/api/shortcut/hello", "POST", {
-    "shortcutVersion": "3.1.0"
+    "shortcutVersion": "3.1.1"
 }, {"Authorization": "{@credential}"})
 const handshake = getDictionary(handshakeRaw)
 const connectionStatusValue = getValue(handshake, "state")
 const connectionStatus = getText(connectionStatusValue)
 if connectionStatus != "connected" {
-    alert("Open Even, go to Sync, and tap Run Even Sync to reconnect.", "Not connected")
+    alert("Open Even, go to Data, and tap Run Even Sync to reconnect.", "Not connected")
     stop()
 }
 
@@ -121,7 +121,7 @@ for upcomingEvent in upcomingEvents {
 
 const calendarBody = formRequest("https://even.bishvili.workers.dev/api/ingest", "POST", {
     "kind": "calendar_days",
-    "shortcutVersion": "3.1.0",
+    "shortcutVersion": "3.1.1",
     "date": "{day}",
     "utcOffset": "{utcOffset}",
     "events": "{@eventRecords}"
@@ -292,7 +292,7 @@ if sleepAvailable >= 1 {
 if @healthFields >= 1 {
     const healthBody = formRequest("https://even.bishvili.workers.dev/api/ingest", "POST", {
         "kind": "health",
-        "shortcutVersion": "3.1.0",
+        "shortcutVersion": "3.1.1",
         "date": "{day}",
         "steps": "{@stepsField}",
         "stepsDate": "{@stepsDay}",
@@ -337,7 +337,7 @@ for alarm in alarms {
 }
 formRequest("https://even.bishvili.workers.dev/api/ingest", "POST", {
     "kind": "alarms",
-    "shortcutVersion": "3.1.0",
+    "shortcutVersion": "3.1.1",
     "date": "{day}",
     "alarms": "{@alarmRecords}"
 }, {"Authorization": "{@credential}"})

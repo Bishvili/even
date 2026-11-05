@@ -33,7 +33,7 @@ test("the device key is read from its file, checked by the server, and saved onl
  const refused=position(sync,'if connectionStatus != "connected"'),save=position(sync,"saveDeviceKey(@credential, keyFolder)"),events=position(sync,"const todayEvents = findEvents(todayEventsFilter)");
  assert.ok(saved<handshake&&handshake<refused&&refused<save&&save<events);
  assert.equal((sync.match(/^saveDeviceKey\(/gm)||[]).length,1);
- assert.match(sync,/alert\("Open Even, go to Sync, and tap Run Even Sync to reconnect/);
+ assert.match(sync,/alert\("Open Even, go to Data, and tap Run Even Sync to reconnect/);
  assert.match(sync,/Authorization": "\{@credential\}"/);
  assert.doesNotMatch(sync,/Bearer [a-f0-9]{64}/i);
 });
