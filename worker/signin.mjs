@@ -11,7 +11,7 @@ export function createAuth(env,{isApproved,deliverCode}){
  return betterAuth({
   appName:"Even",
   baseURL:env.PUBLIC_ORIGIN,
-  trustedOrigins:[env.PUBLIC_ORIGIN],
+  trustedOrigins:[...new Set([env.PUBLIC_ORIGIN,...String(env.APP_ORIGINS||"").split(",").filter(Boolean)])],
   basePath:"/api/signin",
   secret:env.BETTER_AUTH_SECRET,
   database:env.DB,

@@ -8,9 +8,11 @@
     "crons": ["*/5 * * * *"]
   },
   "vars": {
-    "PUBLIC_ORIGIN": "https://even.bishvili.org"
+    "PUBLIC_ORIGIN": "https://even.bishvili.org",
+    "APP_ORIGINS": "https://even.bishvili.org,https://health.bishvili.org"
   },
-  "routes": [{ "pattern": "even.bishvili.org", "custom_domain": true }],
+  "routes": [{ "pattern": "even.bishvili.org", "custom_domain": true },
+    { "pattern": "health.bishvili.org", "custom_domain": true }],
   "workers_dev": false,
   "preview_urls": false,
   "ratelimits": [
