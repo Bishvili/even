@@ -8,7 +8,7 @@ const fs=require("node:fs");
 const path=require("node:path");
 require("../coach.js");
 const {TODAY,people}=require("./people.cjs");
-const {outlook,findings,whatHelps,anticipate,nextActions,weekSchedule,brief}=globalThis.EvenCoach;
+const {outlook,findings,whatHelps,anticipate,nextActions,weekSchedule,brief,briefFor}=globalThis.EvenCoach;
 const FILE=path.join(__dirname,"golden","people.json");
 
 function record(person){
@@ -21,7 +21,8 @@ function record(person){
   anticipate:anticipate(moods,events,health,TODAY,{...prefs,resets}).map(a=>[a.at,a.message]),
   actions:nextActions(data,TODAY,prefs).map(a=>[a.text,a.action||""]),
   plan:weekSchedule(moods,health,{...prefs,alarms:data.alarms,events},TODAY).map(s=>[s.at,s.kind]),
-  brief:brief(days[0],helps.filter(r=>r.id!=="sleep")[0])
+  brief:brief(days[0],helps.filter(r=>r.id!=="sleep")[0]),
+  briefToday:briefFor(days[0],helps.filter(r=>r.id!=="sleep")[0],"",data,TODAY).text
  };
 }
 test("each person gets what the record says",()=>{

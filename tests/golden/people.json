@@ -164,7 +164,8 @@
     "custom"
    ]
   ],
-  "brief": "Tuesdays have tended to be harder for you. Fit in some movement."
+  "brief": "Tuesdays have tended to be harder for you. Fit in some movement.",
+  "briefToday": "Tuesdays have tended to be harder for you. Fit in some movement. A short night. A fuller day than usual. From your 7:00 AM sync."
  },
  "shiftWorker": {
   "outlook": [
@@ -322,7 +323,8 @@
     "custom"
    ]
   ],
-  "brief": "Tuesdays have tended to be about average for you."
+  "brief": "Tuesdays have tended to be about average for you.",
+  "briefToday": "Tuesdays have tended to be about average for you. From your 7:00 AM sync."
  },
  "weekendLateSleeper": {
   "outlook": [
@@ -472,7 +474,8 @@
     "custom"
    ]
   ],
-  "brief": "Tuesdays have tended to be harder for you. Leave room for a short reset today."
+  "brief": "Tuesdays have tended to be harder for you. Leave room for a short reset today.",
+  "briefToday": "Tuesdays have tended to be harder for you. Leave room for a short reset today. From your 7:00 AM sync."
  },
  "noCalendar": {
   "outlook": [
@@ -639,7 +642,8 @@
     "custom"
    ]
   ],
-  "brief": "Tuesdays have tended to be harder for you. Fit in some movement."
+  "brief": "Tuesdays have tended to be harder for you. Fit in some movement.",
+  "briefToday": "Tuesdays have tended to be harder for you. Fit in some movement. A short night. From your 7:00 AM sync."
  },
  "noHealth": {
   "outlook": [
@@ -799,7 +803,8 @@
     "custom"
    ]
   ],
-  "brief": "Tuesdays have tended to be harder for you. Leave room for a short reset today."
+  "brief": "Tuesdays have tended to be harder for you. Leave room for a short reset today.",
+  "briefToday": "Tuesdays have tended to be harder for you. Leave room for a short reset today."
  },
  "brandNew": {
   "outlook": [
@@ -953,7 +958,8 @@
     "bedtime"
    ]
   ],
-  "brief": "Keep checking in. A few more Tuesdays will show your pattern."
+  "brief": "Keep checking in. A few more Tuesdays will show your pattern.",
+  "briefToday": "Keep checking in. A few more Tuesdays will show your pattern."
  },
  "staleSync": {
   "outlook": [
@@ -1129,7 +1135,8 @@
     "custom"
    ]
   ],
-  "brief": "Tuesdays have tended to be harder for you. Fit in some movement."
+  "brief": "Tuesdays have tended to be harder for you. Fit in some movement.",
+  "briefToday": "Tuesdays have tended to be harder for you. Fit in some movement. From yesterday’s sync."
  },
  "workoutFreeDays": {
   "outlook": [
@@ -1169,8 +1176,25 @@
     4
    ]
   ],
-  "findings": [],
-  "helps": [],
+  "findings": [
+   [
+    "On days with a workout",
+    "lower stress",
+    2,
+    12,
+    12,
+    true,
+    false
+   ]
+  ],
+  "helps": [
+   [
+    "On days with a workout",
+    "Fit in some movement.",
+    "lower stress",
+    2
+   ]
+  ],
   "anticipate": [],
   "actions": [],
   "plan": [
@@ -1279,7 +1303,8 @@
     "bedtime"
    ]
   ],
-  "brief": "Tuesdays have tended to be about average for you."
+  "brief": "Tuesdays have tended to be about average for you.",
+  "briefToday": "Tuesdays have tended to be about average for you. From your 7:00 AM sync."
  },
  "noExerciseData": {
   "outlook": [
@@ -1429,7 +1454,8 @@
     "bedtime"
    ]
   ],
-  "brief": "Tuesdays have tended to be about average for you."
+  "brief": "Tuesdays have tended to be about average for you.",
+  "briefToday": "Tuesdays have tended to be about average for you. From your 7:00 AM sync."
  },
  "latePartsOfDay": {
   "outlook": [
@@ -1579,7 +1605,8 @@
     "custom"
    ]
   ],
-  "brief": "Tuesdays have tended to be about average for you."
+  "brief": "Tuesdays have tended to be about average for you.",
+  "briefToday": "Tuesdays have tended to be about average for you."
  },
  "oldHistoryOnly": {
   "outlook": [
@@ -1733,6 +1760,7 @@
     "bedtime"
    ]
   ],
-  "brief": "Keep checking in. A few more Tuesdays will show your pattern."
+  "brief": "Keep checking in. A few more Tuesdays will show your pattern.",
+  "briefToday": "Keep checking in. A few more Tuesdays will show your pattern."
  }
 }

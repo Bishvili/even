@@ -344,3 +344,44 @@ test("the support suggestion covers mood-only, stress-only, mixed and recovery",
  assert.equal(hardStretch([{ts:day(0),score:2},{ts:day(1),stress:4,score:3},{ts:day(2),score:1}],today),true);
  assert.equal(hardStretch([{ts:day(0),score:4},{ts:day(1),score:4},{ts:day(5),score:1},{ts:day(6),score:1},{ts:day(7),score:1}],today),false);
 });
+const {people,TODAY,day,span}=require("./people.cjs");
+const Day=globalThis.EvenDay;
+test("a day without exercise is zero for someone who syncs and exercises, and missing for someone with no exercise data",()=>{
+ const{health,moods,events,resets}=people.workoutFreeDays();
+ const rows=findings(moods,events,health,resets,TODAY);
+ assert.ok(rows.some(r=>r.label==="On days with a workout"));
+ const context=Day.build({health,events},TODAY);
+ assert.equal(context.days[day(1)].workoutMin.status,"zero");
+ const none=people.noExerciseData();
+ assert.equal(Day.build({health:none.health,events:none.events},TODAY).days[day(1)].workoutMin.status,"missing");
+ const today=health.slice();today[0]={date:day(0),source:"shortcut",steps:100};
+ assert.equal(Day.build({health:today,events},TODAY).days[day(0)].workoutMin.status,"missing");
+});
+test("overlapping events count once, and only a stretch of two hours counts",()=>{
+ const facts=Day.calendarFacts([span(1,9,60,"Meeting"),span(1,9,60,"Other"),span(1,10,70,"Meeting")]);
+ assert.equal(facts.busyMinutes,130);
+ assert.equal(facts.longestStretch,130);
+ assert.equal(facts.stretches.length,1);
+ assert.equal(Day.calendarFacts([span(1,9,60,"Meeting"),span(1,11,60,"Meeting")]).stretches.length,0);
+});
+test("the brief says how old it is, names categories only, and drops sleep and calendar facts when stale",()=>{
+ const{briefFor}=globalThis.EvenCoach;
+ const person=people.regular();
+ person.events.push({...span(0,14,60,"Meeting","Secret title")});
+ const today=outlook(person.moods,TODAY)[0],fresh=briefFor(today,null,"",person,TODAY).text;
+ assert.match(fresh,/First up: meeting at 2:00/);
+ assert.match(fresh,/sync\.$/);
+ assert.doesNotMatch(fresh,/Secret/);
+ const stale=people.staleSync(),old=briefFor(today,null,"",stale,TODAY).text;
+ assert.doesNotMatch(old,/First up|short night/);
+ assert.match(old,/From yesterday’s sync\./);
+ assert.equal(briefFor(today,null,"",people.noHealth(),TODAY).text,brief(today,null,""));
+});
+test("building the day model stays fast at the largest saved history",()=>{
+ const health=[],events=[];
+ for(let i=0;i<1200;i++)health.push({date:day(i),source:"shortcut",steps:5000,sleepHours:7});
+ for(let i=0;i<2000;i++)events.push(span(i%700,9+i%8,30,"Meeting"));
+ const started=process.hrtime.bigint();
+ Day.build({health,events},TODAY);
+ assert.ok(Number(process.hrtime.bigint()-started)/1e6<100);
+});

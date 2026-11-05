@@ -34,6 +34,26 @@
   if(day.level==="typical")return day.name+"s have tended to be about average for you.";
   return "Keep checking in. A few more "+day.name+"s will show your pattern.";
  }
+ // The Today card and the morning notification. Names at most three facts and how old they are.
+ // Facts name a category and never a title, because this can show on a lock screen.
+ function briefFor(day,helper,name,data,now){
+  var when=new Date(now),context=Day.build({health:data.health,events:data.events,lastUpload:data.lastUpload},when),todayKey=localDay(when),parts=[brief(day,helper,name)],fresh=context.fresh;
+  if(!data.connected||!fresh.syncedAt)return{text:parts[0],fresh:fresh};
+  if(!fresh.stale){
+   var facts=context.days[todayKey]||{},sleep=facts.sleepHours;
+   if(sleep&&sleep.status==="known"&&sleep.value<Day.shortSleepLine(context.usual.sleepHours))parts.push("A short night.");
+   var calendar=facts.calendar;
+   if(calendar){
+    var first=calendar.events.slice().sort(function(a,b){return Date.parse(a.start)-Date.parse(b.start);}).filter(function(e){return Date.parse(e.start)>when.getTime();})[0];
+    var fuller=context.usual.busyMinutes!==null&&calendar.busyMinutes>context.usual.busyMinutes;
+    if(first)parts.push((first.category&&first.category!=="Other"?"First up: "+first.category.toLowerCase():"Your first event is")+" at "+clockLabel(first.start)+"."+(fuller?" A fuller day than usual.":""));
+    else if(fuller)parts.push("A fuller day than usual.");
+   }
+  }
+  var yesterday=localDay(new Date(when.getTime()-DAY_MS)),synced=new Date(fresh.syncedAt),syncDay=localDay(synced);
+  parts.push(syncDay===todayKey?"From your "+clockLabel(synced)+" sync.":syncDay===yesterday?"From yesterday’s sync.":"From your sync on "+synced.toLocaleDateString(undefined,{month:"short",day:"numeric"})+".");
+  return{text:parts.join(" "),fresh:fresh};
+ }
  function hardStretch(moods,today){
   // Today and the three calendar days before it.
   var start=new Date(today);start.setHours(0,0,0,0);start.setDate(start.getDate()-3);
@@ -138,13 +158,7 @@
  var LONGEST_DAY=1200;
  function dayEnd(from,to){var start=minutesOf(from),end=minutesOf(to);return end>start?end:end+1440;}
  function validDay(from,to){return dayEnd(from,to)-minutesOf(from)<=LONGEST_DAY;}
- // All-day events and anything a day or longer say nothing about when a person is busy.
- function timedEvents(events){
-  return(events||[]).filter(function(e){
-   var start=new Date(e.start),length=Date.parse(e.end)-start.getTime();
-   return !e.allDay&&length>0&&length<DAY_MS&&!(start.getHours()===0&&start.getMinutes()===0&&length>=DAY_MS-60000);
-  });
- }
+ var timedEvents=Day.timedEvents;
  // Tomorrow morning's first event counts like an alarm an hour before it, for planning the wind-down.
  function morningEvents(events,today){
   var day=new Date(new Date(today).getTime()+DAY_MS),key=localDay(day),first=timedEvents(events).filter(function(e){return localDay(e.start)===key;}).map(function(e){var d=new Date(e.start);return d.getHours()*60+d.getMinutes();}).filter(function(m){return m<720;}).sort(function(a,b){return a-b;})[0];
@@ -234,20 +248,22 @@
  var HELP_METRICS=[{key:"stress",direction:-1,name:"lower stress",worse:"higher stress"},{key:"score",direction:1,name:"better mood",worse:"lower mood"},{key:"energy",direction:1,name:"more energy",worse:"less energy"}];
  var HELP_ACTIVITIES=[["Exercise","moving","Fit in some movement."],["Outdoors","being outdoors","Get outside for a few minutes."],["Rest","rest","Take a real break."],["Social","time with people","Reach out to someone."],["Family","time with family","Make time for family."]];
  function helpFactors(moods,events,health,resets,now){
-  var days={},today=localDay(now);
+  var days={},today=localDay(now),context=Day.build({health:health,events:events},now);
   health.forEach(function(h){days[h.date]=h;});
   function dayFactor(id,label,tip,key,met){
    return{id:id,label:label,tip:tip,test:function(m){var h=days[localDay(m.ts)];return h&&Number.isFinite(h[key])?met(h[key]):null;},done:!!days[today]&&Number.isFinite(days[today][key])&&met(days[today][key])};
   }
   // The person's own usual level once there's enough history, and a fixed starting point until then.
   function usual(key){
-   return Day.baseline(health.map(function(h){return{date:h.date,value:h[key]==null?NaN:Number(h[key])};}),now);
+   return context.usual[key];
   }
   var usualSleepHours=usual("sleepHours"),usualSteps=usual("steps"),sleepLine=usualSleepHours===null?7:usualSleepHours,stepLine=usualSteps===null?6000:usualSteps;
   var factors=[
    dayFactor("sleep",usualSleepHours===null?"After 7 or more hours of sleep":"After your usual sleep or more","Protect your sleep tonight.","sleepHours",function(v){return v>=sleepLine;}),
    dayFactor("steps",usualSteps===null?"On days with 6,000 or more steps":"On days with your usual steps or more","Go for a walk.","steps",function(v){return v>=stepLine;}),
-   dayFactor("workout","On days with a workout","Fit in some movement.","workoutMin",function(v){return v>0;})
+   {id:"workout",label:"On days with a workout",tip:"Fit in some movement.",
+    test:function(m){var d=context.days[localDay(m.ts)],w=d&&d.workoutMin;return !w||w.status==="missing"?null:w.value>0;},
+    done:!!context.days[today]&&!!context.days[today].workoutMin&&context.days[today].workoutMin.value>0}
   ];
   var resetTimes=(resets||[]).map(function(at){return Date.parse(at);}).filter(Number.isFinite);
   factors.push({id:"reset",label:"In the 2 hours after a breathing exercise",tip:"Take a minute.",action:"reset",
@@ -266,9 +282,14 @@
   var usualResting=usual("restingHR");
   // Personal context only, compared with the person's own level.
   if(usualResting!==null)factors.push(dayFactor("resting","On days with resting heart rate above your usual","","restingHR",function(v){return v>usualResting;}));
-  var busy={};events.forEach(function(e){var length=(Date.parse(e.end)-Date.parse(e.start))/60000;if(length>0&&length<1440){var day=localDay(e.start);busy[day]=(busy[day]||0)+length;}});
-  var usualBusy=Day.baseline(Object.keys(busy).map(function(day){return{date:day,value:busy[day]};}),now);
-  if(usualBusy!==null){factors.push({id:"busy",label:"On days with more on your calendar than usual",test:function(m){var minutes=busy[localDay(m.ts)];return minutes===undefined?null:minutes>usualBusy;}});}
+  var usualBusy=context.usual.busyMinutes;
+  if(usualBusy!==null){factors.push({id:"busy",label:"On days with more on your calendar than usual",test:function(m){var d=context.days[localDay(m.ts)];return d&&d.calendar?d.calendar.busyMinutes>usualBusy:null;}});}
+  // Shaped like the breathing factor: only a day with events can say yes or no.
+  factors.push({id:"stretch",label:"In the 2 hours after a long back-to-back stretch",test:function(m){
+   var d=context.days[localDay(m.ts)],t=Date.parse(m.ts);
+   if(!d||!d.calendar)return null;
+   return d.calendar.stretches.some(function(s){return t>=s[1]&&t-s[1]<=RESET_WINDOW_MS;});
+  }});
   factors.push({id:"early-alarm",label:"On days with an alarm before 7 AM",test:function(m){var at=alarms[localDay(m.ts)];return at===undefined?null:at<EARLY_ALARM;}});
   if(usualHrv!==null)factors.push(dayFactor("hrv","On days with heart rate variability above your usual","","hrv",function(v){return v>=usualHrv;}));
   var named={},categories={};HELP_ACTIVITIES.forEach(function(item){named[item[0]]=true;});
@@ -442,7 +463,7 @@
   if(data.connected&&(!data.lastUpload||now.getTime()-new Date(data.lastUpload).getTime()>RULES.staleHours*3600000))actions.push({text:"Run Even Sync to bring in last night’s sleep and your calendar.",action:"sync",label:"Run Even Sync"});
   return actions.slice(0,3);
  }
- var api={validDay:validDay,weekSchedule:weekSchedule,whatHelps:whatHelps,anticipate:anticipate,nextActions:nextActions,bedtimeForAlarm:bedtimeForAlarm,morningAlarm:morningAlarm,alarmsOn:alarmsOn,smartPlan:smartPlan,bedtimeReminder:bedtimeReminder,smartTimes:smartTimes,repeatTimes:repeatTimes,outlook:outlook,findings:findings,brief:brief,hardStretch:hardStretch,steadiness:steadiness,reflectionDue:reflectionDue,REFLECTION:REFLECTION};
+ var api={validDay:validDay,weekSchedule:weekSchedule,whatHelps:whatHelps,anticipate:anticipate,nextActions:nextActions,bedtimeForAlarm:bedtimeForAlarm,morningAlarm:morningAlarm,alarmsOn:alarmsOn,smartPlan:smartPlan,bedtimeReminder:bedtimeReminder,smartTimes:smartTimes,repeatTimes:repeatTimes,outlook:outlook,findings:findings,brief:brief,briefFor:briefFor,hardStretch:hardStretch,steadiness:steadiness,reflectionDue:reflectionDue,REFLECTION:REFLECTION};
  root.EvenCoach=api;
  if(typeof document==="undefined"||!root.EvenApp)return;
 
@@ -453,9 +474,10 @@
  function element(tag,className,text){var e=document.createElement(tag);if(className)e.className=className;if(text!==undefined)e.textContent=text;return e;}
 
  function openReset(){if(!$("reset-dialog").open){$("reset-dialog").showModal();startBreathing();}}
- function saveBriefs(days,helper,name,hard){
+ function saveBriefs(days,helper,name,hard,todayText){
   if(!("caches" in root))return;
   var body={};days.forEach(function(d){if(d.level!=="unknown")body[d.date]=d.level==="harder"?brief(d,helper,name):(name?"Good morning, "+name+". ":"")+brief(d,helper);});
+  if(days[0]&&todayText&&days[0].level!=="unknown")body[days[0].date]=days[0].level==="harder"?todayText:(name?"Good morning, "+name+". ":"")+todayText;
   if(hard&&days[0])body[days[0].date]=(body[days[0].date]||(name?"Good morning, "+name+".":"Good morning."))+" It’s been a hard few days. Talking to someone can help.";
   if(!Object.keys(body).length)return;
   caches.open(BRIEF_CACHE).then(function(cache){return cache.put("/brief",new Response(JSON.stringify(body)));}).catch(function(){});
@@ -463,10 +485,11 @@
  function renderToday(data){
   var personal=data.moods,now=new Date(),days=outlook(personal,now);
   var helper=whatHelps(personal,data.events,data.health,data.resets,now).filter(function(row){return row.id!=="sleep";})[0];
-  $("today-brief-text").textContent=personal.length?brief(days[0],helper,data.firstName):"Your first check-in starts your pattern.";
+  var today=briefFor(days[0],helper,data.firstName,data,now);
+  $("today-brief-text").textContent=personal.length?today.text:"Your first check-in starts your pattern.";
   $("hard-stretch").hidden=!hardStretch(personal,now);
   $("hard-stretch-text").textContent="It’s been a hard few days"+(data.firstName?", "+data.firstName:"")+". Talking to someone can help.";
-  saveBriefs(days,helper,data.firstName,hardStretch(personal,now));
+  saveBriefs(days,helper,data.firstName,hardStretch(personal,now),today.text);
   renderActions(data,personal,now);
  }
  function renderActions(data,personal,now){
