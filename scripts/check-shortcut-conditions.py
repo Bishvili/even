@@ -19,12 +19,12 @@ from pathlib import Path
 
 
 SYNC_TEXT = collections.Counter({"on": 7, "connected": 1, "accepted": 2, "needed": 1, "new_release": 1, "sent": 1})
-SYNC_NUMBERS = [0, 0, 0, 0] + [1] * 11
+SYNC_NUMBERS = [0, 0, 0, 0] + [1] * 15 + [7] * 4
 HELPER_TEXT = collections.Counter({
-    "Even Sync": 2, "Even Release": 1, "update": 1, "share": 1, "install": 1, "building": 1,
+    "Even Sync": 2, "Even Release": 1, "share": 1, "install": 1, "building": 1,
     "ahead": 1, "current": 2, "publish": 1, "Publish": 1,
 })
-HELPER_NUMBERS = [0, 1, 1, 1, 1]
+HELPER_NUMBERS = [0, 1, 1, 1, 1, 1]
 
 TIMESTAMP_PATTERN = "yyyy-MM-dd'T'HH:mm:ssZZZZZ"
 KEY_FILE = "even-device-key.txt"
@@ -244,8 +244,9 @@ def check_connection_and_health(document, actions) -> None:
     extractor_input = extractor.get("WFInput", {}).get("Value", {}).get("attachmentsByRange", {}).get("{0, 1}", {})
     if extractor.get("WFReplaceTextReplace") != "$1" or not extractor.get("WFReplaceTextRegularExpression") or extractor_input.get("OutputName") != "normalizedSteps":
         raise AssertionError("Step number extraction is missing or malformed")
-    setters = [a for a in by_id("is.workflow.actions.setvariable") if a.get("WFWorkflowActionParameters", {}).get("WFVariableName") == "stepsField"]
-    if not any(extractor.get("UUID") and extractor["UUID"] in json.dumps(s.get("WFWorkflowActionParameters", {}).get("WFInput", {})) for s in setters):
+    # The field is built up as day=value pairs, so the value reaches it through a text action.
+    identifier = extractor_action.get("WFWorkflowActionParameters", {}).get("UUID")
+    if not identifier or not any(a is not extractor_action and identifier in json.dumps(a.get("WFWorkflowActionParameters", {})) for a in actions):
         raise AssertionError("The steps field is not set from the numeric step value")
 
     health = named.get("healthBody", {}).get("WFWorkflowActionParameters", {})
@@ -253,7 +254,7 @@ def check_connection_and_health(document, actions) -> None:
     values = {item.get("WFKey", {}).get("Value", {}).get("string"): item.get("WFValue", {}).get("Value", {}) for item in items}
     if values.get("kind", {}).get("string") != "health":
         raise AssertionError("Expected one health upload")
-    for field, variable in (("steps", "stepsField"), ("restingHR", "restingField"), ("hrv", "hrvField"), ("workoutMin", "exerciseField"), ("sleepIntervals", "sleepIntervals")):
+    for field, variable in (("stepsRecent", "stepsField"), ("restingHRRecent", "restingField"), ("hrvRecent", "hrvField"), ("workoutMinRecent", "exerciseField"), ("sleepIntervals", "sleepIntervals")):
         if not refers_to_variable(values.get(field), variable):
             raise AssertionError(f"Health upload field {field} does not send {variable}")
     print("Installed Sync has no import question; saved-key file and the single Health upload verified.")

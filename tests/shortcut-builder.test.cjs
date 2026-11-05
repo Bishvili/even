@@ -21,7 +21,7 @@ function harness(){
    if(!elements.has(id)){
     const attrs=new Map();
     elements.set(id,{id,hidden:false,disabled:false,textContent:"",innerHTML:"",value:"",
-     classList:{toggle(){}},setAttribute(k,v){attrs.set(k,v);},removeAttribute(k){attrs.delete(k);},
+     classList:{toggle(){}},appendChild(){},setAttribute(k,v){attrs.set(k,v);},removeAttribute(k){attrs.delete(k);},
      getAttribute(k){return attrs.get(k)||null;}});
    }
    return elements.get(id);
