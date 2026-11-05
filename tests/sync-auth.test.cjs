@@ -217,7 +217,7 @@ test("reminders are validated, owner-scoped, sent once a day, and stop when a de
  const cek=await hkdf(salt,ikm,Buffer.from("Content-Encoding: aes128gcm\0"),16),nonce=await hkdf(salt,ikm,Buffer.from("Content-Encoding: nonce\0"),12);
  const plain=new Uint8Array(await webcrypto.subtle.decrypt({name:"AES-GCM",iv:nonce},await webcrypto.subtle.importKey("raw",cek,"AES-GCM",false,["decrypt"]),message.slice(86)));
  assert.equal(plain[plain.length-1],2);
- assert.equal(JSON.parse(Buffer.from(plain.slice(0,-1)).toString()).notification.title,"Even");
+ assert.equal(JSON.parse(Buffer.from(plain.slice(0,-1)).toString()).notification.title,require("../brand/brand.json").name);
  assert.equal(dispatches[0].init.headers["Content-Encoding"],"aes128gcm");
  assert.match(dispatches[0].init.headers.Authorization,/^vapid t=[\w-]+\.[\w-]+\.[\w-]+, k=[\w-]+$/);
  await call("/api/user/revoke",{method:"POST",body:{deviceId:a.data.deviceId},context:ctx("owner-a@example.com")});

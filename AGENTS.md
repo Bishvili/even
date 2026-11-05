@@ -1,6 +1,6 @@
-# Even — Engineering Guide
+# Engineering Guide
 
-This file is the operating guide for changes to the Even codebase. Follow it before editing the UI, Worker, database, tests, or deployment configuration.
+This file is the operating guide for changes to this codebase. Follow it before editing the UI, Worker, database, tests, or deployment configuration.
 
 ## Onboarding a new developer
 
@@ -23,7 +23,7 @@ The repository owner grants these, using the new developer's own accounts:
 
 1. **GitHub:** add them as a collaborator on `Bishvili/health` with write access.
 2. **Cloudflare:** invite them to the Bishvili account with access to Workers, KV, and D1. Pushes deploy through Workers Builds, so this is not needed just to deploy.
-3. **App sign-in:** add testers in Even → **Settings** → **Developer tools**, which stores them in the `health_approved_emails` D1 table. Accounts in `health_release_emails` can do this. Even's own sign-in (`worker/signin.mjs`, using Better Auth) sends email codes or uses Google, and only emails in that table or the `APPROVED_SYNC_EMAILS` secret can get in. Invitations and codes are sent through Resend from `bishvili.org` with the `RESEND_API_KEY` Worker secret. Better Auth also needs `BETTER_AUTH_SECRET`, `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`, all stored as secrets, because a deploy removes plain text variables that aren't in `wrangler.jsonc`.
+3. **App sign-in:** add testers in the app → **Settings** → **Developer tools**, which stores them in the `health_approved_emails` D1 table. Accounts in `health_release_emails` can do this. The app's own sign-in (`worker/signin.mjs`, using Better Auth) sends email codes or uses Google, and only emails in that table or the `APPROVED_SYNC_EMAILS` secret can get in. Invitations and codes are sent through Resend from `bishvili.org` with the `RESEND_API_KEY` Worker secret. Better Auth also needs `BETTER_AUTH_SECRET`, `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`, all stored as secrets, because a deploy removes plain text variables that aren't in `wrangler.jsonc`.
 4. **Releases:** add their email to the `health_release_emails` D1 table. Set `display_name` to welcome them on first sign-in with a guide to improving the site.
 
 ### Developer steps
@@ -31,12 +31,12 @@ The repository owner grants these, using the new developer's own accounts:
 1. **Connect GitHub** in Claude, and confirm push access without writing anything: listing the repository's collaborators shows their role (`write`, `maintain`, or `admin`), and GitHub only returns that list to accounts with push access. Do not create or push a branch to test access. All work goes to `main`; if a session starts on another branch, switch to `main` before committing.
 2. **Connect Cloudflare** in Claude and select the Bishvili account. It should list one Worker, `health`. The older Workers Bindings server is deprecated in favor of `https://mcp.cloudflare.com/mcp`.
 3. **Run the tests:** `node --test tests/*.test.cjs`.
-4. **To work on the Shortcuts:** nobody ever copies a key. Signing in on Even → **Data** connects the iPhone automatically, and running Health Sync from the app passes the key to the Shortcut, which saves it in On My iPhone for later runs and automations.
+4. **To work on the Shortcuts:** nobody ever copies a key. Signing in on the app → **Data** connects the iPhone automatically, and running Health Sync from the app passes the key to the Shortcut, which saves it in On My iPhone for later runs and automations.
    - **Health Sync** is the Shortcut everyone installs. Its version is in `shortcuts/sync.cherri` and must change for each release, with one plain sentence for people in `shortcuts/release-notes.txt`.
    - **Release Helper** is the developer helper, in `shortcuts/helper.cherri`. It holds no credentials. Install it with **Set Up Release Helper** in **Settings** → **Developer tools**, which opens the link the helper last shared (`shortcuts/helper.json`). Change `helperVersion` with every change to its source: the next run downloads the new build (tap **Replace** and run it again), then shares its own new link. For a first install, open `https://health.bishvili.org/api/shortcut/build/helper` in Safari, which names the file correctly; a file from GitHub imports under the wrong name.
    - **To release:** push to `main`, then tap **Run Release Helper** in **Settings** → **Developer tools**. It runs Health Sync and asks the Worker for the state. While **Build signed Health Sync** is still signing, it says to try again; that workflow signs through a service that sometimes times out, so rerun it if it fails. An older installed version downloads the latest (tap **Replace** and run it again). An unpublished version asks for confirmation, publishes, and waits until the app offers it. A newer installed build is never replaced with an older one. The Worker refuses any link not named Health Sync or Release Helper. Only an iPhone can create the iCloud link.
    - The card appears for accounts listed in `health_release_emails`, and **Improve This Site with Claude** opens a new session on this repository that starts with this onboarding. See [Health Sync releases](shortcuts/RELEASE.md).
-5. **To test Sync:** sign in on Even → **Data** with their own account. Device keys belong to one account, so never reuse someone else's.
+5. **To test Sync:** sign in on the app → **Data** with their own account. Device keys belong to one account, so never reuse someone else's.
 
 ### What to know before changing anything
 
@@ -83,7 +83,7 @@ Only an iPhone proves iOS behavior, and each round trip costs the owner time. Be
 - A Shortcut must never wait for an answer on a normal run, because automations can't respond. Use notifications, and stop with a clear alert only when it can't continue.
 - A result limit applies before grouping, so read grouped values from the first group.
 - Health data can't be read while the iPhone is locked.
-- Clock alarm details exist only as variable properties, whose names can differ across iOS versions. Confirm in the Shortcuts editor and in Even → **Data** that names, times and on/off state arrive. Keep alarms at the end of the run, because an error there can't be caught.
+- Clock alarm details exist only as variable properties, whose names can differ across iOS versions. Confirm in the Shortcuts editor and in the app → **Data** that names, times and on/off state arrive. Keep alarms at the end of the run, because an error there can't be caught.
 - Clients check an error's `code`, never its message.
 - Health Sync follows the settings the handshake returns: `sync…` values for each kind of data, and `calendarsOff`, a pattern of turned-off calendars. The Worker also applies them on arrival, in case they changed during the run.
 - A run makes five requests: the handshake, the next week's events, all Health measures, alarms, and the final notification. Every request is a round trip from the phone, often on cellular or inside an automation, so add fields to one of these instead of adding requests.
@@ -93,7 +93,7 @@ Only an iPhone proves iOS behavior, and each round trip costs the owner time. Be
 - To change the name, colors or logo, follow `BRANDING.md`.
 - Icons and launch images are not stored: the build draws every PNG the service worker lists from `brand/logo.svg` and the palette, with `@resvg/resvg-js`. If it can't, the deploy stops. Browser checks draw the same images with Playwright, so a change to the logo needs a look at the deployed icon.
 - The app's name comes from `brand/brand.json`, and the Shortcut names from `brand/stable.json`. Write `{{name}}`, `{{installName}}`, `{{sync}}`, `{{helper}}` or `{{syncUrl}}` in shipped files, which the build fills in (`scripts/build-assets.cjs`), and `BRAND.name` or `STABLE.sync` in the Worker. Never write the name itself. `tests/brand.test.cjs` rebuilds under a made-up name and checks nothing is left over. Only change `stable.json` together with the Shortcut sources.
-- Attaching Workers Static Assets removes `ctx.access` from the Worker, which once refused every sign-in. Even's sign-in doesn't use it.
+- Attaching Workers Static Assets removes `ctx.access` from the Worker, which once refused every sign-in. the app's sign-in doesn't use it.
 - Failures log one JSON line through `logEvent` in `worker/index.js`, from named fields only. Each cron run records itself in `health_service`, and Developer tools shows the last run. Lint runs as a test (`tests/lint.test.cjs`), so it stops a deploy.
 - Worker, repository and address renames need dashboard steps. Push only after they're done, because a mismatch can deploy to the wrong place.
 - Change a live D1 schema before pushing code that needs it, with additive changes only. Add a numbered file in `db/migrations`, update `db/schema.sql` in the same commit, and apply it with `wrangler d1 migrations apply health-private --remote`. `tests/migrations.test.cjs` checks that the migrations rebuild the schema.
@@ -109,12 +109,12 @@ Only an iPhone proves iOS behavior, and each round trip costs the owner time. Be
 - Fictional records live only in `state.demo`, and `state.moods`, `state.health` and `state.events` hold only personal ones. Never pass demo records through `upsertHealth` or `upsertEvent`, and only the demo view reads `state.demo`.
 - A new table or column that holds an owner's data must be covered by erase, account deletion and the cross-account tests in the same change.
 - Resting heart rate is personal context only, compared with the person's own usual level. Don't add another measure without a feature that uses it.
-- When what Even collects, sends or stores changes, update the **Data inventory**, Data → Help and privacy, Settings, the README's Privacy section and `whitepaper.html` in the same commit.
+- When what the app collects, sends or stores changes, update the **Data inventory**, Data → Help and privacy, Settings, the README's Privacy section and `whitepaper.html` in the same commit.
 
 **Analysis and copy**
 - Use a first name only where it adds care: messages that start or close the day, a hard moment, and invitations. Keep it out of routine check-ins, sync messages, insights and errors.
 - Comparisons come from one implementation, `effectsOf` in `coach.js`: at least 5 check-ins each way and a 0.4 point difference. `findings` shows each subject once. Weekday outlooks need at least 3. Extend it rather than adding another.
-- Give each comparison one minimum count and one threshold. Never show an average below the minimum, and use the same numbers in the interface and How Even Works.
+- Give each comparison one minimum count and one threshold. Never show an average below the minimum, and use the same numbers in the interface and How It Works.
 - Write counts with the right singular or plural form: "1 entry", never "1 entries".
 - Confirmations for destructive actions say whose data, which data, and whether it can be undone.
 - When you change wording or replace a behavior, search the interface, the Shortcuts, the docs and the paper for the old version, and update every match.
@@ -123,7 +123,7 @@ Only an iPhone proves iOS behavior, and each round trip costs the owner time. Be
 
 **Working mode:** iterate quickly. Commit directly to `main`, with no feature branches or approval steps. Don't wait on CI before pushing, but check the result afterward. The interface should still look and read like a finished App Store app.
 
-Even is an iPhone-first, installable progressive web app for quick mood check-ins and useful context from calendars and selected health metrics. Hold the interface to the finish, consistency, speed, and restraint of a popular App Store app, while remaining truthful about web-platform capabilities.
+This is an iPhone-first, installable progressive web app for quick mood check-ins and useful context from calendars and selected health metrics. Hold the interface to the finish, consistency, speed, and restraint of a popular App Store app, while remaining truthful about web-platform capabilities.
 
 - A check-in should take seconds. The interface must work while offline.
 - Mood check-ins and notes are kept on the device and, once signed in, always sync to the person's own account.
@@ -141,8 +141,8 @@ Even is an iPhone-first, installable progressive web app for quick mood check-in
   - Removing a tester deletes their synced data. Planned in #22.
   - A day counts as hard when stress is 4 or 5, or mood is Rough or Low, and the support suggestion appears after 3 such days in the last 4.
   - Sources and Sync are one **Data** tab, leaving four tabs (#27).
-  - Even is for the US and in English for now: the support numbers are US only, and Health Sync matches English Health names.
-  - Using Even requires an account: signing in is required on every device, and adding Even to the Home Screen is required on an iPhone or iPad. Health Sync is strongly asked for but can be put off, because the app still works without it.
+  - The app is for the US and in English for now: the support numbers are US only, and Health Sync matches English Health names.
+  - Using the app requires an account: signing in is required on every device, and adding the app to the Home Screen is required on an iPhone or iPad. Health Sync is strongly asked for but can be put off, because the app still works without it.
   - Health Sync is installed only from the iCloud link the app offers. There is no third-party listing.
   - Resting heart rate becomes personal recovery context, compared with the person's own usual level (planned in #37). Average heart rate is no longer collected.
   - Health Sync sends events for today and the next 7 days, so plans can work around them.
@@ -172,7 +172,7 @@ Read the relevant files before changing behavior:
 | Notifications | reminders.js, intake.js, coach.js, sw.js | The notification questions, seeing and tuning the day's plan |
 | Pull to refresh | refresh.js | Refresh gesture and running the Shortcut |
 | Coaching | coach.js | Stress outlook, patterns, anticipated stress, next actions, alarm context, daily brief, reset exercise |
-| Explainer | whitepaper.html, whitepaper.css | How Even works, written for clinicians. Keep it true when behavior changes. |
+| Explainer | whitepaper.html, whitepaper.css | How it works, written for clinicians. Keep it true when behavior changes. |
 | Edge API | worker/index.js | Authentication boundaries, device credentials, ingestion and retrieval |
 | Data model | db/schema.sql | D1 owner-scoped health, calendar, user, and device records |
 | Cloud configuration | wrangler.jsonc | Worker, static assets, KV release records, and D1 bindings |
@@ -187,7 +187,7 @@ Current UI is plain JavaScript and CSS. Do not rewrite it merely to adopt a fram
 **Read .agents/skills/ios-pwa-frontend/SKILL.md for every UI or interaction change.**
 
 - Design for installed iPhone use first, then support Safari tabs, iPad, desktop, and narrower accessibility settings.
-- Follow the platform's navigation, safe-area, typography, touch, keyboard, sheet, and focus conventions while retaining a distinct Even identity.
+- Follow the platform's navigation, safe-area, typography, touch, keyboard, sheet, and focus conventions while retaining a distinct identity.
 - Prefer system fonts and a small set of coherent design tokens. Use existing, accessible icon and component libraries where they reduce work, not to create dependency bloat.
 - Make loading, success, failure, offline, empty, permission-denied, and disconnected states first-class.
 - Preserve accessibility, reduced-motion settings, dark-mode legibility, Dynamic Type/text scaling, and comfortable minimum touch targets.
@@ -204,7 +204,7 @@ Current UI is plain JavaScript and CSS. Do not rewrite it merely to adopt a fram
 
 ## Privacy and security invariants
 
-1. Authenticate browser account operations with a session from Even's sign-in, checked on the server against the approved list on every request. Store codes only as hashes and don't keep Google's tokens. Never trust a user-supplied email, arbitrary request header, or device ID as proof of identity.
+1. Authenticate browser account operations with a session from the app's sign-in, checked on the server against the approved list on every request. Store codes only as hashes and don't keep Google's tokens. Never trust a user-supplied email, arbitrary request header, or device ID as proof of identity.
 2. Restrict issuance and revocation of device credentials to the verified owner. Use cryptographically random device tokens, store only hashes server-side, support revocation, and do not log or embed tokens.
 3. Every read, write, export, and delete of cloud data must be scoped to the derived account owner on the server. Test cross-user isolation and revocation.
 4. Keep the email allowlist in Cloudflare secrets or private D1 tables and all credentials in Cloudflare secrets, never checked into the public repository or served in production assets.
@@ -214,7 +214,7 @@ Current UI is plain JavaScript and CSS. Do not rewrite it merely to adopt a fram
 
 ## Data inventory
 
-What Even holds and where it goes. Write every privacy statement from this table, and keep it current: when it changes, change Data → Help and privacy, Settings, the README's Privacy section and `whitepaper.html` with it.
+What the app holds and where it goes. Write every privacy statement from this table, and keep it current: when it changes, change Data → Help and privacy, Settings, the README's Privacy section and `whitepaper.html` with it.
 
 | Data | Comes from | On the iPhone | In the account | Used for |
 | --- | --- | --- | --- | --- |
@@ -250,7 +250,7 @@ Send feedback opens a mail draft holding only the app and sync details listed in
 4. Add or update tests at the right layer. Run the existing Node test suite with: node --test tests/*.test.cjs. Add WebKit/browser end-to-end tests as the UI grows. `scripts/smoke.cjs` loads the first-run steps and every screen with the Worker's `SECURITY` headers, connected and with the demo month loaded, and fails on any uncaught error or security-policy violation. Run it before pushing screen changes; CI runs it in Chromium and WebKit. `scripts/signed-in.cjs` runs the signed-in flows against a fake API: check-in sync, pull, erase, disconnect, restore, damaged storage and account switching. Run it before pushing changes to any of them.
 5. For UI changes, review at iPhone widths and in installed standalone mode. Exercise safe areas, keyboard, scroll, offline, focus, reduced motion, light/dark appearance, and empty/error states. Check the first launch at 375×667.
 6. For API or D1 changes, test invalid credentials, unauthorized requests, multiuser isolation, malformed payloads, idempotency, and rollback behavior.
-7. Update documentation, migration instructions, the PWA service-worker cache version, the **Data inventory**, and `whitepaper.html` in the same change. Any change to what Even collects, where data goes, how patterns or prompts are decided, what notifications do, or safety behavior must be reflected in the paper. `tests/whitepaper.test.cjs` catches the numeric rules; check the prose by reading it. If you edit the paper, keep its plain, clinician-facing language and its limits section.
+7. Update documentation, migration instructions, the PWA service-worker cache version, the **Data inventory**, and `whitepaper.html` in the same change. Any change to what the app collects, where data goes, how patterns or prompts are decided, what notifications do, or safety behavior must be reflected in the paper. `tests/whitepaper.test.cjs` catches the numeric rules; check the prose by reading it. If you edit the paper, keep its plain, clinician-facing language and its limits section.
 8. Pushes to `main` deploy through Workers Builds using `scripts/deploy.sh`. Check that the build succeeded rather than assuming a commit is live.
 9. Verify the **deployed** version and its functionality before describing it as live. There is no staging, so for changes involving auth or personal data, plan how to roll back before pushing.
 10. Leave the branch, test suite, and docs coherent. Avoid stray test scripts, stale comments, or unresolved TODOs with no owner.

@@ -6,7 +6,7 @@ A new version is public as soon as it is published, so fixes ship as another ver
 
 1. Save a fine-grained GitHub token limited to this repository, with **Actions: Read and write**, as the `GITHUB_API_KEY` Worker secret. The Worker uses it to start the publishing and helper-link workflows.
 2. Add the publisher's email to the `health_release_emails` D1 table. Their account must also be approved for sign-in.
-3. On that iPhone, sign in to Even → **Data**, which connects it automatically. In **Settings** → **Developer tools**, tap **Set Up Release Helper**, install Health Sync, and tap **Run Health Sync** once so the key is saved. No key is ever copied, and the helper holds no credentials.
+3. On that iPhone, sign in to the app → **Data**, which connects it automatically. In **Settings** → **Developer tools**, tap **Set Up Release Helper**, install Health Sync, and tap **Run Health Sync** once so the key is saved. No key is ever copied, and the helper holds no credentials.
 
 ## Publish a version
 

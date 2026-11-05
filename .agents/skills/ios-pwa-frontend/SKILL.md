@@ -1,15 +1,15 @@
 ---
 name: ios-pwa-frontend
-description: Design and implement polished, accessible, iPhone-first interfaces for Even, an installable mood and context PWA.
+description: Design and implement polished, accessible, iPhone-first interfaces for an installable mood and context PWA.
 ---
 
-# Even — iOS PWA Frontend Design
+# iOS PWA Frontend Design
 
 Use this guide whenever changing screens, components, typography, navigation, motion, onboarding, PWA integration, graphs, or user-facing copy. This is a product-specific design system inspired by https://agenticskills.io/skills/frontend-design and informed by Apple's Human Interface Guidelines. It is tailored to a WebKit-installed iPhone app, not a marketing website or a generic dashboard.
 
 ## Product character
 
-Even helps someone record a feeling quickly and later understand what might correlate with it. The tone is thoughtful, private, gentle, and precise; avoid clinical coldness, productivity-game scoreboards, exaggerated cheerfulness, or judgment.
+The app helps someone record a feeling quickly and later understand what might correlate with it. The tone is thoughtful, private, gentle, and precise; avoid clinical coldness, productivity-game scoreboards, exaggerated cheerfulness, or judgment.
 
 The experience should feel:
 - **Calm:** a clear primary action and limited visual noise.
@@ -103,7 +103,7 @@ Spacing and shape:
 - Calendar comparisons require transparent before/after windows and enough observations. Show overlap and missing-data caveats when relevant.
 - Use "associated with", "averaged", or "in this sample", never "caused by" or medical assertions.
 - Fictional demo data must remain visibly separate from personal data in every chart, metric, and summary. Counts anywhere in the app include personal records only.
-- Never show an average, bar or pattern from fewer check-ins than the stated minimum, and use the same minimum in the code, the copy and How Even Works.
+- Never show an average, bar or pattern from fewer check-ins than the stated minimum, and use the same minimum in the code, the copy and How It Works.
 - Set chart sizes with SVG attributes or `element.style`, never a `style=` attribute in markup, which the security policy blocks.
 - Show each subject once. When two comparisons cover the same thing, such as a tag and a calendar category, lead with the stronger one and put the other in its detail.
 

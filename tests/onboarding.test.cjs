@@ -17,7 +17,7 @@ const app={installed:true,installable:false};
 const {gateStep}=globalThis.Onboarding;
 const gate=changes=>gateStep(Object.assign({online:true},fresh,changes));
 const connected={...app,signedIn:true,connected:true,connectedBefore:true};
-test("a new iPhone must add Even to the Home Screen, and putting it off isn't possible",()=>{
+test("a new iPhone must add the app to the Home Screen, and putting it off isn't possible",()=>{
  assert.equal(gate({}).id,"install");
  assert.equal(gate({}).variant,"share");
  assert.equal(gate({}).number,1);
