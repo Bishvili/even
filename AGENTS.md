@@ -91,6 +91,7 @@ Only an iPhone proves iOS behavior, and each round trip costs the owner time. Be
 
 **Cloud and naming**
 - Attaching Workers Static Assets removes `ctx.access` from the Worker, which once refused every sign-in. Even's sign-in doesn't use it.
+- Failures log one JSON line through `logEvent` in `worker/index.js`, from named fields only. Each cron run records itself in `even_service`, and Developer tools shows the last run. Lint runs as a test (`tests/lint.test.cjs`), so it stops a deploy.
 - Worker, repository and address renames need dashboard steps. Push only after they're done, because a mismatch can deploy to the wrong place.
 - Change a live D1 schema before pushing code that needs it, with additive changes only. Add a numbered file in `db/migrations`, update `db/schema.sql` in the same commit, and apply it with `wrangler d1 migrations apply even-private --remote`. `tests/migrations.test.cjs` checks that the migrations rebuild the schema.
 - The public address is `PUBLIC_ORIGIN` in `wrangler.jsonc`, not a literal in the code. Rate limits are the `INVITE_LIMIT` and `DEVICE_LIMIT` bindings, and refusals return `429` with the code `rate_limited`.
@@ -101,6 +102,7 @@ Only an iPhone proves iOS behavior, and each round trip costs the owner time. Be
 - `scripts/deploy.sh` deploys the Worker and the files as one version with Workers Static Assets, so a failed deploy changes nothing. Release records stay in KV and are written after the deploy. To roll back, redeploy the previous version.
 
 **Data and privacy**
+- Anything personal stored on a device joins `DEVICE_KEYS` or `DEVICE_CACHES` in `app.js`, so Erase clears it. `tests/erase.test.cjs` checks this.
 - Fictional records live only in `state.demo`, and `state.moods`, `state.health` and `state.events` hold only personal ones. Never pass demo records through `upsertHealth` or `upsertEvent`, and only the demo view reads `state.demo`.
 - A new table or column that holds an owner's data must be covered by erase, account deletion and the cross-account tests in the same change.
 - Resting heart rate is personal context only, compared with the person's own usual level. Don't add another measure without a feature that uses it.
@@ -108,7 +110,7 @@ Only an iPhone proves iOS behavior, and each round trip costs the owner time. Be
 
 **Analysis and copy**
 - Use a first name only where it adds care: messages that start or close the day, a hard moment, and invitations. Keep it out of routine check-ins, sync messages, insights and errors.
-- Comparisons come from one implementation, `effectsOf` in `coach.js`: at least 5 check-ins each way and a 0.4 point difference. Weekday outlooks need at least 3. Extend it rather than adding another.
+- Comparisons come from one implementation, `effectsOf` in `coach.js`: at least 5 check-ins each way and a 0.4 point difference. `findings` shows each subject once. Weekday outlooks need at least 3. Extend it rather than adding another.
 - Give each comparison one minimum count and one threshold. Never show an average below the minimum, and use the same numbers in the interface and How Even Works.
 - Write counts with the right singular or plural form: "1 entry", never "1 entries".
 - Confirmations for destructive actions say whose data, which data, and whether it can be undone.
@@ -187,7 +189,7 @@ Current UI is plain JavaScript and CSS. Do not rewrite it merely to adopt a fram
 
 ## Backend and dependencies
 
-- Prefer stable, popular, actively maintained libraries and APIs for solved problems. Use a well-supported validation library for nontrivial inputs; use a database abstraction only when it improves migrations and query safety. Do not recreate authentication, date/time parsing, accessibility components, or test infrastructure unnecessarily.
+- Prefer stable, popular, actively maintained libraries and APIs for solved problems. Validate input by hand where the check is small and tested; use a database abstraction only when it improves migrations and query safety. Do not recreate authentication, date/time parsing, accessibility components, or test infrastructure unnecessarily.
 - Evaluate dependencies for maintenance, security, bundle size, Cloudflare Workers compatibility, licensing, and measurable value. Keep package manifests and lockfiles current when introducing packages.
 - Favor strict TypeScript types for new modules and migrations when practical. Keep domain analysis, data validation, storage, authentication, and HTTP handling separated and testable.
 - Parameterize D1 queries. Use explicit schemas and ownership predicates. Validate input shape and bounds, enforce API limits, and return predictable non-sensitive errors.

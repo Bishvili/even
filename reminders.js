@@ -7,7 +7,7 @@
 
  function defaults(){return{on:false,mode:"smart",from:"09:00",to:"21:00",count:5,times:["09:00"],every:2,hardest:"varies",brief:true,windDown:true,weekends:true,stressNudges:true,syncReminder:true,syncAt:"",intakeDone:false,intakeDismissed:false};}
  function readSettings(){try{return Object.assign(defaults(),JSON.parse(localStorage.getItem(SETTINGS_KEY)||"{}"));}catch(e){return defaults();}}
- function saveSettings(){try{localStorage.setItem(SETTINGS_KEY,JSON.stringify(settings));}catch(e){}}
+ function saveSettings(){try{localStorage.setItem(SETTINGS_KEY,JSON.stringify(settings));}catch(e){/* Storage is full or blocked; settings last until the app closes. */}}
  function canPush(){return "serviceWorker" in navigator&&"PushManager" in window&&"Notification" in window;}
  function deviceHeaders(){return{"Authorization":"Bearer "+app.deviceToken(),"Content-Type":"application/json"};}
  function planFor(values){return globalThis.EvenCoach.smartPlan(app.personalMoods(),app.personalHealth(),values.from,values.to,values.count,new Date(),Object.assign({alarms:app.alarms(),events:app.personalEvents()},values));}
@@ -22,7 +22,7 @@
  }
  // The specific wording stays on the device; the account stores only the times.
  function saveAnticipated(items){
-  if(!("caches" in window))return;
+  if(!("caches" in window)||!items.length)return;
   var body={};items.forEach(function(item){body[item.at]=item.message;});
   caches.open("even-brief").then(function(cache){return cache.put("/anticipate",new Response(JSON.stringify(body)));}).catch(function(){});
  }
@@ -58,12 +58,12 @@
  var LEFT_OUT={bedtime:"wind-down",brief:"morning brief",hard:"harder-time check-in"};
  function minuteLabel(minutes){var hour=Math.floor(minutes/60);return timeLabel(String(hour).padStart(2,"0")+":"+String(minutes%60).padStart(2,"0"));}
  function slotText(slot){
-  if(slot.kind==="bedtime")return["Wind-down",slot.source==="alarm"?"Your "+minuteLabel(slot.alarmMin)+" alarm tomorrow":BEDTIME_WHY[slot.source]];
+  if(slot.kind==="bedtime")return["Wind-down",slot.source==="alarm"?"Your "+minuteLabel(slot.alarmMin)+" alarm tomorrow":slot.source==="event"?"Before your "+minuteLabel(slot.eventMin)+" event tomorrow":BEDTIME_WHY[slot.source]];
   if(slot.kind==="brief")return["Morning brief",slot.alarmMin===undefined?"What today may hold":"15 minutes after your "+minuteLabel(slot.alarmMin)+" alarm"];
   if(slot.kind==="times")return["Check-in","A time you set"];
   if(slot.kind==="repeat")return["Check-in","Every "+settings.every+(settings.every===1?" hour":" hours")];
   if(slot.kind==="hard")return["Check-in","You said "+PARTS[slot.part]+" are often harder"];
-  return["Check-in",slot.kind==="usual"?"Around when you often check in":"Spaced across your day"];
+  return["Check-in",slot.moved?"Moved to after an event":slot.kind==="usual"?"Around when you often check in":"Spaced across your day"];
  }
  function renderSlots(box,slots){
   slots.forEach(function(slot){
@@ -83,7 +83,7 @@
   var box=$("reminder-plan"),notes=[],valid=settings.mode==="times"||globalThis.EvenCoach.validDay(settings.from,settings.to);
   box.textContent="";
   if(valid)renderSlots(box,currentSlots());else notes.push("Keep your day to 20 hours or less.");
-  if(valid&&settings.mode==="smart"){var left=leftOutNote(smartPlan());if(left)notes.push(left);notes.push("A check-in is skipped if you’ve checked in during the last 90 minutes.");}
+  if(valid&&settings.mode==="smart"){var left=leftOutNote(smartPlan());if(left)notes.push(left);var out=smartPlan().movedOut;if(out)notes.push(out===1?"1 check-in is left out today because events fill the time.":out+" check-ins are left out today because events fill the time.");notes.push("A check-in is skipped if you’ve checked in during the last 90 minutes.");}
   if(!settings.weekends&&isWeekend())notes.unshift("Nothing today, because weekends are off.");
   $("reminder-plan-note").textContent=notes.join(" ");
   renderExtras();
@@ -209,7 +209,7 @@
  function dismissIntake(){settings.intakeDismissed=true;saveSettings();renderReminder();}
  $("intake-retake").addEventListener("click",function(){openIntake("Cancel",function(){});});
  $("add-reminder-time").addEventListener("click",function(){if(settings.times.length>=12)return;settings.times.push("12:00");renderSchedule();scheduleChanged();});
- globalThis.EvenReminders={notificationsOpen:notificationsOpen,reopenIntake:function(){settings.intakeDismissed=false;saveSettings();renderReminder();},turnOff:function(){settings.on=false;saveSettings();if(canPush())navigator.serviceWorker.ready.then(function(r){return r.pushManager.getSubscription();}).then(function(s){if(s)return s.unsubscribe();}).catch(function(){});renderReminder();},checkedIn:checkedIn,dataChanged:function(){renderPlan();syncReminder();},preferences:function(){return settings;},notificationStep:notificationStep,startIntake:function(){openIntake("Not now",dismissIntake);},dismissIntake:dismissIntake};
+ globalThis.EvenReminders={forget:function(){if(canPush())navigator.serviceWorker.ready.then(function(r){return r.pushManager.getSubscription();}).then(function(s){if(s)return s.unsubscribe();}).catch(function(){});settings=defaults();lastSent=0;renderReminder();},notificationsOpen:notificationsOpen,reopenIntake:function(){settings.intakeDismissed=false;saveSettings();renderReminder();},turnOff:function(){settings.on=false;saveSettings();if(canPush())navigator.serviceWorker.ready.then(function(r){return r.pushManager.getSubscription();}).then(function(s){if(s)return s.unsubscribe();}).catch(function(){});renderReminder();},checkedIn:checkedIn,dataChanged:function(){renderPlan();syncReminder();},preferences:function(){return settings;},notificationStep:notificationStep,startIntake:function(){openIntake("Not now",dismissIntake);},dismissIntake:dismissIntake};
  app.refreshCoach();
  document.addEventListener("visibilitychange",function(){if(!document.hidden){renderReminder();if(Date.now()-lastSent>6*3600000)syncReminder();}});
  renderReminder();

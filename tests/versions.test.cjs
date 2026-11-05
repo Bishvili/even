@@ -7,7 +7,7 @@ const read=file=>fs.readFileSync(require("node:path").join(__dirname,"..",file),
 test("every shell file reports one app version, so a change always reaches installed apps",()=>{
  const version=read("app.js").match(/var VERSION = "(\d+\.\d+\.\d+)"/)[1];
  assert.ok(read("sw.js").includes(`even-shell-v${version}`));
- assert.ok(read("worker/index.js").includes(`version:"${version}"`));
+ assert.ok(read("worker/index.js").includes(`VERSION_NAME="${version}"`));
  assert.ok(read("index.html").includes(`>${version}<`));
 });
 test("the service worker caches every script the page loads",()=>{

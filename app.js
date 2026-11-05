@@ -1,6 +1,6 @@
 (function () {
 "use strict";
-var VERSION = "2.28.0";
+var VERSION = "2.29.0";
 var STORAGE_KEY = "even:v1";
 var MOOD_NAMES = ["","Rough","Low","Okay","Good","Great"];
 var MOOD_EMOJI = ["","😣","😕","😐","🙂","😄"];
@@ -9,7 +9,7 @@ var CATEGORIES = ["Meeting","Work","Exercise","Social","Family","Rest","Commute"
 var ACTIVITY_LABELS = ["Work","Meeting","Exercise","Social","Family","Rest","Outdoors","Commute","Food"];
 var selectedMood = 0, selectedStress = 0, selectedTags = new Set(), insightDays = 30, insightScope = "personal", toastTimer = null;
 var state = readState();
-var authEmail = "", authDevices = [], authChecking = false, authKnown = false, authCanRelease = false, authHelper = "", connecting = false;
+var authService = null, authEmail = "", authDevices = [], authChecking = false, authKnown = false, authCanRelease = false, authHelper = "", connecting = false;
 var currentView = "", scrollTops = {};
 var shortcutRelease = null, shortcutStatus = null, shortcutStatusLoading = false, sessionLoading = false;
 function $(id){ return document.getElementById(id); }
@@ -134,7 +134,7 @@ function renderRecent(){
  $("entries-count").textContent=plural(moods.length,"personal entry","personal entries");
  $("recent-list").innerHTML=moods.length?moods.slice(0,12).map(function(m){
  var tags=(m.tags||[]).join(" · "),sub=formatDate(m.ts)+" at "+formatTime(m.ts)+(tags?" · "+tags:"");
- return '<div class="entry"><span class="entry-emoji">'+MOOD_EMOJI[m.score]+'</span><div class="entry-main"><strong>'+MOOD_NAMES[m.score]+(m.note?" · "+esc(m.note):"")+'</strong><small>'+esc(sub)+'</small></div><div class="entry-side">'+m.score+'/5</div><button class="entry-delete" aria-label="Delete check-in" data-delete-mood="'+esc(m.id)+'">×</button></div>';
+ return '<div class="entry"><span class="entry-emoji">'+MOOD_EMOJI[m.score]+'</span><div class="entry-main"><strong>'+MOOD_NAMES[m.score]+(m.note?" · "+esc(m.note):"")+'</strong><small>'+esc(sub)+'</small></div><div class="entry-side">'+m.score+'/5</div><button class="entry-delete" aria-label="Delete check-in from '+esc(formatDate(m.ts)+" at "+formatTime(m.ts))+'" data-delete-mood="'+esc(m.id)+'">×</button></div>';
  }).join(""):blank("Your first check-in will appear here. It takes less than ten seconds.");
 }
 function renderSources(){
@@ -149,7 +149,7 @@ function renderSources(){
  return '<div class="entry"><span class="entry-emoji" aria-hidden="true">♥︎</span><div class="entry-main"><strong>Health · '+esc(h.date)+'</strong><small>'+esc(summary||"Health day")+'</small></div><button class="entry-delete" aria-label="Delete health day" data-delete-health="'+esc(h.date)+'">×</button></div>';}
  var e=x.e;
  return '<div class="entry"><span class="entry-emoji" aria-hidden="true">▦︎</span><div class="entry-main"><strong>'+esc(e.title||"Calendar event")+'</strong><small>'+esc(formatDate(e.start)+" "+formatTime(e.start)+" · "+e.category)+'</small></div><button class="entry-delete" aria-label="Delete calendar event" data-delete-event="'+esc(e.id)+'">×</button></div>';
- }).join(""):blank("Nothing here yet. Run Even Sync, or add a day or event below.");
+ }).join(""):blank(state.token?"Nothing here yet. Run Even Sync, or add a day or event below.":"Nothing here yet. Sign in to bring in your data, or add a day or event below.");
 }
 function compareVersions(left,right){
  if(!/^\d+\.\d+\.\d+$/.test(left||"")||!/^\d+\.\d+\.\d+$/.test(right||""))return 0;
@@ -172,6 +172,7 @@ function askConfirm(text,action){
 function renderSync(){
  $("release-card").hidden=!authCanRelease;
  // The helper shares its own link, so this always installs the current one.
+ var svc=authService,line=$("service-line");line.hidden=!svc;if(svc)line.textContent="Notifications last checked "+formatDate(svc.lastCron)+" at "+formatTime(svc.lastCron)+" · "+plural(svc.failing,"failing","failing")+" · Version "+svc.version;
  var helper=$("setup-helper");helper.hidden=!authHelper;if(authHelper)helper.href=authHelper;else helper.removeAttribute("href");
  var paired=!!state.token&&!!state.syncOwnerEmail&&!!state.deviceId;
  var mismatch=!!authEmail&&!!state.syncOwnerEmail&&authEmail!==state.syncOwnerEmail;
@@ -239,10 +240,10 @@ function renderDevices(){
 }
 
 // Safari can clear a site's data after 7 days without a visit, unless storage is persistent.
-async function keepStorage(){try{if(navigator.storage&&navigator.storage.persist)await navigator.storage.persist();}catch(e){}renderStorageNote();}
+async function keepStorage(){try{if(navigator.storage&&navigator.storage.persist)await navigator.storage.persist();}catch(e){/* Not every browser allows this; the note below says what happened. */}renderStorageNote();}
 async function renderStorageNote(){
  var kept=null;
- try{if(navigator.storage&&navigator.storage.persisted)kept=await navigator.storage.persisted();}catch(e){}
+ try{if(navigator.storage&&navigator.storage.persisted)kept=await navigator.storage.persisted();}catch(e){/* Unknown; the note stays empty. */}
  $("storage-note").textContent=kept===true?"This device won’t clear your data on its own.":kept===false?"This browser can clear your data if you don’t use Even for a while. Keep a backup, or add Even to your Home Screen.":"";
 }
 function renderSettings(){
@@ -268,7 +269,6 @@ function renderInsights(){
  var source=isDemo?state.demo:state;
  var moods=getRecent(insightDays,source.moods).sort(function(a,b){return new Date(a.ts)-new Date(b.ts);});
  var events=source.events;
- var health=source.health;
  $("insight-average").textContent=score(average(moods.map(function(m){return m.score;})))+"/5";
  refreshCoach();
  $("insight-samples").textContent=moods.length+" "+(isDemo?"fictional":"personal")+" check-ins over "+insightDays+" days";
@@ -278,7 +278,7 @@ function drawTrend(moods){
  var byDay={};moods.forEach(function(m){var k=dateKey(m.ts);(byDay[k]||(byDay[k]=[])).push(m.score);});
  var keys=Object.keys(byDay).sort();var points=keys.map(function(k){return {date:k,v:average(byDay[k])};});
  if(points.length<2){$("trend-chart").innerHTML=blank("Two different days of mood check-ins will reveal your trend.");$("trend-note").textContent="Try checking in morning and evening.";return;}
- var start=Date.now()-(insightDays-1)*86400000, end=Date.now(), W=600,H=153;
+ var start=Date.now()-(insightDays-1)*86400000, end=Date.now();
  var line=points.map(function(p){var x=20+(new Date(p.date+"T12:00:00").getTime()-start)/(end-start)*560,y=13+(5-p.v)/4*118;return [Math.max(20,Math.min(580,x)),y];});
  var path=line.map(function(x){return x[0].toFixed(1)+","+x[1].toFixed(1);}).join(" ");
  var dots=line.map(function(p){return '<circle class="chart-dot" cx="'+p[0].toFixed(1)+'" cy="'+p[1].toFixed(1)+'" r="4.1"/>';}).join("");
@@ -289,7 +289,6 @@ function drawTrend(moods){
  $("trend-note").textContent=points.length+" days with check-ins · Daily averages (1–5)";
 }
 function timeGroup(ts){var h=new Date(ts).getHours();return h>=5&&h<11?0:h>=11&&h<15?1:h>=15&&h<20?2:3;}
-function plural(count,word){return count+" "+word+(count===1?"":"s");}
 // Averages need at least 5 check-ins. Bars are SVG, because the security policy blocks inline styles.
 function timeRows(moods){
  return ["Morning","Midday","Afternoon","Evening"].map(function(name,i){
@@ -300,7 +299,7 @@ function timeRows(moods){
 function drawTimes(moods){
  $("time-insights").innerHTML=moods.length?timeRows(moods).map(function(row){
   var known=row.average!==null,bar=known?'<svg class="bar-chart" width="100%" height="10" aria-hidden="true"><rect class="bar-back" width="100%" height="10" rx="5"/><rect class="bar-value" width="'+((row.average/5)*100).toFixed(1)+'%" height="10" rx="5"/></svg>':'<span class="bar-empty">Not enough check-ins</span>';
-  return '<div class="bar-row"><div class="bar-name">'+row.name+'<span class="bar-sub">'+plural(row.count,"check-in")+'</span></div><div>'+bar+'</div><div class="bar-number">'+(known?row.average.toFixed(1):"—")+'</div></div>';
+  return '<div class="bar-row"><div class="bar-name">'+row.name+'<span class="bar-sub">'+plural(row.count,"check-in","check-ins")+'</span></div><div>'+bar+'</div><div class="bar-number">'+(known?row.average.toFixed(1):"—")+'</div></div>';
  }).join("")+'<p class="muted">Each time of day needs at least 5 check-ins.</p>':blank("Log moods at different times to see when you tend to feel better.");
 }
 // Each event's closest check-in before and after, with the same minimum and smallest difference as every other comparison.
@@ -312,7 +311,7 @@ function calendarPatternSummary(moods,events){
   return {category:e.category,start:new Date(e.start).getTime(),end:new Date(e.end).getTime()};
  }).filter(function(e){return CATEGORIES.includes(e.category)&&Number.isFinite(e.start)&&Number.isFinite(e.end)&&e.end>e.start;});
  var paired=[];
- CATEGORIES.forEach(function(category){
+ CATEGORIES.filter(function(c){return c!=="Other";}).forEach(function(category){
   var before=[],after=[];
   valid.filter(function(e){return e.category===category;}).forEach(function(e){
    var pre=null,post=null;
@@ -338,7 +337,7 @@ function drawCalendar(moods,events){
  }
  $("calendar-insights").innerHTML=patterns.paired.map(function(r){
   var cls=r.delta>0?"positive":"negative";
-  return '<div class="calendar-pair"><div class="calendar-pair-label"><strong>'+esc(r.category)+'</strong><small>'+plural(r.count,"paired event")+'</small></div><div class="calendar-pair-scores">'+score(r.before)+' <span aria-hidden="true">→</span> '+score(r.after)+'</div><span class="calendar-delta '+cls+'">'+signedScore(r.delta)+'</span></div>';
+  return '<div class="calendar-pair"><div class="calendar-pair-label"><strong>'+esc(r.category)+'</strong><small>'+plural(r.count,"paired event","paired events")+'</small></div><div class="calendar-pair-scores">'+score(r.before)+' <span aria-hidden="true">→</span> '+score(r.after)+'</div><span class="calendar-delta '+cls+'">'+signedScore(r.delta)+'</span></div>';
  }).join("")+'<p class="calendar-explainer">These are associations, not proof of cause. Overlapping events can share check-ins.</p>';
 }
 function selectMood(n){selectedMood=n;document.querySelectorAll("[data-mood]").forEach(function(b){b.setAttribute("aria-pressed",String(Number(b.dataset.mood)===n));});$("save-mood").classList.toggle("save-ready",!!n);}
@@ -390,7 +389,7 @@ async function syncMoods(given){
   persist();render();
   var missing=state.moods.filter(function(m){return !remote[m.id];});
   for(var n=0;n<missing.length;n+=100)await moodRequest({moods:missing.slice(n,n+100)});
- }catch(e){}
+ }catch(e){/* Offline or refused; the next return to the app tries again. */}
  finally{moodSyncing=false;}
 }
 async function setMoodSync(box){
@@ -647,9 +646,9 @@ async function setCalendar(name,box){
   var r=await fetch("/api/calendars",{method:"POST",headers:{"Authorization":"Bearer "+state.token,"Content-Type":"application/json"},body:JSON.stringify({name:name,enabled:enabled}),cache:"no-store"});
   if(!r.ok)throw Error("Calendar not updated");
   var saved=enabled?0:(await r.json()).savedEvents||0;
-  if(saved&&await askConfirm("Also remove "+plural(saved,"saved event")+" from "+name+" in your account? This can’t be undone.","Remove events")){
+  if(saved&&await askConfirm("Also remove "+plural(saved,"saved event","saved events")+" from "+name+" in your account? This can’t be undone.","Remove events")){
    var removed=await fetch("/api/calendars/events/delete",{method:"POST",headers:{"Authorization":"Bearer "+state.token,"Content-Type":"application/json"},body:JSON.stringify({name:name}),cache:"no-store"});
-   toast(removed.ok?"Removed "+plural(saved,"saved event")+" from "+name+".":"Couldn’t remove the saved events from "+name+".");
+   toast(removed.ok?"Removed "+plural(saved,"saved event","saved events")+" from "+name+".":"Couldn’t remove the saved events from "+name+".");
   }else toast(name+(enabled?" is on.":" is off."));
   pull(true);
  }catch(e){box.checked=!enabled;toast("Couldn’t update that calendar.");}
@@ -746,8 +745,8 @@ async function refreshAuth(){
   var r=await fetch(accountPath("me"),{credentials:"same-origin",cache:"no-store",redirect:"manual",headers:{"Accept":"application/json"}});
   if(!r.ok||r.redirected||!(r.headers.get("content-type")||"").includes("application/json"))throw Error("No active login");
   var data=await r.json();if(!data.ok||!data.email)throw Error("Identity unavailable");
-  authEmail=String(data.email).toLowerCase();applyName(data);authDevices=Array.isArray(data.devices)?data.devices:[];authCanRelease=data.canRelease===true;authHelper=authCanRelease&&data.helper&&/^https:\/\/www\.icloud\.com\/shortcuts\/[a-f0-9]{32}$/i.test(data.helper.url)?data.helper.url:"";if(data.welcomeName)showWelcome(data.welcomeName);
- }catch(e){authEmail="";authDevices=[];authCanRelease=false;authHelper="";}
+  authEmail=String(data.email).toLowerCase();applyName(data);authDevices=Array.isArray(data.devices)?data.devices:[];authCanRelease=data.canRelease===true;authService=authCanRelease&&data.service||null;authHelper=authCanRelease&&data.helper&&/^https:\/\/www\.icloud\.com\/shortcuts\/[a-f0-9]{32}$/i.test(data.helper.url)?data.helper.url:"";if(data.welcomeName)showWelcome(data.welcomeName);
+ }catch(e){authEmail="";authDevices=[];authCanRelease=false;authHelper="";authService=null;}
  finally{authChecking=false;authKnown=true;renderSync();}
  // Connect automatically the first time. After a revoke, connecting again is a deliberate choice.
  if(authEmail&&!state.token&&!state.pairedAt&&!state.syncOwnerEmail)issueDevice();
@@ -833,14 +832,23 @@ async function deleteAccount(){
  }catch(e){toast("Couldn’t delete your account. Check your connection and try again.");}
 }
 // Erasing this device also disconnects it, so no credential is left active.
+// Everything personal this device keeps. Anything new that's stored here has to join this list.
+var DEVICE_KEYS=[STORAGE_KEY,"even-reminder","even-setup"],DEVICE_CACHES=["even-brief"];
+async function eraseDeviceData(){
+ try{await fetch("/api/signin/sign-out",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:"{}",cache:"no-store"});}catch(e){/* Offline; the session ends by itself. */}
+ if(globalThis.EvenReminders)globalThis.EvenReminders.forget();
+ if(globalThis.EvenOnboarding)globalThis.EvenOnboarding.forget();
+ DEVICE_KEYS.forEach(function(key){try{localStorage.removeItem(key);}catch(e){/* Nothing to remove if storage is blocked. */}});
+ if("caches" in globalThis)await Promise.all(DEVICE_CACHES.map(function(name){return caches.delete(name).catch(function(){return false;});}));
+ state=emptyState();shortcutRelease=null;shortcutStatus=null;authEmail="";authDevices=[];authCanRelease=false;authHelper="";authService=null;persist();render();
+}
 async function eraseLocal(){
- if(!await askConfirm("Delete all check-ins, notes, and health and calendar data on this device, and disconnect it? Synced data in your account stays until you erase it. This can’t be undone.","Delete"))return;
+ if(!await askConfirm("Delete everything on this device: check-ins, notes, health and calendar data, notification settings and setup progress. It also signs out and disconnects this device. Synced data in your account stays until you erase it. This can’t be undone.","Delete"))return;
  var disconnected=!state.token;
  if(state.token&&navigator.onLine){
-  try{disconnected=(await fetch("/api/device/disconnect",{method:"POST",headers:{"Authorization":"Bearer "+state.token},cache:"no-store"})).ok;}catch(e){}
+  try{disconnected=(await fetch("/api/device/disconnect",{method:"POST",headers:{"Authorization":"Bearer "+state.token},cache:"no-store"})).ok;}catch(e){/* Offline; the message below says to remove it from another device. */}
  }
- if(globalThis.EvenReminders)globalThis.EvenReminders.turnOff();
- state=emptyState();shortcutRelease=null;shortcutStatus=null;persist();render();
+ await eraseDeviceData();
  toast(disconnected?"This device’s records are deleted.":"Records deleted. This device couldn’t be disconnected, so remove it under Devices on another device.");
 }
 async function eraseRemote(){

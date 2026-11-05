@@ -59,7 +59,7 @@
   return fetch(app.accountPath("testers"),{credentials:"same-origin",cache:"no-store",headers:{"Accept":"application/json"}})
    .then(function(r){if(!r.ok)throw Error();return r.json();})
    .then(function(data){renderList(data.testers||[]);})
-   .catch(function(){});
+   .catch(function(){app.toast("Couldn’t load testers. Reopen Settings to try again.");});
  }
  async function add(event){
   event.preventDefault();

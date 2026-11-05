@@ -14,6 +14,13 @@ const SECURITY={"X-Content-Type-Options":"nosniff","Referrer-Policy":"no-referre
 const METRICS={sleepHours:[0,24],steps:[0,100000],hrv:[0,500],restingHR:[20,250],workoutMin:[0,1440]};
 const SEMVER=/^\d{1,3}\.\d{1,3}\.\d{1,3}$/,UTC_OFFSET=/^(Z|[+-]\d{2}:\d{2})$/;
 const CATS=["Meeting","Work","Exercise","Social","Family","Rest","Commute","Other"];
+// One line per failure, from named fields only, so no body, email, title or key can reach the logs.
+const LOG_FIELDS=["route","status","code","error","subscriptions","sent","failed"];
+function logEvent(event,fields={}){
+ const line={event};
+ for(const name of LOG_FIELDS)if(fields[name]!==undefined)line[name]=fields[name];
+ console.log(JSON.stringify(line));
+}
 function reply(body,status=200){return new Response(JSON.stringify(body),{status,headers:{...SECURITY,"Content-Type":"application/json; charset=utf-8","Cache-Control":"no-store"}});}
 function error(message,status,code){return reply({ok:false,error:message,code},status);}
 async function digest(text){const bytes=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(text));return Array.from(new Uint8Array(bytes),b=>b.toString(16).padStart(2,"0")).join("");}
@@ -31,6 +38,7 @@ async function payload(request){
  if(type.includes("application/x-www-form-urlencoded"))return Object.fromEntries(new URLSearchParams(text));
  try{return JSON.parse(text);}catch(e){return Object.fromEntries(new URLSearchParams(text));}
 }
+const VERSION_NAME="2.29.0";
 function normalEmail(value){return String(value||"").trim().toLowerCase();}
 async function signinAuth(env,ctx){
  const {createAuth}=await import("./signin.mjs");
@@ -43,7 +51,7 @@ async function authIdentity(request,env,ctx){
   const identity=(await (await signinAuth(env,ctx)).api.getSession({headers:request.headers}))?.user;
   const email=normalEmail(identity?.email);
   return email&&await approved(env,email)?{email,name:String(identity.name||"").trim().slice(0,80)}:null;
- }catch(e){return null;}
+ }catch(e){logEvent("sign_in_check_failed",{error:e?.name});return null;}
 }
 function browserPostAllowed(request){
  const u=new URL(request.url),origin=request.headers.get("origin");
@@ -193,7 +201,6 @@ function readHealth(x){
 }
 // Whether a measure was sent at all, even an invalid one. Average heart rate from older Shortcuts doesn't count, and
 // neither do sleep intervals, because a night that may be cut off is left out on purpose rather than rejected.
-function sentHealth(x){return !!x&&typeof x==="object"&&[...Object.keys(METRICS),"sleepStarts"].some(k=>x[k]!==undefined&&x[k]!==null&&String(x[k]).trim()!=="");}
 function classifyCalendarTitle(title){
  if(/\b(meeting|call|standup|stand-up)\b/i.test(title))return "Meeting";
  if(/\b(workout|gym|run|running|training)\b/i.test(title))return "Exercise";
@@ -292,12 +299,13 @@ async function authApi(request,env,ctx,path){
   // Sign-in may supply a name. Testers are listed by it.
   try{
    if(identity.name)await env.DB.prepare("UPDATE even_users SET name=? WHERE email=? AND (name IS NULL OR name<>?)").bind(identity.name,email,identity.name).run();
-  }catch(e){}
+  }catch(e){logEvent("name_update_failed",{route:path,error:e?.name});}
   const r=await env.DB.prepare("SELECT device_id,label,created_at,last_used_at,last_attempt_at,last_error_code,shortcut_version,revoked_at FROM even_devices WHERE owner_email=? ORDER BY created_at DESC LIMIT 30").bind(email).all();
   const person=firstName(await displayName(env,email));
   const welcome=await env.DB.prepare("SELECT display_name FROM even_release_emails WHERE email=? AND display_name IS NOT NULL AND welcomed_at IS NULL").bind(email).first();
   const release=await canRelease(env,email);
-  return reply({ok:true,email,canRelease:release,helper:release?await loadHelperLink(env):null,firstName:person,name:await displayName(env,email),welcomeName:welcome?person:null,devices:(r.results||[]).map(d=>({id:d.device_id,label:d.label,createdAt:d.created_at,lastUsedAt:d.last_used_at,lastAttemptAt:d.last_attempt_at,lastErrorCode:d.last_error_code,shortcutVersion:d.shortcut_version,revoked:!!d.revoked_at}))});
+  const service=release?await env.DB.prepare("SELECT updated_at,(SELECT COUNT(*) FROM even_push_subscriptions WHERE last_push_status IS NOT NULL AND (last_push_status<200 OR last_push_status>=300)) AS failing FROM even_service WHERE key=?").bind("last_cron").first():null;
+  return reply({ok:true,email,canRelease:release,service:service?{lastCron:service.updated_at,failing:Number(service.failing||0),version:VERSION_NAME}:null,helper:release?await loadHelperLink(env):null,firstName:person,name:await displayName(env,email),welcomeName:welcome?person:null,devices:(r.results||[]).map(d=>({id:d.device_id,label:d.label,createdAt:d.created_at,lastUsedAt:d.last_used_at,lastAttemptAt:d.last_attempt_at,lastErrorCode:d.last_error_code,shortcutVersion:d.shortcut_version,revoked:!!d.revoked_at}))});
  }
  if(path==="/api/user/device"){
   if(!browserPostAllowed(request))return error("This request isn't allowed.",403,"same_origin_required");
@@ -510,13 +518,15 @@ async function sendReminders(env,now=new Date()){
  const key=pushKey(env);if(!key)return;
  const subs=await env.DB.prepare("SELECT s.endpoint,s.p256dh,s.auth,s.mode,s.times,s.bedtime_at,s.brief_at,s.hard_at,s.weekends,s.sync_at,s.last_sync_prompt_day,s.stress_times,s.last_stress_at,s.schedule,s.last_schedule_at,d.last_used_at,s.time_zone,s.last_sent_day,s.last_sent_target,s.last_check_in_at,COALESCE((SELECT name FROM even_names n WHERE n.email=s.owner_email),(SELECT display_name FROM even_release_emails r WHERE r.email=s.owner_email),(SELECT name FROM even_users u WHERE u.email=s.owner_email)) AS person FROM even_push_subscriptions s JOIN even_devices d ON d.device_id=s.device_id WHERE d.revoked_at IS NULL AND s.p256dh IS NOT NULL AND s.times IS NOT NULL").bind().all();
  const rows=subs.results||[];
+ let failed=0;
  // A failure stays with its own subscription, and a slow endpoint holds up only its small group.
  for(let i=0;i<rows.length;i+=REMINDER_BATCH){
   await Promise.all(rows.slice(i,i+REMINDER_BATCH).map(async sub=>{
    try{await notifySubscriber(env,key,sub,now);}
-   catch(e){await env.DB.prepare("UPDATE even_push_subscriptions SET last_push_status=? WHERE endpoint=?").bind(0,sub.endpoint).run().catch(()=>{});}
+   catch(e){failed++;logEvent("notify_failed",{error:e?.name});await env.DB.prepare("UPDATE even_push_subscriptions SET last_push_status=? WHERE endpoint=?").bind(0,sub.endpoint).run().catch(()=>{});}
   }));
  }
+ return {subscriptions:rows.length,failed};
 }
 // At most one notification a run. Whatever else is due goes out on a later run, while it's still within its hour.
 async function notifySubscriber(env,key,sub,now){
@@ -590,7 +600,7 @@ async function syncedMoods(env,owner){
  const rows=await env.DB.prepare("SELECT id,ts,score,energy,stress,tags,note,deleted_at FROM even_moods WHERE owner_email=? ORDER BY ts DESC LIMIT 8000").bind(owner).all();
  const live=(rows.results||[]).filter(m=>!m.deleted_at);
  return{email:owner,enabled:true,
-  moods:live.map(m=>{let tags=[];try{tags=JSON.parse(m.tags||"[]");}catch(e){}return{id:m.id,ts:m.ts,score:m.score,energy:m.energy,stress:m.stress,tags,note:m.note||""};}),
+  moods:live.map(m=>{let tags=[];try{tags=JSON.parse(m.tags||"[]");}catch(e){/* Unreadable tags read as none. */}return{id:m.id,ts:m.ts,score:m.score,energy:m.energy,stress:m.stress,tags,note:m.note||""};}),
   deleted:(rows.results||[]).filter(m=>m.deleted_at).map(m=>m.id)};
 }
 async function deviceStatus(env,dev,owner){
@@ -601,7 +611,7 @@ async function deviceStatus(env,dev,owner){
  ]);
  if(!device)return null;
  let lastUpload=null;
- try{lastUpload=device.last_upload_counts?JSON.parse(device.last_upload_counts):null;}catch(e){}
+ try{lastUpload=device.last_upload_counts?JSON.parse(device.last_upload_counts):null;}catch(e){/* Unreadable counts read as none. */}
  return{credentialValid:true,deviceId:dev.id,lastDataUploadAt:device.last_used_at||null,
   lastAttemptAt:device.last_attempt_at||null,lastErrorCode:device.last_error_code||null,
   installedShortcutVersion:device.shortcut_version||null,lastUpload,
@@ -851,7 +861,7 @@ async function syncApi(request,env,path){
  return error("Not found",404,"not_found");
 }
 async function api(request,env,ctx,path){
- if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:"Even",version:"2.28.0",sync:"email-access"});
+ if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:"Even",version:VERSION_NAME,sync:"email-access"});
  if(path.startsWith("/api/signin/"))return signinApi(request,env,ctx,path);
  if(path.startsWith("/api/user/"))return authApi(request,env,ctx,path);
  return syncApi(request,env,path);
@@ -867,10 +877,19 @@ async function asset(request,env,path){
  if(path==="/sw.js")headers.set("Service-Worker-Allowed","/");
  return new Response(file.body,{status:file.status,headers});
 }
+// Records each run, so a stalled schedule can be told from a quiet one.
+async function runCron(env){
+ const at=new Date().toISOString();
+ try{
+  const counts=await sendReminders(env);
+  logEvent("cron",counts||{});
+  await env.DB.prepare("INSERT INTO even_service(key,value,updated_at) VALUES('last_cron',?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at").bind(JSON.stringify(counts||{}),at).run();
+ }catch(e){logEvent("cron_failed",{error:e?.name});}
+}
 export default {async fetch(request,env,ctx){
  try{const path=new URL(request.url).pathname;if(path.startsWith("/api/"))return await api(request,env,ctx,path);
  if(request.method!=="GET"&&request.method!=="HEAD")return new Response("Method not allowed",{status:405,headers:SECURITY});
  return await asset(request,env,path);
- }catch(e){return error("Request could not be processed",500,"server_error");}
+ }catch(e){logEvent("request_failed",{route:new URL(request.url).pathname,status:500,error:e?.name});return error("Request could not be processed",500,"server_error");}
 },
-async scheduled(event,env,ctx){ctx.waitUntil(sendReminders(env));}};
+async scheduled(event,env,ctx){ctx.waitUntil(runCron(env));}};

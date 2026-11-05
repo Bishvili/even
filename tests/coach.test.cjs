@@ -304,6 +304,36 @@ test("no check-in lands during a calendar event, and tomorrow's first event sets
  assert.ok(moved.filter(i=>i.kind==="custom").every(i=>{const t=Date.parse(i.at);return t<start.getTime()||t>=end.getTime();}));
  const early={start:"2026-11-10T07:00:00",end:"2026-11-10T08:00:00",category:"Work"};
  const withEvent=smartPlan([],[],"08:00","23:30",5,now,{events:[early]}),without=smartPlan([],[],"08:00","23:30",5,now,{});
- assert.equal(withEvent.slots.find(s=>s.kind==="bedtime").source,"alarm");
- assert.notEqual((without.slots.find(s=>s.kind==="bedtime")||{}).source,"alarm");
+ assert.equal(withEvent.slots.find(s=>s.kind==="bedtime").source,"event");
+ assert.notEqual((without.slots.find(s=>s.kind==="bedtime")||{}).source,"event");
+});
+test("the plan shown is the plan sent, with spaced check-ins, and an all-day event changes nothing",()=>{
+ const now=new Date("2026-11-06T07:00:00"),{smartPlan,weekSchedule}=globalThis.EvenCoach;
+ const prefs={mode:"smart",from:"08:00",to:"22:00",count:5,weekends:true,alarms:[],windDown:false};
+ const long={start:"2026-11-06T09:30:00",end:"2026-11-06T16:00:00",category:"Work"};
+ const shown=smartPlan([],[],"08:00","22:00",5,now,Object.assign({},prefs,{events:[long]}));
+ const sent=weekSchedule([],[],Object.assign({},prefs,{events:[long]}),now).filter(i=>new Date(i.at).getDate()===6).map(i=>new Date(i.at).getHours()*60+new Date(i.at).getMinutes());
+ assert.deepEqual(sent,shown.slots.map(s=>s.minute));
+ const sorted=shown.slots.map(s=>s.minute);
+ for(let i=1;i<sorted.length;i++)assert.ok(sorted[i]-sorted[i-1]>=45,sorted.join());
+ const allDay={start:"2026-11-07T00:00:00",end:"2026-11-08T00:00:00",category:"Other"},early={start:"2026-11-07T07:00:00",end:"2026-11-07T08:00:00",category:"Work"};
+ const plain=smartPlan([],[],"08:00","23:30",5,now,{events:[early]}).slots.find(s=>s.kind==="bedtime");
+ const both=smartPlan([],[],"08:00","23:30",5,now,{events:[allDay,early]}).slots.find(s=>s.kind==="bedtime");
+ assert.equal(both.source,"event");assert.equal(both.minute,plain.minute);
+});
+test("one subject appears once, with the rest in its detail, and other events are left out",()=>{
+ const moods=[],events=[];
+ for(let i=1;i<=20;i++){const on=i%2===0,t=past(i);moods.push({ts:t.toISOString(),stress:on?2:5,tags:on?["Exercise","Outdoors"]:[]});if(on){events.push({start:t.toISOString(),end:new Date(t.getTime()+1800000).toISOString(),category:"Exercise"});}else events.push({start:t.toISOString(),end:new Date(t.getTime()+1800000).toISOString(),category:"Other"});}
+ const rows=findings(moods,events,[],[],new Date());
+ assert.equal(rows.length,1,JSON.stringify(rows.map(r=>r.label)));
+ assert.ok(rows[0].also.length>=2);
+ assert.doesNotMatch(JSON.stringify(rows),/other events/i);
+});
+test("a subject whose comparisons disagree is marked mixed",()=>{
+ const moods=[],events=[];
+ for(let i=1;i<=24;i++){const t=past(i),tagged=i%4===0||i%4===1,evented=i%4===0||i%4===2;
+  moods.push({ts:t.toISOString(),stress:tagged?(evented?3:5):(evented?1:3),tags:tagged?["Work"]:[]});
+  if(evented)events.push({start:t.toISOString(),end:new Date(t.getTime()+1800000).toISOString(),category:"Work"});}
+ const row=findings(moods,events,[],[],new Date()).find(r=>r.subject==="Work");
+ assert.equal(row.mixed,true);
 });

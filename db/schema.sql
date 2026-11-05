@@ -157,3 +157,8 @@ CREATE TABLE even_signin_verifications (
   updatedAt TEXT NOT NULL
 );
 CREATE INDEX even_signin_verifications_identifier ON even_signin_verifications(identifier);
+CREATE TABLE even_service (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);

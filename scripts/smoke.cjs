@@ -50,6 +50,15 @@ async function run(type,base){
  await page.click("#erase-local");
  if(!await page.evaluate(()=>document.getElementById("confirm-sheet").open))problems.push("The confirmation sheet didn't open.");
  await page.click("#confirm-sheet button[value='no']");
+ await page.click(".nav-item[data-go=checkin]");
+ if(!/^0 personal entries$/.test(await page.textContent("#entries-count")))problems.push("The entry count reads wrong.");
+ await page.click("[data-mood='3']");await page.click("#save-mood");await page.waitForTimeout(100);
+ if(!/^1 personal entry$/.test(await page.textContent("#entries-count")))problems.push("The entry count reads wrong after one check-in.");
+ await page.evaluate(async()=>{localStorage.setItem("even-setup",JSON.stringify({skipped:{signin:1}}));localStorage.setItem("even-reminder","{}");await(await caches.open("even-brief")).put("/brief",new Response("x"));});
+ await tab("settings");await page.click("#erase-local");await page.click("#confirm-yes");await page.waitForTimeout(400);
+ const left=await page.evaluate(async()=>({keys:Object.keys(localStorage),caches:await caches.keys()}));
+ if(left.keys.join()!=="even:v1"||left.caches.includes("even-brief"))problems.push("Erase left something behind: "+JSON.stringify(left));
+ await tab("settings");
  await tab("data");
  await page.click("#login-button");
  if(!await page.evaluate(()=>document.getElementById("signin-sheet").open))problems.push("The sign-in sheet didn't open.");

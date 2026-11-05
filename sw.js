@@ -1,4 +1,4 @@
-const BRIEF="even-brief";const CACHE="even-shell-v2.28.0";const SHELL=["/","/index.html","/styles.css","/app.js","/reminders.js","/onboarding.js","/intake.js","/coach.js","/refresh.js","/invites.js","/signin-sheet.js","/backup.js","/whitepaper.html","/whitepaper.css","/manifest.webmanifest","/icon.svg","/icon-192.png","/icon-512.png"];
+const BRIEF="even-brief";const CACHE="even-shell-v2.29.0";const SHELL=["/","/index.html","/styles.css","/app.js","/reminders.js","/onboarding.js","/intake.js","/coach.js","/refresh.js","/invites.js","/signin-sheet.js","/backup.js","/whitepaper.html","/whitepaper.css","/manifest.webmanifest","/icon.svg","/icon-192.png","/icon-512.png"];
 // Each page keeps its own copy, so opening another page never replaces the offline app.
 function pageKey(pathname){return pathname==="/"||pathname==="/index.html"?"/":pathname;}
 self.addEventListener("install",event=>{event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(SHELL)).then(()=>self.skipWaiting()));});
@@ -22,7 +22,7 @@ function todaysBrief(fallback){
  return caches.open(BRIEF).then(c=>c.match("/brief")).then(r=>r?r.json():{}).then(b=>b[day]||fallback).catch(()=>fallback);
 }
 self.addEventListener("push",event=>{
- let message={};try{message=event.data.json();}catch(e){}
+ let message={};try{message=event.data.json();}catch(e){/* An unreadable payload still shows the plain notification. */}
  const notification=message.notification||{},fallback=notification.body||"How are you feeling?",url=notification.navigate||"/#checkin";
  event.waitUntil((message.stressAt?anticipation(message.stressAt,fallback):message.brief?todaysBrief(fallback):Promise.resolve(fallback)).then(body=>self.registration.showNotification(notification.title||"Even",{body,icon:"/icon-192.png",data:{url}})));
 });

@@ -12,7 +12,7 @@ const days=(date,records)=>({kind:"calendar_days",date,utcOffset:"+00:00",events
 function harness({verified=false,buildVersion="2.8.0",helperBuild="2.0.0",sourceVersions=null,helperLink=null}={}){
  const source=fs.readFileSync(path.join(__dirname,"..","worker","index.js"),"utf8");
  const session='{createAuth:()=>({api:{getSession:async({headers})=>{const m=/even\\.session_token=([^;]+)/.exec(headers.get("cookie")||"");return m?{user:JSON.parse(decodeURIComponent(m[1]))}:null;}}})}';
- const loaded=source.replace('await import("./signin.mjs")',session).replace("export default {","globalThis.sendReminders = sendReminders;globalThis.readBedtimes = readBedtimes;globalThis.readSleep = readSleep;globalThis.reminderMessage = reminderMessage;globalThis.dueScheduled = dueScheduled;globalThis.readAlarms = readAlarms;globalThis.firstAlarm = firstAlarm;globalThis.pushPayload = pushPayload;globalThis.__worker = {");
+ const loaded=source.replace('await import("./signin.mjs")',session).replace("export default {","globalThis.logEvent = logEvent;globalThis.runCron = runCron;globalThis.sendReminders = sendReminders;globalThis.readBedtimes = readBedtimes;globalThis.readSleep = readSleep;globalThis.reminderMessage = reminderMessage;globalThis.dueScheduled = dueScheduled;globalThis.readAlarms = readAlarms;globalThis.firstAlarm = firstAlarm;globalThis.pushPayload = pushPayload;globalThis.__worker = {");
  assert.notEqual(source,loaded,"Worker ESM export not found");
  const dispatches=[];
  const runtime={crypto:webcrypto,TextEncoder,Response,Request,Headers,URL,atob,btoa,Intl,Uint8Array,console,async fetch(url,init){
@@ -29,6 +29,7 @@ function harness({verified=false,buildVersion="2.8.0",helperBuild="2.0.0",source
  const env={PUBLIC_ORIGIN:"https://even.bishvili.workers.dev",INVITE_LIMIT:allow,DEVICE_LIMIT:allow,SIGNIN_LIMIT:allow,GITHUB_API_KEY:"server-only",APPROVED_SYNC_EMAILS:JSON.stringify(allowed),ASSETS:{async get(key){return {"config:shortcut:latest":release,"config:helper:latest":helperLink&&JSON.stringify(helperLink),"config:shortcut:source":sourceVersions&&JSON.stringify(sourceVersions)}[key]||null;}},DB:{
   prepare(sql){return{bind(...args){return {
    async first(){
+    if(sql.startsWith("SELECT updated_at,(SELECT COUNT(*) FROM even_push_subscriptions"))return null;
     if(sql.startsWith("SELECT (SELECT name FROM even_names")){const email=args[0];return{chosen:rows.names?.get(email)||null,given:email==="owner-a@example.com"?"Ada Lovelace":null,signin:(rows.userFields?.get(email)||{}).name||null};}
     if(sql.startsWith("SELECT COUNT(*) AS count FROM even_calendar_events WHERE owner_email=? AND calendar=?"))return{count:[...rows.events.values()].filter(d=>d.owner===args[0]&&d.calendar===args[1]).length};
     if(sql.startsWith("SELECT sync_off FROM even_users"))return (rows.userFields?.get(args[0]))||null;
@@ -64,6 +65,7 @@ function harness({verified=false,buildVersion="2.8.0",helperBuild="2.0.0",source
     if(sql.startsWith("INSERT OR IGNORE INTO even_users")){rows.users.set(args[0],args[1]);return{meta:{changes:1}};}
     if(sql.startsWith("INSERT INTO even_devices")){rows.devices.set(args[0],{device_id:args[1],owner_email:args[2],label:args[3],created_at:args[4],last_used_at:null,last_attempt_at:null,last_error_code:null,shortcut_version:null,revoked_at:null});return{meta:{changes:1}};}
     if(sql.startsWith("UPDATE even_devices SET last_upload_counts=NULL")){for(const d of rows.devices.values())if(d.owner_email===args[0])d.last_upload_counts=null;return{meta:{changes:1}};}
+    if(sql.startsWith("INSERT INTO even_service"))return{meta:{changes:1}};
     if(sql.startsWith("DELETE FROM even_signin_"))return{meta:{changes:0}};
     if(sql.startsWith("UPDATE even_devices SET revoked_at")){let changes=0;for(const d of rows.devices.values())if(d.device_id===args[1]&&d.owner_email===args[2]&&!d.revoked_at){d.revoked_at=args[0];changes++;}return{meta:{changes}};}
     if(sql.startsWith("UPDATE even_devices SET last_attempt_at")){for(const d of rows.devices.values())if(d.device_id===args[2]&&d.owner_email===args[3]&&!d.revoked_at){d.last_attempt_at=args[0];if(sql.includes("last_error_code=NULL,shortcut_version=?")){d.last_error_code=null;d.shortcut_version=args[1];}else d.last_error_code=args[1];}return{meta:{changes:1}};}
@@ -952,4 +954,15 @@ test("files come with the security headers, and the root serves the app",async()
  const missing=await open("/AGENTS.md");
  assert.equal(missing.status,404);
  assert.match(missing.headers.get("Content-Security-Policy"),/default-src/);
+});
+
+test("logs carry only named fields, and a failed request logs without changing its answer",async()=>{
+ const{runtime,env}=harness(),lines=[];
+ runtime.console={log:line=>lines.push(line)};
+ runtime.logEvent("x",{route:"/a",error:"TypeError",email:"person@example.com",title:"Private",token:"secret",body:"text"});
+ assert.deepEqual(JSON.parse(lines[0]),{event:"x",route:"/a",error:"TypeError"});
+ env.STATIC={fetch(){throw new TypeError("boom person@example.com");}};
+ const failed=await runtime.__worker.fetch(new Request("https://even.example/"),env,{});
+ assert.equal(failed.status,500);
+ assert.deepEqual(JSON.parse(lines[1]),{event:"request_failed",route:"/",status:500,error:"TypeError"});
 });

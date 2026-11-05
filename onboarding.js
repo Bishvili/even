@@ -42,7 +42,7 @@
   var done=id==="install"?c.installed:id==="signin"?c.connected:id==="shortcut"?c.synced:false;
   return{id:id,variant:variant,number:index+1,total:list.length,done:!!done,last:index===list.length-1,replay:true};
  }
- var api={nextStep:nextStep,outstanding:outstanding,replayStep:replayStep,render:function(){},restart:function(){}};
+ var api={nextStep:nextStep,outstanding:outstanding,replayStep:replayStep,render:function(){},restart:function(){},forget:function(){}};
  root.EvenOnboarding=api;
  if(typeof document==="undefined"||!root.EvenApp)return;
 
@@ -65,7 +65,7 @@
   try{var saved=JSON.parse(localStorage.getItem(STORAGE_KEY)||"{}");return saved&&typeof saved==="object"&&!Array.isArray(saved)?saved:{};}
   catch(e){return{};}
  }
- function saveProgress(){try{localStorage.setItem(STORAGE_KEY,JSON.stringify(progress));}catch(e){}}
+ function saveProgress(){try{localStorage.setItem(STORAGE_KEY,JSON.stringify(progress));}catch(e){/* Storage is full or blocked; progress lasts until the app closes. */}}
  function context(s){
   var now=Date.now(),skipped=progress.skipped&&typeof progress.skipped==="object"?progress.skipped:{};
   return{now:now,ios:s.ios,installed:s.installed,installable:(s.ios&&!s.installed)||!!installEvent,
@@ -156,6 +156,7 @@
  root.addEventListener("online",function(){render();});
  root.addEventListener("offline",function(){render();});
  api.render=function(){render();};
+ api.forget=function(){progress={};replay=null;render();};
  api.restart=function(){replay=0;app.navigate("checkin");render(true);};
  // Finishing setup brings back every step that was skipped.
  $("finish-setup-button").addEventListener("click",function(){
