@@ -44,7 +44,7 @@ async function run(type,base){
  // The offline app must stay the app after another page has been opened.
  // Playwright's WebKit can't navigate offline through a service worker, so this runs in Chromium.
  if(type===chromium){
- await page.evaluate(()=>navigator.serviceWorker.ready);
+  await page.evaluate(()=>navigator.serviceWorker.ready);
   await page.reload();
   await page.waitForTimeout(500);
   await page.goto(base+"/whitepaper.html");
