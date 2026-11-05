@@ -60,7 +60,7 @@ Only an iPhone proves iOS behavior, and each round trip costs the owner time. Be
 - A control that can't act should say why when tapped. Don't leave it silently disabled, and any control disabled during work must be enabled again in every path.
 - A tap during momentum scrolling produces no `click`. Primary navigation handles `touchend`.
 - `position: fixed` breaks inside a transformed parent. Keep fixed elements out of anything you transform.
-- iOS can pin fixed elements to a layout that doesn't match the screen, so the tab bar drifts up while scrolling. `viewport.js` measures and corrects it. Never reload while the app is hidden; wait until it's visible again.
+- iOS can misplace `position: fixed` elements once the document scrolls (WebKit bug 297779), and correcting them from JavaScript visibly lags. Only `.page` scrolls, the document never does, and the tab bar is part of the layout. Scroll `.page`, not `window`, and keep this structure. Never reload while the app is hidden; wait until it's visible again.
 - `env(safe-area-inset-top)` doesn't clear the Dynamic Island's blur. Leave extra room above the header.
 - Installed apps resume without reloading. Bump the version in `app.js`, `sw.js`, `worker/index.js` and `index.html`, and a new script must be added to all of `index.html`, `sw.js`, `scripts/deploy.sh` and the Worker's type list. `tests/versions.test.cjs` checks this.
 - An installed app shows same-site downloads as a blank page. Open them in Safari with an `x-safari-https://` link.
@@ -160,7 +160,6 @@ Read the relevant files before changing behavior:
 | Testers and sharing | invites.js | Sharing the link and managing who can sign in |
 | First-run setup | onboarding.js | The one next step on Check in: Home Screen, sign in, Even Sync, then notifications |
 | Notifications | reminders.js, intake.js, coach.js, sw.js | The notification questions, seeing and tuning the day's plan |
-| Tab bar position | viewport.js | Keeps the tab bar at the bottom when iOS's layout drifts from the screen |
 | Pull to refresh | refresh.js | Refresh gesture and running the Shortcut |
 | Coaching | coach.js | Stress outlook, patterns, anticipated stress, next actions, alarm context, daily brief, reset exercise |
 | Explainer | whitepaper.html, whitepaper.css | How Even works, written for clinicians. Keep it true when behavior changes. |

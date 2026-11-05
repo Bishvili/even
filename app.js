@@ -1,6 +1,6 @@
 (function () {
 "use strict";
-var VERSION = "2.14.1";
+var VERSION = "2.15.0";
 var SHORTCUT_PAGE = "https://routinehub.co/shortcut/26978/";
 var STORAGE_KEY = "even:v1";
 var MOOD_NAMES = ["","Rough","Low","Okay","Good","Great"];
@@ -41,7 +41,7 @@ function navigate(view){if(!["checkin","insights","sources","sync","settings"].i
  document.querySelectorAll(".view").forEach(function(v){v.classList.toggle("active",v.id==="view-"+view);});
  document.querySelectorAll(".nav-item").forEach(function(n){n.classList.toggle("active",n.dataset.go===view);});
  if(location.hash!=="#"+view)history.replaceState(null,"","#"+view);
- window.scrollTo(0,0);render();
+ $("page").scrollTop=0;render();
 }
 function alarmRow(a){
  var names=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"],row=document.createElement("div"),time=document.createElement("span"),who=document.createElement("div"),title=document.createElement("strong"),when=document.createElement("small"),clock=new Date(2024,0,1);
@@ -816,6 +816,8 @@ function init(){
  window.addEventListener("online",function(){refreshAuth();if(state.token){loadShortcutRelease();loadCalendars();loadSyncSettings();syncMoods();checkShortcutUpload(true);syncIfNewUpload();}});
  document.addEventListener("visibilitychange",function(){if(!document.hidden){refreshAuth();if(state.token){loadShortcutRelease();loadCalendars();loadSyncSettings();syncMoods();checkShortcutUpload(true);if(shortcutRunPending){shortcutRunPending=false;if($("run-sync-dialog").open)$("run-sync-dialog").close();pull(false);}else syncIfNewUpload();}}});
  watchForUpdates();
+ // iOS can pan the document to reveal a focused field, and the document should never stay scrolled.
+ document.addEventListener("focusout",function(){setTimeout(function(){if(window.scrollY)window.scrollTo(0,0);},100);});
  window.addEventListener("load",handleNotificationAction);
  if(new URLSearchParams(location.search).get("auth")==="denied"){var back=location.hash==="#checkin"?"checkin":"sync";history.replaceState(null,"","/#"+back);navigate(back);toast("This email isn’t on the list yet. Ask the person who invited you.");}
  if(new URLSearchParams(location.search).get("sync")==="1"){history.replaceState(null,"","/#checkin");navigate("checkin");if(state.token)pull(false);}
