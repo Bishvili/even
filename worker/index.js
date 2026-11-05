@@ -1,8 +1,7 @@
-// Even: Cloudflare Access passwordless login and owner-scoped device sync.
+// Even: account sign-in and owner-scoped device sync.
 // All server tokens are generated randomly, stored only as SHA-256 hashes, and revocable.
-// Only /api/auth/* is protected by Cloudflare Access. All other routes reject
+// /api/user/* needs a signed-in session. All other routes reject
 // unauthenticated sync operations unless a valid, unrevoked device token is supplied.
-const ACCESS_AUD="b15746656eee885f25c4f4b0605491289c01776b8710cc8339fb507f4574f745";
 const ICLOUD_SHORTCUT=/^https:\/\/www\.icloud\.com\/shortcuts\/[a-f0-9]{32}$/i;
 async function overLimit(limiter,key){return !!limiter&&!(await limiter.limit({key})).success;}
 async function canRelease(env,email){return !!await env.DB.prepare("SELECT 1 AS allowed FROM even_release_emails WHERE email=?").bind(email).first();}
@@ -11,7 +10,6 @@ async function approved(env,email){
  if(ownerEmails(env).includes(email))return true;
  return !!await env.DB.prepare("SELECT 1 AS allowed FROM even_approved_emails WHERE email=?").bind(email).first();
 }
-const MIME={"index.html":"text/html; charset=utf-8","styles.css":"text/css; charset=utf-8","app.js":"text/javascript; charset=utf-8","reminders.js":"text/javascript; charset=utf-8","onboarding.js":"text/javascript; charset=utf-8","intake.js":"text/javascript; charset=utf-8","whitepaper.html":"text/html; charset=utf-8","whitepaper.css":"text/css; charset=utf-8","invites.js":"text/javascript; charset=utf-8","signin-sheet.js":"text/javascript; charset=utf-8","coach.js":"text/javascript; charset=utf-8","refresh.js":"text/javascript; charset=utf-8","sw.js":"text/javascript; charset=utf-8","manifest.webmanifest":"application/manifest+json","icon.svg":"image/svg+xml","icon-192.png":"image/png","icon-512.png":"image/png"};
 const SECURITY={"X-Content-Type-Options":"nosniff","Referrer-Policy":"no-referrer","X-Frame-Options":"DENY","Permissions-Policy":"camera=(), microphone=(), geolocation=()","Content-Security-Policy":"default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'"};
 const METRICS={sleepHours:[0,24],steps:[0,100000],hrv:[0,500],restingHR:[20,250],workoutMin:[0,1440]};
 const SEMVER=/^\d{1,3}\.\d{1,3}\.\d{1,3}$/,UTC_OFFSET=/^(Z|[+-]\d{2}:\d{2})$/;
@@ -38,14 +36,11 @@ async function signinAuth(env,ctx){
  const {createAuth}=await import("./signin.mjs");
  return createAuth(env,{isApproved:email=>approved(env,email),deliverCode:(email,code)=>{const sent=sendSigninCode(env,email,code);if(ctx?.waitUntil)ctx.waitUntil(sent);}});
 }
-// A signed-in person is proven by Even's session, or by Access on the older /api/auth routes. Never by a header they could set.
+// Only a session from Even's sign-in proves who someone is, and approval is checked on every request.
 async function authIdentity(request,env,ctx){
+ if(!(request.headers.get("cookie")||"").includes("even.session_token"))return null;
  try{
-  let identity=null;
-  if(ctx?.access&&ctx.access.aud===ACCESS_AUD)identity=await ctx.access.getIdentity();
-  else if((request.headers.get("cookie")||"").includes("even.session_token")){
-   identity=(await (await signinAuth(env,ctx)).api.getSession({headers:request.headers}))?.user;
-  }
+  const identity=(await (await signinAuth(env,ctx)).api.getSession({headers:request.headers}))?.user;
   const email=normalEmail(identity?.email);
   return email&&await approved(env,email)?{email,name:String(identity.name||"").trim().slice(0,80)}:null;
  }catch(e){return null;}
@@ -292,13 +287,8 @@ async function signinApi(request,env,ctx,path){
 }
 async function authApi(request,env,ctx,path){
  const identity=await authIdentity(request,env,ctx),email=identity?.email||null;
- // Sign-in returns to the screen it started from: the setup card on Check in, or Sync.
- if(path==="/api/auth/start"&&request.method==="GET"){
-  const url=new URL(request.url),view=url.searchParams.get("to")==="checkin"?"checkin":"data";
-  return new Response(null,{status:303,headers:{...SECURITY,"Cache-Control":"no-store","Location":url.origin+(email?"/#":"/?auth=denied#")+view}});
- }
  if(!email)return error("Sign in with an approved email.",401,"sign_in_required");
- if(path==="/api/auth/me"&&request.method==="GET"){
+ if(path==="/api/user/me"&&request.method==="GET"){
   // Sign-in may supply a name. Testers are listed by it.
   try{
    if(identity.name)await env.DB.prepare("UPDATE even_users SET name=? WHERE email=? AND (name IS NULL OR name<>?)").bind(identity.name,email,identity.name).run();
@@ -309,7 +299,7 @@ async function authApi(request,env,ctx,path){
   const release=await canRelease(env,email);
   return reply({ok:true,email,canRelease:release,helper:release?await loadHelperLink(env):null,firstName:person,name:await displayName(env,email),welcomeName:welcome?person:null,devices:(r.results||[]).map(d=>({id:d.device_id,label:d.label,createdAt:d.created_at,lastUsedAt:d.last_used_at,lastAttemptAt:d.last_attempt_at,lastErrorCode:d.last_error_code,shortcutVersion:d.shortcut_version,revoked:!!d.revoked_at}))});
  }
- if(path==="/api/auth/device"){
+ if(path==="/api/user/device"){
   if(!browserPostAllowed(request))return error("This request isn't allowed.",403,"same_origin_required");
   let input;try{input=await payload(request);}catch(e){return error("Even couldn't read that request.",400,"invalid_body");}
   const label=String(input.label||"iPhone").trim().replace(/[\x00-\x1f]/g,"").slice(0,64)||"iPhone";
@@ -321,9 +311,9 @@ async function authApi(request,env,ctx,path){
   await env.DB.prepare("INSERT INTO even_devices(token_hash,device_id,owner_email,label,created_at) VALUES(?,?,?,?,?)").bind(await digest(token),deviceId,email,label,at).run();
   return reply({ok:true,email,token,deviceId,label,createdAt:at});
  }
- if(path.startsWith("/api/auth/testers")){
+ if(path.startsWith("/api/user/testers")){
   if(!await canRelease(env,email))return error("This account can't manage testers",403,"not_release_account");
-  if(path==="/api/auth/testers"&&request.method==="GET"){
+  if(path==="/api/user/testers"&&request.method==="GET"){
    const [added,developers,users,chosen]=await Promise.all([
     env.DB.prepare("SELECT email FROM even_approved_emails").bind().all(),
     env.DB.prepare("SELECT email,display_name FROM even_release_emails").bind().all(),
@@ -340,35 +330,35 @@ async function authApi(request,env,ctx,path){
   let input;try{input=await payload(request);}catch(e){return error("Even couldn't read that request.",400,"invalid_body");}
   const tester=String(input?.email||"").trim().toLowerCase();
   if(tester.length>254||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(tester))return error("Enter a valid email address.",400,"invalid_email");
-  if((path==="/api/auth/testers"||path==="/api/auth/testers/invite")&&await overLimit(env.INVITE_LIMIT,email))return error("That's a lot of invitations at once. Try again in a minute.",429,"rate_limited");
-  if(path==="/api/auth/testers"){
+  if((path==="/api/user/testers"||path==="/api/user/testers/invite")&&await overLimit(env.INVITE_LIMIT,email))return error("That's a lot of invitations at once. Try again in a minute.",429,"rate_limited");
+  if(path==="/api/user/testers"){
    await env.DB.prepare("INSERT OR IGNORE INTO even_approved_emails(email,added_by,created_at) VALUES(?,?,?)").bind(tester,email,new Date().toISOString()).run();
    return reply({ok:true,emailed:await sendInvite(env,tester,email)});
   }
-  if(path==="/api/auth/testers/invite"){
+  if(path==="/api/user/testers/invite"){
    if(!await approved(env,tester)&&!await canRelease(env,tester))return error("Add this email first.",404,"not_a_tester");
    return reply({ok:true,emailed:await sendInvite(env,tester,email)});
   }
-  if(path==="/api/auth/testers/name"){
+  if(path==="/api/user/testers/name"){
    if(!await approved(env,tester)&&!await canRelease(env,tester))return error("Add this email first.",404,"not_a_tester");
    const name=String(input?.name||"").trim().replace(/[\x00-\x1f]/g,"").slice(0,60);
    if(name)await env.DB.prepare("INSERT INTO even_names(email,name,set_by,updated_at) VALUES(?,?,?,?) ON CONFLICT(email) DO UPDATE SET name=excluded.name,set_by=excluded.set_by,updated_at=excluded.updated_at").bind(tester,name,email,new Date().toISOString()).run();
    else await env.DB.prepare("DELETE FROM even_names WHERE email=?").bind(tester).run();
    return reply({ok:true,name:await displayName(env,tester)});
   }
-  if(path==="/api/auth/testers/remove"){
+  if(path==="/api/user/testers/remove"){
    if(ownerEmails(env).includes(tester)||tester===email)return error("This account can't be removed.",400,"not_removable");
    await env.DB.batch([env.DB.prepare("DELETE FROM even_approved_emails WHERE email=?").bind(tester),...accountStatements(env,tester)]);
    return reply({ok:true});
   }
   return error("Not found",404,"not_found");
  }
- if(path==="/api/auth/welcomed"){
+ if(path==="/api/user/welcomed"){
   if(!browserPostAllowed(request))return error("This request isn't allowed.",403,"same_origin_required");
   await env.DB.prepare("UPDATE even_release_emails SET welcomed_at=? WHERE email=? AND welcomed_at IS NULL").bind(new Date().toISOString(),email).run();
   return reply({ok:true});
  }
- if(path==="/api/auth/device/rename"){
+ if(path==="/api/user/device/rename"){
   if(!browserPostAllowed(request))return error("This request isn't allowed.",403,"same_origin_required");
   let input;try{input=await payload(request);}catch(e){return error("Even couldn't read that request.",400,"invalid_body");}
   const deviceId=String(input.deviceId||""),label=String(input.label||"").trim().replace(/[\x00-\x1f]/g,"").slice(0,64);
@@ -378,7 +368,7 @@ async function authApi(request,env,ctx,path){
   if(!result.meta?.changes)return error("Device not found",404,"device_not_found");
   return reply({ok:true,label});
  }
- if(path==="/api/auth/revoke"){
+ if(path==="/api/user/revoke"){
   if(!browserPostAllowed(request))return error("This request isn't allowed.",403,"same_origin_required");
   let input;try{input=await payload(request);}catch(e){return error("Even couldn't read that request.",400,"invalid_body");}
   const deviceId=String(input.deviceId||"");
@@ -877,28 +867,26 @@ async function syncApi(request,env,path){
  return error("Not found",404,"not_found");
 }
 async function api(request,env,ctx,path){
- if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:"Even",version:"2.24.0",sync:"email-access"});
+ if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:"Even",version:"2.25.0",sync:"email-access"});
  if(path.startsWith("/api/signin/"))return signinApi(request,env,ctx,path);
- if(path.startsWith("/api/auth/"))return authApi(request,env,ctx,path);
- // The same account routes, for Even's own sign-in. Cloudflare Access only covers /api/auth/.
- if(path.startsWith("/api/user/"))return authApi(request,env,ctx,"/api/auth/"+path.slice(10));
+ if(path.startsWith("/api/user/"))return authApi(request,env,ctx,path);
  return syncApi(request,env,path);
 }
 
 // iOS names an imported Shortcut after its file, and release assets can't contain spaces.
-async function asset(path,env){
- const key=path==="/"?"index.html":path.slice(1);
- if(!Object.prototype.hasOwnProperty.call(MIME,key))return new Response("Not found",{status:404,headers:SECURITY});
- const val=await env.ASSETS.get("asset:"+key);if(val===null)return new Response("Asset unavailable",{status:503,headers:SECURITY});
- const data=key.endsWith(".png")?Uint8Array.from(atob(val),x=>x.charCodeAt(0)):val;
- const headers={...SECURITY,"Content-Type":MIME[key],"Cache-Control":"no-cache, max-age=0, must-revalidate"};
- if(key==="sw.js")headers["Service-Worker-Allowed"]="/";
- return new Response(data,{headers});
+// Files come from the deployed version, so code and pages always match. The Worker runs first to add its headers.
+async function asset(request,env,path){
+ const file=await env.STATIC.fetch(new Request(new URL(path==="/"?"/index.html":path,request.url),request));
+ const headers=new Headers(file.headers);
+ for(const [name,value] of Object.entries(SECURITY))headers.set(name,value);
+ headers.set("Cache-Control","no-cache, max-age=0, must-revalidate");
+ if(path==="/sw.js")headers.set("Service-Worker-Allowed","/");
+ return new Response(file.body,{status:file.status,headers});
 }
 export default {async fetch(request,env,ctx){
  try{const path=new URL(request.url).pathname;if(path.startsWith("/api/"))return await api(request,env,ctx,path);
  if(request.method!=="GET"&&request.method!=="HEAD")return new Response("Method not allowed",{status:405,headers:SECURITY});
- return await asset(path,env);
+ return await asset(request,env,path);
  }catch(e){return error("Request could not be processed",500,"server_error");}
 },
 async scheduled(event,env,ctx){ctx.waitUntil(sendReminders(env));}};

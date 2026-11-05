@@ -43,8 +43,7 @@ test("the paper is reachable and allowed by the page's security policy",()=>{
  assert.doesNotMatch(paper,/<style|<script| style="/);
  assert.match(read("index.html"),/id="whitepaper-link" href="\/whitepaper\.html"/);
  for(const file of ["whitepaper.html","whitepaper.css"]){
-  assert.ok(read("scripts/deploy.sh").includes(file),file);
-  assert.ok(worker.includes(`"${file}":`),file);
+  assert.ok(read("sw.js").includes(`"/${file}"`),file);
  }
 });
 

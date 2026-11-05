@@ -10,10 +10,11 @@ const {TextEncoder}=require("node:util");
 
 function harness({verified=false,buildVersion="2.8.0",helperBuild="2.0.0",sourceVersions=null,helperLink=null}={}){
  const source=fs.readFileSync(path.join(__dirname,"..","worker","index.js"),"utf8");
- const loaded=source.replace("export default {","globalThis.sendReminders = sendReminders;globalThis.readBedtimes = readBedtimes;globalThis.readSleep = readSleep;globalThis.reminderMessage = reminderMessage;globalThis.dueScheduled = dueScheduled;globalThis.readAlarms = readAlarms;globalThis.firstAlarm = firstAlarm;globalThis.pushPayload = pushPayload;globalThis.__worker = {");
+ const session='{createAuth:()=>({api:{getSession:async({headers})=>{const m=/even\\.session_token=([^;]+)/.exec(headers.get("cookie")||"");return m?{user:JSON.parse(decodeURIComponent(m[1]))}:null;}}})}';
+ const loaded=source.replace('await import("./signin.mjs")',session).replace("export default {","globalThis.sendReminders = sendReminders;globalThis.readBedtimes = readBedtimes;globalThis.readSleep = readSleep;globalThis.reminderMessage = reminderMessage;globalThis.dueScheduled = dueScheduled;globalThis.readAlarms = readAlarms;globalThis.firstAlarm = firstAlarm;globalThis.pushPayload = pushPayload;globalThis.__worker = {");
  assert.notEqual(source,loaded,"Worker ESM export not found");
  const dispatches=[];
- const runtime={crypto:webcrypto,TextEncoder,Response,URL,atob,btoa,Intl,Uint8Array,console,async fetch(url,init){
+ const runtime={crypto:webcrypto,TextEncoder,Response,Request,Headers,URL,atob,btoa,Intl,Uint8Array,console,async fetch(url,init){
   if(String(url).includes("/shortcuts/api/records/")){const id=String(url).split("/").pop();return new Response(JSON.stringify({fields:{name:{value:id==="0".repeat(32)?"Other Shortcut":id==="1".repeat(32)?"Even Release":"Even Sync"}}}));}
   if(String(url).endsWith("Even-Sync-version.txt"))return new Response(buildVersion+"\n");
   if(String(url).endsWith("Even-Release-version.txt"))return helperBuild?new Response(helperBuild+"\n"):new Response("",{status:404});
@@ -121,6 +122,7 @@ function harness({verified=false,buildVersion="2.8.0",helperBuild="2.0.0",source
  function ctx(email,audience=aud,name){return{access:{aud:audience,async getIdentity(){return{email,name};}}};}
  async function call(route,{method="GET",body,headers={},context}={}){
   const h=new Headers(headers);
+  if(context?.access&&context.access.aud===aud)h.set("Cookie","even.session_token="+encodeURIComponent(JSON.stringify(await context.access.getIdentity())));
   if(body!==undefined){h.set("Content-Type","application/json");if(!h.has("Origin"))h.set("Origin",base);}
   const response=await runtime.__worker.fetch(new Request(base+route,{method,headers:h,body:body===undefined?undefined:JSON.stringify(body)}),env,context);
   return{status:response.status,location:response.headers.get("Location"),data:response.status===303?null:await response.json()};
@@ -129,20 +131,20 @@ function harness({verified=false,buildVersion="2.8.0",helperBuild="2.0.0",source
 }
 test("untrusted identity headers and non-allowlisted Access sessions fail closed",async()=>{
  const {call,ctx}=harness();
- assert.equal((await call("/api/auth/me")).status,401);
- assert.equal((await call("/api/auth/me",{headers:{"Cf-Access-Jwt-Assertion":"forged"}})).status,401);
- assert.equal((await call("/api/auth/me",{context:ctx("owner-a@example.com","wrong")})).status,401);
- assert.equal((await call("/api/auth/me",{context:ctx("random@example.com")})).status,401);
- assert.equal((await call("/api/auth/me",{context:ctx("owner-a@example.com")})).status,200);
+ assert.equal((await call("/api/user/me")).status,401);
+ assert.equal((await call("/api/user/me",{headers:{"Cf-Access-Jwt-Assertion":"forged"}})).status,401);
+ assert.equal((await call("/api/user/me",{context:ctx("owner-a@example.com","wrong")})).status,401);
+ assert.equal((await call("/api/user/me",{context:ctx("random@example.com")})).status,401);
+ assert.equal((await call("/api/user/me",{context:ctx("owner-a@example.com")})).status,200);
  assert.equal((await call("/api/pair",{method:"POST",body:{pairCode:"old",token:"test"}})).status,401);
 });
 test("only release accounts with a valid device can start publishing",async()=>{
  const{call,ctx,dispatches}=harness();
  const link="https://www.icloud.com/shortcuts/82109f53491f4d95a0a8b8437c4090f2";
- const a=await call("/api/auth/device",{method:"POST",body:{label:"A"},context:ctx("owner-a@example.com")});
- const b=await call("/api/auth/device",{method:"POST",body:{label:"B"},context:ctx("owner-b@example.com")});
- assert.equal((await call("/api/auth/me",{context:ctx("owner-a@example.com")})).data.canRelease,true);
- assert.equal((await call("/api/auth/me",{context:ctx("owner-b@example.com")})).data.canRelease,false);
+ const a=await call("/api/user/device",{method:"POST",body:{label:"A"},context:ctx("owner-a@example.com")});
+ const b=await call("/api/user/device",{method:"POST",body:{label:"B"},context:ctx("owner-b@example.com")});
+ assert.equal((await call("/api/user/me",{context:ctx("owner-a@example.com")})).data.canRelease,true);
+ assert.equal((await call("/api/user/me",{context:ctx("owner-b@example.com")})).data.canRelease,false);
  assert.equal((await call("/api/shortcut/publish",{method:"POST",body:{link}})).status,401);
  assert.equal((await call("/api/shortcut/publish",{method:"POST",body:{link},headers:{Authorization:"Bearer "+b.data.token}})).status,403);
  assert.equal((await call("/api/shortcut/publish",{method:"POST",body:{link:"https://example.com/x"},headers:{Authorization:"Bearer "+a.data.token}})).status,400);
@@ -155,8 +157,8 @@ test("only release accounts with a valid device can start publishing",async()=>{
 });
 test("turned-off calendars are owner-scoped, reversible, and skip new events",async()=>{
  const{call,ctx,rows}=harness();
- const a=await call("/api/auth/device",{method:"POST",body:{label:"A"},context:ctx("owner-a@example.com")});
- const b=await call("/api/auth/device",{method:"POST",body:{label:"B"},context:ctx("owner-b@example.com")});
+ const a=await call("/api/user/device",{method:"POST",body:{label:"A"},context:ctx("owner-a@example.com")});
+ const b=await call("/api/user/device",{method:"POST",body:{label:"B"},context:ctx("owner-b@example.com")});
  const A={Authorization:"Bearer "+a.data.token},B={Authorization:"Bearer "+b.data.token};
  const event=calendar=>({kind:"calendar",title:"Private",calendar,start:"2026-11-03T10:00:00Z",end:"2026-11-03T11:00:00Z"});
  await call("/api/ingest",{method:"POST",body:event("Work"),headers:A});
@@ -178,8 +180,8 @@ test("reminders are validated, owner-scoped, sent once a day, and stop when a de
  const{call,ctx,rows,env,runtime,dispatches}=harness();
  const pair=await webcrypto.subtle.generateKey({name:"ECDSA",namedCurve:"P-256"},true,["sign"]);
  env.VAPID_PRIVATE_KEY=JSON.stringify(await webcrypto.subtle.exportKey("jwk",pair.privateKey));
- const a=await call("/api/auth/device",{method:"POST",body:{label:"A"},context:ctx("owner-a@example.com")});
- const b=await call("/api/auth/device",{method:"POST",body:{label:"B"},context:ctx("owner-b@example.com")});
+ const a=await call("/api/user/device",{method:"POST",body:{label:"A"},context:ctx("owner-a@example.com")});
+ const b=await call("/api/user/device",{method:"POST",body:{label:"B"},context:ctx("owner-b@example.com")});
  const A={Authorization:"Bearer "+a.data.token},B={Authorization:"Bearer "+b.data.token};
  const device=await webcrypto.subtle.generateKey({name:"ECDH",namedCurve:"P-256"},true,["deriveBits"]);
  const devicePublic=new Uint8Array(await webcrypto.subtle.exportKey("raw",device.publicKey)),authSecret=webcrypto.getRandomValues(new Uint8Array(16));
@@ -210,21 +212,21 @@ test("reminders are validated, owner-scoped, sent once a day, and stop when a de
  assert.equal(JSON.parse(Buffer.from(plain.slice(0,-1)).toString()).notification.title,"Even");
  assert.equal(dispatches[0].init.headers["Content-Encoding"],"aes128gcm");
  assert.match(dispatches[0].init.headers.Authorization,/^vapid t=[\w-]+\.[\w-]+\.[\w-]+, k=[\w-]+$/);
- await call("/api/auth/revoke",{method:"POST",body:{deviceId:a.data.deviceId},context:ctx("owner-a@example.com")});
+ await call("/api/user/revoke",{method:"POST",body:{deviceId:a.data.deviceId},context:ctx("owner-a@example.com")});
  await send("2026-11-05T04:05:00Z");
  assert.equal(dispatches.length,1);
 });
 test("the first sign-in welcome is per account and stops once seen",async()=>{
  const{call,ctx}=harness();
  const a=ctx("owner-a@example.com"),b=ctx("owner-b@example.com");
- assert.equal((await call("/api/auth/me",{context:a})).data.welcomeName,"Ada");
- assert.equal((await call("/api/auth/me",{context:b})).data.welcomeName,null);
- assert.equal((await call("/api/auth/welcomed",{method:"POST",body:{}})).status,401);
- assert.equal((await call("/api/auth/welcomed",{method:"POST",body:{},context:b})).status,200);
- assert.equal((await call("/api/auth/me",{context:a})).data.welcomeName,"Ada");
- assert.equal((await call("/api/auth/welcomed",{method:"POST",body:{},headers:{Origin:"https://evil.example"},context:a})).status,403);
- assert.equal((await call("/api/auth/welcomed",{method:"POST",body:{},context:a})).status,200);
- assert.equal((await call("/api/auth/me",{context:a})).data.welcomeName,null);
+ assert.equal((await call("/api/user/me",{context:a})).data.welcomeName,"Ada");
+ assert.equal((await call("/api/user/me",{context:b})).data.welcomeName,null);
+ assert.equal((await call("/api/user/welcomed",{method:"POST",body:{}})).status,401);
+ assert.equal((await call("/api/user/welcomed",{method:"POST",body:{},context:b})).status,200);
+ assert.equal((await call("/api/user/me",{context:a})).data.welcomeName,"Ada");
+ assert.equal((await call("/api/user/welcomed",{method:"POST",body:{},headers:{Origin:"https://evil.example"},context:a})).status,403);
+ assert.equal((await call("/api/user/welcomed",{method:"POST",body:{},context:a})).status,200);
+ assert.equal((await call("/api/user/me",{context:a})).data.welcomeName,null);
 });
 test("several reminder times each send once, and a check-in quiets smart reminders only",async()=>{
  const{call,ctx,rows,env,runtime,dispatches}=harness();
@@ -232,7 +234,7 @@ test("several reminder times each send once, and a check-in quiets smart reminde
  env.VAPID_PRIVATE_KEY=JSON.stringify(await webcrypto.subtle.exportKey("jwk",pair.privateKey));
  const device=await webcrypto.subtle.generateKey({name:"ECDH",namedCurve:"P-256"},true,["deriveBits"]);
  const keys={p256dh:Buffer.from(await webcrypto.subtle.exportKey("raw",device.publicKey)).toString("base64url"),auth:Buffer.alloc(16,1).toString("base64url")};
- const a=await call("/api/auth/device",{method:"POST",body:{label:"A"},context:ctx("owner-a@example.com")});
+ const a=await call("/api/user/device",{method:"POST",body:{label:"A"},context:ctx("owner-a@example.com")});
  const A={Authorization:"Bearer "+a.data.token},endpoint="https://web.push.apple.com/abc";
  const save=(mode,times)=>call("/api/push/subscribe",{method:"POST",body:{endpoint,keys,mode,times,timeZone:"UTC"},headers:A});
  assert.equal((await save("other",["09:00"])).status,400);
@@ -254,7 +256,7 @@ test("several reminder times each send once, and a check-in quiets smart reminde
 });
 test("weekends can be skipped and only the chosen slot carries the brief",async()=>{
  const{call,ctx,env,rows,runtime,dispatches}=harness();
- const device=await call("/api/auth/device",{method:"POST",body:{label:"A"},context:ctx("owner-a@example.com")});
+ const device=await call("/api/user/device",{method:"POST",body:{label:"A"},context:ctx("owner-a@example.com")});
  const pair=await webcrypto.subtle.generateKey({name:"ECDSA",namedCurve:"P-256"},true,["sign"]);
  env.VAPID_PRIVATE_KEY=JSON.stringify(await webcrypto.subtle.exportKey("jwk",pair.privateKey));
  const{publicKey}=await webcrypto.subtle.generateKey({name:"ECDH",namedCurve:"P-256"},true,["deriveBits"]);
@@ -272,8 +274,8 @@ test("weekends can be skipped and only the chosen slot carries the brief",async(
 });
 test("the helper's release state compares installed, latest and published, and wrong links are refused",async()=>{
  const{call,ctx,rows,dispatches}=harness();
- const a=await call("/api/auth/device",{method:"POST",body:{label:"A"},context:ctx("owner-a@example.com")});
- const b=await call("/api/auth/device",{method:"POST",body:{label:"B"},context:ctx("owner-b@example.com")});
+ const a=await call("/api/user/device",{method:"POST",body:{label:"A"},context:ctx("owner-a@example.com")});
+ const b=await call("/api/user/device",{method:"POST",body:{label:"B"},context:ctx("owner-b@example.com")});
  const A={Authorization:"Bearer "+a.data.token};
  assert.equal((await call("/api/shortcut/release-state")).status,401);
  assert.equal((await call("/api/shortcut/release-state",{headers:{Authorization:"Bearer "+b.data.token}})).status,403);
@@ -296,7 +298,7 @@ test("smart messages match the time of day, and a sync notification opens the ap
  assert.match(runtime.reminderMessage(500,true),/Bedtime/);
  const device=await webcrypto.subtle.generateKey({name:"ECDH",namedCurve:"P-256"},true,["deriveBits"]);
  const keys={p256dh:Buffer.from(await webcrypto.subtle.exportKey("raw",device.publicKey)).toString("base64url"),auth:Buffer.alloc(16,1).toString("base64url")};
- const a=await call("/api/auth/device",{method:"POST",body:{label:"A"},context:ctx("owner-a@example.com")});
+ const a=await call("/api/user/device",{method:"POST",body:{label:"A"},context:ctx("owner-a@example.com")});
  const A={Authorization:"Bearer "+a.data.token};
  assert.equal((await call("/api/push/synced",{method:"POST",body:{items:"2"},headers:A})).data.state,"none");
  await call("/api/push/subscribe",{method:"POST",body:{endpoint:"https://web.push.apple.com/abc",keys,mode:"smart",times:["09:00"],bedtimeAt:"22:40",timeZone:"UTC"},headers:A});
@@ -314,53 +316,43 @@ test("each night's bedtime is its earliest sleep, ignoring naps and bad values",
  assert.equal(rows.length,2);
  assert.equal(runtime.readBedtimes("").length,0);
 });
-test("sign-in returns to the screen it started from, with nothing left in the address",async()=>{
- const{call,ctx}=harness(),owner=ctx("owner-a@example.com"),stranger=ctx("new@example.com"),base="https://even.bishvili.workers.dev";
- assert.equal((await call("/api/auth/start",{context:owner})).location,base+"/#data");
- assert.equal((await call("/api/auth/start?to=checkin",{context:owner})).location,base+"/#checkin");
- assert.equal((await call("/api/auth/start?to=https://evil.example",{context:owner})).location,base+"/#data");
- assert.equal((await call("/api/auth/start?to=checkin",{context:stranger})).location,base+"/?auth=denied#checkin");
- assert.equal((await call("/api/auth/start")).location,base+"/?auth=denied#data");
-});
 test("release accounts manage testers, and removal ends a tester's access",async()=>{
  const{call,ctx,env,dispatches}=harness();
  const a=ctx("owner-a@example.com"),b=ctx("owner-b@example.com"),tester=ctx("new@example.com");
- assert.equal((await call("/api/auth/me",{context:tester})).status,401);
- const denied=await call("/api/auth/start",{context:tester});
- assert.equal(denied.status,303);
- assert.equal((await call("/api/auth/testers",{context:b})).status,403);
- assert.equal((await call("/api/auth/testers",{method:"POST",body:{email:"new@example.com"},context:b})).status,403);
- assert.equal((await call("/api/auth/testers",{method:"POST",body:{email:"new@example.com"}})).status,401);
- assert.equal((await call("/api/auth/testers",{method:"POST",body:{email:"nope"},context:a})).status,400);
- assert.equal((await call("/api/auth/testers",{method:"POST",body:{email:"New@Example.com"},headers:{Origin:"https://evil.example"},context:a})).status,403);
- assert.equal((await call("/api/auth/testers",{method:"POST",body:{email:"New@Example.com"},context:a})).data.emailed,false);
+ assert.equal((await call("/api/user/me",{context:tester})).status,401);
+ assert.equal((await call("/api/user/testers",{context:b})).status,403);
+ assert.equal((await call("/api/user/testers",{method:"POST",body:{email:"new@example.com"},context:b})).status,403);
+ assert.equal((await call("/api/user/testers",{method:"POST",body:{email:"new@example.com"}})).status,401);
+ assert.equal((await call("/api/user/testers",{method:"POST",body:{email:"nope"},context:a})).status,400);
+ assert.equal((await call("/api/user/testers",{method:"POST",body:{email:"New@Example.com"},headers:{Origin:"https://evil.example"},context:a})).status,403);
+ assert.equal((await call("/api/user/testers",{method:"POST",body:{email:"New@Example.com"},context:a})).data.emailed,false);
  env.RESEND_API_KEY="server-only";
- assert.equal((await call("/api/auth/testers",{method:"POST",body:{email:"New@Example.com"},context:a})).data.emailed,true);
+ assert.equal((await call("/api/user/testers",{method:"POST",body:{email:"New@Example.com"},context:a})).data.emailed,true);
  assert.equal(dispatches.at(-1).url,"https://api.resend.com/emails");
  assert.deepEqual(JSON.parse(dispatches.at(-1).init.body).to,["new@example.com"]);
- const everyone=(await call("/api/auth/testers",{context:a})).data.testers;
+ const everyone=(await call("/api/user/testers",{context:a})).data.testers;
  assert.deepEqual(everyone.map(t=>t.email),["new@example.com","owner-a@example.com","owner-b@example.com"]);
  assert.equal(everyone[0].removable,true);
  assert.equal(everyone[0].signedIn,false);
  assert.equal(everyone[1].name,"Ada");
  assert.equal(everyone[1].removable,false);
  const before=dispatches.length;
- assert.equal((await call("/api/auth/testers/invite",{method:"POST",body:{email:"new@example.com"},context:b})).status,403);
- assert.equal((await call("/api/auth/testers/invite",{method:"POST",body:{email:"stranger@example.com"},context:a})).status,404);
- assert.equal((await call("/api/auth/testers/invite",{method:"POST",body:{email:"new@example.com"},context:a})).data.emailed,true);
+ assert.equal((await call("/api/user/testers/invite",{method:"POST",body:{email:"new@example.com"},context:b})).status,403);
+ assert.equal((await call("/api/user/testers/invite",{method:"POST",body:{email:"stranger@example.com"},context:a})).status,404);
+ assert.equal((await call("/api/user/testers/invite",{method:"POST",body:{email:"new@example.com"},context:a})).data.emailed,true);
  assert.equal(dispatches.length,before+1);
- assert.equal((await call("/api/auth/me",{context:tester})).status,200);
- const device=await call("/api/auth/device",{method:"POST",body:{label:"T"},context:tester});
- assert.equal((await call("/api/auth/testers",{context:a})).data.testers[0].signedIn,true);
+ assert.equal((await call("/api/user/me",{context:tester})).status,200);
+ const device=await call("/api/user/device",{method:"POST",body:{label:"T"},context:tester});
+ assert.equal((await call("/api/user/testers",{context:a})).data.testers[0].signedIn,true);
  assert.equal((await call("/api/sync/status",{headers:{Authorization:"Bearer "+device.data.token}})).status,200);
- assert.equal((await call("/api/auth/testers/remove",{method:"POST",body:{email:"new@example.com"},context:a})).status,200);
- assert.equal((await call("/api/auth/me",{context:tester})).status,401);
+ assert.equal((await call("/api/user/testers/remove",{method:"POST",body:{email:"new@example.com"},context:a})).status,200);
+ assert.equal((await call("/api/user/me",{context:tester})).status,401);
  assert.equal((await call("/api/sync/status",{headers:{Authorization:"Bearer "+device.data.token}})).status,401);
 });
 test("owner A data cannot be read or erased by owner B",async()=>{
  const{call,ctx}=harness();
- const a=await call("/api/auth/device",{method:"POST",body:{label:"A iPhone"},context:ctx("owner-a@example.com")});
- const b=await call("/api/auth/device",{method:"POST",body:{label:"B iPhone"},context:ctx("owner-b@example.com")});
+ const a=await call("/api/user/device",{method:"POST",body:{label:"A iPhone"},context:ctx("owner-a@example.com")});
+ const b=await call("/api/user/device",{method:"POST",body:{label:"B iPhone"},context:ctx("owner-b@example.com")});
  assert.equal(a.status,200);assert.equal(b.status,200);
  const keyA={Authorization:"Bearer "+a.data.token},keyB={Authorization:"Bearer "+b.data.token};
  const input={kind:"batch",health:[{date:"2026-10-31",steps:7000}],events:[{start:"2026-10-31T09:00:00-07:00",end:"2026-10-31T10:00:00-07:00",title:"Private appointment",category:"Other"}]};
@@ -373,23 +365,23 @@ test("owner A data cannot be read or erased by owner B",async()=>{
 });
 test("device revocation is owner-scoped, and invalidates the bearer",async()=>{
  const{call,ctx}=harness();
- const b=await call("/api/auth/device",{method:"POST",body:{label:"B"},context:ctx("owner-b@example.com")});
- const unauthorized=await call("/api/auth/revoke",{method:"POST",body:{deviceId:b.data.deviceId},context:ctx("owner-a@example.com")});
+ const b=await call("/api/user/device",{method:"POST",body:{label:"B"},context:ctx("owner-b@example.com")});
+ const unauthorized=await call("/api/user/revoke",{method:"POST",body:{deviceId:b.data.deviceId},context:ctx("owner-a@example.com")});
  assert.equal(unauthorized.data.revoked,false);
  assert.equal((await call("/api/sync/status",{headers:{Authorization:"Bearer "+b.data.token}})).status,200);
- const revoked=await call("/api/auth/revoke",{method:"POST",body:{deviceId:b.data.deviceId},context:ctx("owner-b@example.com")});
+ const revoked=await call("/api/user/revoke",{method:"POST",body:{deviceId:b.data.deviceId},context:ctx("owner-b@example.com")});
  assert.equal(revoked.data.revoked,true);
  assert.equal((await call("/api/sync/status",{headers:{Authorization:"Bearer "+b.data.token}})).status,401);
 });
 test("device creation requires a same-origin JSON POST",async()=>{
  const{call,ctx}=harness();
- const request=await call("/api/auth/device",{method:"POST",body:{label:"spoof"},headers:{Origin:"https://attacker.invalid"},context:ctx("owner-a@example.com")});
+ const request=await call("/api/user/device",{method:"POST",body:{label:"spoof"},headers:{Origin:"https://attacker.invalid"},context:ctx("owner-a@example.com")});
  assert.equal(request.status,403);
 });
 
 test("sync diagnostics distinguish a valid device with no uploads from a rejected request",async()=>{
  const {call,ctx}=harness();
- const d=await call("/api/auth/device",{method:"POST",body:{label:"Personal iPhone"},context:ctx("owner-a@example.com")});
+ const d=await call("/api/user/device",{method:"POST",body:{label:"Personal iPhone"},context:ctx("owner-a@example.com")});
  const key={Authorization:"Bearer "+d.data.token};
  const initial=await call("/api/sync/status",{headers:key});
  assert.equal(initial.status,200);
@@ -417,7 +409,7 @@ test("versioned Shortcut release metadata requires an owned device and a validat
  const {call,ctx}=harness();
  const denied=await call("/api/shortcut/release");
  assert.equal(denied.status,401);
- const d=await call("/api/auth/device",{method:"POST",body:{label:"iPhone"},context:ctx("owner-a@example.com")});
+ const d=await call("/api/user/device",{method:"POST",body:{label:"iPhone"},context:ctx("owner-a@example.com")});
  const release=await call("/api/shortcut/release",{headers:{Authorization:"Bearer "+d.data.token}});
  assert.equal(release.status,200);
  assert.equal(release.data.release.version,"1.0.0");
@@ -427,7 +419,7 @@ test("versioned Shortcut release metadata requires an owned device and a validat
 
 test("first-run Shortcut handshake validates an owned token without inventing data",async()=>{
  const {call,ctx}=harness();
- const user=await call("/api/auth/device",{method:"POST",body:{label:"iPhone"},context:ctx("owner-a@example.com")});
+ const user=await call("/api/user/device",{method:"POST",body:{label:"iPhone"},context:ctx("owner-a@example.com")});
  const auth={Authorization:"Bearer "+user.data.token};
  const invalid=await call("/api/shortcut/hello",{method:"POST",body:{shortcutVersion:"banana"},headers:auth});
  assert.equal(invalid.status,400);
@@ -445,7 +437,7 @@ test("first-run Shortcut handshake validates an owned token without inventing da
 
 test("unverified releases are not advertised as updates",async()=>{
  const {call,ctx}=harness();
- const d=await call("/api/auth/device",{method:"POST",body:{label:"iPhone"},context:ctx("owner-a@example.com")});
+ const d=await call("/api/user/device",{method:"POST",body:{label:"iPhone"},context:ctx("owner-a@example.com")});
  const auth={Authorization:"Bearer "+d.data.token};
  const result=await call("/api/shortcut/release?current=0.0.1",{headers:auth});
  assert.equal(result.status,200);
@@ -457,7 +449,7 @@ test("unverified releases are not advertised as updates",async()=>{
 
 test("Shortcut release comparison only offers upgrades",async()=>{
  const {call,ctx}=harness({verified:true});
- const user=await call("/api/auth/device",{method:"POST",body:{label:"iPhone"},context:ctx("owner-a@example.com")});
+ const user=await call("/api/user/device",{method:"POST",body:{label:"iPhone"},context:ctx("owner-a@example.com")});
  const auth={Authorization:"Bearer "+user.data.token};
  const older=await call("/api/shortcut/release?current=0.9.0",{headers:auth});
  assert.equal(older.status,200);
@@ -472,7 +464,7 @@ test("Shortcut release comparison only offers upgrades",async()=>{
 });
 test("calendar_complete removes only this owner's older events in that day",async()=>{
  const{call,ctx,rows}=harness();
- const a=await call("/api/auth/device",{method:"POST",body:{label:"A"},context:ctx("owner-a@example.com")});
+ const a=await call("/api/user/device",{method:"POST",body:{label:"A"},context:ctx("owner-a@example.com")});
  const auth={Authorization:"Bearer "+a.data.token};
  const started=new Date().toISOString(),old=new Date(Date.now()-60000).toISOString();
  rows.events.set("stale",{owner:"owner-a@example.com",start:"2026-11-02T18:00:00.000Z",updated:old});
@@ -504,7 +496,7 @@ test("sync reminders need an earlier sync and a stale one, and anticipated pushe
  env.VAPID_PRIVATE_KEY=JSON.stringify(await webcrypto.subtle.exportKey("jwk",pair.privateKey));
  const{publicKey}=await webcrypto.subtle.generateKey({name:"ECDH",namedCurve:"P-256"},true,["deriveBits"]);
  const keys={p256dh:Buffer.from(await webcrypto.subtle.exportKey("raw",publicKey)).toString("base64url"),auth:Buffer.alloc(16,1).toString("base64url")};
- const device=await call("/api/auth/device",{method:"POST",body:{label:"A"},context:ctx("owner-a@example.com")});
+ const device=await call("/api/user/device",{method:"POST",body:{label:"A"},context:ctx("owner-a@example.com")});
  const headers={Authorization:"Bearer "+device.data.token},endpoint="https://web.push.apple.com/extras";
  const saved=await call("/api/push/subscribe",{method:"POST",headers,body:{endpoint,keys,mode:"custom",times:["23:50"],syncAt:"10:00",stressTimes:["2026-11-09T15:00:00.000Z","nonsense"],timeZone:"UTC"}});
  assert.equal(saved.status,200);
@@ -519,8 +511,8 @@ test("sync reminders need an earlier sync and a stale one, and anticipated pushe
 });
 test("alarms belong to one owner, replace on each sync, and go with an erase",async()=>{
  const{call,ctx,rows}=harness();
- const a=await call("/api/auth/device",{method:"POST",body:{label:"A"},context:ctx("owner-a@example.com")});
- const b=await call("/api/auth/device",{method:"POST",body:{label:"B"},context:ctx("owner-b@example.com")});
+ const a=await call("/api/user/device",{method:"POST",body:{label:"A"},context:ctx("owner-a@example.com")});
+ const b=await call("/api/user/device",{method:"POST",body:{label:"B"},context:ctx("owner-b@example.com")});
  const A={Authorization:"Bearer "+a.data.token},B={Authorization:"Bearer "+b.data.token};
  const upload=(alarms,date="2026-11-09")=>call("/api/ingest",{method:"POST",headers:A,body:{kind:"alarms",date,alarms}});
  const first=await upload("\u241e06:30\u241fMonday\u241fYes\u241fGym");assert.equal(first.data.alarms,1);
@@ -538,8 +530,8 @@ test("alarms belong to one owner, replace on each sync, and go with an erase",as
 
 test("today's and tomorrow's events arrive together, and events the run didn't send are removed",async()=>{
  const{call,ctx,rows}=harness();
- const a=await call("/api/auth/device",{method:"POST",body:{label:"A"},context:ctx("owner-a@example.com")});
- await call("/api/auth/device",{method:"POST",body:{label:"B"},context:ctx("owner-b@example.com")});
+ const a=await call("/api/user/device",{method:"POST",body:{label:"A"},context:ctx("owner-a@example.com")});
+ await call("/api/user/device",{method:"POST",body:{label:"B"},context:ctx("owner-b@example.com")});
  const A={Authorization:"Bearer "+a.data.token};
  await call("/api/ingest",{method:"POST",body:{kind:"calendar",title:"Earlier",calendar:"Private",start:"2026-11-01T10:00:00Z",end:"2026-11-01T11:00:00Z"},headers:A});
  await call("/api/calendars",{method:"POST",body:{name:"Private",enabled:false},headers:A});
@@ -573,7 +565,7 @@ test("today's and tomorrow's events arrive together, and events the run didn't s
 });
 test("Health takes each measure with its own date, reads comma decimals, and ignores average heart rate quietly",async()=>{
  const{call,ctx,rows}=harness();
- const a=await call("/api/auth/device",{method:"POST",body:{label:"A"},context:ctx("owner-a@example.com")});
+ const a=await call("/api/user/device",{method:"POST",body:{label:"A"},context:ctx("owner-a@example.com")});
  const A={Authorization:"Bearer "+a.data.token};
  const sent=await call("/api/ingest",{method:"POST",body:{kind:"health",shortcutVersion:"3.0.0",date:"2026-11-04",steps:"5200",stepsDate:"2026-11-04",hrv:"45,5",hrvDate:"2026-11-03",restingHR:"",restingHRDate:"",workoutMin:"",workoutMinDate:"",sleepIntervals:"",sleepSamples:"0",sleepLimit:"100"},headers:A});
  assert.equal(sent.data.state,"accepted");
@@ -614,19 +606,19 @@ test("sleep intervals are merged across devices, filed by the morning they end, 
 });
 test("the handshake says when a verified update is ready",async()=>{
  const verified=harness({verified:true});
- const a=await verified.call("/api/auth/device",{method:"POST",body:{label:"A"},context:verified.ctx("owner-a@example.com")});
+ const a=await verified.call("/api/user/device",{method:"POST",body:{label:"A"},context:verified.ctx("owner-a@example.com")});
  const A={Authorization:"Bearer "+a.data.token};
  assert.equal((await verified.call("/api/shortcut/hello",{method:"POST",body:{shortcutVersion:"0.9.0"},headers:A})).data.updateStatus,"new_release");
  assert.equal((await verified.call("/api/shortcut/hello",{method:"POST",body:{shortcutVersion:"1.0.0"},headers:A})).data.updateStatus,"current");
  const unverified=harness();
- const b=await unverified.call("/api/auth/device",{method:"POST",body:{label:"A"},context:unverified.ctx("owner-a@example.com")});
+ const b=await unverified.call("/api/user/device",{method:"POST",body:{label:"A"},context:unverified.ctx("owner-a@example.com")});
  assert.equal((await unverified.call("/api/shortcut/hello",{method:"POST",body:{shortcutVersion:"0.9.0"},headers:{Authorization:"Bearer "+b.data.token}})).data.updateStatus,"current");
 });
 test("Even Release 2 waits for a build being signed, never offers a downgrade, updates itself, and shares its link once",async()=>{
  const shared={version:"1.0.0",url:"https://www.icloud.com/shortcuts/ae34096d23534730ae2f82a99d861414"};
  async function state(options,installed,helper){
   const t=harness(options);
-  const a=await t.call("/api/auth/device",{method:"POST",body:{label:"A"},context:t.ctx("owner-a@example.com")});
+  const a=await t.call("/api/user/device",{method:"POST",body:{label:"A"},context:t.ctx("owner-a@example.com")});
   [...t.rows.devices.values()].find(d=>d.owner_email==="owner-a@example.com").shortcut_version=installed;
   return (await t.call("/api/shortcut/release-state"+(helper?"?helper="+helper:""),{headers:{Authorization:"Bearer "+a.data.token}})).data;
  }
@@ -645,8 +637,8 @@ test("Even Release 2 waits for a build being signed, never offers a downgrade, u
 });
 test("only release accounts can share the helper link, and only a link named Even Release",async()=>{
  const{call,ctx,dispatches}=harness();
- const a=await call("/api/auth/device",{method:"POST",body:{label:"A"},context:ctx("owner-a@example.com")});
- const b=await call("/api/auth/device",{method:"POST",body:{label:"B"},context:ctx("owner-b@example.com")});
+ const a=await call("/api/user/device",{method:"POST",body:{label:"A"},context:ctx("owner-a@example.com")});
+ const b=await call("/api/user/device",{method:"POST",body:{label:"B"},context:ctx("owner-b@example.com")});
  const link="https://www.icloud.com/shortcuts/"+"1".repeat(32);
  assert.equal((await call("/api/shortcut/helper-link",{method:"POST",body:{link}})).status,401);
  assert.equal((await call("/api/shortcut/helper-link",{method:"POST",body:{link},headers:{Authorization:"Bearer "+b.data.token}})).status,403);
@@ -662,15 +654,15 @@ test("only release accounts can share the helper link, and only a link named Eve
 test("release accounts get the helper's shared link with their session",async()=>{
  const helperLink={version:"2.0.0",url:"https://www.icloud.com/shortcuts/"+"1".repeat(32)};
  const{call,ctx}=harness({helperLink});
- assert.equal((await call("/api/auth/me",{context:ctx("owner-a@example.com")})).data.helper.url,helperLink.url);
- assert.equal((await call("/api/auth/me",{context:ctx("owner-b@example.com")})).data.helper,null);
+ assert.equal((await call("/api/user/me",{context:ctx("owner-a@example.com")})).data.helper.url,helperLink.url);
+ assert.equal((await call("/api/user/me",{context:ctx("owner-b@example.com")})).data.helper,null);
 });
 test("every error carries a stable code",async()=>{
  const{call,ctx}=harness();
  const missing=await call("/api/pull");
  assert.equal(missing.status,401);
  assert.equal(missing.data.code,"device_required");
- const a=await call("/api/auth/device",{method:"POST",body:{label:"A"},context:ctx("owner-a@example.com")});
+ const a=await call("/api/user/device",{method:"POST",body:{label:"A"},context:ctx("owner-a@example.com")});
  const A={Authorization:"Bearer "+a.data.token};
  assert.equal((await call("/api/ingest",{method:"POST",body:{kind:"mystery"},headers:A})).data.code,"invalid_kind");
  assert.equal((await call("/api/nothing-here",{headers:A})).data.code,"not_found");
@@ -680,8 +672,8 @@ test("every error carries a stable code",async()=>{
 
 test("check-ins sync only after opting in, stay with their owner, honor deletes, and leave with an erase",async()=>{
  const{call,ctx}=harness();
- const a=await call("/api/auth/device",{method:"POST",body:{label:"A"},context:ctx("owner-a@example.com")});
- const b=await call("/api/auth/device",{method:"POST",body:{label:"B"},context:ctx("owner-b@example.com")});
+ const a=await call("/api/user/device",{method:"POST",body:{label:"A"},context:ctx("owner-a@example.com")});
+ const b=await call("/api/user/device",{method:"POST",body:{label:"B"},context:ctx("owner-b@example.com")});
  const A={Authorization:"Bearer "+a.data.token},B={Authorization:"Bearer "+b.data.token};
  const mood={id:"m1",ts:"2026-11-04T10:00:00Z",score:4,energy:3,stress:2,tags:["Rest"],note:"private"};
  assert.equal((await call("/api/moods",{method:"POST",headers:A,body:{moods:[mood]}})).status,409);
@@ -709,8 +701,8 @@ test("check-ins sync only after opting in, stay with their owner, honor deletes,
 });
 test("sync settings reach the Shortcut, apply on arrival, and belong to one owner",async()=>{
  const{call,ctx,rows}=harness();
- const a=await call("/api/auth/device",{method:"POST",body:{label:"A"},context:ctx("owner-a@example.com")});
- const b=await call("/api/auth/device",{method:"POST",body:{label:"B"},context:ctx("owner-b@example.com")});
+ const a=await call("/api/user/device",{method:"POST",body:{label:"A"},context:ctx("owner-a@example.com")});
+ const b=await call("/api/user/device",{method:"POST",body:{label:"B"},context:ctx("owner-b@example.com")});
  const A={Authorization:"Bearer "+a.data.token},B={Authorization:"Bearer "+b.data.token};
  const hello=headers=>call("/api/shortcut/hello",{method:"POST",body:{shortcutVersion:"3.1.0"},headers});
  assert.equal((await hello(A)).data.syncSteps,"on");
@@ -728,17 +720,17 @@ test("sync settings reach the Shortcut, apply on arrival, and belong to one owne
 });
 test("devices can be renamed only by their owner, and sign-in names label testers",async()=>{
  const{call,ctx,rows}=harness();
- const a=await call("/api/auth/device",{method:"POST",body:{label:"My iPhone"},context:ctx("owner-a@example.com")});
+ const a=await call("/api/user/device",{method:"POST",body:{label:"My iPhone"},context:ctx("owner-a@example.com")});
  const id=a.data.deviceId;
- assert.equal((await call("/api/auth/device/rename",{method:"POST",body:{deviceId:id,label:" Work Mac "},context:ctx("owner-a@example.com")})).data.label,"Work Mac");
- assert.equal((await call("/api/auth/device/rename",{method:"POST",body:{deviceId:id,label:"Mine"},context:ctx("owner-b@example.com")})).status,404);
- assert.equal((await call("/api/auth/device/rename",{method:"POST",body:{deviceId:id,label:"  "},context:ctx("owner-a@example.com")})).status,400);
+ assert.equal((await call("/api/user/device/rename",{method:"POST",body:{deviceId:id,label:" Work Mac "},context:ctx("owner-a@example.com")})).data.label,"Work Mac");
+ assert.equal((await call("/api/user/device/rename",{method:"POST",body:{deviceId:id,label:"Mine"},context:ctx("owner-b@example.com")})).status,404);
+ assert.equal((await call("/api/user/device/rename",{method:"POST",body:{deviceId:id,label:"  "},context:ctx("owner-a@example.com")})).status,400);
  assert.equal([...rows.devices.values()].find(d=>d.device_id===id).label,"Work Mac");
- await call("/api/auth/testers",{method:"POST",body:{email:"new@example.com"},context:ctx("owner-a@example.com")});
- const b=await call("/api/auth/device",{method:"POST",body:{label:"B"},context:ctx("owner-b@example.com")});
+ await call("/api/user/testers",{method:"POST",body:{email:"new@example.com"},context:ctx("owner-a@example.com")});
+ const b=await call("/api/user/device",{method:"POST",body:{label:"B"},context:ctx("owner-b@example.com")});
  assert.ok(b.data.deviceId);
- await call("/api/auth/me",{context:ctx("owner-b@example.com",undefined,"Sam Lee")});
- const listed=(await call("/api/auth/testers",{context:ctx("owner-a@example.com")})).data.testers;
+ await call("/api/user/me",{context:ctx("owner-b@example.com",undefined,"Sam Lee")});
+ const listed=(await call("/api/user/testers",{context:ctx("owner-a@example.com")})).data.testers;
  assert.equal(listed.find(t=>t.email==="owner-b@example.com").name,"Sam Lee");
  assert.equal(listed.find(t=>t.email==="owner-a@example.com").name,"Ada");
 });
@@ -747,26 +739,26 @@ test("developers can set a tester's name, which outranks sign-in and leaves with
  const{call,ctx,env,dispatches}=harness();
  const a=ctx("owner-a@example.com"),b=ctx("owner-b@example.com");
  env.RESEND_API_KEY="server-only";
- await call("/api/auth/testers",{method:"POST",body:{email:"new@example.com"},context:a});
- const name=(email,value,context=a)=>call("/api/auth/testers/name",{method:"POST",body:{email,name:value},context});
+ await call("/api/user/testers",{method:"POST",body:{email:"new@example.com"},context:a});
+ const name=(email,value,context=a)=>call("/api/user/testers/name",{method:"POST",body:{email,name:value},context});
  assert.equal((await name("new@example.com","Sam Lee",b)).status,403);
  assert.equal((await name("stranger@example.com","Sam")).status,404);
  assert.equal((await name("new@example.com"," Sam Lee ")).data.name,"Sam Lee");
- const listed=async()=>(await call("/api/auth/testers",{context:a})).data.testers.find(t=>t.email==="new@example.com");
+ const listed=async()=>(await call("/api/user/testers",{context:a})).data.testers.find(t=>t.email==="new@example.com");
  assert.equal((await listed()).name,"Sam Lee");
- await call("/api/auth/testers/invite",{method:"POST",body:{email:"new@example.com"},context:a});
+ await call("/api/user/testers/invite",{method:"POST",body:{email:"new@example.com"},context:a});
  const mail=JSON.parse(dispatches.at(-1).init?.body||dispatches.at(-1).body);
  assert.match(mail.subject,/^Ada invited you/);
  assert.match(mail.text,/^Hi Sam,/);
  assert.equal((await name("new@example.com","<b>Sam</b>")).status,200);
- await call("/api/auth/testers/invite",{method:"POST",body:{email:"new@example.com"},context:a});
+ await call("/api/user/testers/invite",{method:"POST",body:{email:"new@example.com"},context:a});
  const escaped=JSON.parse(dispatches.at(-1).init?.body||dispatches.at(-1).body);
  assert.doesNotMatch(escaped.html,/<b>Sam/);
  assert.equal((await name("new@example.com","")).data.name,null);
  assert.equal((await listed()).name,null);
  await name("new@example.com","Sam");
- await call("/api/auth/testers/remove",{method:"POST",body:{email:"new@example.com"},context:a});
- await call("/api/auth/testers",{method:"POST",body:{email:"new@example.com"},context:a});
+ await call("/api/user/testers/remove",{method:"POST",body:{email:"new@example.com"},context:a});
+ await call("/api/user/testers",{method:"POST",body:{email:"new@example.com"},context:a});
  assert.equal((await listed()).name,null);
 });
 test("a first name appears only on messages that start or close the day, or at a hard moment",()=>{
@@ -781,8 +773,8 @@ test("a first name appears only on messages that start or close the day, or at a
 
 test("people set their own name, for their account only, and an erase removes it",async()=>{
  const{call,ctx,rows}=harness();
- const a=await call("/api/auth/device",{method:"POST",body:{label:"A"},context:ctx("owner-b@example.com")});
- const b=await call("/api/auth/device",{method:"POST",body:{label:"B"},context:ctx("owner-a@example.com")});
+ const a=await call("/api/user/device",{method:"POST",body:{label:"A"},context:ctx("owner-b@example.com")});
+ const b=await call("/api/user/device",{method:"POST",body:{label:"B"},context:ctx("owner-a@example.com")});
  const A={Authorization:"Bearer "+a.data.token};
  assert.equal((await call("/api/profile/name",{method:"POST",body:{name:"Sam"}})).status,401);
  const saved=await call("/api/profile/name",{method:"POST",headers:A,body:{name:"  Sam Lee ",email:"owner-a@example.com"}});
@@ -808,7 +800,7 @@ async function pushHarness(){
 }
 test("one failing subscription doesn't stop the others, and is recorded",async()=>{
  const{call,ctx,env,rows,runtime,dispatches,keys}=await pushHarness();
- const save=async(who,endpoint)=>{const d=await call("/api/auth/device",{method:"POST",body:{label:who},context:ctx(who)});await call("/api/push/subscribe",{method:"POST",headers:{Authorization:"Bearer "+d.data.token},body:{endpoint,keys,mode:"custom",times:["09:00"],timeZone:"UTC"}});};
+ const save=async(who,endpoint)=>{const d=await call("/api/user/device",{method:"POST",body:{label:who},context:ctx(who)});await call("/api/push/subscribe",{method:"POST",headers:{Authorization:"Bearer "+d.data.token},body:{endpoint,keys,mode:"custom",times:["09:00"],timeZone:"UTC"}});};
  await save("owner-a@example.com","https://web.push.apple.com/broken");
  await save("owner-b@example.com","https://web.push.apple.com/working");
  rows.subs.get("https://web.push.apple.com/broken").times="not json";
@@ -818,7 +810,7 @@ test("one failing subscription doesn't stop the others, and is recorded",async()
 });
 test("three notifications due together go out one per run",async()=>{
  const{call,ctx,env,rows,runtime,dispatches,keys}=await pushHarness();
- const d=await call("/api/auth/device",{method:"POST",body:{label:"A"},context:ctx("owner-a@example.com")});
+ const d=await call("/api/user/device",{method:"POST",body:{label:"A"},context:ctx("owner-a@example.com")});
  const endpoint="https://web.push.apple.com/one";
  await call("/api/push/subscribe",{method:"POST",headers:{Authorization:"Bearer "+d.data.token},body:{endpoint,keys,mode:"custom",times:["09:00"],syncAt:"09:00",stressTimes:["2026-11-09T09:00:00.000Z"],timeZone:"UTC"}});
  rows.subs.get(endpoint).last_used_at="2026-11-01T00:00:00Z";
@@ -830,8 +822,8 @@ test("three notifications due together go out one per run",async()=>{
 });
 test("erase leaves only the account and devices, and deleting the account leaves nothing",async()=>{
  const{call,ctx,rows,keys}=await pushHarness();
- const a=await call("/api/auth/device",{method:"POST",body:{label:"A"},context:ctx("owner-a@example.com")});
- const b=await call("/api/auth/device",{method:"POST",body:{label:"B"},context:ctx("owner-b@example.com")});
+ const a=await call("/api/user/device",{method:"POST",body:{label:"A"},context:ctx("owner-a@example.com")});
+ const b=await call("/api/user/device",{method:"POST",body:{label:"B"},context:ctx("owner-b@example.com")});
  const A={Authorization:"Bearer "+a.data.token},B={Authorization:"Bearer "+b.data.token};
  const fill=async headers=>{
   await call("/api/ingest",{method:"POST",headers,body:{kind:"health",date:"2026-11-04",steps:"5000"}});
@@ -852,20 +844,20 @@ test("erase leaves only the account and devices, and deleting the account leaves
 test("removing a tester deletes their data and stops their devices, but not an owner's",async()=>{
  const{call,ctx,rows}=harness();
  const a=ctx("owner-a@example.com");
- await call("/api/auth/testers",{method:"POST",body:{email:"new@example.com"},context:a});
- const t=await call("/api/auth/device",{method:"POST",body:{label:"T"},context:ctx("new@example.com")});
+ await call("/api/user/testers",{method:"POST",body:{email:"new@example.com"},context:a});
+ const t=await call("/api/user/device",{method:"POST",body:{label:"T"},context:ctx("new@example.com")});
  const T={Authorization:"Bearer "+t.data.token};
  await call("/api/ingest",{method:"POST",headers:T,body:{kind:"health",date:"2026-11-04",steps:"5000"}});
- assert.equal((await call("/api/auth/testers/remove",{method:"POST",body:{email:"owner-b@example.com"},context:a})).status,400);
- assert.equal((await call("/api/auth/testers/remove",{method:"POST",body:{email:"new@example.com"},context:a})).status,200);
+ assert.equal((await call("/api/user/testers/remove",{method:"POST",body:{email:"owner-b@example.com"},context:a})).status,400);
+ assert.equal((await call("/api/user/testers/remove",{method:"POST",body:{email:"new@example.com"},context:a})).status,200);
  assert.equal([...rows.health.values()].some(x=>x.owner==="new@example.com"),false);
  assert.equal([...rows.devices.values()].some(d=>d.owner_email==="new@example.com"),false);
  assert.equal((await call("/api/sync/status",{headers:T})).status,401);
 });
 test("a device can disconnect itself, and long-unused devices stop working",async()=>{
  const{call,ctx,rows}=harness();
- const one=await call("/api/auth/device",{method:"POST",body:{label:"1"},context:ctx("owner-a@example.com")});
- const two=await call("/api/auth/device",{method:"POST",body:{label:"2"},context:ctx("owner-a@example.com")});
+ const one=await call("/api/user/device",{method:"POST",body:{label:"1"},context:ctx("owner-a@example.com")});
+ const two=await call("/api/user/device",{method:"POST",body:{label:"2"},context:ctx("owner-a@example.com")});
  const One={Authorization:"Bearer "+one.data.token},Two={Authorization:"Bearer "+two.data.token};
  assert.equal((await call("/api/device/disconnect",{method:"POST",headers:One})).status,200);
  assert.equal((await call("/api/sync/status",{headers:One})).status,401);
@@ -879,8 +871,8 @@ test("a device can disconnect itself, and long-unused devices stop working",asyn
 
 test("one calendar's saved events can be removed, for that owner and calendar only",async()=>{
  const{call,ctx,rows}=harness();
- const a=await call("/api/auth/device",{method:"POST",body:{label:"A"},context:ctx("owner-a@example.com")});
- const b=await call("/api/auth/device",{method:"POST",body:{label:"B"},context:ctx("owner-b@example.com")});
+ const a=await call("/api/user/device",{method:"POST",body:{label:"A"},context:ctx("owner-a@example.com")});
+ const b=await call("/api/user/device",{method:"POST",body:{label:"B"},context:ctx("owner-b@example.com")});
  const A={Authorization:"Bearer "+a.data.token},B={Authorization:"Bearer "+b.data.token};
  const event=(calendar,hour)=>({start:`2026-11-04T${hour}:00:00-08:00`,end:`2026-11-04T${hour}:30:00-08:00`,title:calendar+" event",calendar});
  const send=headers=>call("/api/ingest",{method:"POST",headers,body:{kind:"batch",events:[event("Work","09"),event("Home","10")]}});
@@ -896,7 +888,7 @@ test("one calendar's saved events can be removed, for that owner and calendar on
 
 test("a dated plan sends each time once, keeps its kind, and repeats weekly once it runs out",async()=>{
  const{call,ctx,env,rows,runtime,dispatches,keys}=await pushHarness();
- const d=await call("/api/auth/device",{method:"POST",body:{label:"A"},context:ctx("owner-a@example.com")});
+ const d=await call("/api/user/device",{method:"POST",body:{label:"A"},context:ctx("owner-a@example.com")});
  const endpoint="https://web.push.apple.com/dated",headers={Authorization:"Bearer "+d.data.token};
  const schedule=[{at:"2026-11-09T09:47:00Z",kind:"custom"},{at:"2026-11-09T22:10:00Z",kind:"bedtime"},{at:"nonsense",kind:"custom"},{at:"2026-11-09T23:00:00Z",kind:"banana"}];
  await call("/api/push/subscribe",{method:"POST",headers,body:{endpoint,keys,mode:"smart",times:["09:00"],schedule,timeZone:"UTC"}});
@@ -913,7 +905,7 @@ test("a dated plan sends each time once, keeps its kind, and repeats weekly once
 
 test("one session request carries the status, release, calendars and choices, and last upload counts one run",async()=>{
  const{call,ctx}=harness(),owner=ctx("owner-a@example.com");
- const device=await call("/api/auth/device",{method:"POST",context:owner,body:{label:"iPhone"}});
+ const device=await call("/api/user/device",{method:"POST",context:owner,body:{label:"iPhone"}});
  const A={Authorization:"Bearer "+device.data.token};
  assert.equal((await call("/api/session")).status,401);
  await call("/api/ingest",{method:"POST",headers:A,body:{kind:"batch",shortcutVersion:"3.0.0",health:[{date:"2026-11-01",steps:100}],events:[]}});
@@ -928,16 +920,16 @@ test("one session request carries the status, release, calendars and choices, an
  await call("/api/erase",{method:"POST",headers:A});
  session=await call("/api/session",{headers:A});
  assert.equal(session.data.status.lastUpload,null);
- await call("/api/auth/revoke",{method:"POST",context:owner,body:{deviceId:device.data.deviceId}});
+ await call("/api/user/revoke",{method:"POST",context:owner,body:{deviceId:device.data.deviceId}});
  assert.equal((await call("/api/session",{headers:A})).status,401);
 });
 
 test("over the limit, invitations and uploads are refused with a code, and every error has one",async()=>{
  const{call,ctx,env}=harness(),owner=ctx("owner-a@example.com"),refuse={async limit(){return{success:false};}};
  const origin={Origin:"https://even.bishvili.workers.dev"};
- const device=await call("/api/auth/device",{method:"POST",context:owner,headers:origin,body:{label:"iPhone"}});
+ const device=await call("/api/user/device",{method:"POST",context:owner,headers:origin,body:{label:"iPhone"}});
  env.INVITE_LIMIT=refuse;env.DEVICE_LIMIT=refuse;
- const invite=await call("/api/auth/testers",{method:"POST",context:owner,headers:origin,body:{email:"new@example.com"}});
+ const invite=await call("/api/user/testers",{method:"POST",context:owner,headers:origin,body:{email:"new@example.com"}});
  assert.equal(invite.status,429);
  assert.equal(invite.data.code,"rate_limited");
  const upload=await call("/api/ingest",{method:"POST",headers:{Authorization:"Bearer "+device.data.token},body:{kind:"batch",health:[],events:[]}});
@@ -951,7 +943,7 @@ test("the public address is configured once, and owner emails match in any case"
  assert.match(require("node:fs").readFileSync("wrangler.jsonc","utf8"),/"PUBLIC_ORIGIN": "https:\/\/even\.bishvili\.workers\.dev"/);
  const{call,ctx,env}=harness();
  env.APPROVED_SYNC_EMAILS=JSON.stringify(["Mixed.Case@Example.com"]);
- assert.equal((await call("/api/auth/me",{context:ctx("mixed.case@example.com")})).status,200);
+ assert.equal((await call("/api/user/me",{context:ctx("mixed.case@example.com")})).status,200);
 });
 
 test("sign-in answers the same for any email, only opens its own routes, and a cookie proves nothing alone",async()=>{
@@ -965,4 +957,18 @@ test("sign-in answers the same for any email, only opens its own routes, and a c
  assert.equal((await call("/api/signin/options")).data.google,false);
  assert.equal((await call("/api/user/me")).status,401);
  assert.equal((await call("/api/user/me",{headers:{"X-Email":"owner-a@example.com"}})).status,401);
+});
+
+test("files come with the security headers, and the root serves the app",async()=>{
+ const{env,runtime}=harness();
+ const open=path=>runtime.__worker.fetch(new Request("https://even.example"+path),env,{});
+ env.STATIC={async fetch(request){const path=new URL(request.url).pathname;return path==="/index.html"||path==="/sw.js"?new Response("ok",{headers:{"Content-Type":"text/html"}}):new Response("missing",{status:404});}};
+ const root=await open("/"),page=await root.text();
+ assert.equal(page,"ok");
+ assert.match(root.headers.get("Content-Security-Policy"),/default-src/);
+ assert.match(root.headers.get("Cache-Control"),/no-cache/);
+ assert.equal((await open("/sw.js")).headers.get("Service-Worker-Allowed"),"/");
+ const missing=await open("/AGENTS.md");
+ assert.equal(missing.status,404);
+ assert.match(missing.headers.get("Content-Security-Policy"),/default-src/);
 });

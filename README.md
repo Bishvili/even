@@ -48,9 +48,9 @@ The file `even-device-key.txt` in a `Even` folder in On My iPhone holds the priv
 ## Deployment configuration
 
 - Cloudflare Worker secret APPROVED_SYNC_EMAILS: JSON array of the two allowed email addresses; manage in Cloudflare, not in GitHub.
-- Worker bindings: ASSETS (Workers KV), DB (D1).
+- Worker bindings: STATIC (the app's files), ASSETS (Workers KV, release records), DB (D1).
 - Database migration: db/schema.sql.
-- Pushes to `main` deploy through Cloudflare Workers Builds, which runs `sh scripts/deploy.sh` to publish the app files to KV and deploy the Worker.
+- Pushes to `main` deploy through Cloudflare Workers Builds, which runs `sh scripts/deploy.sh` to deploy the Worker and the app's files as one version.
 
 ## Structure
 
@@ -62,7 +62,7 @@ The file `even-device-key.txt` in a `Even` folder in On My iPhone holds the priv
 
 ## Hosting
 
-Static files currently live in Cloudflare Workers KV with keys of the form asset:index.html, asset:app.js, etc. PNG assets are stored Base64 encoded; textual assets are UTF-8. The Worker binds KV as ASSETS and owner-scoped D1 storage as DB. To redeploy source changes, update KV assets and the Worker script. Adding files to GitHub alone will not update the running deployment until a CI workflow is configured. Do not commit a device authorization token or any other credential.
+The public files are the ones listed in `SHELL` in `sw.js`. `scripts/build-assets.cjs` copies them into `dist`, and the Worker adds its security headers to each one.
 
 ## Privacy
 

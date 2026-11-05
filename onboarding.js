@@ -49,7 +49,7 @@
  var COPY={
   "install:share":{title:"Add Even to your Home Screen",text:"In Safari, tap Share (or ••• and then Share), then Add to Home Screen.",unsynced:"Check-ins saved in Safari don’t move to the app."},
   "install:prompt":{title:"Install Even",text:"Open Even in its own window, with notifications for check-ins.",action:"Install"},
-  "signin:signin":{title:"Sign in",text:"Use the email your invitation went to, and we’ll send you a one-time code, or continue with Google.",action:"Sign in"},
+  "signin:signin":{title:"Sign in",text:"Use your invited email for a one-time code, or use Google.",action:"Sign in"},
   "signin:pending":{title:"Finishing sign-in…",text:"One moment.",busy:true},
   "signin:connecting":{title:"Connecting this {device}…",text:"",busy:true},
   "signin:connect":{title:"Connect this {device}",text:"Connecting lets Even Sync send your Health and calendar data to your account.",otherText:"Connecting brings in what Even Sync sends from your iPhone.",action:"Connect this {device}"},
