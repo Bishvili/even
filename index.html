@@ -56,7 +56,7 @@
     <span class="brand-icon" aria-hidden="true"><svg viewBox="0 0 512 512"><path d="M146 300a110 110 0 0 1 220 0Z" fill="currentColor"/><path d="M96 346h320" class="icon-line" stroke-width="30" stroke-linecap="round"/></svg></span>
     <span class="brand-type"><strong>Even</strong></span>
    </a>
-   <button class="sync-light" id="sync-light" data-go="data"><span class="light-dot"></span><span id="sync-light-text">Sign in</span></button>
+   <button type="button" class="sync-light" id="sync-light"><span class="light-dot"></span><span id="sync-light-text">Sign in</span></button>
   </header>
 
   <main id="main">
@@ -231,6 +231,7 @@
      <h3 class="plan-heading" id="calendars-title">Calendars</h3>
      <p class="muted">Even Sync skips calendars you turn off, and their saved events are hidden. Turning one back on brings in events from the next sync.</p>
      <div id="calendar-list" class="calendar-list"></div>
+     <details class="alarm-off" id="calendar-off" hidden><summary id="calendar-off-count"></summary><div id="calendar-off-list" class="calendar-list"></div></details>
     </section>
     <section class="card" id="alarm-card" aria-labelledby="alarm-title">
      <h2 id="alarm-title">Alarms</h2>
@@ -360,7 +361,7 @@
      <p class="muted">Tell us what went wrong or what you’d change.</p>
      <button type="button" class="btn secondary full" id="feedback-open">Send feedback</button>
     </section>
-    <div class="card"><h2>About the insights</h2><p class="muted">Comparisons need at least 5 check-ins in each group. Mood data is subjective and gaps can skew results. Nothing here is a diagnosis or proves a cause.</p><button type="button" class="btn subtle full" id="setup-again">Go through setup again</button><a class="btn subtle full" id="whitepaper-link" href="/whitepaper.html" target="_blank" rel="noopener">How Even works <span aria-hidden="true">↗</span></a><p class="muted">Version <span id="version">2.34.1</span> · No ads or analytics</p></div>
+    <div class="card"><h2>About the insights</h2><p class="muted">Comparisons need at least 5 check-ins in each group. Mood data is subjective and gaps can skew results. Nothing here is a diagnosis or proves a cause.</p><button type="button" class="btn subtle full" id="setup-again">Go through setup again</button><a class="btn subtle full" id="whitepaper-link" href="/whitepaper.html" target="_blank" rel="noopener">How Even works <span aria-hidden="true">↗</span></a><p class="muted">Version <span id="version">2.35.0</span> · No ads or analytics</p></div>
     <div class="card"><h2>Explore a sample month</h2><p class="muted">See 28 days of fictional check-ins and events. They stay separate from your own data and are never uploaded.</p><button class="btn secondary full" id="demo-button">Load 28-day calendar demo</button><button class="btn subtle full" id="clear-demo-button">Remove demo data</button></div>
    </section>
   </main>

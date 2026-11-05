@@ -1,6 +1,6 @@
 (function () {
 "use strict";
-var VERSION = "2.34.1";
+var VERSION = "2.35.0";
 var STORAGE_KEY = "even:v1";
 var HOME_ORIGIN = "https://even.bishvili.org";
 var MOOD_NAMES = ["","Rough","Low","Okay","Good","Great"];
@@ -173,11 +173,22 @@ function askConfirm(text,action){
   sheet.showModal();
  });
 }
-// The header says how fresh the data is, and what to do when there's nothing to show.
+// The header says how fresh the data is, and tapping it does the next useful thing: sync, or what stands in the way.
+var syncLightAction="signin";
+function tapSyncLight(){
+ if(syncLightAction==="offline"){toast("You’re offline. Even Sync needs a connection.");return;}
+ if(syncLightAction==="signin"){signIn();return;}
+ if(syncLightAction==="connect"){issueDevice();return;}
+ if(syncLightAction==="run"){runShortcut();return;}
+ navigate("data");$("data-title").focus({preventScroll:true});
+}
 function renderSyncLight(paired){
  var last=Date.parse(shortcutStatus&&shortcutStatus.lastDataUploadAt)||state.lastSync||0,age=Date.now()-last,minutes=Math.floor(age/60000);
  var text=!navigator.onLine?"Offline":!authEmail&&!paired?"Sign in":!paired?"Connect":!last?"Set up sync":minutes<2?"Synced just now":minutes<60?"Synced "+minutes+"m ago":minutes<1440?"Synced "+Math.floor(minutes/60)+"h ago":"Synced "+Math.floor(minutes/1440)+"d ago";
+ var otherAccount=!!(authEmail&&state.syncOwnerEmail&&authEmail!==state.syncOwnerEmail);
+ syncLightAction=!navigator.onLine?"offline":!authEmail&&!paired?"signin":otherAccount||(!paired&&!authKnown)?"data":!paired?"connect":!last?"data":"run";
  $("sync-light-text").textContent=text;
+ $("sync-light").setAttribute("aria-label",text+{offline:". Even Sync needs a connection.",signin:"",connect:"",data:". Open Data.",run:". Run Even Sync."}[syncLightAction]);
  $("sync-light").classList.toggle("connected",navigator.onLine&&paired&&!!last&&minutes<1440);
 }
 var MEASURES=[["sleepHours","Sleep","sleep"],["steps","Steps","steps"],["workoutMin","Exercise","workout"],["restingHR","Resting heart rate","restingHR"],["hrv","Heart rate variability","hrv"]];
@@ -694,15 +705,17 @@ function syncErrorLabel(code){
  };
  return reasons[code]||"The last upload didn’t go through.";
 }
+var calendarsShown=[];
 function renderCalendars(calendars){
- var list=$("calendar-list");
- list.textContent="";
+ calendarsShown=calendars;
+ var list=$("calendar-list"),offList=$("calendar-off-list"),off=calendars.filter(function(c){return !c.enabled;});
+ list.textContent="";offList.textContent="";
+ $("calendar-off").hidden=!off.length;
+ $("calendar-off-count").textContent=plural(off.length,"calendar off","calendars off");
  if(!calendars.length){var empty=document.createElement("p");empty.className="muted";empty.textContent="Calendars appear here after they sync an event.";list.appendChild(empty);return;}
- calendars.forEach(function(calendar){
-  var row=document.createElement("label"),name=document.createElement("span"),box=document.createElement("input");
-  row.className="calendar-row";name.textContent=calendar.name;box.type="checkbox";box.setAttribute("role","switch");box.checked=calendar.enabled;
-  box.addEventListener("change",function(){setCalendar(calendar.name,box);});
-  row.appendChild(name);row.appendChild(box);list.appendChild(row);
+ off.forEach(function(calendar){offList.appendChild(calendarSwitch(calendar));});
+ calendars.filter(function(c){return c.enabled;}).forEach(function(calendar){
+  list.appendChild(calendarSwitch(calendar));
   var purpose=document.createElement("select");
   purpose.className="calendar-purpose";purpose.setAttribute("aria-label","What "+calendar.name+" is for");
   CALENDAR_PURPOSES.forEach(function(item){var option=document.createElement("option");option.textContent=item==="Other"?"Not set":item;option.value=item;purpose.appendChild(option);});
@@ -710,6 +723,13 @@ function renderCalendars(calendars){
   purpose.addEventListener("change",function(){setCalendarPurpose(calendar.name,purpose);});
   list.appendChild(purpose);
  });
+}
+function calendarSwitch(calendar){
+  var row=document.createElement("label"),name=document.createElement("span"),box=document.createElement("input");
+  row.className="calendar-row";name.textContent=calendar.name;box.type="checkbox";box.setAttribute("role","switch");box.checked=calendar.enabled;
+  box.addEventListener("change",function(){setCalendar(calendar.name,box);});
+  row.appendChild(name);row.appendChild(box);
+  return row;
 }
 async function setCalendarPurpose(name,select){
  select.disabled=true;
@@ -730,6 +750,7 @@ async function setCalendar(name,box){
    var removed=await fetch("/api/calendars/events/delete",{method:"POST",headers:{"Authorization":"Bearer "+state.token,"Content-Type":"application/json"},body:JSON.stringify({name:name}),cache:"no-store"});
    toast(removed.ok?"Removed "+plural(saved,"saved event","saved events")+" from "+name+".":"Couldn’t remove the saved events from "+name+".");
   }else toast(name+(enabled?" is on.":" is off."));
+  renderCalendars(calendarsShown.map(function(c){return c.name===name?Object.assign({},c,{enabled:enabled}):c;}));
   pull(true);
  }catch(e){box.checked=!enabled;toast("Couldn’t update that calendar.");}
  finally{box.disabled=false;}
@@ -1006,6 +1027,7 @@ function init(){
   if(!item||!navTouch||Math.abs(t.clientX-navTouch.x)>12||Math.abs(t.clientY-navTouch.y)>12)return;
   ev.preventDefault();item.click();
  });
+ $("sync-light").addEventListener("click",tapSyncLight);
  $("pull-button").addEventListener("click",function(){pull(false);});$("run-shortcut").addEventListener("click",function(event){event.preventDefault();runShortcut();});
  $("unpair-button").addEventListener("click",function(){if(state.deviceId)revokeDevice(state.deviceId);});
  $("sign-out").addEventListener("click",signOut);

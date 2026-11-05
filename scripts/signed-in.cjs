@@ -16,7 +16,7 @@ function fakeApi(overrides={}){
   const request=route.request(),url=new URL(request.url()),send=(body,status=200)=>route.fulfill({status,contentType:"application/json",body:JSON.stringify(body)});
   if(url.pathname==="/api/session"){
    if(api.session!==200)return send({ok:false,code:"signed_out"},api.session);
-   return send({ok:true,status:{deviceId:DEVICE,credentialValid:true},release:{},calendars:[],settings:{},moods:api.moods});
+   return send({ok:true,status:{deviceId:DEVICE,credentialValid:true,...api.status},release:{},calendars:api.calendars||[],settings:{},moods:api.moods});
   }
   if(url.pathname==="/api/moods"){
    if(api.failMoods)return send({ok:false,code:"unavailable"},503);
@@ -173,6 +173,35 @@ const scenarios={
    assert.equal((await stored(page)).moodCursor,shared.cursor);
    await until(page,()=>JSON.parse(localStorage.getItem("even:v1")).pendingMoods.length===0);
    assert.ok(api.uploaded.some(m=>m.id==="restored"));
+  });
+ },
+ "turned-off calendars collapse, and turning one on brings it back":async(browser,base)=>{
+  const api=fakeApi();api.calendars=[{name:"Work",enabled:true,category:"Work"},{name:"Holidays",enabled:false,category:"Other"},{name:"Birthdays",enabled:false,category:"Other"}];
+  await open(browser,base,saved({moodCursor:shared.cursor}),api,async({page})=>{
+   await goTo(page,"data");
+   await until(page,()=>document.getElementById("calendar-off-count").textContent==="2 calendars off");
+   assert.equal(await page.isVisible("#calendar-off-list"),false);
+   assert.equal(await page.locator("#calendar-list .calendar-purpose").count(),1);
+   await page.click("#calendar-off-count");
+   await page.locator("#calendar-off-list input").first().click();
+   await until(page,()=>document.getElementById("calendar-off-count").textContent==="1 calendar off");
+   assert.equal(await page.locator("#calendar-list .calendar-row").count(),2);
+  });
+ },
+ "the sync label says what a tap does, and signed out it opens sign-in":async(browser,base)=>{
+  const signedOut=fakeApi({me:"",session:401});
+  await open(browser,base,saved({token:"",deviceId:"",syncOwnerEmail:"",pairedAt:null}),signedOut,async({page})=>{
+   await until(page,()=>document.getElementById("sync-light").getAttribute("aria-label")==="Sign in");
+   await page.click("#sync-light");
+   await until(page,()=>document.querySelector("dialog[open]"));
+  });
+  const api=fakeApi();api.status={lastDataUploadAt:new Date(Date.now()-3*3600000).toISOString()};
+  await open(browser,base,saved({moodCursor:shared.cursor}),api,async({page,context})=>{
+   await until(page,()=>document.getElementById("sync-light").getAttribute("aria-label")==="Synced 3h ago. Run Even Sync.");
+   await context.setOffline(true);
+   await until(page,()=>document.getElementById("sync-light").getAttribute("aria-label").startsWith("Offline"));
+   await page.click("#sync-light");
+   await until(page,()=>document.body.textContent.includes("You’re offline"));
   });
  },
  "damaged storage opens as a new install":async(browser,base)=>{
