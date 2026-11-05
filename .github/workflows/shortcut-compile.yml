@@ -21,6 +21,21 @@ jobs:
       - name: Run tests
         run: node --test tests/*.test.cjs
 
+  browser-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install browsers
+        run: |
+          npm install --no-save --no-package-lock playwright@1.63.0
+          npx playwright install --with-deps chromium webkit
+      - name: Load every screen with the production security rules
+        run: node scripts/smoke.cjs chromium webkit
+
   shortcut-compile:
     runs-on: ubuntu-latest
     timeout-minutes: 15

@@ -9,7 +9,7 @@ const original = fs.readFileSync(path.join(__dirname, "..", "app.js"), "utf8");
 
 function loadAppWithoutStartingUI() {
  const instrumented = original.replace(/init\(\);\s*\}\)\(\);\s*$/, [
-  "globalThis.__testApi={buildDemoCalendarScenario,calendarPatternSummary,",
+  "globalThis.__testApi={drawTimes,buildDemoCalendarScenario,calendarPatternSummary,",
   "renderInsights,renderStats,getState:()=>state,setScope:s=>{insightScope=s;},dateKey};",
   "})();"
  ].join(""));
@@ -87,4 +87,16 @@ test("personal insights and daily statistics exclude fictional records", () => {
  assert.match(elements.get("insight-samples").textContent,/112 fictional check-ins/);
  assert.match(elements.get("calendar-insights").innerHTML,/Exercise/);
  assert.match(elements.get("calendar-insights").innerHTML,/Meeting/);
+});
+
+test("time of day shows an average only from 3 check-ins, with bars to scale",()=>{
+ const {api,elements}=loadAppWithoutStartingUI();
+ const at=hour=>{const d=new Date();d.setHours(hour,0,0,0);return d.toISOString();};
+ const moods=[{ts:at(8),score:5},{ts:at(8),score:5},{ts:at(8),score:5},{ts:at(12),score:1}];
+ api.drawTimes(moods);
+ const html=elements.get("time-insights").innerHTML;
+ assert.match(html,/class="bar-value" width="100\.0%"/);
+ assert.match(html,/Not enough check-ins/);
+ assert.match(html,/1 check-in</);
+ assert.doesNotMatch(html,/style="/);
 });

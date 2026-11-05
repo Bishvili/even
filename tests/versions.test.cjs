@@ -33,3 +33,15 @@ test("the helper installs from the link it last shared, and the paper opens in S
  assert.match(app,/if\(authHelper\)helper\.href=authHelper;else helper\.removeAttribute\("href"\)/);
  assert.match(app,/navigator\.standalone===true\)\["whitepaper-link","welcome-paper"\]/);
 });
+
+test("no script writes an inline style, which the security policy blocks",()=>{
+ for(const file of ["app.js","coach.js","reminders.js","onboarding.js","intake.js","invites.js","refresh.js"])assert.doesNotMatch(read(file),/style="/,file);
+});
+test("each page has its own offline copy, so the app is never replaced",()=>{
+ const self={addEventListener(){}},sandbox={self};
+ require("node:vm").runInNewContext(read("sw.js")+";this.pageKey=pageKey;",sandbox);
+ assert.equal(sandbox.pageKey("/"),"/");
+ assert.equal(sandbox.pageKey("/index.html"),"/");
+ assert.equal(sandbox.pageKey("/whitepaper.html"),"/whitepaper.html");
+ assert.ok(read("sw.js").includes('"/whitepaper.css"'));
+});

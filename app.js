@@ -1,6 +1,6 @@
 (function () {
 "use strict";
-var VERSION = "2.15.2";
+var VERSION = "2.15.3";
 var SHORTCUT_PAGE = "https://routinehub.co/shortcut/26978/";
 var STORAGE_KEY = "even:v1";
 var MOOD_NAMES = ["","Rough","Low","Okay","Good","Great"];
@@ -236,9 +236,19 @@ function drawTrend(moods){
  $("trend-note").textContent=points.length+" days with check-ins · Daily averages (1–5)";
 }
 function timeGroup(ts){var h=new Date(ts).getHours();return h>=5&&h<11?0:h>=11&&h<15?1:h>=15&&h<20?2:3;}
+function plural(count,word){return count+" "+word+(count===1?"":"s");}
+// Averages need at least 3 check-ins. Bars are SVG, because the security policy blocks inline styles.
+function timeRows(moods){
+ return ["Morning","Midday","Afternoon","Evening"].map(function(name,i){
+  var scores=moods.filter(function(m){return timeGroup(m.ts)===i;}).map(function(m){return m.score;});
+  return {name:name,count:scores.length,average:scores.length>=3?average(scores):null};
+ });
+}
 function drawTimes(moods){
- var names=["Morning · 5–11","Midday · 11–3","Afternoon · 3–8","Evening · 8–5"];
- $("time-insights").innerHTML=moods.length?names.map(function(name,i){var group=moods.filter(function(m){return timeGroup(m.ts)===i;}),avg=average(group.map(function(m){return m.score;}));return '<div class="bar-row"><div class="bar-name">'+name.split(" · ")[0]+'<span class="bar-sub">'+group.length+' check-ins</span></div><div class="bar-track"><div class="bar-fill" style="width:'+(group.length?((avg/5)*100).toFixed(1):0)+'%"></div></div><div class="bar-number">'+score(avg)+'</div></div>';}).join("")+'<p class="muted">Compare time buckets only after each has several check-ins.</p>':blank("Log moods at different times to see when you tend to feel better.");
+ $("time-insights").innerHTML=moods.length?timeRows(moods).map(function(row){
+  var known=row.average!==null,bar=known?'<svg class="bar-chart" width="100%" height="10" aria-hidden="true"><rect class="bar-back" width="100%" height="10" rx="5"/><rect class="bar-value" width="'+((row.average/5)*100).toFixed(1)+'%" height="10" rx="5"/></svg>':'<span class="bar-empty">Not enough check-ins</span>';
+  return '<div class="bar-row"><div class="bar-name">'+row.name+'<span class="bar-sub">'+plural(row.count,"check-in")+'</span></div><div>'+bar+'</div><div class="bar-number">'+(known?row.average.toFixed(1):"—")+'</div></div>';
+ }).join("")+'<p class="muted">Each time of day needs at least 3 check-ins.</p>':blank("Log moods at different times to see when you tend to feel better.");
 }
 function diffHtml(label,yes,no){
  var d=average(yes)-average(no),cls=d>0.05?"positive":d<-0.05?"negative":"",v=(d>0?"+":"")+d.toFixed(1);
