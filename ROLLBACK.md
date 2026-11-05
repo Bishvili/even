@@ -12,3 +12,5 @@ What a rollback does not undo:
 - **Database changes.** Migrations stay applied, and only additive changes are safe to roll back across. After migration 0009 dropped the old notification columns, versions before 2.33.0 can't save notifications.
 - **Secrets and KV release records.** These are separate from versions. The published Even Sync link stays as it is.
 - **Installed apps.** They pick up the older files the next time they check for an update.
+
+The steps were tried on 5 November 2026 by redeploying the current version at 100%, which changed nothing and confirmed the call works. Going back to an older version hasn't been tried on production.
