@@ -1,7 +1,6 @@
 (function () {
 "use strict";
-var VERSION = "2.21.0";
-var SHORTCUT_PAGE = "https://routinehub.co/shortcut/26978/";
+var VERSION = "2.21.1";
 var STORAGE_KEY = "even:v1";
 var MOOD_NAMES = ["","Rough","Low","Okay","Good","Great"];
 var MOOD_EMOJI = ["","😣","😕","😐","🙂","😄"];
@@ -201,7 +200,8 @@ function renderSync(){
  $("shortcut-install-help").textContent=canInstall
   ?"Then tap Run Even Sync to connect it."
   :mismatch?"Sign in with this iPhone’s account to continue."
-  :paired?"Connect to the internet to get Even Sync."
+  :paired&&!navigator.onLine?"Connect to the internet to get Even Sync."
+  :paired?"Even Sync isn’t available right now. Try again soon."
   :"Sign in to get Even Sync.";
  $("check-shortcut-upload").disabled=shortcutStatusLoading;
  var installed=shortcutStatus&&shortcutStatus.installedShortcutVersion||"";
@@ -219,11 +219,11 @@ function renderSync(){
  renderDevices();
  if(globalThis.EvenOnboarding)globalThis.EvenOnboarding.render();
 }
-// The verified iCloud link, or the public listing while it's unavailable. Empty when this iPhone can't install.
+// The verified iCloud link. Empty when there is none or this iPhone can't install.
 function shortcutLink(){
  var paired=!!state.token&&!!state.syncOwnerEmail&&!!state.deviceId,accountMatches=!authEmail||authEmail===state.syncOwnerEmail;
  if(!paired||!accountMatches||!navigator.onLine)return "";
- return shortcutRelease&&shortcutRelease.url&&shortcutRelease.verified?shortcutRelease.url:SHORTCUT_PAGE;
+ return shortcutRelease&&shortcutRelease.url&&shortcutRelease.verified?shortcutRelease.url:"";
 }
 function renderDevices(){
  var el=$("device-list");

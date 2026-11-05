@@ -19,7 +19,7 @@ The device key is stored as plain text. **It is not encrypted by Even or held in
 
 - The file stays on the iPhone and does not sync through iCloud Drive. A new device needs its own key.
 - Anyone with access to the Files app on the iPhone can read it, and any Shortcut granted access to the file can read it. Do not install untrusted Shortcuts.
-- Do not share the file or put its contents in GitHub, Cherri Playground, RoutineHub links, public source or screenshots.
+- Do not share the file or put its contents in GitHub, Cherri Playground, public source or screenshots.
 - Deleting the Shortcut does not delete the file. To disconnect a device, revoke its key in Even and delete `even-device-key.txt` in Files.
 
 Treat the key as sensitive and revoke it in Even if exposure is suspected. A revoked key can't be used even if a copy of the file remains. The Shortcut itself contains no private token, so a tested installed copy can be shared to create an iCloud link without exposing the key.
@@ -46,7 +46,7 @@ Failures show a notification instead of asking, so scheduled runs never wait for
 
 On every push, GitHub Actions runs `node --test tests/*.test.cjs`, compiles both Shortcuts with pinned Cherri 2.3.0, and runs `scripts/check-shortcut-conditions.py` on the compiled property lists. The checks confirm every `If` comparison keeps its value, timestamps keep their time zone, the records and the single Health upload refer to the right values, and no average heart rate is read. Pushes to `main` then sign both Shortcuts with Cherri HubSign and post them, with their versions, to the `shortcut-latest` release.
 
-Passing these checks doesn't show that Calendar, Health, file access or network requests work on an iPhone, so run each new build on a device before publishing. See [RoutineHub releases](ROUTINEHUB_RELEASE.md). Pushes to `main` deploy the app and Worker.
+Passing these checks doesn't show that Calendar, Health, file access or network requests work on an iPhone, so run each new build on a device before publishing. See [Even Sync releases](RELEASE.md). Pushes to `main` deploy the app and Worker.
 
 ## References
 

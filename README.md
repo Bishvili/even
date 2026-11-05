@@ -39,7 +39,7 @@ The PWA itself remains public and keeps anonymous/offline mood tracking. To sync
 
 Even uses an Apple Shortcut to transmit selected Calendar and Health measurements from the owner's iPhone to the Cloudflare Worker. The PWA itself does not access HealthKit or EventKit.
 
-Even Sync is a single Shortcut with no import questions, published on [RoutineHub](https://routinehub.co/shortcut/26978/). Running it from Even → **Data** passes the device key, and the Shortcut saves it for later runs and automations. Nobody copies a key.
+Even Sync is a single Shortcut with no import questions, installed from the app. Running it from Even → **Data** passes the device key, and the Shortcut saves it for later runs and automations. Nobody copies a key.
 
 Even Sync reads its Authorization value from the saved file and, if none has been accepted yet, shows a message pointing back to the app. It sends an authenticated `/api/shortcut/hello` handshake, then today's and tomorrow's Calendar events in one upload, all Health measures in another, and alarms last, through `/api/ingest`; every upload is checked explicitly. The Sync screen distinguishes a successful connection from actual accepted data and allows the user to revoke the device credential. Version checks only offer newer verified releases, and Apple requires approval before replacing an installed Shortcut.
 

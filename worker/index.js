@@ -603,7 +603,7 @@ async function syncApi(request,env,path){
   const link=String(input?.link||"").trim();
   if(!ICLOUD_SHORTCUT.test(link))return error("A valid Shortcut link is required",400,"invalid_link");
   if(await shortcutName(link)!=="Even Sync")return error("That link isn't Even Sync, so nothing was published.",400,"wrong_shortcut");
-  return await startWorkflow(env,"routinehub-publish.yml",{icloud_link:link})?reply({ok:true}):error("Publishing couldn't start",502,"publish_failed");
+  return await startWorkflow(env,"publish-release.yml",{icloud_link:link})?reply({ok:true}):error("Publishing couldn't start",502,"publish_failed");
  }
  // Even Release shares its own link, so Set Up Release Helper installs the current helper.
  if(path==="/api/shortcut/helper-link"&&request.method==="POST"){
@@ -837,7 +837,7 @@ async function syncApi(request,env,path){
  return error("Not found",404,"not_found");
 }
 async function api(request,env,ctx,path){
- if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:"Even",version:"2.21.0",sync:"email-access"});
+ if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:"Even",version:"2.21.1",sync:"email-access"});
  if(path.startsWith("/api/auth/"))return authApi(request,env,ctx,path);
  return syncApi(request,env,path);
 }

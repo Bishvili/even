@@ -1,4 +1,4 @@
-name: Publish Even Sync to RoutineHub
+name: Publish Even Sync
 
 on:
   workflow_dispatch:
@@ -17,11 +17,11 @@ permissions:
   contents: write
 
 concurrency:
-  group: routinehub-release
+  group: even-sync-release
   cancel-in-progress: false
 
 jobs:
-  routinehub-release:
+  publish:
     if: ${{ github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -56,45 +56,6 @@ jobs:
           Path(os.environ["RUNNER_TEMP"], "release-notes.txt").write_text(notes)
           with open(os.environ["GITHUB_OUTPUT"], "a") as output:
               output.write(f"version={versions.pop()}\n")
-          PY
-
-      - name: Create RoutineHub version
-        env:
-          ROUTINEHUB_API_KEY: ${{ secrets.ROUTINEHUB_API_KEY }}
-          RELEASE_VERSION: ${{ steps.release.outputs.version }}
-          ICLOUD_LINK: ${{ inputs.icloud_link }}
-        run: |
-          python3 - <<'PY'
-          import json
-          import os
-          from pathlib import Path
-          from urllib import error, parse, request
-
-          key = os.environ.get("ROUTINEHUB_API_KEY", "")
-          if not key:
-              raise SystemExit("Missing GitHub secret: ROUTINEHUB_API_KEY")
-          url = "https://routinehub.co/api/v1/" + parse.quote(key, safe="") + "/shortcuts/26978/versions/create"
-          body = parse.urlencode({
-              "version": os.environ["RELEASE_VERSION"],
-              "link": os.environ["ICLOUD_LINK"].strip(),
-              "changes": Path(os.environ["RUNNER_TEMP"], "release-notes.txt").read_text(),
-          }).encode()
-          req = request.Request(url, data=body, method="POST", headers={
-              "Content-Type": "application/x-www-form-urlencoded",
-              "Accept": "application/json",
-          })
-          try:
-              with request.urlopen(req, timeout=45) as response:
-                  result = json.loads(response.read(32768))
-          except error.HTTPError as exc:
-              # Never print the request URL: the RoutineHub API embeds its key in the path.
-              raise SystemExit(f"RoutineHub rejected version creation (HTTP {exc.code}).")
-          except (error.URLError, ValueError):
-              raise SystemExit("Could not confirm a successful RoutineHub version creation.")
-          if result.get("result") != "success":
-              # RoutineHub can return HTTP 200 for API-level failures.
-              raise SystemExit("RoutineHub reported an error; the version was not confirmed.")
-          print(f"RoutineHub listing 26978 accepted version {os.environ['RELEASE_VERSION']}.")
           PY
 
       - name: Record the release so the app and Shortcut offer it

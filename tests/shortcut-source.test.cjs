@@ -150,7 +150,7 @@ test("the release helper holds no credentials, updates itself, and asks before p
 });
 
 test("the build, deploy and publish read the versions and notes from the source",()=>{
- const sign=read(".github/workflows/shortcut-sign.yml"),deploy=read("scripts/deploy.sh"),publish=read(".github/workflows/routinehub-publish.yml"),link=read(".github/workflows/helper-link.yml");
+ const sign=read(".github/workflows/shortcut-sign.yml"),deploy=read("scripts/deploy.sh"),publish=read(".github/workflows/publish-release.yml"),link=read(".github/workflows/helper-link.yml");
  for(const text of [sign,deploy,link])assert.match(text,/const helperVersion = /);
  assert.match(sign,/Even-Sync-version\.txt/);
  assert.match(sign,/Even-Release-version\.txt/);
@@ -158,7 +158,7 @@ test("the build, deploy and publish read the versions and notes from the source"
  assert.match(deploy,/config:helper:latest" --path shortcuts\/helper\.json/);
  assert.match(publish,/shortcuts\/release-notes\.txt/);
  const notes=read("shortcuts/release-notes.txt").trim();
- assert.ok(notes.length>0&&notes.length<=180,"Release notes must fit RoutineHub's 180 characters");
+ assert.ok(notes.length>0&&notes.length<=180,"Release notes must fit in 180 characters");
  const shared=JSON.parse(read("shortcuts/helper.json"));
  assert.match(shared.version,/^\d+\.\d+\.\d+$/);
  assert.match(shared.url,/^https:\/\/www\.icloud\.com\/shortcuts\/[a-f0-9]{32}$/);

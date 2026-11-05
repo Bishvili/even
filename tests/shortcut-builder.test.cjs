@@ -41,14 +41,14 @@ test("a signed Shortcut link opens in a new tab and never includes the device ke
  assert.match(html,/id="install-shortcut"[^>]*target="_blank"[^>]*rel="noopener noreferrer"/);
  assert.doesNotMatch(html,/Bearer [a-f0-9]{64}/i);
 });
-test("an unverified iCloud release is not offered, and the listing is used instead",()=>{
+test("an unverified iCloud release is not offered",()=>{
  const t=harness();
  t.api.setAuth("test@example.com");
  t.api.chooseRelease({version:"1.0.0",url:"https://www.icloud.com/shortcuts/82109f53491f4d95a0a8b8437c4090f2",verified:false});
  t.api.renderSync();
  const install=t.elements.get("install-shortcut");
- assert.equal(install.href,"https://routinehub.co/shortcut/26978/");
- assert.equal(install.getAttribute("aria-disabled"),null);
+ assert.equal(install.hidden,true);
+ assert.equal(install.getAttribute("aria-disabled"),"true");
 });
 test("verified iCloud release enables new-tab installation",()=>{
  const t=harness();

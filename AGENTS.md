@@ -13,7 +13,6 @@ The first time someone points you at this repository, before starting other work
 | `.agents/skills/ios-pwa-frontend/SKILL.md` | All UI and copy changes. It ships with this repository, so there is nothing to install. Read it directly. | Yes |
 | GitHub access to `Bishvili/even` with push rights | Code changes, running workflows, reading build results | Yes |
 | Cloudflare connection with access to the Bishvili account | Checking the Worker and querying the D1 database | Recommended |
-| RoutineHub connection | Reading the account's listings. It cannot add a version to an existing Shortcut, so releases use the GitHub workflow. | Optional |
 | An iPhone with the Shortcuts app | Testing the Shortcut and creating iCloud links, which nothing else can do | For Shortcut work |
 
 No other skill is required. Compiling and signing the Shortcut happens in GitHub Actions, so Cherri does not need to be installed locally.
@@ -26,20 +25,18 @@ The repository owner grants these, using the new developer's own accounts:
 2. **Cloudflare:** invite them to the Bishvili account with access to Workers, KV, and D1. Pushes deploy through Workers Builds, so this is not needed just to deploy.
 3. **App sign-in:** add testers in Even → **Settings** → **Developer tools**, which stores them in the `even_approved_emails` D1 table. Accounts in `even_release_emails` can do this. Access verifies who someone is and allows any email, and the Worker decides who is approved using that table and the `APPROVED_SYNC_EMAILS` secret. Invitations are sent through Resend from `bishvili.org` with the `RESEND_API_KEY` Worker secret.
 4. **Releases:** add their email to the `even_release_emails` D1 table. Set `display_name` to welcome them on first sign-in with a guide to improving the site.
-5. **RoutineHub:** releases use the `ROUTINEHUB_API_KEY` repository secret, so they can publish through the workflow without their own key. Only share the listing's RoutineHub account deliberately.
 
 ### Developer steps
 
 1. **Connect GitHub** in Claude, and confirm push access without writing anything: listing the repository's collaborators shows their role (`write`, `maintain`, or `admin`), and GitHub only returns that list to accounts with push access. Do not create or push a branch to test access. All work goes to `main`; if a session starts on another branch, switch to `main` before committing.
 2. **Connect Cloudflare** in Claude and select the Bishvili account. It should list one Worker, `even`. The older Workers Bindings server is deprecated in favor of `https://mcp.cloudflare.com/mcp`.
-3. **Optionally connect RoutineHub** using an API key from their own RoutineHub account, under **Settings → API**. It will only show listings that account owns. In cloud sessions, add it as a Claude connector, because `routinehub.co` is not on the default network allowlist.
-4. **Run the tests:** `node --test tests/*.test.cjs`.
-5. **To work on the Shortcuts:** nobody ever copies a key. Signing in on Even → **Data** connects the iPhone automatically, and running Even Sync from the app passes the key to the Shortcut, which saves it in On My iPhone for later runs and automations.
+3. **Run the tests:** `node --test tests/*.test.cjs`.
+4. **To work on the Shortcuts:** nobody ever copies a key. Signing in on Even → **Data** connects the iPhone automatically, and running Even Sync from the app passes the key to the Shortcut, which saves it in On My iPhone for later runs and automations.
    - **Even Sync** is the Shortcut everyone installs. Its version is in `shortcuts/even-sync.cherri` and must change for each release, with one plain sentence for people in `shortcuts/release-notes.txt`.
    - **Even Release** is the developer helper, in `shortcuts/even-release.cherri`. It holds no credentials. Install it with **Set Up Release Helper** in **Settings** → **Developer tools**, which opens the link the helper last shared (`shortcuts/helper.json`). Change `helperVersion` with every change to its source: the next run downloads the new build (tap **Replace** and run it again), then shares its own new link. Even Release 1 can't update itself, so install the first Even Release 2 from `Even-Release.shortcut` in the `shortcut-latest` GitHub release.
    - **To release:** push to `main`, then tap **Run Release Helper** in **Settings** → **Developer tools**. It runs Even Sync and asks the Worker for the state. While **Build signed Even Sync** is still signing, it says to try again; that workflow signs through a service that sometimes times out, so rerun it if it fails. An older installed version downloads the latest (tap **Replace** and run it again). An unpublished version asks for confirmation, publishes, and waits until the app offers it. A newer installed build is never replaced with an older one. The Worker refuses any link not named Even Sync or Even Release. Only an iPhone can create the iCloud link.
-   - The card appears for accounts listed in `even_release_emails`, and **Improve This Site with Claude** opens a new session on this repository that starts with this onboarding. See [RoutineHub releases](shortcuts/ROUTINEHUB_RELEASE.md).
-6. **To test Sync:** sign in on Even → **Data** with their own account. Device keys belong to one account, so never reuse someone else's.
+   - The card appears for accounts listed in `even_release_emails`, and **Improve This Site with Claude** opens a new session on this repository that starts with this onboarding. See [Even Sync releases](shortcuts/RELEASE.md).
+5. **To test Sync:** sign in on Even → **Data** with their own account. Device keys belong to one account, so never reuse someone else's.
 
 ### What to know before changing anything
 
@@ -139,6 +136,7 @@ Even is an iPhone-first, installable progressive web app for quick mood check-in
   - Check-ins and notes can sync through the account, as an opt-in that is off by default. Erasing synced data removes them and turns it off.
   - Removing a tester deletes their synced data. Planned in #22.
   - Sources and Sync are one **Data** tab, leaving four tabs (#27).
+  - Even Sync is installed only from the iCloud link the app offers. There is no third-party listing.
   - Resting heart rate becomes personal recovery context, compared with the person's own usual level (planned in #37). Average heart rate is no longer collected.
   - Even Sync also sends tomorrow's events, so the wind-down and morning brief can plan around the first commitment. Even Sync 3 sends them; coaching starts using them in #37.
 - Where `README.md` disagrees with this guide, this guide is current. #34 brings the README up to date.
@@ -228,7 +226,7 @@ What Even holds and where it goes. Write every privacy statement from this table
 | Account and devices | Sign-in and Even Sync | Account email, first name, device ID and credential | Email; the name from sign-in, if any, shown to developer accounts; each device's label, dates (devices unused for 90 days disconnect), last error, Shortcut version and how many records its last upload held; only a hash of each credential | Sync status and access |
 | Testers and release accounts | Developer tools and the owner | No | Email, who added them, display name, any name a person or developer set and who set it (erasing synced data removes it) | Who can sign in and publish. The first name also goes in some notifications, the Today brief, the hard-days note and invitations. |
 
-Backups are unencrypted JSON files that people save themselves. Outside services: Cloudflare hosts the app and sends sign-in codes, Apple's push service carries encrypted notifications, Resend sends invitation emails, and releases send the public Shortcut link to GitHub and RoutineHub.
+Backups are unencrypted JSON files that people save themselves. Outside services: Cloudflare hosts the app and sends sign-in codes, Apple's push service carries encrypted notifications, Resend sends invitation emails, and releases send the public Shortcut link to GitHub.
 
 ## Schema evolution and cleanup
 

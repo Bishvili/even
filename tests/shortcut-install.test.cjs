@@ -74,13 +74,13 @@ test("only an active device can open the latest release",async()=>{
  assert.ok(!t.element("install-shortcut").getAttribute("tabindex")||t.element("install-shortcut").getAttribute("tabindex")==="-1");
 });
 
-test("an unverified release falls back to the public listing",async()=>{
+test("an unverified release offers nothing to install, and says so",async()=>{
  const t=setup({verified:false});
  t.app.setAuth(t.email,[]);
  await t.app.loadSession();
  t.app.renderSync();
- assert.equal(t.element("install-shortcut").hidden,false);
- assert.equal(t.element("install-shortcut").href,"https://routinehub.co/shortcut/26978/");
+ assert.equal(t.element("install-shortcut").hidden,true);
+ assert.match(t.element("shortcut-install-help").textContent,/isn’t available right now/);
  assert.equal(t.element("run-shortcut").hidden,false);
 });
 test("a valid credential is not mistaken for a successful Health upload",async()=>{

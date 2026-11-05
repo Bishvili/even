@@ -117,8 +117,8 @@
   }
   if(variant==="signin"){progress.signInAt=Date.now();saveProgress();app.signIn("checkin");return;}
   if(variant==="connect"){app.connect();return;}
-  // Online, the link is missing only when another account owns this iPhone.
-  if(variant==="get"){app.toast("Sign in with this iPhone’s account to get Even Sync.");return;}
+  // The Data tab's help line says why the link is missing.
+  if(variant==="get"){app.toast($("shortcut-install-help").textContent);return;}
   if(current.id==="shortcut"){app.runShortcut();return;}
   if(current.id==="notifications")root.EvenReminders.startIntake();
  }
