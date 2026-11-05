@@ -1,6 +1,6 @@
 (function () {
 "use strict";
-var VERSION = "2.20.0";
+var VERSION = "2.21.0";
 var SHORTCUT_PAGE = "https://routinehub.co/shortcut/26978/";
 var STORAGE_KEY = "even:v1";
 var MOOD_NAMES = ["","Rough","Low","Okay","Good","Great"];
@@ -373,7 +373,8 @@ function drawHealth(moods,health){
  $("health-insights").innerHTML=rows.length?rows.map(function(r){return diffHtml(r.name,r.yes,r.no);}).join("")+'<p class="muted">One daily mood average per date · '+joined.length+' matched days</p>':blank("To compare sleep or activity, log mood on at least 6 days with health records in both groups.");
 }
 function selectMood(n){selectedMood=n;document.querySelectorAll("[data-mood]").forEach(function(b){b.setAttribute("aria-pressed",String(Number(b.dataset.mood)===n));});$("save-mood").classList.toggle("save-ready",!!n);}
-function setEnergyText(){$("energy-label").textContent=$("energy").value+" · "+ENERGY_NAMES[Number($("energy").value)];}
+var energyTouched=false;
+function setEnergyText(){$("energy-label").textContent=energyTouched?$("energy").value+" · "+ENERGY_NAMES[Number($("energy").value)]:"Not set";}
 function selectStress(n){selectedStress=n;document.querySelectorAll("[data-stress]").forEach(function(b){var on=Number(b.dataset.stress)===n;b.classList.toggle("selected",on);b.setAttribute("aria-pressed",String(on));});}
 // Check-ins sync only when the account has turned it on. Each device uploads what the account lacks and removes what another device deleted.
 var moodSyncing=false;
@@ -412,7 +413,7 @@ async function syncMoods(given){
   state.moods.forEach(function(m){local[m.id]=true;});
   body.moods.forEach(function(m){
    if(local[m.id]||gone[m.id])return;
-   var item={id:m.id,ts:m.ts,score:m.score,energy:m.energy||3,tags:m.tags||[],note:m.note||""};
+   var item={id:m.id,ts:m.ts,score:m.score,energy:m.energy||null,tags:m.tags||[],note:m.note||""};
    if(m.stress)item.stress=m.stress;
    state.moods.push(item);
   });
@@ -474,9 +475,9 @@ async function renameDevice(ev){
 function thisDeviceName(){var ua=navigator.userAgent;return /iPhone/.test(ua)?"iPhone":/iPad/.test(ua)||(/Macintosh/.test(ua)&&navigator.maxTouchPoints>1)?"iPad":/Macintosh/.test(ua)?"Mac":/Windows/.test(ua)?"Windows computer":"Device";}
 function handleMoodSave(){
  if(!selectedMood){toast("Choose how you’re feeling first.");return;}
- state.moods.push({id:newId(),ts:new Date().toISOString(),score:selectedMood,energy:Number($("energy").value),tags:Array.from(selectedTags),note:$("mood-note").value.trim().slice(0,400)});
+ state.moods.push({id:newId(),ts:new Date().toISOString(),score:selectedMood,energy:energyTouched?Number($("energy").value):null,tags:Array.from(selectedTags),note:$("mood-note").value.trim().slice(0,400)});
  if(selectedStress)state.moods[state.moods.length-1].stress=selectedStress;
- if(!persist())return;selectMood(0);selectStress(0);selectedTags.clear();document.querySelectorAll("[data-tag]").forEach(function(b){b.classList.remove("selected");b.setAttribute("aria-pressed","false");});$("mood-note").value="";$("energy").value="3";setEnergyText();render();toast("Check-in saved. Thanks for checking in.");if(globalThis.EvenReminders)globalThis.EvenReminders.checkedIn();syncMoods();
+ if(!persist())return;selectMood(0);selectStress(0);selectedTags.clear();document.querySelectorAll("[data-tag]").forEach(function(b){b.classList.remove("selected");b.setAttribute("aria-pressed","false");});$("mood-note").value="";$("energy").value="3";energyTouched=false;setEnergyText();render();toast("Check-in saved. Thanks for checking in.");if(globalThis.EvenReminders)globalThis.EvenReminders.checkedIn();syncMoods();
 }
 function normalizeHealth(h,source){
  if(!h||typeof h!=="object")return null;
@@ -567,7 +568,7 @@ async function restoreBackup(file){
  if(data.account&&state.syncOwnerEmail&&data.account!==state.syncOwnerEmail)throw Error("This backup belongs to another account");
  if(!await askConfirm("Replace the check-ins, health and calendar data on this device with this backup? This can’t be undone. This iPhone stays connected.","Replace"))return;
  state.reflections=Array.isArray(data.reflections)?data.reflections.slice(-200):[];
- state.moods=data.moods.slice(-6000).filter(function(x){return !x.demo&&Number.isInteger(x.score)&&x.score>=1&&x.score<=5&&!isNaN(new Date(x.ts).getTime());}).map(function(x){return {id:String(x.id||newId()),ts:new Date(x.ts).toISOString(),score:x.score,energy:Number(x.energy)||3,tags:Array.isArray(x.tags)?x.tags.filter(function(y){return ACTIVITY_LABELS.includes(y);}).slice(0,10):[],note:String(x.note||"").slice(0,400),stress:Number.isInteger(x.stress)&&x.stress>=1&&x.stress<=5?x.stress:undefined,demo:!!x.demo};});
+ state.moods=data.moods.slice(-6000).filter(function(x){return !x.demo&&Number.isInteger(x.score)&&x.score>=1&&x.score<=5&&!isNaN(new Date(x.ts).getTime());}).map(function(x){return {id:String(x.id||newId()),ts:new Date(x.ts).toISOString(),score:x.score,energy:Number(x.energy)||null,tags:Array.isArray(x.tags)?x.tags.filter(function(y){return ACTIVITY_LABELS.includes(y);}).slice(0,10):[],note:String(x.note||"").slice(0,400),stress:Number.isInteger(x.stress)&&x.stress>=1&&x.stress<=5?x.stress:undefined,demo:!!x.demo};});
  state.health=[];data.health.slice(-1200).filter(function(x){return !x.demo;}).forEach(function(x){var h=normalizeHealth(x,x.source);if(h)upsertHealth(h);});
  state.events=[];data.events.slice(-2000).filter(function(x){return !x.demo;}).forEach(function(x){var e=normalizeEvent(x,x.source);if(e)upsertEvent(e);});
  persist();render();toast("Backup restored.");
@@ -868,7 +869,7 @@ function init(){
  document.querySelectorAll("[data-mood]").forEach(function(b){b.addEventListener("click",function(){selectMood(Number(b.dataset.mood));});});
  document.querySelectorAll("[data-tag]").forEach(function(b){b.setAttribute("aria-pressed","false");b.addEventListener("click",function(){var s=b.dataset.tag;selectedTags.has(s)?selectedTags.delete(s):selectedTags.add(s);b.classList.toggle("selected",selectedTags.has(s));b.setAttribute("aria-pressed",String(selectedTags.has(s)));});});
  document.querySelectorAll("[data-stress]").forEach(function(b){b.addEventListener("click",function(){var n=Number(b.dataset.stress);selectStress(selectedStress===n?0:n);});});
- $("energy").addEventListener("input",setEnergyText);$("save-mood").addEventListener("click",handleMoodSave);
+ $("energy").addEventListener("input",function(){energyTouched=true;setEnergyText();});$("save-mood").addEventListener("click",handleMoodSave);
  $("health-form").addEventListener("submit",handleHealthForm);$("calendar-form").addEventListener("submit",handleCalendarForm);
  $("health-import").addEventListener("change",function(ev){importHealth(ev.target.files[0]);ev.target.value="";});
  $("calendar-import").addEventListener("change",function(ev){importCalendar(ev.target.files[0]);ev.target.value="";});

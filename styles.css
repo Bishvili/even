@@ -214,3 +214,4 @@ h1[tabindex]:focus{outline:none}
 .chart-axis{display:flex;justify-content:space-between;margin-top:4px;font-size:.75rem;color:var(--chart-label)}
 .icon-deep{fill:var(--deep)}.icon-sand{fill:var(--sand)}.icon-line{stroke:var(--on-deep)}
 .nav-item span:last-child{white-space:nowrap;font-size:min(.7rem,13px)}
+.all-comparisons{padding:0}.all-comparisons>summary{padding:0 4px}

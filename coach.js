@@ -270,7 +270,7 @@
  function helpAction(data,now){
   var helps=whatHelps(data.moods,data.events,data.health,data.resets,now).filter(function(row){return !row.done;});
   var cutoff=now.getTime()-6*3600000,latest=data.moods.filter(function(m){return Date.parse(m.ts)>=cutoff&&Date.parse(m.ts)<=now.getTime();}).sort(function(a,b){return Date.parse(b.ts)-Date.parse(a.ts);})[0];
-  var wanted=!latest?null:latest.stress>=4?"stress":latest.score<=2?"score":latest.energy<=2?"energy":null;
+  var wanted=!latest?null:latest.stress>=4?"stress":latest.score<=2?"score":latest.energy&&latest.energy<=2?"energy":null;
   var lead={stress:"You noted high stress.",score:"You noted a low mood.",energy:"You noted low energy."};
   function usable(row){return row.id==="sleep"?now.getHours()>=18:now.getHours()<19||row.id==="reset";}
   var pick=null,effect=null;
@@ -372,7 +372,7 @@
  function $(id){return document.getElementById(id);}
  function element(tag,className,text){var e=document.createElement(tag);if(className)e.className=className;if(text!==undefined)e.textContent=text;return e;}
 
- function openReset(){if(!$("reset-dialog").open){$("reset-dialog").showModal();startBreathing();root.EvenApp.logReset();}}
+ function openReset(){if(!$("reset-dialog").open){$("reset-dialog").showModal();startBreathing();}}
  function saveBriefs(days,helper,name){
   if(!("caches" in root))return;
   var body={};days.forEach(function(d){if(d.level!=="unknown")body[d.date]=d.level==="harder"?brief(d,helper,name):(name?"Good morning, "+name+". ":"")+brief(d,helper);});
@@ -477,6 +477,8 @@
   },4000);
   function nextStep(){
    step=(step+1)%4;if(step===0)cycles++;
+   // Only a finished round counts toward what tends to help.
+   if(step===0&&cycles===1)root.EvenApp.logReset();
    if(cycles>=4){stopBreathing();label.textContent="Nicely done.";circle.dataset.step="3";return;}
    label.textContent=STEPS[step];circle.dataset.step=String(step);
   }
