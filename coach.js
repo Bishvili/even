@@ -5,7 +5,7 @@
  var Day=root.EvenDay,RULES=Day.RULES,mean=Day.mean,median=Day.median,localDay=Day.localDay;
  var DAY_MS=Day.DAY_MS,DAYS=["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
  var MIN_SAMPLES=3,MIN_GAP=0.4,HISTORY_DAYS=RULES.evidenceDays,NEAR_EVENT_MS=RULES.nearEventMs,EARLY_ALARM=420,REFLECTION_DAYS=7;
- var BRIEF_CACHE="even-brief",DEFAULT_ACTION="Leave room for a short reset today.";
+ var BRIEF_CACHE="health-brief",DEFAULT_ACTION="Leave room for a short reset today.";
 
  function rated(moods){return moods.filter(function(m){return Number.isInteger(m.stress)&&m.stress>=1&&m.stress<=5;});}
 

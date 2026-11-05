@@ -5,7 +5,7 @@
 // Set EVEN_BASE to check a deployed address instead.
 const {serve,SECURITY}=require("./serve-app.cjs");
 const {chromium,webkit}=require("playwright");
-const connect=()=>localStorage.setItem("even:v1",JSON.stringify({moods:[],health:[],events:[],token:"key",deviceId:"device-1",syncOwnerEmail:"owner@example.com",pairedAt:1}));
+const connect=()=>localStorage.setItem("health:v1",JSON.stringify({moods:[],health:[],events:[],token:"key",deviceId:"device-1",syncOwnerEmail:"owner@example.com",pairedAt:1}));
 async function run(type,base){
  const browser=await type.launch(),problems=[];
  const context=await browser.newContext({viewport:{width:390,height:844},serviceWorkers:"allow"});
@@ -56,10 +56,10 @@ async function run(type,base){
  await page.click("[data-mood='3']");await page.click("#save-mood");await page.waitForTimeout(100);
  if(!/^1 personal entry$/.test(await page.textContent("#entries-count")))problems.push("The entry count reads wrong after one check-in.");
  const checkCache=type===chromium;
- await page.evaluate(async withCache=>{localStorage.setItem("even-setup",JSON.stringify({skipped:{signin:1}}));localStorage.setItem("even-reminder","{}");if(withCache)await(await caches.open("even-brief")).put("/brief",new Response("x"));},checkCache);
+ await page.evaluate(async withCache=>{localStorage.setItem("health-setup",JSON.stringify({skipped:{signin:1}}));localStorage.setItem("health-reminder","{}");if(withCache)await(await caches.open("health-brief")).put("/brief",new Response("x"));},checkCache);
  await tab("settings");await page.click("#erase-local");await page.click("#confirm-yes");await page.waitForTimeout(400);
  const left=await Promise.race([page.evaluate(async withCache=>({keys:Object.keys(localStorage),caches:withCache?await caches.keys():[]}),checkCache),new Promise((_,fail)=>setTimeout(()=>fail(Error("The page stopped responding after erase.")),20000))]);
- if(left.keys.join()!=="even:v1"||left.caches.includes("even-brief"))problems.push("Erase left something behind: "+JSON.stringify(left));
+ if(left.keys.join()!=="health:v1"||left.caches.includes("health-brief"))problems.push("Erase left something behind: "+JSON.stringify(left));
  if(!await page.evaluate(()=>!document.getElementById("gate").hidden))problems.push("Erasing didn't return to the first-run steps.");
  await page.evaluate(connect);
  await page.reload();

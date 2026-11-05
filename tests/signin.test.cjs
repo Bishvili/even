@@ -33,7 +33,7 @@ test("a code signs an approved email in, and is stored only as a hash",{skip:!re
  const {auth,call,codes,DB}=await setup();
  assert.equal((await call("email-otp/send-verification-otp",{email:"in@example.com",type:"sign-in"})).status,200);
  assert.match(codes["in@example.com"],/^\d{6}$/);
- const stored=DB.raw.prepare("SELECT value FROM even_signin_verifications").all().map(r=>r.value).join();
+ const stored=DB.raw.prepare("SELECT value FROM health_signin_verifications").all().map(r=>r.value).join();
  assert.ok(!stored.includes(codes["in@example.com"]));
  assert.notEqual((await call("sign-in/email-otp",{email:"in@example.com",otp:"000000"})).status,200);
  const signed=await call("sign-in/email-otp",{email:"in@example.com",otp:codes["in@example.com"]});
@@ -50,7 +50,7 @@ test("an email that isn't approved can't create an account",{skip:!ready},async(
   const r=await call("sign-in/email-otp",{email:"out@example.com",otp:codes["out@example.com"]});
   assert.notEqual(r.status,200);
  }
- assert.equal(DB.raw.prepare("SELECT COUNT(*) AS n FROM even_signin_users").get().n,0);
+ assert.equal(DB.raw.prepare("SELECT COUNT(*) AS n FROM health_signin_users").get().n,0);
 });
 test("Google sign-in opens Google and returns to the Data tab",{skip:!ready},async()=>{
  const {call}=await setup();

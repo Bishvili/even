@@ -2,7 +2,7 @@
 (function(){
  var app=window.EvenApp,toast=app.toast;
  function $(id){return document.getElementById(id);}
- var SETTINGS_KEY="even-reminder";
+ var SETTINGS_KEY="health-reminder";
  var blockedReason="",syncError="",settings=readSettings();
 
  function defaults(){return{on:false,mode:"smart",from:"09:00",to:"21:00",count:5,times:["09:00"],every:2,hardest:"varies",brief:true,windDown:true,weekends:true,learnTimes:true,pairs:[],stressNudges:true,syncReminder:true,syncAt:"",intakeDone:false,intakeDismissed:false};}
@@ -24,7 +24,7 @@
  function saveAnticipated(items){
   if(!("caches" in window)||!items.length)return;
   var body={};items.forEach(function(item){body[item.at]=item.message;});
-  caches.open("even-brief").then(function(cache){return cache.put("/anticipate",new Response(JSON.stringify(body)));}).catch(function(){});
+  caches.open("health-brief").then(function(cache){return cache.put("/anticipate",new Response(JSON.stringify(body)));}).catch(function(){});
  }
  // Logs today's check-in times, works out any that should move, and returns every move still in force.
  function learnFromToday(){

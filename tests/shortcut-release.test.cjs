@@ -25,9 +25,9 @@ test("the public listing is offered without a falsely signed release",()=>{
 });
 
 test("current storage model contains only owner-scoped tables",()=>{
- for(const table of ["even_users","even_devices","even_health_metrics","even_calendar_events"])
+ for(const table of ["health_users","health_devices","health_metrics","health_calendar_events"])
   assert.ok(schema.includes("CREATE TABLE IF NOT EXISTS "+table),table);
- assert.doesNotMatch(schema,/CREATE TABLE IF NOT EXISTS (?:sync_tokens|health_metrics|calendar_events)\b/);
+ assert.doesNotMatch(schema,/CREATE TABLE IF NOT EXISTS (?:sync_tokens|calendar_events)\b/);
  assert.match(worker,/WHERE owner_email=\?/);
  assert.match(worker,/WHERE device_id=\? AND owner_email=\?/);
 });

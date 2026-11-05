@@ -8,16 +8,16 @@ test("every key and cache written is on the erase list",()=>{
  assert.ok(list);
  const keys=list[1],names=list[2];
  assert.match(keys,/STORAGE_KEY/);
- const constants={"app.js":"even:v1","onboarding.js":"even-setup","reminders.js":"even-reminder"};
+ const constants={"app.js":"health:v1","onboarding.js":"health-setup","reminders.js":"health-reminder"};
  for(const file of scripts){
   const source=read(file);
   for(const [,key] of source.matchAll(/localStorage\.setItem\(([^,]+),/g)){
    const value=/^["']/.test(key)?key.replace(/["']/g,""):constants[file];
    assert.ok(value,file+" writes "+key);
-   if(value!=="even:v1")assert.ok(keys.includes(value),file+" writes "+value);
+   if(value!=="health:v1")assert.ok(keys.includes(value),file+" writes "+value);
   }
   for(const [,name] of source.matchAll(/caches\.open\(([^)]+)\)/g)){
-   assert.ok(names.includes("even-brief")&&(name==='"even-brief"'||name==="BRIEF_CACHE"),file+" opens "+name);
+   assert.ok(names.includes("health-brief")&&(name==='"health-brief"'||name==="BRIEF_CACHE"),file+" opens "+name);
   }
  }
 });

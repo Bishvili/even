@@ -1,1 +1,1 @@
-ALTER TABLE even_calendars ADD COLUMN category TEXT;
+ALTER TABLE health_calendars ADD COLUMN category TEXT;

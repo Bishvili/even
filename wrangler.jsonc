@@ -38,8 +38,8 @@
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "even-private",
-      "database_id": "e489c042-ef73-49e3-a332-f28df4371b93",
+      "database_name": "health-private",
+      "database_id": "98a89332-ae2d-4d6e-9fae-ada2080e8956",
       "migrations_dir": "db/migrations"
     }
   ]

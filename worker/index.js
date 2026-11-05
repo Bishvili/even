@@ -4,11 +4,11 @@
 // unauthenticated sync operations unless a valid, unrevoked device token is supplied.
 const ICLOUD_SHORTCUT=/^https:\/\/www\.icloud\.com\/shortcuts\/[a-f0-9]{32}$/i;
 async function overLimit(limiter,key){return !!limiter&&!(await limiter.limit({key})).success;}
-async function canRelease(env,email){return !!await env.DB.prepare("SELECT 1 AS allowed FROM even_release_emails WHERE email=?").bind(email).first();}
+async function canRelease(env,email){return !!await env.DB.prepare("SELECT 1 AS allowed FROM health_release_emails WHERE email=?").bind(email).first();}
 function ownerEmails(env){try{return JSON.parse(env.APPROVED_SYNC_EMAILS||"[]").map(email=>String(email).trim().toLowerCase());}catch(e){return [];}}
 async function approved(env,email){
  if(ownerEmails(env).includes(email))return true;
- return !!await env.DB.prepare("SELECT 1 AS allowed FROM even_approved_emails WHERE email=?").bind(email).first();
+ return !!await env.DB.prepare("SELECT 1 AS allowed FROM health_approved_emails WHERE email=?").bind(email).first();
 }
 const SECURITY={"X-Content-Type-Options":"nosniff","Referrer-Policy":"no-referrer","X-Frame-Options":"DENY","Permissions-Policy":"camera=(), microphone=(), geolocation=()","Content-Security-Policy":"default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'"};
 const METRICS={sleepHours:[0,24],steps:[0,100000],hrv:[0,500],restingHR:[20,250],workoutMin:[0,1440]};
@@ -38,7 +38,7 @@ async function payload(request){
  if(type.includes("application/x-www-form-urlencoded"))return Object.fromEntries(new URLSearchParams(text));
  try{return JSON.parse(text);}catch(e){return Object.fromEntries(new URLSearchParams(text));}
 }
-const VERSION_NAME="2.41.2";
+const VERSION_NAME="2.42.0";
 function normalEmail(value){return String(value||"").trim().toLowerCase();}
 async function signinAuth(env,ctx){
  const {createAuth}=await import("./signin.mjs");
@@ -46,7 +46,7 @@ async function signinAuth(env,ctx){
 }
 // Only a session from Even's sign-in proves who someone is, and approval is checked on every request.
 async function authIdentity(request,env,ctx){
- if(!(request.headers.get("cookie")||"").includes("even.session_token"))return null;
+ if(!(request.headers.get("cookie")||"").includes("health.session_token"))return null;
  try{
   const session=await (await signinAuth(env,ctx)).api.getSession({headers:request.headers}),identity=session?.user;
   const email=normalEmail(identity?.email);
@@ -64,35 +64,35 @@ async function validDevice(request,env){
  const auth=request.headers.get("authorization")||"",match=/^Bearer ([a-f0-9]{64})$/i.exec(auth);
  if(!match)return null;
  const tokenHash=await digest(match[1].toLowerCase());
- const device=await env.DB.prepare("SELECT device_id,owner_email,revoked_at,created_at,last_used_at,last_attempt_at,last_seen_at FROM even_devices WHERE token_hash=?").bind(tokenHash).first();
+ const device=await env.DB.prepare("SELECT device_id,owner_email,revoked_at,created_at,last_used_at,last_attempt_at,last_seen_at FROM health_devices WHERE token_hash=?").bind(tokenHash).first();
  if(!device||device.revoked_at||!await approved(env,device.owner_email))return null;
  const now=new Date().toISOString(),active=lastActive(device);
  if(active&&Date.now()-Date.parse(active)>DEVICE_EXPIRY_MS){
-  await env.DB.prepare("UPDATE even_devices SET revoked_at=? WHERE device_id=? AND owner_email=? AND revoked_at IS NULL").bind(now,device.device_id,device.owner_email).run();
+  await env.DB.prepare("UPDATE health_devices SET revoked_at=? WHERE device_id=? AND owner_email=? AND revoked_at IS NULL").bind(now,device.device_id,device.owner_email).run();
   return null;
  }
- if(String(device.last_seen_at||"").slice(0,10)!==now.slice(0,10))await env.DB.prepare("UPDATE even_devices SET last_seen_at=? WHERE device_id=?").bind(now,device.device_id).run();
+ if(String(device.last_seen_at||"").slice(0,10)!==now.slice(0,10))await env.DB.prepare("UPDATE health_devices SET last_seen_at=? WHERE device_id=?").bind(now,device.device_id).run();
  return {id:device.device_id,owner:device.owner_email};
 }
 // Everything synced for one person, apart from their account and devices.
 function syncedDataStatements(env,owner,keepMoods){
- return [...(keepMoods?[]:[env.DB.prepare("DELETE FROM even_moods WHERE owner_email=?").bind(owner)]),
-  env.DB.prepare("UPDATE even_devices SET last_upload_counts=NULL WHERE owner_email=?").bind(owner),
-  env.DB.prepare("DELETE FROM even_health_metrics WHERE owner_email=?").bind(owner),
-  env.DB.prepare("DELETE FROM even_calendar_events WHERE owner_email=?").bind(owner),
-  env.DB.prepare("DELETE FROM even_calendars WHERE owner_email=?").bind(owner),
-  env.DB.prepare("DELETE FROM even_alarms WHERE owner_email=?").bind(owner),
-  env.DB.prepare("DELETE FROM even_push_subscriptions WHERE owner_email=?").bind(owner),
-  env.DB.prepare("DELETE FROM even_names WHERE email=?").bind(owner)
+ return [...(keepMoods?[]:[env.DB.prepare("DELETE FROM health_moods WHERE owner_email=?").bind(owner)]),
+  env.DB.prepare("UPDATE health_devices SET last_upload_counts=NULL WHERE owner_email=?").bind(owner),
+  env.DB.prepare("DELETE FROM health_metrics WHERE owner_email=?").bind(owner),
+  env.DB.prepare("DELETE FROM health_calendar_events WHERE owner_email=?").bind(owner),
+  env.DB.prepare("DELETE FROM health_calendars WHERE owner_email=?").bind(owner),
+  env.DB.prepare("DELETE FROM health_alarms WHERE owner_email=?").bind(owner),
+  env.DB.prepare("DELETE FROM health_push_subscriptions WHERE owner_email=?").bind(owner),
+  env.DB.prepare("DELETE FROM health_names WHERE email=?").bind(owner)
  ];
 }
 function accountStatements(env,owner){
  return [...syncedDataStatements(env,owner),
-  env.DB.prepare("DELETE FROM even_devices WHERE owner_email=?").bind(owner),
-  env.DB.prepare("DELETE FROM even_signin_sessions WHERE userId IN (SELECT id FROM even_signin_users WHERE email=?)").bind(owner),
-  env.DB.prepare("DELETE FROM even_signin_accounts WHERE userId IN (SELECT id FROM even_signin_users WHERE email=?)").bind(owner),
-  env.DB.prepare("DELETE FROM even_signin_users WHERE email=?").bind(owner),
-  env.DB.prepare("DELETE FROM even_users WHERE email=?").bind(owner)];
+  env.DB.prepare("DELETE FROM health_devices WHERE owner_email=?").bind(owner),
+  env.DB.prepare("DELETE FROM health_signin_sessions WHERE userId IN (SELECT id FROM health_signin_users WHERE email=?)").bind(owner),
+  env.DB.prepare("DELETE FROM health_signin_accounts WHERE userId IN (SELECT id FROM health_signin_users WHERE email=?)").bind(owner),
+  env.DB.prepare("DELETE FROM health_signin_users WHERE email=?").bind(owner),
+  env.DB.prepare("DELETE FROM health_users WHERE email=?").bind(owner)];
 }
 const WEEKDAYS=["sunday","monday","tuesday","wednesday","thursday","friday","saturday"];
 function alarmDays(text){
@@ -123,12 +123,12 @@ function firstAlarm(alarms,day){
 const SYNC_KINDS=["calendar","sleep","steps","restingHR","hrv","workout","alarms"];
 const METRIC_KINDS={sleepHours:"sleep",bedtimeMin:"sleep",steps:"steps",restingHR:"restingHR",hrv:"hrv",workoutMin:"workout"};
 async function syncOff(env,owner){
- const row=await env.DB.prepare("SELECT sync_off FROM even_users WHERE email=?").bind(owner).first();
+ const row=await env.DB.prepare("SELECT sync_off FROM health_users WHERE email=?").bind(owner).first();
  try{return new Set(JSON.parse(row?.sync_off||"[]"));}catch(e){return new Set();}
 }
 // Matches only turned-off calendars. With none off, it matches nothing.
 async function calendarsOffPattern(env,owner){
- const off=await env.DB.prepare("SELECT name FROM even_calendars WHERE owner_email=? AND enabled=0").bind(owner).all();
+ const off=await env.DB.prepare("SELECT name FROM health_calendars WHERE owner_email=? AND enabled=0").bind(owner).all();
  const names=(off.results||[]).map(c=>c.name.replace(/[\\^$.*+?()[\]{}|]/g,"\\$&"));
  return names.length?"^(?:"+names.join("|")+")$":"(?!)";
 }
@@ -238,18 +238,18 @@ function readEventRecords(text){
 }
 async function eventStatement(env,owner,e,at){
  const eventId=(await digest(e.start+"|"+e.end+"|"+e.title)).slice(0,40);
- return env.DB.prepare("INSERT INTO even_calendar_events(owner_email,event_id,start_time,end_time,title,category,calendar,updated_at) VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(owner_email,event_id) DO UPDATE SET title=excluded.title,category=excluded.category,calendar=excluded.calendar,updated_at=excluded.updated_at").bind(owner,eventId,e.start,e.end,e.title,e.category,e.calendar,at);
+ return env.DB.prepare("INSERT INTO health_calendar_events(owner_email,event_id,start_time,end_time,title,category,calendar,updated_at) VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(owner_email,event_id) DO UPDATE SET title=excluded.title,category=excluded.category,calendar=excluded.calendar,updated_at=excluded.updated_at").bind(owner,eventId,e.start,e.end,e.title,e.category,e.calendar,at);
 }
 // Requests within ten minutes belong to one run of Even Sync, so their counts are kept together.
 async function markUpload(env,dev,version,at,counts){
  const claimed=String(version||"").trim(),clientVersion=SEMVER.test(claimed)?claimed:null,sent=JSON.stringify(counts);
- await env.DB.prepare("UPDATE even_devices SET last_used_at=?,last_attempt_at=?,last_error_code=NULL,shortcut_version=COALESCE(?,shortcut_version),last_upload_counts=CASE WHEN last_used_at>? THEN json_patch(COALESCE(last_upload_counts,'{}'),?) ELSE ? END WHERE device_id=? AND owner_email=? AND revoked_at IS NULL")
+ await env.DB.prepare("UPDATE health_devices SET last_used_at=?,last_attempt_at=?,last_error_code=NULL,shortcut_version=COALESCE(?,shortcut_version),last_upload_counts=CASE WHEN last_used_at>? THEN json_patch(COALESCE(last_upload_counts,'{}'),?) ELSE ? END WHERE device_id=? AND owner_email=? AND revoked_at IS NULL")
   .bind(at,at,clientVersion,new Date(Date.parse(at)-600000).toISOString(),sent,sent,dev.id,dev.owner).run();
  return clientVersion;
 }
 // A name set by a developer comes first, then one given for a release account, then the one from sign-in.
 async function displayName(env,email){
- const row=await env.DB.prepare("SELECT (SELECT name FROM even_names WHERE email=?) AS chosen,(SELECT display_name FROM even_release_emails WHERE email=?) AS given,(SELECT name FROM even_users WHERE email=?) AS signin").bind(email,email,email).first();
+ const row=await env.DB.prepare("SELECT (SELECT name FROM health_names WHERE email=?) AS chosen,(SELECT display_name FROM health_release_emails WHERE email=?) AS given,(SELECT name FROM health_users WHERE email=?) AS signin").bind(email,email,email).first();
  return row?.chosen||row?.given||row?.signin||null;
 }
 function firstName(name){return String(name||"").trim().split(/\s+/)[0]||null;}
@@ -298,7 +298,7 @@ async function signinApi(request,env,ctx,path){
    if(await overLimit(env.SEND_LIMIT,email))return error("A code was just sent. Check your email.",429,"code_just_sent");
    // The network's address is only a key here, and is never stored.
    if(await overLimit(env.NETWORK_LIMIT,request.headers.get("cf-connecting-ip")||"unknown"))return error("Too many tries. Try again in a minute.",429,"rate_limited");
-   const hour=new Date().toISOString().slice(0,13),sends=await env.DB.prepare("INSERT INTO even_service(key,value,updated_at) VALUES(?,'1',?) ON CONFLICT(key) DO UPDATE SET value=CAST(value AS INTEGER)+1,updated_at=excluded.updated_at RETURNING value").bind("sends:"+(await digest(email))+":"+hour,new Date().toISOString()).first();
+   const hour=new Date().toISOString().slice(0,13),sends=await env.DB.prepare("INSERT INTO health_service(key,value,updated_at) VALUES(?,'1',?) ON CONFLICT(key) DO UPDATE SET value=CAST(value AS INTEGER)+1,updated_at=excluded.updated_at RETURNING value").bind("sends:"+(await digest(email))+":"+hour,new Date().toISOString()).first();
    if(Number(sends?.value)>SENDS_AN_HOUR)return error("Too many codes this hour. Use your latest code, or try again later.",429,"rate_limited");
    if(input.type!=="sign-in"||!await approved(env,email))return reply({success:true});
   }
@@ -318,7 +318,7 @@ async function authApi(request,env,ctx,path){
   if(path==="/api/user/erase"){
    // Each check-in keeps only its ID, so every device removes its copy instead of sending it back.
    const at=new Date().toISOString();
-   await env.DB.batch([env.DB.prepare("UPDATE even_moods SET ts=?,score=NULL,energy=NULL,stress=NULL,tags=NULL,note=NULL,updated_at=?,deleted_at=? WHERE owner_email=? AND deleted_at IS NULL").bind(at,at,at,email),...syncedDataStatements(env,email,true)]);
+   await env.DB.batch([env.DB.prepare("UPDATE health_moods SET ts=?,score=NULL,energy=NULL,stress=NULL,tags=NULL,note=NULL,updated_at=?,deleted_at=? WHERE owner_email=? AND deleted_at IS NULL").bind(at,at,at,email),...syncedDataStatements(env,email,true)]);
    return reply({ok:true,erased:true,email});
   }
   if(Date.now()-Date.parse(identity.signedInAt)>FRESH_SIGN_IN_MS)return error("Sign in again to delete your account.",403,"fresh_sign_in_required");
@@ -328,35 +328,35 @@ async function authApi(request,env,ctx,path){
  if(path==="/api/user/me"&&request.method==="GET"){
   // Sign-in may supply a name. Testers are listed by it.
   try{
-   if(identity.name)await env.DB.prepare("UPDATE even_users SET name=? WHERE email=? AND (name IS NULL OR name<>?)").bind(identity.name,email,identity.name).run();
+   if(identity.name)await env.DB.prepare("UPDATE health_users SET name=? WHERE email=? AND (name IS NULL OR name<>?)").bind(identity.name,email,identity.name).run();
   }catch(e){logEvent("name_update_failed",{route:path,error:e?.name});}
-  const r=await env.DB.prepare("SELECT device_id,label,created_at,last_used_at,last_attempt_at,last_error_code,shortcut_version,revoked_at FROM even_devices WHERE owner_email=? ORDER BY created_at DESC LIMIT 30").bind(email).all();
+  const r=await env.DB.prepare("SELECT device_id,label,created_at,last_used_at,last_attempt_at,last_error_code,shortcut_version,revoked_at FROM health_devices WHERE owner_email=? ORDER BY created_at DESC LIMIT 30").bind(email).all();
   const person=firstName(await displayName(env,email));
-  const welcome=await env.DB.prepare("SELECT display_name FROM even_release_emails WHERE email=? AND display_name IS NOT NULL AND welcomed_at IS NULL").bind(email).first();
+  const welcome=await env.DB.prepare("SELECT display_name FROM health_release_emails WHERE email=? AND display_name IS NOT NULL AND welcomed_at IS NULL").bind(email).first();
   const release=await canRelease(env,email);
-  const service=release?await env.DB.prepare("SELECT updated_at,(SELECT COUNT(*) FROM even_push_subscriptions WHERE last_push_status IS NOT NULL AND (last_push_status<200 OR last_push_status>=300)) AS failing FROM even_service WHERE key=?").bind("last_cron").first():null;
+  const service=release?await env.DB.prepare("SELECT updated_at,(SELECT COUNT(*) FROM health_push_subscriptions WHERE last_push_status IS NOT NULL AND (last_push_status<200 OR last_push_status>=300)) AS failing FROM health_service WHERE key=?").bind("last_cron").first():null;
   return reply({ok:true,email,canRelease:release,service:service?{lastCron:service.updated_at,failing:Number(service.failing||0),version:VERSION_NAME}:null,helper:release?await loadHelperLink(env):null,firstName:person,name:await displayName(env,email),welcomeName:welcome?person:null,devices:(r.results||[]).map(d=>({id:d.device_id,label:d.label,createdAt:d.created_at,lastUsedAt:d.last_used_at,lastAttemptAt:d.last_attempt_at,lastErrorCode:d.last_error_code,shortcutVersion:d.shortcut_version,revoked:!!d.revoked_at}))});
  }
  if(path==="/api/user/device"){
   if(!browserPostAllowed(request))return error("This request isn't allowed.",403,"same_origin_required");
   let input;try{input=await payload(request);}catch(e){return error("Even couldn't read that request.",400,"invalid_body");}
   const label=String(input.label||"iPhone").trim().replace(/[\x00-\x1f]/g,"").slice(0,64)||"iPhone";
-  await env.DB.prepare("UPDATE even_devices SET revoked_at=? WHERE owner_email=? AND revoked_at IS NULL AND COALESCE(last_seen_at,last_used_at,last_attempt_at,created_at)<?").bind(new Date().toISOString(),email,new Date(Date.now()-DEVICE_EXPIRY_MS).toISOString()).run();
-  const count=await env.DB.prepare("SELECT COUNT(*) AS count FROM even_devices WHERE owner_email=? AND revoked_at IS NULL").bind(email).first();
+  await env.DB.prepare("UPDATE health_devices SET revoked_at=? WHERE owner_email=? AND revoked_at IS NULL AND COALESCE(last_seen_at,last_used_at,last_attempt_at,created_at)<?").bind(new Date().toISOString(),email,new Date(Date.now()-DEVICE_EXPIRY_MS).toISOString()).run();
+  const count=await env.DB.prepare("SELECT COUNT(*) AS count FROM health_devices WHERE owner_email=? AND revoked_at IS NULL").bind(email).first();
   if(Number(count?.count||0)>=10)return error("Ten active devices maximum; revoke one first",429,"device_limit");
   const token=secureRandomHex(),deviceId=crypto.randomUUID(),at=new Date().toISOString();
-  await env.DB.prepare("INSERT OR IGNORE INTO even_users(email,created_at) VALUES(?,?)").bind(email,at).run();
-  await env.DB.prepare("INSERT INTO even_devices(token_hash,device_id,owner_email,label,created_at) VALUES(?,?,?,?,?)").bind(await digest(token),deviceId,email,label,at).run();
+  await env.DB.prepare("INSERT OR IGNORE INTO health_users(email,created_at) VALUES(?,?)").bind(email,at).run();
+  await env.DB.prepare("INSERT INTO health_devices(token_hash,device_id,owner_email,label,created_at) VALUES(?,?,?,?,?)").bind(await digest(token),deviceId,email,label,at).run();
   return reply({ok:true,email,token,deviceId,label,createdAt:at});
  }
  if(path.startsWith("/api/user/testers")){
   if(!await canRelease(env,email))return error("This account can't manage testers",403,"not_release_account");
   if(path==="/api/user/testers"&&request.method==="GET"){
    const [added,developers,users,chosen]=await Promise.all([
-    env.DB.prepare("SELECT email FROM even_approved_emails").bind().all(),
-    env.DB.prepare("SELECT email,display_name FROM even_release_emails").bind().all(),
-    env.DB.prepare("SELECT email,name FROM even_users").bind().all(),
-    env.DB.prepare("SELECT email,name FROM even_names").bind().all()
+    env.DB.prepare("SELECT email FROM health_approved_emails").bind().all(),
+    env.DB.prepare("SELECT email,display_name FROM health_release_emails").bind().all(),
+    env.DB.prepare("SELECT email,name FROM health_users").bind().all(),
+    env.DB.prepare("SELECT email,name FROM health_names").bind().all()
    ]);
    const chosenNames=new Map((chosen.results||[]).map(r=>[r.email,r.name]));
    const removable=new Set((added.results||[]).map(r=>r.email)),signInNames=new Map((users.results||[]).map(r=>[r.email,r.name])),names=new Map((developers.results||[]).map(r=>[r.email,r.display_name])),signedIn=new Set((users.results||[]).map(r=>r.email));
@@ -370,7 +370,7 @@ async function authApi(request,env,ctx,path){
   if(tester.length>254||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(tester))return error("Enter a valid email address.",400,"invalid_email");
   if((path==="/api/user/testers"||path==="/api/user/testers/invite")&&await overLimit(env.INVITE_LIMIT,email))return error("That's a lot of invitations at once. Try again in a minute.",429,"rate_limited");
   if(path==="/api/user/testers"){
-   await env.DB.prepare("INSERT OR IGNORE INTO even_approved_emails(email,added_by,created_at) VALUES(?,?,?)").bind(tester,email,new Date().toISOString()).run();
+   await env.DB.prepare("INSERT OR IGNORE INTO health_approved_emails(email,added_by,created_at) VALUES(?,?,?)").bind(tester,email,new Date().toISOString()).run();
    return reply({ok:true,emailed:await sendInvite(env,tester,email)});
   }
   if(path==="/api/user/testers/invite"){
@@ -380,20 +380,20 @@ async function authApi(request,env,ctx,path){
   if(path==="/api/user/testers/name"){
    if(!await approved(env,tester)&&!await canRelease(env,tester))return error("Add this email first.",404,"not_a_tester");
    const name=String(input?.name||"").trim().replace(/[\x00-\x1f]/g,"").slice(0,60);
-   if(name)await env.DB.prepare("INSERT INTO even_names(email,name,set_by,updated_at) VALUES(?,?,?,?) ON CONFLICT(email) DO UPDATE SET name=excluded.name,set_by=excluded.set_by,updated_at=excluded.updated_at").bind(tester,name,email,new Date().toISOString()).run();
-   else await env.DB.prepare("DELETE FROM even_names WHERE email=?").bind(tester).run();
+   if(name)await env.DB.prepare("INSERT INTO health_names(email,name,set_by,updated_at) VALUES(?,?,?,?) ON CONFLICT(email) DO UPDATE SET name=excluded.name,set_by=excluded.set_by,updated_at=excluded.updated_at").bind(tester,name,email,new Date().toISOString()).run();
+   else await env.DB.prepare("DELETE FROM health_names WHERE email=?").bind(tester).run();
    return reply({ok:true,name:await displayName(env,tester)});
   }
   if(path==="/api/user/testers/remove"){
    if(ownerEmails(env).includes(tester)||tester===email)return error("This account can't be removed.",400,"not_removable");
-   await env.DB.batch([env.DB.prepare("DELETE FROM even_approved_emails WHERE email=?").bind(tester),...accountStatements(env,tester)]);
+   await env.DB.batch([env.DB.prepare("DELETE FROM health_approved_emails WHERE email=?").bind(tester),...accountStatements(env,tester)]);
    return reply({ok:true});
   }
   return error("Not found",404,"not_found");
  }
  if(path==="/api/user/welcomed"){
   if(!browserPostAllowed(request))return error("This request isn't allowed.",403,"same_origin_required");
-  await env.DB.prepare("UPDATE even_release_emails SET welcomed_at=? WHERE email=? AND welcomed_at IS NULL").bind(new Date().toISOString(),email).run();
+  await env.DB.prepare("UPDATE health_release_emails SET welcomed_at=? WHERE email=? AND welcomed_at IS NULL").bind(new Date().toISOString(),email).run();
   return reply({ok:true});
  }
  if(path==="/api/user/device/rename"){
@@ -402,7 +402,7 @@ async function authApi(request,env,ctx,path){
   const deviceId=String(input.deviceId||""),label=String(input.label||"").trim().replace(/[\x00-\x1f]/g,"").slice(0,64);
   if(!/^[\w-]{12,80}$/.test(deviceId))return error("Invalid device identifier",400,"invalid_device");
   if(!label)return error("Enter a name for this device.",400,"invalid_label");
-  const result=await env.DB.prepare("UPDATE even_devices SET label=? WHERE device_id=? AND owner_email=? AND revoked_at IS NULL").bind(label,deviceId,email).run();
+  const result=await env.DB.prepare("UPDATE health_devices SET label=? WHERE device_id=? AND owner_email=? AND revoked_at IS NULL").bind(label,deviceId,email).run();
   if(!result.meta?.changes)return error("Device not found",404,"device_not_found");
   return reply({ok:true,label});
  }
@@ -411,7 +411,7 @@ async function authApi(request,env,ctx,path){
   let input;try{input=await payload(request);}catch(e){return error("Even couldn't read that request.",400,"invalid_body");}
   const deviceId=String(input.deviceId||"");
   if(!/^[\w-]{12,80}$/.test(deviceId))return error("Invalid device identifier",400,"invalid_device");
-  const result=await env.DB.prepare("UPDATE even_devices SET revoked_at=? WHERE device_id=? AND owner_email=? AND revoked_at IS NULL").bind(new Date().toISOString(),deviceId,email).run();
+  const result=await env.DB.prepare("UPDATE health_devices SET revoked_at=? WHERE device_id=? AND owner_email=? AND revoked_at IS NULL").bind(new Date().toISOString(),deviceId,email).run();
   return reply({ok:true,revoked:!!result.meta?.changes});
  }
  return error("Not found",404,"not_found");
@@ -443,7 +443,7 @@ async function loadShortcutRelease(env){
 async function recordSyncFailure(env,dev,code){
  const allowed=new Set(["invalid_body","invalid_kind","no_valid_records"]);
  if(!allowed.has(code))return;
- await env.DB.prepare("UPDATE even_devices SET last_attempt_at=?,last_error_code=? WHERE device_id=? AND owner_email=? AND revoked_at IS NULL")
+ await env.DB.prepare("UPDATE health_devices SET last_attempt_at=?,last_error_code=? WHERE device_id=? AND owner_email=? AND revoked_at IS NULL")
   .bind(new Date().toISOString(),code,dev.id,dev.owner).run();
 }
 
@@ -458,8 +458,8 @@ const NO_VALID_RECORDS="Some data in this upload wasn't valid.";
 async function enabledEvents(env,owner,events){
  const names=[...new Set(events.map(e=>e.calendar).filter(Boolean))];
  if(!names.length)return events;
- await env.DB.batch(names.map(name=>env.DB.prepare("INSERT OR IGNORE INTO even_calendars(owner_email,name) VALUES(?,?)").bind(owner,name)));
- const saved=await env.DB.prepare("SELECT name,enabled,category FROM even_calendars WHERE owner_email=?").bind(owner).all();
+ await env.DB.batch(names.map(name=>env.DB.prepare("INSERT OR IGNORE INTO health_calendars(owner_email,name) VALUES(?,?)").bind(owner,name)));
+ const saved=await env.DB.prepare("SELECT name,enabled,category FROM health_calendars WHERE owner_email=?").bind(owner).all();
  const calendars=new Map((saved.results||[]).map(c=>[c.name,c]));
  return events.filter(e=>calendars.get(e.calendar)?.enabled!==0).map(e=>e.category==="Other"&&calendars.get(e.calendar)?.category?{...e,category:calendars.get(e.calendar).category}:e);
 }
@@ -518,8 +518,8 @@ async function sendPush(env,key,sub,now,payload){
 }
 async function deliverPush(env,key,sub,now,payload){
  const sent=await sendPush(env,key,sub,now,payload);const endpoint=sub.endpoint;
- if(sent.status===404||sent.status===410)await env.DB.prepare("DELETE FROM even_push_subscriptions WHERE endpoint=?").bind(endpoint).run();
- else await env.DB.prepare("UPDATE even_push_subscriptions SET last_push_status=? WHERE endpoint=?").bind(sent.status,endpoint).run();
+ if(sent.status===404||sent.status===410)await env.DB.prepare("DELETE FROM health_push_subscriptions WHERE endpoint=?").bind(endpoint).run();
+ else await env.DB.prepare("UPDATE health_push_subscriptions SET last_push_status=? WHERE endpoint=?").bind(sent.status,endpoint).run();
  return sent;
 }
 const SMART_QUIET_MS=5400000;
@@ -533,7 +533,7 @@ async function sendAnticipation(env,key,sub,now){
  if(!due.length)return false;
  const at=due[due.length-1];
  const sent=await deliverPush(env,key,sub,now,pushPayload(env,firstName(sub.person)?firstName(sub.person)+", a harder stretch may be coming. Take a minute?":"A harder stretch may be coming. Take a minute?","/?do=reset",{stressAt:at}));
- if(sent.ok)await env.DB.prepare("UPDATE even_push_subscriptions SET last_stress_at=? WHERE endpoint=?").bind(at,sub.endpoint).run();
+ if(sent.ok)await env.DB.prepare("UPDATE health_push_subscriptions SET last_stress_at=? WHERE endpoint=?").bind(at,sub.endpoint).run();
  return sent.ok;
 }
 // Only for people who have synced before and haven't lately.
@@ -543,18 +543,18 @@ async function sendSyncReminder(env,key,sub,now,local){
  const [hour,minute]=sub.sync_at.split(":").map(Number),at=hour*60+minute;
  if(local.minutes<at||local.minutes-at>=60)return;
  const sent=await deliverPush(env,key,sub,now,pushPayload(env,"Time to sync. Tap to run Even Sync.","/?do=sync"));
- if(sent.ok)await env.DB.prepare("UPDATE even_push_subscriptions SET last_sync_prompt_day=? WHERE endpoint=?").bind(local.day,sub.endpoint).run();
+ if(sent.ok)await env.DB.prepare("UPDATE health_push_subscriptions SET last_sync_prompt_day=? WHERE endpoint=?").bind(local.day,sub.endpoint).run();
 }
 async function sendReminders(env,now=new Date()){
  const key=pushKey(env);if(!key)return;
- const subs=await env.DB.prepare("SELECT s.endpoint,s.p256dh,s.auth,s.mode,s.sync_at,s.last_sync_prompt_day,s.stress_times,s.last_stress_at,s.schedule,s.last_schedule_at,d.last_used_at,s.time_zone,s.last_check_in_at,COALESCE((SELECT name FROM even_names n WHERE n.email=s.owner_email),(SELECT display_name FROM even_release_emails r WHERE r.email=s.owner_email),(SELECT name FROM even_users u WHERE u.email=s.owner_email)) AS person FROM even_push_subscriptions s JOIN even_devices d ON d.device_id=s.device_id WHERE d.revoked_at IS NULL AND s.p256dh IS NOT NULL AND s.times IS NOT NULL").bind().all();
+ const subs=await env.DB.prepare("SELECT s.endpoint,s.p256dh,s.auth,s.mode,s.sync_at,s.last_sync_prompt_day,s.stress_times,s.last_stress_at,s.schedule,s.last_schedule_at,d.last_used_at,s.time_zone,s.last_check_in_at,COALESCE((SELECT name FROM health_names n WHERE n.email=s.owner_email),(SELECT display_name FROM health_release_emails r WHERE r.email=s.owner_email),(SELECT name FROM health_users u WHERE u.email=s.owner_email)) AS person FROM health_push_subscriptions s JOIN health_devices d ON d.device_id=s.device_id WHERE d.revoked_at IS NULL AND s.p256dh IS NOT NULL AND s.times IS NOT NULL").bind().all();
  const rows=subs.results||[];
  let failed=0;
  // A failure stays with its own subscription, and a slow endpoint holds up only its small group.
  for(let i=0;i<rows.length;i+=REMINDER_BATCH){
   await Promise.all(rows.slice(i,i+REMINDER_BATCH).map(async sub=>{
    try{await notifySubscriber(env,key,sub,now);}
-   catch(e){failed++;logEvent("notify_failed",{error:e?.name});await env.DB.prepare("UPDATE even_push_subscriptions SET last_push_status=? WHERE endpoint=?").bind(0,sub.endpoint).run().catch(()=>{});}
+   catch(e){failed++;logEvent("notify_failed",{error:e?.name});await env.DB.prepare("UPDATE health_push_subscriptions SET last_push_status=? WHERE endpoint=?").bind(0,sub.endpoint).run().catch(()=>{});}
   }));
  }
  return {subscriptions:rows.length,failed};
@@ -594,7 +594,7 @@ async function sendScheduled(env,key,sub,now){
  const minutes=localTime(sub.time_zone,new Date(due.at)).minutes,custom=sub.mode!=="smart";
  const body=custom?"How are you feeling?":reminderMessage(minutes,due.kind==="bedtime",due.kind==="hard",firstName(sub.person),due.part);
  const sent=quiet?{ok:true}:await deliverPush(env,key,sub,now,pushPayload(env,body,"/#checkin",{brief:due.kind==="brief"}));
- if(sent.ok)await env.DB.prepare("UPDATE even_push_subscriptions SET last_schedule_at=? WHERE endpoint=?").bind(new Date(due.at).toISOString(),sub.endpoint).run();
+ if(sent.ok)await env.DB.prepare("UPDATE health_push_subscriptions SET last_schedule_at=? WHERE endpoint=?").bind(new Date(due.at).toISOString(),sub.endpoint).run();
  return sent.ok&&!quiet;
 }
 const BUILDS="https://github.com/Bishvili/health/releases/download/shortcut-latest/";
@@ -616,7 +616,7 @@ async function startWorkflow(env,file,inputs){
  return started.status===204;
 }
 async function calendarList(env,owner){
- const r=await env.DB.prepare("SELECT name,enabled,category FROM even_calendars WHERE owner_email=? ORDER BY name").bind(owner).all();
+ const r=await env.DB.prepare("SELECT name,enabled,category FROM health_calendars WHERE owner_email=? ORDER BY name").bind(owner).all();
  return (r.results||[]).map(c=>({name:c.name,enabled:!!c.enabled,category:c.category||"Other"}));
 }
 async function syncChoices(env,owner){
@@ -626,7 +626,7 @@ async function syncChoices(env,owner){
 // Only what changed since the app last asked. The cursor is read first, so a change made during this query is sent again rather than missed.
 async function syncedMoods(env,owner,since){
  const cursor=new Date().toISOString(),from=Number.isFinite(Date.parse(since))?new Date(since).toISOString():"";
- const rows=await env.DB.prepare("SELECT id,ts,score,energy,stress,tags,note,deleted_at FROM even_moods WHERE owner_email=? AND updated_at>=? ORDER BY ts DESC LIMIT ?").bind(owner,from,LIMITS.moods).all();
+ const rows=await env.DB.prepare("SELECT id,ts,score,energy,stress,tags,note,deleted_at FROM health_moods WHERE owner_email=? AND updated_at>=? ORDER BY ts DESC LIMIT ?").bind(owner,from,LIMITS.moods).all();
  const live=(rows.results||[]).filter(m=>!m.deleted_at);
  return{email:owner,cursor,
   moods:live.map(m=>{let tags=[];try{tags=JSON.parse(m.tags||"[]");}catch(e){/* Unreadable tags read as none. */}return{id:m.id,ts:m.ts,score:m.score,energy:m.energy,stress:m.stress,tags,note:m.note||""};}),
@@ -634,10 +634,10 @@ async function syncedMoods(env,owner,since){
 }
 async function deviceStatus(env,dev,owner){
  const [device,h,c,received]=await Promise.all([
-  env.DB.prepare("SELECT last_used_at,last_attempt_at,last_error_code,shortcut_version,last_upload_counts FROM even_devices WHERE device_id=? AND owner_email=? AND revoked_at IS NULL").bind(dev.id,owner).first(),
-  env.DB.prepare("SELECT COUNT(*) AS count FROM even_health_metrics WHERE owner_email=?").bind(owner).first(),
-  env.DB.prepare("SELECT COUNT(*) AS count FROM even_calendar_events WHERE owner_email=?").bind(owner).first(),
-  env.DB.prepare("SELECT metric,MAX(day) AS day,COUNT(*) AS days FROM even_health_metrics WHERE owner_email=? GROUP BY metric").bind(owner).all()
+  env.DB.prepare("SELECT last_used_at,last_attempt_at,last_error_code,shortcut_version,last_upload_counts FROM health_devices WHERE device_id=? AND owner_email=? AND revoked_at IS NULL").bind(dev.id,owner).first(),
+  env.DB.prepare("SELECT COUNT(*) AS count FROM health_metrics WHERE owner_email=?").bind(owner).first(),
+  env.DB.prepare("SELECT COUNT(*) AS count FROM health_calendar_events WHERE owner_email=?").bind(owner).first(),
+  env.DB.prepare("SELECT metric,MAX(day) AS day,COUNT(*) AS days FROM health_metrics WHERE owner_email=? GROUP BY metric").bind(owner).all()
  ]);
  if(!device)return null;
  let lastUpload=null;
@@ -657,7 +657,7 @@ async function syncApi(request,env,path){
   if(!await canRelease(env,owner))return error("This account can't publish releases",403,"not_release_account");
   const latest=await latestBuildVersion("Even-Sync");
   if(!latest)return error("The latest build couldn't be checked",502,"build_unavailable");
-  const device=await env.DB.prepare("SELECT shortcut_version FROM even_devices WHERE device_id=? AND owner_email=?").bind(dev.id,owner).first();
+  const device=await env.DB.prepare("SELECT shortcut_version FROM health_devices WHERE device_id=? AND owner_email=?").bind(dev.id,owner).first();
   const published=(await loadShortcutRelease(env))?.version||null,installed=device?.shortcut_version||null;
   const helper=new URL(request.url).searchParams.get("helper")||"";
   // Even Release 1 knows only these three states.
@@ -697,27 +697,27 @@ async function syncApi(request,env,path){
   if(!scheduled?.length)return error("Invalid reminder request",400,"invalid_reminder");
   const stressTimes=Array.isArray(input?.stressTimes)?input.stressTimes.slice(0,14).map(String).filter(at=>Number.isFinite(Date.parse(at))):[];
   try{localTime(timeZone,new Date());}catch(e){return error("Invalid reminder request",400,"invalid_reminder");}
-  await env.DB.prepare("INSERT INTO even_push_subscriptions(endpoint,owner_email,device_id,mode,time_zone,created_at,p256dh,auth,sync_at,stress_times,schedule) VALUES(?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(endpoint) DO UPDATE SET schedule=excluded.schedule,sync_at=excluded.sync_at,stress_times=excluded.stress_times,p256dh=excluded.p256dh,auth=excluded.auth,owner_email=excluded.owner_email,device_id=excluded.device_id,mode=excluded.mode,time_zone=excluded.time_zone").bind(endpoint,owner,dev.id,mode,timeZone,new Date().toISOString(),p256dh,auth,syncAt,JSON.stringify(stressTimes),JSON.stringify(scheduled)).run();
+  await env.DB.prepare("INSERT INTO health_push_subscriptions(endpoint,owner_email,device_id,mode,time_zone,created_at,p256dh,auth,sync_at,stress_times,schedule) VALUES(?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(endpoint) DO UPDATE SET schedule=excluded.schedule,sync_at=excluded.sync_at,stress_times=excluded.stress_times,p256dh=excluded.p256dh,auth=excluded.auth,owner_email=excluded.owner_email,device_id=excluded.device_id,mode=excluded.mode,time_zone=excluded.time_zone").bind(endpoint,owner,dev.id,mode,timeZone,new Date().toISOString(),p256dh,auth,syncAt,JSON.stringify(stressTimes),JSON.stringify(scheduled)).run();
   return reply({ok:true});
  }
  if(path==="/api/push/synced"&&request.method==="POST"){
   let input;try{input=await payload(request);}catch(e){return error("Even couldn't read that request.",400,"invalid_body");}
   // How many Health types the run saw, and how many it could read, tells "no data" from "nothing matched".
   const seen=Number(input?.healthSeen),matched=Number(input?.healthMatched);
-  if(Number.isInteger(seen)&&seen>=0&&Number.isInteger(matched)&&matched>=0)await env.DB.prepare("UPDATE even_devices SET last_upload_counts=json_patch(COALESCE(last_upload_counts,'{}'),?) WHERE device_id=? AND owner_email=?").bind(JSON.stringify({healthSeen:seen,healthMatched:matched}),dev.id,owner).run();
+  if(Number.isInteger(seen)&&seen>=0&&Number.isInteger(matched)&&matched>=0)await env.DB.prepare("UPDATE health_devices SET last_upload_counts=json_patch(COALESCE(last_upload_counts,'{}'),?) WHERE device_id=? AND owner_email=?").bind(JSON.stringify({healthSeen:seen,healthMatched:matched}),dev.id,owner).run();
   const items=Number(input?.items),key=pushKey(env);
-  const sub=key&&await env.DB.prepare("SELECT endpoint,p256dh,auth FROM even_push_subscriptions WHERE device_id=? AND owner_email=? AND p256dh IS NOT NULL").bind(dev.id,owner).first();
+  const sub=key&&await env.DB.prepare("SELECT endpoint,p256dh,auth FROM health_push_subscriptions WHERE device_id=? AND owner_email=? AND p256dh IS NOT NULL").bind(dev.id,owner).first();
   if(!sub||!Number.isInteger(items)||items<0)return reply({ok:true,state:"none"});
   const sent=await deliverPush(env,key,sub,new Date(),pushPayload(env,"Sync finished. Tap to open Even.","/?sync=1"));
   return reply({ok:true,state:sent.ok?"sent":"none"});
  }
  if(path==="/api/push/check-in"&&request.method==="POST"){
-  await env.DB.prepare("UPDATE even_push_subscriptions SET last_check_in_at=? WHERE owner_email=?").bind(new Date().toISOString(),owner).run();
+  await env.DB.prepare("UPDATE health_push_subscriptions SET last_check_in_at=? WHERE owner_email=?").bind(new Date().toISOString(),owner).run();
   return reply({ok:true});
  }
  if(path==="/api/push/unsubscribe"&&request.method==="POST"){
   let input;try{input=await payload(request);}catch(e){return error("Invalid reminder request",400,"invalid_reminder");}
-  await env.DB.prepare("DELETE FROM even_push_subscriptions WHERE endpoint=? AND owner_email=?").bind(String(input?.endpoint||""),owner).run();
+  await env.DB.prepare("DELETE FROM health_push_subscriptions WHERE endpoint=? AND owner_email=?").bind(String(input?.endpoint||""),owner).run();
   return reply({ok:true});
  }
  if(path==="/api/calendars"&&request.method==="GET"){
@@ -728,31 +728,31 @@ async function syncApi(request,env,path){
   const name=String(input?.name||"");
   if(name&&name.length<=100&&CALENDAR_PURPOSES.includes(input?.category)){
    const label=input.category==="Other"?null:input.category;
-   const set=await env.DB.prepare("UPDATE even_calendars SET category=? WHERE owner_email=? AND name=?").bind(label,owner,name).run();
+   const set=await env.DB.prepare("UPDATE health_calendars SET category=? WHERE owner_email=? AND name=?").bind(label,owner,name).run();
    if(!set.meta?.changes)return error("Calendar not found",404,"calendar_not_found");
-   const rows=await env.DB.prepare("SELECT event_id,title FROM even_calendar_events WHERE owner_email=? AND calendar=?").bind(owner,name).all();
-   const updates=(rows.results||[]).map(e=>{const found=classifyCalendarTitle(e.title);return env.DB.prepare("UPDATE even_calendar_events SET category=? WHERE owner_email=? AND event_id=?").bind(found==="Other"?input.category:found,owner,e.event_id);});
+   const rows=await env.DB.prepare("SELECT event_id,title FROM health_calendar_events WHERE owner_email=? AND calendar=?").bind(owner,name).all();
+   const updates=(rows.results||[]).map(e=>{const found=classifyCalendarTitle(e.title);return env.DB.prepare("UPDATE health_calendar_events SET category=? WHERE owner_email=? AND event_id=?").bind(found==="Other"?input.category:found,owner,e.event_id);});
    for(let i=0;i<updates.length;i+=50)await env.DB.batch(updates.slice(i,i+50));
    return reply({ok:true,category:input.category});
   }
   if(!name||name.length>100||typeof input.enabled!=="boolean")return error("Invalid calendar request",400,"invalid_calendar");
-  const updated=await env.DB.prepare("UPDATE even_calendars SET enabled=? WHERE owner_email=? AND name=?").bind(input.enabled?1:0,owner,name).run();
+  const updated=await env.DB.prepare("UPDATE health_calendars SET enabled=? WHERE owner_email=? AND name=?").bind(input.enabled?1:0,owner,name).run();
   if(!updated.meta?.changes)return error("Calendar not found",404,"calendar_not_found");
-  const saved=input.enabled?null:await env.DB.prepare("SELECT COUNT(*) AS count FROM even_calendar_events WHERE owner_email=? AND calendar=?").bind(owner,name).first();
+  const saved=input.enabled?null:await env.DB.prepare("SELECT COUNT(*) AS count FROM health_calendar_events WHERE owner_email=? AND calendar=?").bind(owner,name).first();
   return reply({ok:true,savedEvents:Number(saved?.count||0)});
  }
  if(path==="/api/calendars/events/delete"&&request.method==="POST"){
   let input;try{input=await payload(request);}catch(e){return error("Invalid calendar request",400,"invalid_calendar");}
   const name=String(input?.name||"");
   if(!name||name.length>100)return error("Invalid calendar request",400,"invalid_calendar");
-  const removed=await env.DB.prepare("DELETE FROM even_calendar_events WHERE owner_email=? AND calendar=?").bind(owner,name).run();
+  const removed=await env.DB.prepare("DELETE FROM health_calendar_events WHERE owner_email=? AND calendar=?").bind(owner,name).run();
   return reply({ok:true,removed:removed.meta?.changes||0});
  }
  if(path==="/api/profile/name"&&request.method==="POST"){
   let input;try{input=await payload(request);}catch(e){return error("Even couldn't read that request.",400,"invalid_body");}
   const name=String(input?.name||"").trim().replace(/[\x00-\x1f]/g,"").slice(0,60);
-  if(name)await env.DB.prepare("INSERT INTO even_names(email,name,set_by,updated_at) VALUES(?,?,?,?) ON CONFLICT(email) DO UPDATE SET name=excluded.name,set_by=excluded.set_by,updated_at=excluded.updated_at").bind(owner,name,owner,new Date().toISOString()).run();
-  else await env.DB.prepare("DELETE FROM even_names WHERE email=?").bind(owner).run();
+  if(name)await env.DB.prepare("INSERT INTO health_names(email,name,set_by,updated_at) VALUES(?,?,?,?) ON CONFLICT(email) DO UPDATE SET name=excluded.name,set_by=excluded.set_by,updated_at=excluded.updated_at").bind(owner,name,owner,new Date().toISOString()).run();
+  else await env.DB.prepare("DELETE FROM health_names WHERE email=?").bind(owner).run();
   const current=await displayName(env,owner);
   return reply({ok:true,name:current,firstName:firstName(current)});
  }
@@ -764,7 +764,7 @@ async function syncApi(request,env,path){
   if(!SYNC_KINDS.includes(input?.kind)||typeof input.enabled!=="boolean")return error("Even couldn't read that setting.",400,"invalid_setting");
   const off=await syncOff(env,owner);
   if(input.enabled)off.delete(input.kind);else off.add(input.kind);
-  await env.DB.prepare("UPDATE even_users SET sync_off=? WHERE email=?").bind(JSON.stringify([...off]),owner).run();
+  await env.DB.prepare("UPDATE health_users SET sync_off=? WHERE email=?").bind(JSON.stringify([...off]),owner).run();
   return reply({ok:true});
  }
  if(path==="/api/moods"&&request.method==="GET"){
@@ -775,9 +775,9 @@ async function syncApi(request,env,path){
   const moods=(Array.isArray(input?.moods)?input.moods.slice(0,100):[]).map(readMood).filter(Boolean);
   const deleted=(Array.isArray(input?.deleted)?input.deleted.slice(0,100):[]).map(String).filter(id=>id&&id.length<=80);
   const at=new Date().toISOString(),statements=[];
-  moods.forEach(m=>statements.push(env.DB.prepare("INSERT INTO even_moods(owner_email,id,ts,score,energy,stress,tags,note,updated_at) VALUES(?,?,?,?,?,?,?,?,?) ON CONFLICT(owner_email,id) DO UPDATE SET ts=excluded.ts,score=excluded.score,energy=excluded.energy,stress=excluded.stress,tags=excluded.tags,note=excluded.note,updated_at=excluded.updated_at WHERE even_moods.deleted_at IS NULL").bind(owner,m.id,m.ts,m.score,m.energy,m.stress,m.tags,m.note,at)));
+  moods.forEach(m=>statements.push(env.DB.prepare("INSERT INTO health_moods(owner_email,id,ts,score,energy,stress,tags,note,updated_at) VALUES(?,?,?,?,?,?,?,?,?) ON CONFLICT(owner_email,id) DO UPDATE SET ts=excluded.ts,score=excluded.score,energy=excluded.energy,stress=excluded.stress,tags=excluded.tags,note=excluded.note,updated_at=excluded.updated_at WHERE health_moods.deleted_at IS NULL").bind(owner,m.id,m.ts,m.score,m.energy,m.stress,m.tags,m.note,at)));
   // A deleted check-in keeps only its ID, so other devices can remove their copy.
-  deleted.forEach(id=>statements.push(env.DB.prepare("INSERT INTO even_moods(owner_email,id,ts,updated_at,deleted_at) VALUES(?,?,?,?,?) ON CONFLICT(owner_email,id) DO UPDATE SET ts=excluded.ts,score=NULL,energy=NULL,stress=NULL,tags=NULL,note=NULL,updated_at=excluded.updated_at,deleted_at=excluded.deleted_at").bind(owner,id,at,at,at)));
+  deleted.forEach(id=>statements.push(env.DB.prepare("INSERT INTO health_moods(owner_email,id,ts,updated_at,deleted_at) VALUES(?,?,?,?,?) ON CONFLICT(owner_email,id) DO UPDATE SET ts=excluded.ts,score=NULL,energy=NULL,stress=NULL,tags=NULL,note=NULL,updated_at=excluded.updated_at,deleted_at=excluded.deleted_at").bind(owner,id,at,at,at)));
   if(statements.length)await env.DB.batch(statements);
   return reply({ok:true,saved:moods.length,deleted:deleted.length});
  }
@@ -804,9 +804,9 @@ async function syncApi(request,env,path){
   const clientVersion=String(body?.shortcutVersion||"").trim();
   if(!/^\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(clientVersion))return error("A valid Shortcut version is required",400,"invalid_version");
   const at=new Date().toISOString();
-  await env.DB.prepare("UPDATE even_devices SET last_attempt_at=?,last_error_code=NULL,shortcut_version=? WHERE device_id=? AND owner_email=? AND revoked_at IS NULL")
+  await env.DB.prepare("UPDATE health_devices SET last_attempt_at=?,last_error_code=NULL,shortcut_version=? WHERE device_id=? AND owner_email=? AND revoked_at IS NULL")
    .bind(at,clientVersion,dev.id,owner).run();
-  const nights=await env.DB.prepare("SELECT COUNT(*) AS count FROM even_health_metrics WHERE owner_email=? AND metric='bedtimeMin'").bind(owner).first();
+  const nights=await env.DB.prepare("SELECT COUNT(*) AS count FROM health_metrics WHERE owner_email=? AND metric='bedtimeMin'").bind(owner).first();
   // Even Sync 3 learns about a new version here, so it needs no separate request.
   const release=await loadShortcutRelease(env),updateAvailable=!!release&&release.verified&&semverNewer(release.version,clientVersion);
   // Even Sync reads its settings here, so they take effect with no extra request.
@@ -816,9 +816,9 @@ async function syncApi(request,env,path){
 
  if(path==="/api/pull"&&request.method==="GET"){
   const [health,events,alarms]=await Promise.all([
-   env.DB.prepare("SELECT day,metric,value FROM even_health_metrics WHERE owner_email=? ORDER BY day DESC LIMIT ?").bind(owner,LIMITS.healthDays*HEALTH_MEASURES).all(),
-   env.DB.prepare("SELECT event_id,start_time,end_time,title,category FROM even_calendar_events WHERE owner_email=? AND (calendar IS NULL OR calendar NOT IN (SELECT name FROM even_calendars WHERE owner_email=? AND enabled=0)) ORDER BY start_time DESC LIMIT ?").bind(owner,owner,LIMITS.events).all(),
-   env.DB.prepare("SELECT time_min,days,enabled,label FROM even_alarms WHERE owner_email=? ORDER BY time_min").bind(owner).all()
+   env.DB.prepare("SELECT day,metric,value FROM health_metrics WHERE owner_email=? ORDER BY day DESC LIMIT ?").bind(owner,LIMITS.healthDays*HEALTH_MEASURES).all(),
+   env.DB.prepare("SELECT event_id,start_time,end_time,title,category FROM health_calendar_events WHERE owner_email=? AND (calendar IS NULL OR calendar NOT IN (SELECT name FROM health_calendars WHERE owner_email=? AND enabled=0)) ORDER BY start_time DESC LIMIT ?").bind(owner,owner,LIMITS.events).all(),
+   env.DB.prepare("SELECT time_min,days,enabled,label FROM health_alarms WHERE owner_email=? ORDER BY time_min").bind(owner).all()
   ]);
   const grouped={};for(const h of health.results||[]){
    if(!grouped[h.day])grouped[h.day]={date:h.day,source:"shortcut"};
@@ -847,7 +847,7 @@ async function syncApi(request,env,path){
    for(let i=0;i<statements.length;i+=50)await env.DB.batch(statements.slice(i,i+50));
    // Both days are complete, so anything the run didn't send was edited or deleted.
    const from=new Date(day+"T00:00:00"+offset),to=new Date(from.getTime()+172800000);
-   const removed=await env.DB.prepare("DELETE FROM even_calendar_events WHERE owner_email=? AND start_time>=? AND start_time<? AND updated_at<?").bind(owner,from.toISOString(),to.toISOString(),at).run();
+   const removed=await env.DB.prepare("DELETE FROM health_calendar_events WHERE owner_email=? AND start_time>=? AND start_time<? AND updated_at<?").bind(owner,from.toISOString(),to.toISOString(),at).run();
    const shortcutVersion=await markUpload(env,dev,input.shortcutVersion,at,{events:events.length});
    return reply({ok:true,state:"accepted",receivedAt:at,calendarEvents:events.length,removed:removed.meta?.changes||0,shortcutVersion});
   }
@@ -855,9 +855,9 @@ async function syncApi(request,env,path){
    const raw=String(input.alarms||""),alarms=readAlarms(raw),day=dateOnly(input.date);
    if(!day||(raw.trim()&&!alarms.length))return error("Invalid alarm details",400,"invalid_alarm_details");
    const at=new Date().toISOString(),first=firstAlarm(alarms,day);
-   const statements=[env.DB.prepare("DELETE FROM even_alarms WHERE owner_email=?").bind(owner)];
-   alarms.forEach((a,position)=>statements.push(env.DB.prepare("INSERT INTO even_alarms(owner_email,position,time_min,days,enabled,label,updated_at) VALUES(?,?,?,?,?,?,?)").bind(owner,position,a.timeMin,a.days.join(","),a.enabled,a.label,at)));
-   if(first!==null)statements.push(env.DB.prepare("INSERT INTO even_health_metrics(owner_email,day,metric,value,updated_at) VALUES(?,?,?,?,?) ON CONFLICT(owner_email,day,metric) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at").bind(owner,day,"firstAlarmMin",first,at));
+   const statements=[env.DB.prepare("DELETE FROM health_alarms WHERE owner_email=?").bind(owner)];
+   alarms.forEach((a,position)=>statements.push(env.DB.prepare("INSERT INTO health_alarms(owner_email,position,time_min,days,enabled,label,updated_at) VALUES(?,?,?,?,?,?,?)").bind(owner,position,a.timeMin,a.days.join(","),a.enabled,a.label,at)));
+   if(first!==null)statements.push(env.DB.prepare("INSERT INTO health_metrics(owner_email,day,metric,value,updated_at) VALUES(?,?,?,?,?) ON CONFLICT(owner_email,day,metric) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at").bind(owner,day,"firstAlarmMin",first,at));
    await env.DB.batch(statements);
    return reply({ok:true,state:"accepted",alarms:alarms.length});
   }
@@ -871,15 +871,15 @@ async function syncApi(request,env,path){
    return error(NO_VALID_RECORDS,400,"no_valid_records");
   }
   const at=new Date().toISOString(),statements=[];
-  metrics.forEach(x=>statements.push(env.DB.prepare("INSERT INTO even_health_metrics(owner_email,day,metric,value,updated_at) VALUES(?,?,?,?,?) ON CONFLICT(owner_email,day,metric) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at").bind(owner,x.day,x.metric,x.value,at)));
+  metrics.forEach(x=>statements.push(env.DB.prepare("INSERT INTO health_metrics(owner_email,day,metric,value,updated_at) VALUES(?,?,?,?,?) ON CONFLICT(owner_email,day,metric) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at").bind(owner,x.day,x.metric,x.value,at)));
   for(let i=0;i<statements.length;i+=50)await env.DB.batch(statements.slice(i,i+50));
   const clientVersion=await markUpload(env,dev,input.shortcutVersion,at,{health:metrics.length});
   return reply({ok:true,state:"accepted",receivedAt:at,kind,healthMetrics:metrics.length,shortcutVersion:clientVersion});
  }
  if(path==="/api/device/disconnect"&&request.method==="POST"){
   await env.DB.batch([
-   env.DB.prepare("DELETE FROM even_push_subscriptions WHERE device_id=? AND owner_email=?").bind(dev.id,owner),
-   env.DB.prepare("UPDATE even_devices SET revoked_at=? WHERE device_id=? AND owner_email=? AND revoked_at IS NULL").bind(new Date().toISOString(),dev.id,owner)
+   env.DB.prepare("DELETE FROM health_push_subscriptions WHERE device_id=? AND owner_email=?").bind(dev.id,owner),
+   env.DB.prepare("UPDATE health_devices SET revoked_at=? WHERE device_id=? AND owner_email=? AND revoked_at IS NULL").bind(new Date().toISOString(),dev.id,owner)
   ]);
   return reply({ok:true});
  }
@@ -909,8 +909,8 @@ async function runCron(env){
  try{
   const counts=await sendReminders(env);
   logEvent("cron",counts||{});
-  await env.DB.prepare("DELETE FROM even_service WHERE key LIKE 'sends:%' AND updated_at<?").bind(new Date(Date.now()-86400000).toISOString()).run();
-  await env.DB.prepare("INSERT INTO even_service(key,value,updated_at) VALUES('last_cron',?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at").bind(JSON.stringify(counts||{}),at).run();
+  await env.DB.prepare("DELETE FROM health_service WHERE key LIKE 'sends:%' AND updated_at<?").bind(new Date(Date.now()-86400000).toISOString()).run();
+  await env.DB.prepare("INSERT INTO health_service(key,value,updated_at) VALUES('last_cron',?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at").bind(JSON.stringify(counts||{}),at).run();
  }catch(e){logEvent("cron_failed",{error:e?.name});}
 }
 export default {async fetch(request,env,ctx){

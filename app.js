@@ -1,7 +1,14 @@
 (function () {
 "use strict";
-var VERSION = "2.41.2";
-var STORAGE_KEY = "even:v1";
+var VERSION = "2.42.0";
+// Brings saved data over from the earlier storage names. Remove once no installed copy has them.
+function moveSavedData(){
+ [["even:v1","health:v1"],["even-reminder","health-reminder"],["even-setup","health-setup"]].forEach(function(pair){
+  try{var old=localStorage.getItem(pair[0]);if(old!==null&&localStorage.getItem(pair[1])===null)localStorage.setItem(pair[1],old);if(old!==null)localStorage.removeItem(pair[0]);}catch(e){/* Storage is blocked, so there's nothing to move. */}
+ });
+}
+moveSavedData();
+var STORAGE_KEY = "health:v1";
 var MOOD_NAMES = ["","Rough","Low","Okay","Good","Great"];
 var MOOD_EMOJI = ["","😣","😕","😐","🙂","😄"];
 var ENERGY_NAMES = ["","Very low","Low","Medium","High","Very high"];
@@ -575,8 +582,8 @@ function openBackup(){
 }
 // Saves through the share sheet where files can be shared, because a download shows a blank page in the installed app.
 async function saveBackup(passphrase){
- var name="even-backup-"+dateKey(now())+".json";
- var text=JSON.stringify({app:"Even",version:VERSION,account:state.syncOwnerEmail||null,exportedAt:new Date().toISOString(),moods:state.moods,health:state.health,events:state.events,reflections:state.reflections,alarms:state.alarms,resets:state.resets,tries:state.tries,planLog:state.planLog,planMoves:state.planMoves},null,2);
+ var name="health-backup-"+dateKey(now())+".json";
+ var text=JSON.stringify({app:"Health",version:VERSION,account:state.syncOwnerEmail||null,exportedAt:new Date().toISOString(),moods:state.moods,health:state.health,events:state.events,reflections:state.reflections,alarms:state.alarms,resets:state.resets,tries:state.tries,planLog:state.planLog,planMoves:state.planMoves},null,2);
  if(passphrase){
   try{text=await globalThis.EvenBackup.protect(text,passphrase);}
   catch(e){toast("Couldn’t save the backup. Nothing was saved.");return;}
@@ -609,7 +616,7 @@ async function openProtectedBackup(ev){
  try{await applyBackup(JSON.parse(text));}catch(e){toast("This file is not a valid backup.");}
 }
 async function applyBackup(data){
- if(data.app!=="Even"||!Array.isArray(data.moods)||!Array.isArray(data.health)||!Array.isArray(data.events))throw Error("Not a backup");
+ if((data.app!=="Health"&&data.app!=="Even")||!Array.isArray(data.moods)||!Array.isArray(data.health)||!Array.isArray(data.events))throw Error("Not a backup");
  if(data.account&&state.syncOwnerEmail&&data.account!==state.syncOwnerEmail){toast("This backup belongs to another account.");return;}
  if(!await askConfirm("Replace the check-ins, health and calendar data on this device with this backup? This can’t be undone. Check-ins saved to your account stay there and come back to this device.","Replace"))return;
  var kept=globalThis.EvenBackup.clean(data);
@@ -914,7 +921,7 @@ async function deleteAccount(){
 }
 // Erasing this device also disconnects it, so no credential is left active.
 // Everything personal this device keeps. Anything new that's stored here has to join this list.
-var DEVICE_KEYS=[STORAGE_KEY,"even-reminder","even-setup"],DEVICE_CACHES=["even-brief"];
+var DEVICE_KEYS=[STORAGE_KEY,"health-reminder","health-setup"],DEVICE_CACHES=["health-brief"];
 async function eraseDeviceData(){
  try{await fetch("/api/signin/sign-out",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:"{}",cache:"no-store"});}catch(e){/* Offline; the session ends by itself. */}
  if(globalThis.EvenReminders)globalThis.EvenReminders.forget();

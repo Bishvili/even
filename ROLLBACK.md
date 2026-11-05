@@ -14,3 +14,4 @@ What a rollback does not undo:
 - **Installed apps.** They pick up the older files the next time they check for an update.
 
 The steps were tried on 5 November 2026 by redeploying the current version at 100%, which changed nothing and confirmed the call works. Going back to an older version hasn't been tried on production.
+- **The database move.** Versions before 2.42.0 read the earlier `even-private` database, with its `even_*` tables, so rolling back past it returns to that copy, without anything added since.

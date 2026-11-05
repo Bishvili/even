@@ -2,7 +2,7 @@
 // Skipped steps and progress stay on this device.
 (function(root){
  "use strict";
- var DAY_MS=86400000,ASK_AGAIN_MS=3*DAY_MS,STORAGE_KEY="even-setup";
+ var DAY_MS=86400000,ASK_AGAIN_MS=3*DAY_MS,STORAGE_KEY="health-setup";
 
  // The steps that apply on this device, in order.
  function steps(c){

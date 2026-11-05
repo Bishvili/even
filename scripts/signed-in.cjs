@@ -37,7 +37,7 @@ async function open(browser,base,state,api,check,device={}){
  const context=await browser.newContext({viewport:{width:390,height:844},serviceWorkers:"block",...(device.iphone?{userAgent:IPHONE}:{})});
  const page=await context.newPage(),errors=[];
  page.on("pageerror",error=>errors.push(error.message));
- await page.addInitScript(([value])=>{if(sessionStorage.getItem("seeded"))return;sessionStorage.setItem("seeded","1");localStorage.setItem("even:v1",value);},[typeof state==="string"?state:JSON.stringify(state)]);
+ await page.addInitScript(([value])=>{if(sessionStorage.getItem("seeded"))return;sessionStorage.setItem("seeded","1");localStorage.setItem("health:v1",value);},[typeof state==="string"?state:JSON.stringify(state)]);
  if(device.installed)await page.addInitScript(()=>Object.defineProperty(navigator,"standalone",{value:true}));
  if(device.midday){const noon=new Date();noon.setHours(12,0,0,0);await page.clock.setFixedTime(noon);}
  await context.route("**/api/**",api.handle);
@@ -47,7 +47,7 @@ async function open(browser,base,state,api,check,device={}){
   assert.deepEqual(errors,[]);
  }finally{await context.close();}
 }
-const stored=page=>page.evaluate(()=>JSON.parse(localStorage.getItem("even:v1")));
+const stored=page=>page.evaluate(()=>JSON.parse(localStorage.getItem("health:v1")));
 const until=(page,fn,arg)=>page.waitForFunction(fn,arg,{timeout:8000});
 const goTo=(page,tab)=>page.evaluate(name=>globalThis.EvenApp.navigate(name),tab);
 const statusIs=(page,text)=>until(page,wanted=>document.getElementById("mood-sync-status").textContent.includes(wanted),text);
@@ -96,17 +96,17 @@ const scenarios={
   const api=fakeApi({moods:{...shared,deleted:["gone"],moods:[mood("edited",{score:5}),mood("waiting",{score:1})]}});
   const state=saved({moodCursor:"2026-11-01T00:00:00.000Z",moods:[mood("gone"),mood("edited"),mood("waiting",{score:4})],pendingMoods:["waiting"]});
   await open(browser,base,state,api,async({page})=>{
-   await until(page,()=>JSON.parse(localStorage.getItem("even:v1")).moods.length===2);
+   await until(page,()=>JSON.parse(localStorage.getItem("health:v1")).moods.length===2);
    const moods=Object.fromEntries((await stored(page)).moods.map(m=>[m.id,m.score]));
    assert.deepEqual(moods,{edited:5,waiting:4});
-   await until(page,()=>JSON.parse(localStorage.getItem("even:v1")).pendingMoods.length===0);
+   await until(page,()=>JSON.parse(localStorage.getItem("health:v1")).pendingMoods.length===0);
    assert.equal(api.uploaded[0].score,4);
   });
  },
  "the first full list uploads what the account has never seen":async(browser,base)=>{
   const api=fakeApi({moods:{...shared,moods:[mood("both")]}});
   await open(browser,base,saved({moods:[mood("both"),mood("only-here")]}),api,async({page})=>{
-   await until(page,()=>JSON.parse(localStorage.getItem("even:v1")).pendingMoods?.length===0&&JSON.parse(localStorage.getItem("even:v1")).moodCursor);
+   await until(page,()=>JSON.parse(localStorage.getItem("health:v1")).pendingMoods?.length===0&&JSON.parse(localStorage.getItem("health:v1")).moodCursor);
    assert.deepEqual(api.uploaded.map(m=>m.id),["only-here"]);
   });
  },
@@ -119,7 +119,7 @@ const scenarios={
     await goTo(page,"data");
     await until(page,()=>!document.getElementById("pull-button").disabled);
     await page.click("#pull-button");
-    await until(page,()=>JSON.parse(localStorage.getItem("even:v1")).lastSync);
+    await until(page,()=>JSON.parse(localStorage.getItem("health:v1")).lastSync);
     const state=await stored(page);
     assert.equal(state.health.length,health);assert.equal(state.events.length,events);
    });
@@ -142,13 +142,13 @@ const scenarios={
    await until(page,()=>document.getElementById("auth-email").textContent.includes("@"));
    await page.evaluate(()=>document.getElementById("erase-remote").click());
    await confirm(page);
-   await until(page,()=>JSON.parse(localStorage.getItem("even:v1")).moods.length===0);
+   await until(page,()=>JSON.parse(localStorage.getItem("health:v1")).moods.length===0);
   });
  },
  "a refused session disconnects this device and keeps its records":async(browser,base)=>{
   const api=fakeApi({session:401});
   await open(browser,base,saved({moods:[mood("m")]}),api,async({page})=>{
-   await until(page,()=>!JSON.parse(localStorage.getItem("even:v1")).token);
+   await until(page,()=>!JSON.parse(localStorage.getItem("health:v1")).token);
    assert.equal((await stored(page)).moods.length,1);
   });
  },
@@ -171,10 +171,10 @@ const scenarios={
    assert.equal((await stored(page)).moods[0].id,"before");
    await page.setInputFiles("#restore-input",file({account:OWNER,moods:[mood("restored")],reflections:[{ts:"bad"}],alarms:[{timeMin:9999,days:[]}]}));
    await confirm(page);
-   await until(page,()=>JSON.parse(localStorage.getItem("even:v1")).moods[0]?.id==="restored");
+   await until(page,()=>JSON.parse(localStorage.getItem("health:v1")).moods[0]?.id==="restored");
    await until(page,()=>document.body.textContent.includes("2 damaged items were left out"));
    assert.equal((await stored(page)).moodCursor,shared.cursor);
-   await until(page,()=>JSON.parse(localStorage.getItem("even:v1")).pendingMoods.length===0);
+   await until(page,()=>JSON.parse(localStorage.getItem("health:v1")).pendingMoods.length===0);
    assert.ok(api.uploaded.some(m=>m.id==="restored"));
   });
  },
@@ -197,7 +197,7 @@ const scenarios={
   await open(browser,base,saved({moods,moodCursor:shared.cursor}),fakeApi(),async({page})=>{
    await until(page,()=>document.querySelector(".next-done"));
    await page.evaluate(()=>document.querySelector(".next-done").click());
-   await until(page,()=>JSON.parse(localStorage.getItem("even:v1")).tries.length===1);
+   await until(page,()=>JSON.parse(localStorage.getItem("health:v1")).tries.length===1);
    await until(page,()=>!document.querySelector(".next-done"));
   },{midday:true});
  },
@@ -210,6 +210,14 @@ const scenarios={
    await page.click("#sync-light");
    await until(page,()=>document.body.textContent.includes("You’re offline"));
   });
+ },
+ "data saved under the earlier storage name comes across":async(browser,base)=>{
+  const context=await browser.newContext({serviceWorkers:"block"}),page=await context.newPage(),api=fakeApi();
+  await page.addInitScript(value=>{if(!sessionStorage.getItem("seeded")){sessionStorage.setItem("seeded","1");localStorage.setItem("even:v1",value);}},JSON.stringify(saved({moods:[mood("old")],moodCursor:shared.cursor})));
+  await context.route("**/api/**",api.handle);
+  await page.goto(base+"/");
+  await until(page,()=>JSON.parse(localStorage.getItem("health:v1")||"{}").moods?.[0]?.id==="old"&&localStorage.getItem("even:v1")===null);
+  await context.close();
  },
  "damaged storage opens at sign-in":async(browser,base)=>{
   const api=fakeApi({me:""});

@@ -1,4 +1,4 @@
-CREATE TABLE even_signin_users (
+CREATE TABLE health_signin_users (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
   email TEXT NOT NULL UNIQUE,
@@ -7,7 +7,7 @@ CREATE TABLE even_signin_users (
   createdAt TEXT NOT NULL,
   updatedAt TEXT NOT NULL
 );
-CREATE TABLE even_signin_sessions (
+CREATE TABLE health_signin_sessions (
   id TEXT PRIMARY KEY,
   expiresAt TEXT NOT NULL,
   token TEXT NOT NULL UNIQUE,
@@ -15,14 +15,14 @@ CREATE TABLE even_signin_sessions (
   updatedAt TEXT NOT NULL,
   ipAddress TEXT,
   userAgent TEXT,
-  userId TEXT NOT NULL REFERENCES even_signin_users(id) ON DELETE CASCADE
+  userId TEXT NOT NULL REFERENCES health_signin_users(id) ON DELETE CASCADE
 );
-CREATE INDEX even_signin_sessions_user ON even_signin_sessions(userId);
-CREATE TABLE even_signin_accounts (
+CREATE INDEX health_signin_sessions_user ON health_signin_sessions(userId);
+CREATE TABLE health_signin_accounts (
   id TEXT PRIMARY KEY,
   accountId TEXT NOT NULL,
   providerId TEXT NOT NULL,
-  userId TEXT NOT NULL REFERENCES even_signin_users(id) ON DELETE CASCADE,
+  userId TEXT NOT NULL REFERENCES health_signin_users(id) ON DELETE CASCADE,
   accessToken TEXT,
   refreshToken TEXT,
   idToken TEXT,
@@ -33,8 +33,8 @@ CREATE TABLE even_signin_accounts (
   createdAt TEXT NOT NULL,
   updatedAt TEXT NOT NULL
 );
-CREATE INDEX even_signin_accounts_user ON even_signin_accounts(userId);
-CREATE TABLE even_signin_verifications (
+CREATE INDEX health_signin_accounts_user ON health_signin_accounts(userId);
+CREATE TABLE health_signin_verifications (
   id TEXT PRIMARY KEY,
   identifier TEXT NOT NULL,
   value TEXT NOT NULL,
@@ -42,4 +42,4 @@ CREATE TABLE even_signin_verifications (
   createdAt TEXT NOT NULL,
   updatedAt TEXT NOT NULL
 );
-CREATE INDEX even_signin_verifications_identifier ON even_signin_verifications(identifier);
+CREATE INDEX health_signin_verifications_identifier ON health_signin_verifications(identifier);

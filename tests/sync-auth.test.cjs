@@ -11,7 +11,7 @@ const {TextEncoder}=require("node:util");
 const days=(date,records)=>({kind:"calendar_days",date,utcOffset:"+00:00",events:records.map(r=>r.join("\u241f")).join("\u241e")});
 function harness({verified=false,buildVersion="2.8.0",helperBuild="2.0.0",sourceVersions=null,helperLink=null}={}){
  const source=fs.readFileSync(path.join(__dirname,"..","worker","index.js"),"utf8");
- const session='{createAuth:()=>({api:{getSession:async({headers})=>{const m=/even\\.session_token=([^;]+)/.exec(headers.get("cookie")||"");if(!m)return null;const user=JSON.parse(decodeURIComponent(m[1]));return{user,session:{createdAt:new Date(user.name==="Old session"?0:Date.now())}};}}})}';
+ const session='{createAuth:()=>({api:{getSession:async({headers})=>{const m=/health\\.session_token=([^;]+)/.exec(headers.get("cookie")||"");if(!m)return null;const user=JSON.parse(decodeURIComponent(m[1]));return{user,session:{createdAt:new Date(user.name==="Old session"?0:Date.now())}};}}})}';
  const loaded=source.replace('await import("./signin.mjs")',session).replace("export default {","globalThis.logEvent = logEvent;globalThis.runCron = runCron;globalThis.sendReminders = sendReminders;globalThis.readBedtimes = readBedtimes;globalThis.readSleep = readSleep;globalThis.reminderMessage = reminderMessage;globalThis.dueScheduled = dueScheduled;globalThis.readAlarms = readAlarms;globalThis.firstAlarm = firstAlarm;globalThis.pushPayload = pushPayload;globalThis.__worker = {");
  assert.notEqual(source,loaded,"Worker ESM export not found");
  const dispatches=[];
@@ -29,95 +29,95 @@ function harness({verified=false,buildVersion="2.8.0",helperBuild="2.0.0",source
  const env={PUBLIC_ORIGIN:"https://even.bishvili.org",INVITE_LIMIT:allow,DEVICE_LIMIT:allow,SIGNIN_LIMIT:allow,SEND_LIMIT:allow,NETWORK_LIMIT:allow,GITHUB_API_KEY:"server-only",APPROVED_SYNC_EMAILS:JSON.stringify(allowed),ASSETS:{async get(key){return {"config:shortcut:latest":release,"config:helper:latest":helperLink&&JSON.stringify(helperLink),"config:shortcut:source":sourceVersions&&JSON.stringify(sourceVersions)}[key]||null;}},DB:{
   prepare(sql){return{bind(...args){return {
    async first(){
-    if(sql.startsWith("SELECT updated_at,(SELECT COUNT(*) FROM even_push_subscriptions"))return null;
-    if(sql.startsWith("SELECT (SELECT name FROM even_names")){const email=args[0];return{chosen:rows.names?.get(email)||null,given:email==="owner-a@example.com"?"Ada Lovelace":null,signin:(rows.userFields?.get(email)||{}).name||null};}
-    if(sql.startsWith("SELECT COUNT(*) AS count FROM even_calendar_events WHERE owner_email=? AND calendar=?"))return{count:[...rows.events.values()].filter(d=>d.owner===args[0]&&d.calendar===args[1]).length};
-    if(sql.startsWith("SELECT sync_off FROM even_users"))return (rows.userFields?.get(args[0]))||null;
-    if(sql.startsWith("INSERT INTO even_service")){rows.sends=(rows.sends||0)+1;return{value:String(rows.sends)};}
-    if(sql.includes("FROM even_approved_emails WHERE email"))return rows.approved.has(args[0])?{allowed:1}:null;
+    if(sql.startsWith("SELECT updated_at,(SELECT COUNT(*) FROM health_push_subscriptions"))return null;
+    if(sql.startsWith("SELECT (SELECT name FROM health_names")){const email=args[0];return{chosen:rows.names?.get(email)||null,given:email==="owner-a@example.com"?"Ada Lovelace":null,signin:(rows.userFields?.get(email)||{}).name||null};}
+    if(sql.startsWith("SELECT COUNT(*) AS count FROM health_calendar_events WHERE owner_email=? AND calendar=?"))return{count:[...rows.events.values()].filter(d=>d.owner===args[0]&&d.calendar===args[1]).length};
+    if(sql.startsWith("SELECT sync_off FROM health_users"))return (rows.userFields?.get(args[0]))||null;
+    if(sql.startsWith("INSERT INTO health_service")){rows.sends=(rows.sends||0)+1;return{value:String(rows.sends)};}
+    if(sql.includes("FROM health_approved_emails WHERE email"))return rows.approved.has(args[0])?{allowed:1}:null;
     if(sql.includes("SELECT display_name"))return args[0]==="owner-a@example.com"&&!rows.welcomed?{display_name:"Ada"}:null;
-    if(sql.startsWith("SELECT endpoint,p256dh,auth FROM even_push_subscriptions")){return [...rows.subs.values()].find(x=>x.device_id===args[0]&&x.owner===args[1])||null;}
-    if(sql.startsWith("SELECT shortcut_version FROM even_devices")){const d=[...rows.devices.values()].find(x=>x.device_id===args[0]);return d||null;}
-    if(sql.includes("FROM even_release_emails"))return args[0]==="owner-a@example.com"?{allowed:1}:null;
+    if(sql.startsWith("SELECT endpoint,p256dh,auth FROM health_push_subscriptions")){return [...rows.subs.values()].find(x=>x.device_id===args[0]&&x.owner===args[1])||null;}
+    if(sql.startsWith("SELECT shortcut_version FROM health_devices")){const d=[...rows.devices.values()].find(x=>x.device_id===args[0]);return d||null;}
+    if(sql.includes("FROM health_release_emails"))return args[0]==="owner-a@example.com"?{allowed:1}:null;
     if(sql.includes("SELECT device_id,owner_email,revoked_at"))return rows.devices.get(args[0])||null;
     if(sql.includes("SELECT last_used_at,last_attempt_at,last_error_code,shortcut_version,last_upload_counts")){const d=[...rows.devices.values()].find(d=>d.device_id===args[0]&&d.owner_email===args[1]&&!d.revoked_at);return d||null;}
-    if(sql.includes("SELECT COUNT(*) AS count FROM even_health_metrics"))return{count:[...rows.health.values()].filter(d=>d.owner===args[0]).length};
-    if(sql.includes("SELECT COUNT(*) AS count FROM even_calendar_events"))return{count:[...rows.events.values()].filter(d=>d.owner===args[0]).length};
+    if(sql.includes("SELECT COUNT(*) AS count FROM health_metrics"))return{count:[...rows.health.values()].filter(d=>d.owner===args[0]).length};
+    if(sql.includes("SELECT COUNT(*) AS count FROM health_calendar_events"))return{count:[...rows.events.values()].filter(d=>d.owner===args[0]).length};
     if(sql.includes("COUNT(*)"))return {count:[...rows.devices.values()].filter(d=>d.owner_email===args[0]&&!d.revoked_at).length};
     throw new Error("Unexpected first: "+sql);
    },
    async all(){
-    if(sql.startsWith("SELECT email FROM even_approved_emails"))return{results:[...rows.approved.keys()].map(email=>({email}))};
-    if(sql.startsWith("SELECT email,display_name FROM even_release_emails"))return{results:[{email:"owner-a@example.com",display_name:"Ada"}]};
-    if(sql.startsWith("SELECT email,name FROM even_names"))return{results:[...(rows.names||new Map()).entries()].map(([email,name])=>({email,name}))};
-    if(sql.startsWith("SELECT email,name FROM even_users"))return{results:[...rows.users.keys()].map(email=>({email,name:(rows.userFields?.get(email)||{}).name}))};
+    if(sql.startsWith("SELECT email FROM health_approved_emails"))return{results:[...rows.approved.keys()].map(email=>({email}))};
+    if(sql.startsWith("SELECT email,display_name FROM health_release_emails"))return{results:[{email:"owner-a@example.com",display_name:"Ada"}]};
+    if(sql.startsWith("SELECT email,name FROM health_names"))return{results:[...(rows.names||new Map()).entries()].map(([email,name])=>({email,name}))};
+    if(sql.startsWith("SELECT email,name FROM health_users"))return{results:[...rows.users.keys()].map(email=>({email,name:(rows.userFields?.get(email)||{}).name}))};
     if(sql.startsWith("SELECT id,ts,score"))return{results:(rows.moods||[]).filter(m=>m.owner===args[0]&&(m.updated_at||"")>=args[1])};
     if(sql.startsWith("SELECT s.endpoint"))return{results:[...rows.subs.values()].filter(s=>[...rows.devices.values()].some(d=>d.device_id===s.device_id&&!d.revoked_at))};
-    if(sql.startsWith("SELECT event_id,title FROM even_calendar_events"))return{results:[]};
+    if(sql.startsWith("SELECT event_id,title FROM health_calendar_events"))return{results:[]};
     if(sql.startsWith("SELECT metric,MAX(day)")){const by={};for(const h of rows.health.values())if(h.owner===args[0]){const m=by[h.metric]||(by[h.metric]={metric:h.metric,day:h.day,days:0});m.days++;if(h.day>m.day)m.day=h.day;}return{results:Object.values(by)};}
-    if(sql.startsWith("SELECT name FROM even_calendars"))return{results:[...rows.calendars.values()].filter(c=>c.owner===args[0]&&!c.enabled)};
-    if(sql.startsWith("SELECT name,enabled,category FROM even_calendars"))return{results:[...rows.calendars.values()].filter(c=>c.owner===args[0])};
+    if(sql.startsWith("SELECT name FROM health_calendars"))return{results:[...rows.calendars.values()].filter(c=>c.owner===args[0]&&!c.enabled)};
+    if(sql.startsWith("SELECT name,enabled,category FROM health_calendars"))return{results:[...rows.calendars.values()].filter(c=>c.owner===args[0])};
     if(sql.includes("SELECT device_id,label,created_at"))return{results:[...rows.devices.values()].filter(d=>d.owner_email===args[0]).map(d=>({device_id:d.device_id,label:d.label,created_at:d.created_at,last_used_at:d.last_used_at,revoked_at:d.revoked_at}))};
-    if(sql.includes("SELECT day,metric,value FROM even_health_metrics"))return{results:[...rows.health.values()].filter(d=>d.owner===args[0]).map(d=>({day:d.day,metric:d.metric,value:d.value}))};
+    if(sql.includes("SELECT day,metric,value FROM health_metrics"))return{results:[...rows.health.values()].filter(d=>d.owner===args[0]).map(d=>({day:d.day,metric:d.metric,value:d.value}))};
     if(sql.includes("SELECT event_id,start_time,end_time"))return{results:[...rows.events.values()].filter(d=>d.owner===args[0]&&!(rows.calendars.get(d.owner+"|"+d.calendar)&&!rows.calendars.get(d.owner+"|"+d.calendar).enabled)).map(d=>({event_id:d.id,start_time:d.start_time,end_time:d.end_time,title:d.title,category:d.category}))};
-    if(sql.includes("FROM even_alarms"))return{results:[...(rows.alarms||[])].filter(a=>a.owner===args[0])};
+    if(sql.includes("FROM health_alarms"))return{results:[...(rows.alarms||[])].filter(a=>a.owner===args[0])};
     throw new Error("Unexpected all: "+sql);
    },
    async run(){
-    if(sql.startsWith("INSERT OR IGNORE INTO even_users")){rows.users.set(args[0],args[1]);return{meta:{changes:1}};}
-    if(sql.startsWith("INSERT INTO even_devices")){rows.devices.set(args[0],{device_id:args[1],owner_email:args[2],label:args[3],created_at:args[4],last_used_at:null,last_attempt_at:null,last_error_code:null,shortcut_version:null,revoked_at:null});return{meta:{changes:1}};}
-    if(sql.startsWith("UPDATE even_devices SET last_upload_counts=NULL")){for(const d of rows.devices.values())if(d.owner_email===args[0])d.last_upload_counts=null;return{meta:{changes:1}};}
-    if(sql.startsWith("INSERT INTO even_service"))return{meta:{changes:1}};
-    if(sql.startsWith("UPDATE even_moods SET ts=?")){(rows.moods||[]).forEach(m=>{if(m.owner===args[3]&&!m.deleted_at){m.deleted_at=args[2];m.note=null;}});return{meta:{changes:1}};}
-    if(sql.startsWith("UPDATE even_calendars SET category")){const c=rows.calendars.get(args[1]+"|"+args[2]);if(c)c.category=args[0];return{meta:{changes:c?1:0}};}
-    if(sql.startsWith("UPDATE even_calendar_events SET category"))return{meta:{changes:1}};
-    if(sql.startsWith("DELETE FROM even_signin_"))return{meta:{changes:0}};
-    if(sql.startsWith("UPDATE even_devices SET revoked_at")){let changes=0;for(const d of rows.devices.values())if(d.device_id===args[1]&&d.owner_email===args[2]&&!d.revoked_at){d.revoked_at=args[0];changes++;}return{meta:{changes}};}
-    if(sql.startsWith("UPDATE even_devices SET last_attempt_at")){for(const d of rows.devices.values())if(d.device_id===args[2]&&d.owner_email===args[3]&&!d.revoked_at){d.last_attempt_at=args[0];if(sql.includes("last_error_code=NULL,shortcut_version=?")){d.last_error_code=null;d.shortcut_version=args[1];}else d.last_error_code=args[1];}return{meta:{changes:1}};}
-    if(sql.startsWith("UPDATE even_devices SET last_used_at")){for(const d of rows.devices.values())if(d.device_id===args[6]&&d.owner_email===args[7]&&!d.revoked_at){d.last_upload_counts=d.last_used_at>args[3]?JSON.stringify({...JSON.parse(d.last_upload_counts||"{}"),...JSON.parse(args[4])}):args[5];d.last_used_at=args[0];d.last_attempt_at=args[1];d.last_error_code=null;d.shortcut_version=args[2]||d.shortcut_version;}return{meta:{changes:1}};}
-    if(sql.startsWith("DELETE FROM even_alarms")){rows.alarms=(rows.alarms||[]).filter(x=>x.owner!==args[0]);return{meta:{changes:1}};}
-    if(sql.startsWith("INSERT INTO even_alarms")){(rows.alarms=rows.alarms||[]).push({owner:args[0],time_min:args[2],days:args[3],enabled:args[4],label:args[5]});return{meta:{changes:1}};}
-    if(sql.startsWith("UPDATE even_users")){
+    if(sql.startsWith("INSERT OR IGNORE INTO health_users")){rows.users.set(args[0],args[1]);return{meta:{changes:1}};}
+    if(sql.startsWith("INSERT INTO health_devices")){rows.devices.set(args[0],{device_id:args[1],owner_email:args[2],label:args[3],created_at:args[4],last_used_at:null,last_attempt_at:null,last_error_code:null,shortcut_version:null,revoked_at:null});return{meta:{changes:1}};}
+    if(sql.startsWith("UPDATE health_devices SET last_upload_counts=NULL")){for(const d of rows.devices.values())if(d.owner_email===args[0])d.last_upload_counts=null;return{meta:{changes:1}};}
+    if(sql.startsWith("INSERT INTO health_service"))return{meta:{changes:1}};
+    if(sql.startsWith("UPDATE health_moods SET ts=?")){(rows.moods||[]).forEach(m=>{if(m.owner===args[3]&&!m.deleted_at){m.deleted_at=args[2];m.note=null;}});return{meta:{changes:1}};}
+    if(sql.startsWith("UPDATE health_calendars SET category")){const c=rows.calendars.get(args[1]+"|"+args[2]);if(c)c.category=args[0];return{meta:{changes:c?1:0}};}
+    if(sql.startsWith("UPDATE health_calendar_events SET category"))return{meta:{changes:1}};
+    if(sql.startsWith("DELETE FROM health_signin_"))return{meta:{changes:0}};
+    if(sql.startsWith("UPDATE health_devices SET revoked_at")){let changes=0;for(const d of rows.devices.values())if(d.device_id===args[1]&&d.owner_email===args[2]&&!d.revoked_at){d.revoked_at=args[0];changes++;}return{meta:{changes}};}
+    if(sql.startsWith("UPDATE health_devices SET last_attempt_at")){for(const d of rows.devices.values())if(d.device_id===args[2]&&d.owner_email===args[3]&&!d.revoked_at){d.last_attempt_at=args[0];if(sql.includes("last_error_code=NULL,shortcut_version=?")){d.last_error_code=null;d.shortcut_version=args[1];}else d.last_error_code=args[1];}return{meta:{changes:1}};}
+    if(sql.startsWith("UPDATE health_devices SET last_used_at")){for(const d of rows.devices.values())if(d.device_id===args[6]&&d.owner_email===args[7]&&!d.revoked_at){d.last_upload_counts=d.last_used_at>args[3]?JSON.stringify({...JSON.parse(d.last_upload_counts||"{}"),...JSON.parse(args[4])}):args[5];d.last_used_at=args[0];d.last_attempt_at=args[1];d.last_error_code=null;d.shortcut_version=args[2]||d.shortcut_version;}return{meta:{changes:1}};}
+    if(sql.startsWith("DELETE FROM health_alarms")){rows.alarms=(rows.alarms||[]).filter(x=>x.owner!==args[0]);return{meta:{changes:1}};}
+    if(sql.startsWith("INSERT INTO health_alarms")){(rows.alarms=rows.alarms||[]).push({owner:args[0],time_min:args[2],days:args[3],enabled:args[4],label:args[5]});return{meta:{changes:1}};}
+    if(sql.startsWith("UPDATE health_users")){
      const u=(rows.userFields=rows.userFields||new Map());const email=args[args.length>2?1:1];const row=u.get(email)||{};
      if(sql.includes("SET name"))row.name=args[0];if(sql.includes("SET sync_off"))row.sync_off=args[0];
      u.set(email,row);return{meta:{changes:1}};
     }
-    if(sql.startsWith("INSERT INTO even_names")){(rows.names=rows.names||new Map()).set(args[0],args[1]);return{meta:{changes:1}};}
-    if(sql.startsWith("DELETE FROM even_names")){rows.names?.delete(args[0]);return{meta:{changes:1}};}
-    if(sql.startsWith("DELETE FROM even_moods")){rows.moods=(rows.moods||[]).filter(m=>m.owner!==args[0]);return{meta:{changes:1}};}
-    if(sql.startsWith("INSERT INTO even_moods")){
+    if(sql.startsWith("INSERT INTO health_names")){(rows.names=rows.names||new Map()).set(args[0],args[1]);return{meta:{changes:1}};}
+    if(sql.startsWith("DELETE FROM health_names")){rows.names?.delete(args[0]);return{meta:{changes:1}};}
+    if(sql.startsWith("DELETE FROM health_moods")){rows.moods=(rows.moods||[]).filter(m=>m.owner!==args[0]);return{meta:{changes:1}};}
+    if(sql.startsWith("INSERT INTO health_moods")){
      rows.moods=rows.moods||[];const existing=rows.moods.find(m=>m.owner===args[0]&&m.id===args[1]);
      if(sql.includes("deleted_at) VALUES")){if(existing){Object.assign(existing,{score:null,note:null,deleted_at:args[4]});}else rows.moods.push({owner:args[0],id:args[1],ts:args[2],deleted_at:args[4]});}
      else if(!existing)rows.moods.push({owner:args[0],id:args[1],ts:args[2],score:args[3],energy:args[4],stress:args[5],tags:args[6],note:args[7]});
      else if(!existing.deleted_at)Object.assign(existing,{score:args[3],note:args[7]});
      return{meta:{changes:1}};
     }
-    if(sql.startsWith("UPDATE even_devices SET label")){let changes=0;for(const d of rows.devices.values())if(d.device_id===args[1]&&d.owner_email===args[2]&&!d.revoked_at){d.label=args[0];changes++;}return{meta:{changes}};}
-    if(sql.startsWith("INSERT INTO even_health_metrics")){rows.health.set(args[0]+"|"+args[1]+"|"+args[2],{owner:args[0],day:args[1],metric:args[2],value:args[3]});return{meta:{changes:1}};}
-    if(sql.startsWith("INSERT INTO even_push_subscriptions")){rows.subs.set(args[0],{endpoint:args[0],owner:args[1],device_id:args[2],mode:args[3],time_zone:args[4],p256dh:args[6],auth:args[7],sync_at:args[8],stress_times:args[9],schedule:args[10],last_check_in_at:null});return{meta:{changes:1}};}
-    if(sql.startsWith("INSERT OR IGNORE INTO even_approved_emails")){rows.approved.set(args[0],args[1]);return{meta:{changes:1}};}
-    if(sql.startsWith("DELETE FROM even_approved_emails")){rows.approved.delete(args[0]);return{meta:{changes:1}};}
+    if(sql.startsWith("UPDATE health_devices SET label")){let changes=0;for(const d of rows.devices.values())if(d.device_id===args[1]&&d.owner_email===args[2]&&!d.revoked_at){d.label=args[0];changes++;}return{meta:{changes}};}
+    if(sql.startsWith("INSERT INTO health_metrics")){rows.health.set(args[0]+"|"+args[1]+"|"+args[2],{owner:args[0],day:args[1],metric:args[2],value:args[3]});return{meta:{changes:1}};}
+    if(sql.startsWith("INSERT INTO health_push_subscriptions")){rows.subs.set(args[0],{endpoint:args[0],owner:args[1],device_id:args[2],mode:args[3],time_zone:args[4],p256dh:args[6],auth:args[7],sync_at:args[8],stress_times:args[9],schedule:args[10],last_check_in_at:null});return{meta:{changes:1}};}
+    if(sql.startsWith("INSERT OR IGNORE INTO health_approved_emails")){rows.approved.set(args[0],args[1]);return{meta:{changes:1}};}
+    if(sql.startsWith("DELETE FROM health_approved_emails")){rows.approved.delete(args[0]);return{meta:{changes:1}};}
     if(sql.includes("SET last_check_in_at")){for(const x of rows.subs.values())if(x.owner===args[1])x.last_check_in_at=args[0];return{meta:{changes:1}};}
     if(sql.includes("SET last_push_status"))return{meta:{changes:1}};
     if(sql.includes("SET last_schedule_at")){rows.subs.get(args[1]).last_schedule_at=args[0];return{meta:{changes:1}};}
     if(sql.includes("SET last_stress_at")){rows.subs.get(args[1]).last_stress_at=args[0];return{meta:{changes:1}};}
     if(sql.includes("SET last_sync_prompt_day")){rows.subs.get(args[1]).last_sync_prompt_day=args[0];return{meta:{changes:1}};}
-    if(sql.startsWith("UPDATE even_devices SET last_seen_at")){for(const d of rows.devices.values())if(d.device_id===args[1])d.last_seen_at=args[0];return{meta:{changes:1}};}
-    if(sql.startsWith("DELETE FROM even_devices")){for(const [k,d] of rows.devices)if(d.owner_email===args[0])rows.devices.delete(k);return{meta:{changes:1}};}
-    if(sql.startsWith("DELETE FROM even_users")){rows.users.delete(args[0]);return{meta:{changes:1}};}
-    if(sql.startsWith("DELETE FROM even_push_subscriptions WHERE owner_email")){for(const [k,x] of rows.subs)if(x.owner===args[0])rows.subs.delete(k);return{meta:{changes:1}};}
-    if(sql.startsWith("DELETE FROM even_push_subscriptions WHERE device_id")){for(const [k,x] of rows.subs)if(x.device_id===args[0]&&x.owner===args[1])rows.subs.delete(k);return{meta:{changes:1}};}
-    if(sql.startsWith("DELETE FROM even_push_subscriptions WHERE endpoint=? AND owner_email=?")){const s=rows.subs.get(args[0]);if(s&&s.owner===args[1])rows.subs.delete(args[0]);return{meta:{changes:1}};}
-    if(sql.startsWith("DELETE FROM even_push_subscriptions"))  {rows.subs.delete(args[0]);return{meta:{changes:1}};}
-    if(sql.startsWith("UPDATE even_release_emails")){if(args[1]==="owner-a@example.com")rows.welcomed=true;return{meta:{changes:1}};}
-    if(sql.startsWith("INSERT OR IGNORE INTO even_calendars")){const k=args[0]+"|"+args[1];if(!rows.calendars.has(k))rows.calendars.set(k,{owner:args[0],name:args[1],enabled:1});return{meta:{changes:1}};}
-    if(sql.startsWith("UPDATE even_calendars")){const c=rows.calendars.get(args[1]+"|"+args[2]);if(c)c.enabled=args[0];return{meta:{changes:c?1:0}};}
-    if(sql.startsWith("DELETE FROM even_calendars")){for(const [k,c] of rows.calendars)if(c.owner===args[0])rows.calendars.delete(k);return{meta:{changes:1}};}
-    if(sql.startsWith("INSERT INTO even_calendar_events")){rows.events.set(args[0]+"|"+args[1],{owner:args[0],id:args[1],start_time:args[2],end_time:args[3],title:args[4],category:args[5],calendar:args[6],start:args[2],updated:args[7]});return{meta:{changes:1}};}
-    if(sql.startsWith("DELETE FROM even_health_metrics")){for(const [k,d] of rows.health)if(d.owner===args[0])rows.health.delete(k);return{meta:{changes:1}};}
+    if(sql.startsWith("UPDATE health_devices SET last_seen_at")){for(const d of rows.devices.values())if(d.device_id===args[1])d.last_seen_at=args[0];return{meta:{changes:1}};}
+    if(sql.startsWith("DELETE FROM health_devices")){for(const [k,d] of rows.devices)if(d.owner_email===args[0])rows.devices.delete(k);return{meta:{changes:1}};}
+    if(sql.startsWith("DELETE FROM health_users")){rows.users.delete(args[0]);return{meta:{changes:1}};}
+    if(sql.startsWith("DELETE FROM health_push_subscriptions WHERE owner_email")){for(const [k,x] of rows.subs)if(x.owner===args[0])rows.subs.delete(k);return{meta:{changes:1}};}
+    if(sql.startsWith("DELETE FROM health_push_subscriptions WHERE device_id")){for(const [k,x] of rows.subs)if(x.device_id===args[0]&&x.owner===args[1])rows.subs.delete(k);return{meta:{changes:1}};}
+    if(sql.startsWith("DELETE FROM health_push_subscriptions WHERE endpoint=? AND owner_email=?")){const s=rows.subs.get(args[0]);if(s&&s.owner===args[1])rows.subs.delete(args[0]);return{meta:{changes:1}};}
+    if(sql.startsWith("DELETE FROM health_push_subscriptions"))  {rows.subs.delete(args[0]);return{meta:{changes:1}};}
+    if(sql.startsWith("UPDATE health_release_emails")){if(args[1]==="owner-a@example.com")rows.welcomed=true;return{meta:{changes:1}};}
+    if(sql.startsWith("INSERT OR IGNORE INTO health_calendars")){const k=args[0]+"|"+args[1];if(!rows.calendars.has(k))rows.calendars.set(k,{owner:args[0],name:args[1],enabled:1});return{meta:{changes:1}};}
+    if(sql.startsWith("UPDATE health_calendars")){const c=rows.calendars.get(args[1]+"|"+args[2]);if(c)c.enabled=args[0];return{meta:{changes:c?1:0}};}
+    if(sql.startsWith("DELETE FROM health_calendars")){for(const [k,c] of rows.calendars)if(c.owner===args[0])rows.calendars.delete(k);return{meta:{changes:1}};}
+    if(sql.startsWith("INSERT INTO health_calendar_events")){rows.events.set(args[0]+"|"+args[1],{owner:args[0],id:args[1],start_time:args[2],end_time:args[3],title:args[4],category:args[5],calendar:args[6],start:args[2],updated:args[7]});return{meta:{changes:1}};}
+    if(sql.startsWith("DELETE FROM health_metrics")){for(const [k,d] of rows.health)if(d.owner===args[0])rows.health.delete(k);return{meta:{changes:1}};}
     if(sql.includes("updated_at<?")){let changes=0;for(const [k,d] of rows.events)if(d.owner===args[0]&&d.start>=args[1]&&d.start<args[2]&&d.updated<args[3]){rows.events.delete(k);changes++;}return{meta:{changes}};}
-    if(sql==="DELETE FROM even_calendar_events WHERE owner_email=? AND calendar=?"){let changes=0;for(const [k,d] of rows.events)if(d.owner===args[0]&&d.calendar===args[1]){rows.events.delete(k);changes++;}return{meta:{changes}};}
-    if(sql.startsWith("DELETE FROM even_calendar_events")){for(const [k,d] of rows.events)if(d.owner===args[0])rows.events.delete(k);return{meta:{changes:1}};}
+    if(sql==="DELETE FROM health_calendar_events WHERE owner_email=? AND calendar=?"){let changes=0;for(const [k,d] of rows.events)if(d.owner===args[0]&&d.calendar===args[1]){rows.events.delete(k);changes++;}return{meta:{changes}};}
+    if(sql.startsWith("DELETE FROM health_calendar_events")){for(const [k,d] of rows.events)if(d.owner===args[0])rows.events.delete(k);return{meta:{changes:1}};}
     throw new Error("Unexpected run: "+sql);
    }
   };}};},
@@ -128,7 +128,7 @@ function harness({verified=false,buildVersion="2.8.0",helperBuild="2.0.0",source
  function ctx(email,audience=aud,name){return{access:{aud:audience,async getIdentity(){return{email,name};}}};}
  async function call(route,{method="GET",body,headers={},context}={}){
   const h=new Headers(headers);
-  if(context?.access&&context.access.aud===aud)h.set("Cookie","even.session_token="+encodeURIComponent(JSON.stringify(await context.access.getIdentity())));
+  if(context?.access&&context.access.aud===aud)h.set("Cookie","health.session_token="+encodeURIComponent(JSON.stringify(await context.access.getIdentity())));
   if(body!==undefined){h.set("Content-Type","application/json");if(!h.has("Origin"))h.set("Origin",base);}
   const response=await runtime.__worker.fetch(new Request(base+route,{method,headers:h,body:body===undefined?undefined:JSON.stringify(body)}),env,context);
   return{status:response.status,location:response.headers.get("Location"),data:response.status===303?null:await response.json()};

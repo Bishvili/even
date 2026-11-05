@@ -6,7 +6,7 @@ const read=file=>fs.readFileSync(require("node:path").join(__dirname,"..",file),
 
 test("every shell file reports one app version, so a change always reaches installed apps",()=>{
  const version=read("app.js").match(/var VERSION = "(\d+\.\d+\.\d+)"/)[1];
- assert.ok(read("sw.js").includes(`even-shell-v${version}`));
+ assert.ok(read("sw.js").includes(`health-shell-v${version}`));
  assert.ok(read("worker/index.js").includes(`VERSION_NAME="${version}"`));
  assert.ok(read("index.html").includes(`>${version}<`));
 });
@@ -49,7 +49,7 @@ test("the bump script changes every place the version appears",()=>{
  for(const file of ["app.js","sw.js","worker/index.js","index.html"])fs.writeFileSync(path.join(dir,file),read(file));
  require("../scripts/bump-version.cjs").bump("9.9.9",dir);
  assert.ok(fs.readFileSync(path.join(dir,"app.js"),"utf8").includes('var VERSION = "9.9.9"'));
- assert.ok(fs.readFileSync(path.join(dir,"sw.js"),"utf8").includes("even-shell-v9.9.9"));
+ assert.ok(fs.readFileSync(path.join(dir,"sw.js"),"utf8").includes("health-shell-v9.9.9"));
  assert.ok(fs.readFileSync(path.join(dir,"worker/index.js"),"utf8").includes('VERSION_NAME="9.9.9"'));
  assert.ok(fs.readFileSync(path.join(dir,"index.html"),"utf8").includes(">9.9.9<"));
  fs.rmSync(dir,{recursive:true});
