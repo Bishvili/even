@@ -173,8 +173,9 @@ const scenarios={
    await confirm(page);
    await until(page,()=>JSON.parse(localStorage.getItem("health:v1")).moods[0]?.id==="restored");
    await until(page,()=>document.body.textContent.includes("2 damaged items were left out"));
-   assert.equal((await stored(page)).moodCursor,shared.cursor);
+   // A restore clears the cursor so the full list comes back, and the sync that follows sets it again.
    await until(page,()=>JSON.parse(localStorage.getItem("health:v1")).pendingMoods.length===0);
+   await until(page,cursor=>JSON.parse(localStorage.getItem("health:v1")).moodCursor===cursor,shared.cursor);
    assert.ok(api.uploaded.some(m=>m.id==="restored"));
   });
  },
