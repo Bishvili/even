@@ -24,6 +24,16 @@
   if(!c.checkedIn)return{id:"checkin",number:0,total:list.length};
   return c.notify==="ready"?step("notifications","start"):null;
  }
+ // What's still not done, whether or not it was skipped. A deliberate disconnect doesn't count.
+ function outstanding(c){
+  var list=[],managed=!c.connected&&c.connectedBefore;
+  if(c.installable&&!c.installed)list.push("install");
+  if(!c.connected&&!managed)list.push("signin");
+  if(c.ios&&!c.synced&&!managed)list.push("shortcut");
+  if(!c.checkedIn)list.push("checkin");
+  if(c.notifyOpen)list.push("notifications");
+  return list;
+ }
  // Going through setup again shows every step, marks those already done, and moves on with Next.
  function replayStep(c,index){
   var list=steps(c),id=list[index];
@@ -32,7 +42,7 @@
   var done=id==="install"?c.installed:id==="signin"?c.connected:id==="shortcut"?c.synced:false;
   return{id:id,variant:variant,number:index+1,total:list.length,done:!!done,last:index===list.length-1,replay:true};
  }
- var api={nextStep:nextStep,replayStep:replayStep,render:function(){},restart:function(){}};
+ var api={nextStep:nextStep,outstanding:outstanding,replayStep:replayStep,render:function(){},restart:function(){}};
  root.EvenOnboarding=api;
  if(typeof document==="undefined"||!root.EvenApp)return;
 
@@ -62,10 +72,19 @@
    signedIn:s.signedIn,connected:s.connected,connectedBefore:s.connectedBefore,connecting:s.connecting,
    signingIn:s.online&&!s.authKnown&&now-(Number(progress.signInAt)||0)<SIGN_IN_MS,
    synced:s.synced,shortcutConnected:s.shortcutConnected,gotShortcut:!!progress.gotShortcut,checkedIn:s.checkedIn,
-   notify:root.EvenReminders?root.EvenReminders.notificationStep():"unavailable",skipped:skipped};
+   notify:root.EvenReminders?root.EvenReminders.notificationStep():"unavailable",notifyOpen:!!root.EvenReminders&&root.EvenReminders.notificationsOpen(),skipped:skipped};
  }
  // Moves focus after a tap that changed the step, so it isn't left on a control that disappeared.
+ function renderSetupBadge(c){
+  var left=outstanding(c).length,words=left===1?"1 setup step left":left+" setup steps left";
+  $("settings-badge").hidden=!left;
+  $("finish-setup").hidden=!left;
+  $("finish-setup-text").textContent=left===1?"1 step left.":left+" steps left.";
+  var tab=document.querySelector('.nav-item[data-go="settings"]');
+  if(left)tab.setAttribute("aria-label","Settings, "+words);else tab.removeAttribute("aria-label");
+ }
  function render(moveFocus){
+  renderSetupBadge(context(app.setup()));
   var s=app.setup(),step=replay===null?nextStep(context(s)):replayStep(context(s),replay),card=$("setup-card");
   current=step&&step.id!=="checkin"?step:null;
   $("view-checkin").classList.toggle("setup-active",!!step);
@@ -138,6 +157,12 @@
  root.addEventListener("offline",function(){render();});
  api.render=function(){render();};
  api.restart=function(){replay=0;app.navigate("checkin");render(true);};
+ // Finishing setup brings back every step that was skipped.
+ $("finish-setup-button").addEventListener("click",function(){
+  progress.skipped={};saveProgress();
+  if(root.EvenReminders)root.EvenReminders.reopenIntake();
+  replay=null;app.navigate("checkin");render(true);
+ });
  $("setup-again").addEventListener("click",api.restart);
  render();
 })(globalThis);

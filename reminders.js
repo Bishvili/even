@@ -45,6 +45,7 @@
   if(!canPush()&&!app.isIOS())return "unavailable";
   return !blocked()&&!settings.on&&!settings.intakeDone&&!settings.intakeDismissed?"ready":"later";
  }
+ function notificationsOpen(){return (canPush()||app.isIOS())&&!blocked()&&!settings.on&&!settings.intakeDone;}
  function renderReminder(){
   var toggle=$("reminder-toggle"),note=$("reminder-note");
   blockedReason=blocked();toggle.disabled=false;toggle.checked=!blockedReason&&settings.on;
@@ -208,7 +209,7 @@
  function dismissIntake(){settings.intakeDismissed=true;saveSettings();renderReminder();}
  $("intake-retake").addEventListener("click",function(){openIntake("Cancel",function(){});});
  $("add-reminder-time").addEventListener("click",function(){if(settings.times.length>=12)return;settings.times.push("12:00");renderSchedule();scheduleChanged();});
- globalThis.EvenReminders={turnOff:function(){settings.on=false;saveSettings();if(canPush())navigator.serviceWorker.ready.then(function(r){return r.pushManager.getSubscription();}).then(function(s){if(s)return s.unsubscribe();}).catch(function(){});renderReminder();},checkedIn:checkedIn,dataChanged:function(){renderPlan();syncReminder();},preferences:function(){return settings;},notificationStep:notificationStep,startIntake:function(){openIntake("Not now",dismissIntake);},dismissIntake:dismissIntake};
+ globalThis.EvenReminders={notificationsOpen:notificationsOpen,reopenIntake:function(){settings.intakeDismissed=false;saveSettings();renderReminder();},turnOff:function(){settings.on=false;saveSettings();if(canPush())navigator.serviceWorker.ready.then(function(r){return r.pushManager.getSubscription();}).then(function(s){if(s)return s.unsubscribe();}).catch(function(){});renderReminder();},checkedIn:checkedIn,dataChanged:function(){renderPlan();syncReminder();},preferences:function(){return settings;},notificationStep:notificationStep,startIntake:function(){openIntake("Not now",dismissIntake);},dismissIntake:dismissIntake};
  app.refreshCoach();
  document.addEventListener("visibilitychange",function(){if(!document.hidden){renderReminder();if(Date.now()-lastSent>6*3600000)syncReminder();}});
  renderReminder();

@@ -100,3 +100,11 @@ test("steps that aren't done keep their usual action",()=>{
  assert.equal(replayStep(fresh,1).done,false);
  assert.equal(replayStep(fresh,0).variant,"share");
 });
+
+test("the Settings badge stays until every step is really done, even when skipped",()=>{
+ const {outstanding}=globalThis.EvenOnboarding,left=changes=>outstanding(Object.assign({},fresh,changes));
+ assert.deepEqual(left({notifyOpen:true}),["install","signin","shortcut","checkin","notifications"]);
+ assert.deepEqual(left({skipped:{install:now,signin:now,shortcut:now}}),["install","signin","shortcut","checkin"]);
+ assert.deepEqual(left({installed:true,installable:false,connected:true,synced:true,checkedIn:true}),[]);
+ assert.deepEqual(left({installed:true,installable:false,connectedBefore:true,checkedIn:true}),[]);
+});

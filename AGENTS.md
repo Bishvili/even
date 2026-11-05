@@ -67,7 +67,7 @@ Only an iPhone proves iOS behavior, and each round trip costs the owner time. Be
 - Each page is cached under its own path (`pageKey` in `sw.js`). After adding or linking a page, confirm `scripts/smoke.cjs` still opens the app offline.
 - Text sizes are in `rem`, on a root that follows the iPhone's text size. Colors live in the `:root` tokens only. `tests/shortcut-builder.test.cjs` checks both.
 - Check the first launch on a 375×667 screen with the Home Screen step showing. All five mood buttons must be fully visible above the tab bar.
-- First-run setup is one card on Check in, in `onboarding.js`: Home Screen, sign in, Even Sync, then notifications after the first check-in. Each step works out whether it's done from the app's real state, so an upgraded install skips what it already has. Keep the card, the invitation email and the Sync steps in the same words; `tests/onboarding.test.cjs` checks this.
+- First-run setup is one card on Check in, in `onboarding.js`: Home Screen, sign in, Even Sync, then notifications after the first check-in. Each step works out whether it's done from the app's real state, so an upgraded install skips what it already has. A badge on the Settings tab and a **Finish setting up** card stay until every step is really done, including skipped ones (`outstanding` in `onboarding.js`). Keep the card, the invitation email and the Sync steps in the same words; `tests/onboarding.test.cjs` checks this.
 
 **Push notifications**
 - A notification can open the app, but only a tap inside the app is sure to launch a Shortcut. Anything opened from a notification needs a visible button as a fallback.
