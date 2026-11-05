@@ -37,7 +37,7 @@ When a design needs a distinctive moment, spend the visual emphasis once: an exc
 
 The product is called Even: a calm, private health coach. Use serif headlines from the system stack (ui-serif, New York), system sans for everything else, pill buttons, deep green hero surfaces, and warm yellow as the single accent. Colors live in the CSS custom properties in styles.css, with a complete dark palette; never add literal colors outside them, including in SVG markup in `index.html` and in JavaScript. Consolidate values into CSS custom properties or typed theme tokens rather than continuing to sprinkle magic hex literals.
 
-The token values in `styles.css` are the source of truth. Their roles are ink for text, canvas for the background, pine for interactive elements, mist for soft surfaces, warm yellow for sparse meaningful emphasis, and quiet text for secondary information. White raised surfaces are allowed. Test contrast in both appearances, because dark mode is its own palette, not an inversion.
+The values in `brand/palette.json` are the source of truth, with a light and a dark value for each role: text for text, page for the background, primary for interactive elements, tint for soft surfaces, highlight for sparse meaningful emphasis, and text-muted for secondary copy.
 
 Typography:
 - Use the native system stack: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif. On iOS this follows the system face without loading remote font assets.

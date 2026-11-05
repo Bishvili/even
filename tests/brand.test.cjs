@@ -38,3 +38,16 @@ test("the stable names match the Shortcuts they describe",()=>{
  assert.match(fs.readFileSync("shortcuts/even-sync.cherri","utf8"),new RegExp("^#define name "+stable.sync+"$","m"));
  assert.match(fs.readFileSync("shortcuts/even-release.cherri","utf8"),new RegExp("^#define name "+stable.helper+"$","m"));
 });
+test("every color comes from the palette, with a value for each appearance",()=>{
+ const{colorValues}=require("../scripts/build-assets.cjs"),palette=JSON.parse(fs.readFileSync("brand/palette.json","utf8"));
+ colorValues(palette);
+ const broken=JSON.parse(JSON.stringify(palette));delete broken.app.text.dark;
+ assert.throws(()=>colorValues(broken),/text needs a dark value/);
+ for(const[file,group]of[["styles.css","app"],["whitepaper.css","paper"]]){
+  const css=fs.readFileSync(file,"utf8");
+  assert.doesNotMatch(css,/#[0-9a-f]{3,8}\b|rgba?\(/i,file);
+  const own=new Set([...css.matchAll(/(--[\w-]+):/g)].map(match=>match[1].slice(2)));
+  for(const[,name]of css.matchAll(/var\(--([\w-]+)\)/g))assert.ok(own.has(name)||palette[group][name],file+" uses --"+name);
+  for(const role of Object.keys(palette[group]))assert.ok(css.includes("var(--"+role+")")||group==="app"&&fs.readFileSync("index.html","utf8").includes("color."+role+".")||role==="contrast"||role==="on-contrast",file+" never uses --"+role);
+ }
+});
