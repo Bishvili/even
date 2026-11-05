@@ -31,7 +31,9 @@
   busy($("signin-send"),async function(){
    email=$("signin-email").value.trim().toLowerCase();
    var r=await post("email-otp/send-verification-otp",{email:email,type:"sign-in"});
-   if(!r.ok)throw Error((await r.json().catch(function(){return{};})).error||"Couldn’t send a code. Try again.");
+   var body=await r.json().catch(function(){return{};});
+   // A code sent a moment ago is still good, so this moves on to entering it.
+   if(!r.ok&&body.code!=="code_just_sent")throw Error(body.error||"Couldn’t send a code. Try again.");
    $("signin-code-note").textContent="If "+email+" has been invited, a code is on its way.";
    $("signin-code").value="";step(true);
   });

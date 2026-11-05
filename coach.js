@@ -37,7 +37,8 @@
   // Today and the three calendar days before it.
   var start=new Date(today);start.setHours(0,0,0,0);start.setDate(start.getDate()-3);
   var cutoff=start.getTime(),hard={};
-  rated(moods).forEach(function(m){if(m.stress>=4&&new Date(m.ts).getTime()>=cutoff)hard[localDay(m.ts)]=true;});
+  // Stress is optional, so a Rough or Low mood counts too.
+  moods.forEach(function(m){if((m.stress>=4||m.score===1||m.score===2)&&new Date(m.ts).getTime()>=cutoff)hard[localDay(m.ts)]=true;});
   return Object.keys(hard).length>=3;
  }
 

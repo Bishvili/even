@@ -220,3 +220,4 @@ h1[tabindex]:focus{outline:none}
 .nav-glyph{position:relative}.nav-badge{position:absolute;top:-2px;right:-3px;width:10px;height:10px;border-radius:50%;background:var(--danger);box-shadow:0 0 0 2px var(--bar)}.nav-badge[hidden]{display:none}
 @media(prefers-color-scheme:dark){.nav-badge{background:var(--danger-soft);box-shadow:0 0 0 2px var(--bar-dark)}}
 .signin-mark{display:grid;place-items:center;width:52px;height:52px;margin:0 auto 12px;border-radius:14px;background:var(--deep);color:var(--sand)}.signin-mark svg{width:38px;height:38px}#signin-title,.signin-lede{text-align:center}.signin-or{display:flex;align-items:center;gap:10px;margin:14px 0 6px;color:var(--muted);font-size:.8rem}.signin-or[hidden]{display:none}.signin-or::before,.signin-or::after{content:"";flex:1;border-top:1px solid var(--line)}
+.calendar-purpose{width:100%;margin:2px 0 10px}.signin-sheet select,.signin-sheet textarea{width:100%;margin-bottom:12px}

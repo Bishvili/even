@@ -38,7 +38,7 @@ async function payload(request){
  if(type.includes("application/x-www-form-urlencoded"))return Object.fromEntries(new URLSearchParams(text));
  try{return JSON.parse(text);}catch(e){return Object.fromEntries(new URLSearchParams(text));}
 }
-const VERSION_NAME="2.30.0";
+const VERSION_NAME="2.32.0";
 function normalEmail(value){return String(value||"").trim().toLowerCase();}
 async function signinAuth(env,ctx){
  const {createAuth}=await import("./signin.mjs");
@@ -48,9 +48,9 @@ async function signinAuth(env,ctx){
 async function authIdentity(request,env,ctx){
  if(!(request.headers.get("cookie")||"").includes("even.session_token"))return null;
  try{
-  const identity=(await (await signinAuth(env,ctx)).api.getSession({headers:request.headers}))?.user;
+  const session=await (await signinAuth(env,ctx)).api.getSession({headers:request.headers}),identity=session?.user;
   const email=normalEmail(identity?.email);
-  return email&&await approved(env,email)?{email,name:String(identity.name||"").trim().slice(0,80)}:null;
+  return email&&await approved(env,email)?{email,name:String(identity.name||"").trim().slice(0,80),signedInAt:session.session?.createdAt}:null;
  }catch(e){logEvent("sign_in_check_failed",{error:e?.name});return null;}
 }
 function browserPostAllowed(request){
@@ -75,14 +75,13 @@ async function validDevice(request,env){
  return {id:device.device_id,owner:device.owner_email};
 }
 // Everything synced for one person, apart from their account and devices.
-function syncedDataStatements(env,owner){
- return [
+function syncedDataStatements(env,owner,keepMoods){
+ return [...(keepMoods?[]:[env.DB.prepare("DELETE FROM even_moods WHERE owner_email=?").bind(owner)]),
   env.DB.prepare("UPDATE even_devices SET last_upload_counts=NULL WHERE owner_email=?").bind(owner),
   env.DB.prepare("DELETE FROM even_health_metrics WHERE owner_email=?").bind(owner),
   env.DB.prepare("DELETE FROM even_calendar_events WHERE owner_email=?").bind(owner),
   env.DB.prepare("DELETE FROM even_calendars WHERE owner_email=?").bind(owner),
   env.DB.prepare("DELETE FROM even_alarms WHERE owner_email=?").bind(owner),
-  env.DB.prepare("DELETE FROM even_moods WHERE owner_email=?").bind(owner),
   env.DB.prepare("DELETE FROM even_push_subscriptions WHERE owner_email=?").bind(owner),
   env.DB.prepare("DELETE FROM even_names WHERE email=?").bind(owner)
  ];
@@ -201,10 +200,12 @@ function readHealth(x){
 }
 // Whether a measure was sent at all, even an invalid one. Average heart rate from older Shortcuts doesn't count, and
 // neither do sleep intervals, because a night that may be cut off is left out on purpose rather than rejected.
+const CALENDAR_PURPOSES=["Work","Family","Exercise","Social","Rest","Other"];
+// English words only. A calendar's purpose fills in what the title doesn't say.
 function classifyCalendarTitle(title){
- if(/\b(meeting|call|standup|stand-up)\b/i.test(title))return "Meeting";
- if(/\b(workout|gym|run|running|training)\b/i.test(title))return "Exercise";
- if(/\b(coffee|lunch|dinner|brunch)\b/i.test(title))return "Social";
+ if(/\b(meeting|call|standup|stand-up|sync|1:1|one on one|interview|review)\b/i.test(title))return "Meeting";
+ if(/\b(workout|gym|run|running|training|yoga|pilates|swim|swimming|hike|cycling)\b/i.test(title))return "Exercise";
+ if(/\b(coffee|lunch|dinner|brunch|drinks|party)\b/i.test(title))return "Social";
  if(/\b(commute|travel to work)\b/i.test(title))return "Commute";
  return "Other";
 }
@@ -273,6 +274,7 @@ async function sendSigninCode(env,to,code){
   return sent.ok;
  }catch(e){return false;}
 }
+const FRESH_SIGN_IN_MS=600000,SENDS_AN_HOUR=5;
 const SIGNIN_ROUTES={"POST /email-otp/send-verification-otp":1,"POST /sign-in/email-otp":1,"POST /sign-in/social":1,"GET /callback/google":1,"POST /callback/google":1,"POST /sign-out":1};
 async function signinApi(request,env,ctx,path){
  const route=path.slice("/api/signin".length);
@@ -282,9 +284,17 @@ async function signinApi(request,env,ctx,path){
   let input;try{input=await request.clone().json();}catch(e){return error("Even couldn't read that request.",400,"invalid_body");}
   const email=normalEmail(input?.email);
   if(email.length>254||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))return error("Enter a valid email address.",400,"invalid_email");
-  if(await overLimit(env.SIGNIN_LIMIT,email))return error("Too many tries. Try again in a minute.",429,"rate_limited");
-  // The answer is the same either way, so this can't be used to find out who's approved.
-  if(route==="/email-otp/send-verification-otp"&&(input.type!=="sign-in"||!await approved(env,email)))return reply({success:true});
+  if(route==="/sign-in/email-otp"){
+   if(await overLimit(env.SIGNIN_LIMIT,email))return error("Too many tries. Try again in a minute.",429,"rate_limited");
+  }else{
+   // Every limit comes first, so the answers can't be used to find out who's approved.
+   if(await overLimit(env.SEND_LIMIT,email))return error("A code was just sent. Check your email.",429,"code_just_sent");
+   // The network's address is only a key here, and is never stored.
+   if(await overLimit(env.NETWORK_LIMIT,request.headers.get("cf-connecting-ip")||"unknown"))return error("Too many tries. Try again in a minute.",429,"rate_limited");
+   const hour=new Date().toISOString().slice(0,13),sends=await env.DB.prepare("INSERT INTO even_service(key,value,updated_at) VALUES(?,'1',?) ON CONFLICT(key) DO UPDATE SET value=CAST(value AS INTEGER)+1,updated_at=excluded.updated_at RETURNING value").bind("sends:"+(await digest(email))+":"+hour,new Date().toISOString()).first();
+   if(Number(sends?.value)>SENDS_AN_HOUR)return error("Too many codes this hour. Use your latest code, or try again later.",429,"rate_limited");
+   if(input.type!=="sign-in"||!await approved(env,email))return reply({success:true});
+  }
  }
  const response=await (await signinAuth(env,ctx)).handler(request);
  const headers=new Headers(response.headers);
@@ -295,6 +305,19 @@ async function signinApi(request,env,ctx,path){
 async function authApi(request,env,ctx,path){
  const identity=await authIdentity(request,env,ctx),email=identity?.email||null;
  if(!email)return error("Sign in with an approved email.",401,"sign_in_required");
+ // Only a signed-in session can erase or delete. A device key alone can't.
+ if(path==="/api/user/erase"||path==="/api/user/account/delete"){
+  if(!browserPostAllowed(request))return error("This request isn't allowed.",403,"same_origin_required");
+  if(path==="/api/user/erase"){
+   // Each check-in keeps only its ID, so every device removes its copy instead of sending it back.
+   const at=new Date().toISOString();
+   await env.DB.batch([env.DB.prepare("UPDATE even_moods SET ts=?,score=NULL,energy=NULL,stress=NULL,tags=NULL,note=NULL,updated_at=?,deleted_at=? WHERE owner_email=? AND deleted_at IS NULL").bind(at,at,at,email),...syncedDataStatements(env,email,true)]);
+   return reply({ok:true,erased:true,email});
+  }
+  if(Date.now()-Date.parse(identity.signedInAt)>FRESH_SIGN_IN_MS)return error("Sign in again to delete your account.",403,"fresh_sign_in_required");
+  await env.DB.batch(accountStatements(env,email));
+  return reply({ok:true,deleted:true,email});
+ }
  if(path==="/api/user/me"&&request.method==="GET"){
   // Sign-in may supply a name. Testers are listed by it.
   try{
@@ -429,9 +452,9 @@ async function enabledEvents(env,owner,events){
  const names=[...new Set(events.map(e=>e.calendar).filter(Boolean))];
  if(!names.length)return events;
  await env.DB.batch(names.map(name=>env.DB.prepare("INSERT OR IGNORE INTO even_calendars(owner_email,name) VALUES(?,?)").bind(owner,name)));
- const off=await env.DB.prepare("SELECT name FROM even_calendars WHERE owner_email=? AND enabled=0").bind(owner).all();
- const disabled=new Set((off.results||[]).map(c=>c.name));
- return events.filter(e=>!disabled.has(e.calendar));
+ const saved=await env.DB.prepare("SELECT name,enabled,category FROM even_calendars WHERE owner_email=?").bind(owner).all();
+ const calendars=new Map((saved.results||[]).map(c=>[c.name,c]));
+ return events.filter(e=>calendars.get(e.calendar)?.enabled!==0).map(e=>e.category==="Other"&&calendars.get(e.calendar)?.category?{...e,category:calendars.get(e.calendar).category}:e);
 }
 const PUSH_HOST=/^(?:[\w-]+\.)*push\.apple\.com$|^fcm\.googleapis\.com$|^updates\.push\.services\.mozilla\.com$|^[\w.-]+\.notify\.windows\.com$/;
 const REMIND_AT=/^([01]\d|2[0-3]):[0-5]\d$/;
@@ -587,19 +610,17 @@ async function startWorkflow(env,file,inputs){
  return started.status===204;
 }
 async function calendarList(env,owner){
- const r=await env.DB.prepare("SELECT name,enabled FROM even_calendars WHERE owner_email=? ORDER BY name").bind(owner).all();
- return (r.results||[]).map(c=>({name:c.name,enabled:!!c.enabled}));
+ const r=await env.DB.prepare("SELECT name,enabled,category FROM even_calendars WHERE owner_email=? ORDER BY name").bind(owner).all();
+ return (r.results||[]).map(c=>({name:c.name,enabled:!!c.enabled,category:c.category||"Other"}));
 }
 async function syncChoices(env,owner){
  const off=await syncOff(env,owner);
  return Object.fromEntries(SYNC_KINDS.map(kind=>[kind,!off.has(kind)]));
 }
 async function syncedMoods(env,owner){
- const user=await env.DB.prepare("SELECT mood_sync FROM even_users WHERE email=?").bind(owner).first();
- if(!user?.mood_sync)return{email:owner,enabled:false,moods:[],deleted:[]};
  const rows=await env.DB.prepare("SELECT id,ts,score,energy,stress,tags,note,deleted_at FROM even_moods WHERE owner_email=? ORDER BY ts DESC LIMIT 8000").bind(owner).all();
  const live=(rows.results||[]).filter(m=>!m.deleted_at);
- return{email:owner,enabled:true,
+ return{email:owner,
   moods:live.map(m=>{let tags=[];try{tags=JSON.parse(m.tags||"[]");}catch(e){/* Unreadable tags read as none. */}return{id:m.id,ts:m.ts,score:m.score,energy:m.energy,stress:m.stress,tags,note:m.note||""};}),
   deleted:(rows.results||[]).filter(m=>m.deleted_at).map(m=>m.id)};
 }
@@ -694,6 +715,15 @@ async function syncApi(request,env,path){
  if(path==="/api/calendars"&&request.method==="POST"){
   let input;try{input=await payload(request);}catch(e){return error("Invalid calendar request",400,"invalid_calendar");}
   const name=String(input?.name||"");
+  if(name&&name.length<=100&&CALENDAR_PURPOSES.includes(input?.category)){
+   const label=input.category==="Other"?null:input.category;
+   const set=await env.DB.prepare("UPDATE even_calendars SET category=? WHERE owner_email=? AND name=?").bind(label,owner,name).run();
+   if(!set.meta?.changes)return error("Calendar not found",404,"calendar_not_found");
+   const rows=await env.DB.prepare("SELECT event_id,title FROM even_calendar_events WHERE owner_email=? AND calendar=?").bind(owner,name).all();
+   const updates=(rows.results||[]).map(e=>{const found=classifyCalendarTitle(e.title);return env.DB.prepare("UPDATE even_calendar_events SET category=? WHERE owner_email=? AND event_id=?").bind(found==="Other"?input.category:found,owner,e.event_id);});
+   for(let i=0;i<updates.length;i+=50)await env.DB.batch(updates.slice(i,i+50));
+   return reply({ok:true,category:input.category});
+  }
   if(!name||name.length>100||typeof input.enabled!=="boolean")return error("Invalid calendar request",400,"invalid_calendar");
   const updated=await env.DB.prepare("UPDATE even_calendars SET enabled=? WHERE owner_email=? AND name=?").bind(input.enabled?1:0,owner,name).run();
   if(!updated.meta?.changes)return error("Calendar not found",404,"calendar_not_found");
@@ -726,27 +756,17 @@ async function syncApi(request,env,path){
   await env.DB.prepare("UPDATE even_users SET sync_off=? WHERE email=?").bind(JSON.stringify([...off]),owner).run();
   return reply({ok:true});
  }
- if(path==="/api/moods/settings"&&request.method==="POST"){
-  let input;try{input=await payload(request);}catch(e){return error("Even couldn't read that request.",400,"invalid_body");}
-  if(typeof input?.enabled!=="boolean")return error("Even couldn't read that setting.",400,"invalid_setting");
-  const statements=[env.DB.prepare("UPDATE even_users SET mood_sync=? WHERE email=?").bind(input.enabled?1:0,owner)];
-  if(!input.enabled)statements.push(env.DB.prepare("DELETE FROM even_moods WHERE owner_email=?").bind(owner));
-  await env.DB.batch(statements);
-  return reply({ok:true,enabled:input.enabled});
- }
  if(path==="/api/moods"&&request.method==="GET"){
   return reply({ok:true,...await syncedMoods(env,owner)});
  }
  if(path==="/api/moods"&&request.method==="POST"){
   let input;try{input=await payload(request);}catch(e){return error("Even couldn't read that request.",400,"invalid_body");}
-  const user=await env.DB.prepare("SELECT mood_sync FROM even_users WHERE email=?").bind(owner).first();
-  if(!user?.mood_sync)return error("Turn on check-in sync first.",409,"mood_sync_off");
   const moods=(Array.isArray(input?.moods)?input.moods.slice(0,100):[]).map(readMood).filter(Boolean);
   const deleted=(Array.isArray(input?.deleted)?input.deleted.slice(0,100):[]).map(String).filter(id=>id&&id.length<=80);
   const at=new Date().toISOString(),statements=[];
   moods.forEach(m=>statements.push(env.DB.prepare("INSERT INTO even_moods(owner_email,id,ts,score,energy,stress,tags,note,updated_at) VALUES(?,?,?,?,?,?,?,?,?) ON CONFLICT(owner_email,id) DO UPDATE SET ts=excluded.ts,score=excluded.score,energy=excluded.energy,stress=excluded.stress,tags=excluded.tags,note=excluded.note,updated_at=excluded.updated_at WHERE even_moods.deleted_at IS NULL").bind(owner,m.id,m.ts,m.score,m.energy,m.stress,m.tags,m.note,at)));
   // A deleted check-in keeps only its ID, so other devices can remove their copy.
-  deleted.forEach(id=>statements.push(env.DB.prepare("INSERT INTO even_moods(owner_email,id,ts,updated_at,deleted_at) VALUES(?,?,?,?,?) ON CONFLICT(owner_email,id) DO UPDATE SET score=NULL,energy=NULL,stress=NULL,tags=NULL,note=NULL,updated_at=excluded.updated_at,deleted_at=excluded.deleted_at").bind(owner,id,at,at,at)));
+  deleted.forEach(id=>statements.push(env.DB.prepare("INSERT INTO even_moods(owner_email,id,ts,updated_at,deleted_at) VALUES(?,?,?,?,?) ON CONFLICT(owner_email,id) DO UPDATE SET ts=excluded.ts,score=NULL,energy=NULL,stress=NULL,tags=NULL,note=NULL,updated_at=excluded.updated_at,deleted_at=excluded.deleted_at").bind(owner,id,at,at,at)));
   if(statements.length)await env.DB.batch(statements);
   return reply({ok:true,saved:moods.length,deleted:deleted.length});
  }
@@ -843,20 +863,12 @@ async function syncApi(request,env,path){
   const clientVersion=await markUpload(env,dev,input.shortcutVersion,at,{health:metrics.length});
   return reply({ok:true,state:"accepted",receivedAt:at,kind,healthMetrics:metrics.length,shortcutVersion:clientVersion});
  }
- if(path==="/api/account/delete"&&request.method==="POST"){
-  await env.DB.batch(accountStatements(env,owner));
-  return reply({ok:true,deleted:true,email:owner});
- }
  if(path==="/api/device/disconnect"&&request.method==="POST"){
   await env.DB.batch([
    env.DB.prepare("DELETE FROM even_push_subscriptions WHERE device_id=? AND owner_email=?").bind(dev.id,owner),
    env.DB.prepare("UPDATE even_devices SET revoked_at=? WHERE device_id=? AND owner_email=? AND revoked_at IS NULL").bind(new Date().toISOString(),dev.id,owner)
   ]);
   return reply({ok:true});
- }
- if(path==="/api/erase"&&request.method==="POST"){
-  await env.DB.batch([...syncedDataStatements(env,owner),env.DB.prepare("UPDATE even_users SET mood_sync=0 WHERE email=?").bind(owner)]);
-  return reply({ok:true,erased:true,email:owner});
  }
  return error("Not found",404,"not_found");
 }
@@ -883,6 +895,7 @@ async function runCron(env){
  try{
   const counts=await sendReminders(env);
   logEvent("cron",counts||{});
+  await env.DB.prepare("DELETE FROM even_service WHERE key LIKE 'sends:%' AND updated_at<?").bind(new Date(Date.now()-86400000).toISOString()).run();
   await env.DB.prepare("INSERT INTO even_service(key,value,updated_at) VALUES('last_cron',?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at").bind(JSON.stringify(counts||{}),at).run();
  }catch(e){logEvent("cron_failed",{error:e?.name});}
 }

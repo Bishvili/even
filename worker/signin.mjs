@@ -7,7 +7,7 @@ const DAY=86400;
 export const SESSION_COOKIE="even.session_token";
 
 export function createAuth(env,{isApproved,deliverCode}){
- const google=env.GOOGLE_CLIENT_ID&&env.GOOGLE_CLIENT_SECRET?{google:{clientId:env.GOOGLE_CLIENT_ID,clientSecret:env.GOOGLE_CLIENT_SECRET,prompt:"select_account"}}:{};
+ const google=env.GOOGLE_CLIENT_ID&&env.GOOGLE_CLIENT_SECRET?{google:{clientId:env.GOOGLE_CLIENT_ID,clientSecret:env.GOOGLE_CLIENT_SECRET,prompt:"select_account",overrideUserInfoOnSignIn:true}}:{};
  return betterAuth({
   appName:"Even",
   baseURL:env.PUBLIC_ORIGIN,

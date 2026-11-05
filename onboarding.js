@@ -47,7 +47,7 @@
  if(typeof document==="undefined"||!root.EvenApp)return;
 
  var COPY={
-  "install:share":{title:"Add Even to your Home Screen",text:"In Safari, tap Share (or ••• and then Share), then Add to Home Screen.",unsynced:"Check-ins saved in Safari don’t move to the app."},
+  "install:share":{title:"Add Even to your Home Screen",text:"In Safari, tap Share (or ••• and then Share), then Add to Home Screen."},
   "install:prompt":{title:"Install Even",text:"Open Even in its own window, with notifications for check-ins.",action:"Install"},
   "signin:signin":{title:"Sign in",text:"Use your invited email for a one-time code, or use Google.",action:"Sign in"},
   "signin:pending":{title:"Finishing sign-in…",text:"One moment.",busy:true},
@@ -93,8 +93,6 @@
   var copy=COPY[current.id+":"+current.variant],text=!s.ios&&copy.otherText||copy.text;
   function named(words){return words.replace("{device}",s.deviceName);}
   if(current.id==="signin"&&s.email&&(current.variant==="connect"||current.variant==="connecting"))text=("Signed in as "+s.email+". "+text).trim();
-  // With check-in sync on, check-ins made in Safari do reach the app.
-  if(copy.unsynced&&!s.moodSync)text+=" "+copy.unsynced;
   if(current.done)text=(text+" You’ve already done this.").trim();
   $("setup-step").textContent="Step "+current.number+" of "+current.total;
   $("setup-title").textContent=named(copy.title);

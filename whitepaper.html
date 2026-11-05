@@ -47,9 +47,9 @@
 <div class="table"><table>
  <thead><tr><th>Signal</th><th>Detail</th><th>Source</th><th>Stored</th></tr></thead>
  <tbody>
-  <tr><td>Mood</td><td>Five levels, Rough to Great</td><td>Self-report</td><td>This iPhone, plus the account if check-in sync is on</td></tr>
-  <tr><td>Stress</td><td>Optional, 1 to 5</td><td>Self-report</td><td>This iPhone, plus the account if check-in sync is on</td></tr>
-  <tr><td>Notes and tags</td><td>Free text and labels</td><td>Self-report</td><td>This iPhone, plus the account if check-in sync is on</td></tr>
+  <tr><td>Mood</td><td>Five levels, Rough to Great</td><td>Self-report</td><td>This iPhone, plus the account when signed in</td></tr>
+  <tr><td>Stress</td><td>Optional, 1 to 5</td><td>Self-report</td><td>This iPhone, plus the account when signed in</td></tr>
+  <tr><td>Notes and tags</td><td>Free text and labels</td><td>Self-report</td><td>This iPhone, plus the account when signed in</td></tr>
   <tr><td>Sleep</td><td>Hours asleep and bedtime, from recent nights, or up to a month on the first sync</td><td>Apple Health</td><td>Account and iPhone</td></tr>
   <tr><td>Heart and activity</td><td>Resting heart rate, heart rate variability, steps, exercise minutes</td><td>Apple Health</td><td>Account and iPhone</td></tr>
   <tr><td>Calendar</td><td>Today’s and tomorrow’s events: title, time, calendar name and a category. Titles are stored. The Shortcut skips calendars the person turns off, anything that still arrives is discarded, and saved events can be removed.</td><td>iPhone Calendar</td><td>Account and iPhone</td></tr>
@@ -63,7 +63,7 @@
 <p class="note">People choose in the app which kinds of data and which calendars the Shortcut sends. Health values are read by an Apple Shortcut when it runs. The app can’t read Apple Health directly, and the iPhone must be unlocked for the Shortcut to read it.</p>
 
 <figure>
- <div class="scroll"><svg viewBox="0 0 720 340" role="img" aria-label="Health, calendar and clock data pass through a Shortcut to the private account, then to the app. Mood entries stay in the app unless the person turns on check-in sync. Only notification times go to the account, which sends notifications back.">
+ <div class="scroll"><svg viewBox="0 0 720 340" role="img" aria-label="Health, calendar and clock data pass through a Shortcut to the private account, then to the app. Mood entries also go to the account when the person is signed in. Only notification times go to the account, which sends notifications back.">
   <defs><marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="head" d="M0 0L10 5L0 10Z"/></marker></defs>
   <rect class="band" x="10" y="10" width="480" height="320" rx="14"/><text class="small" x="26" y="34">The person’s iPhone</text>
   <rect class="band" x="530" y="10" width="180" height="320" rx="14"/><text class="small" x="546" y="34">Private account</text>
@@ -77,7 +77,7 @@
   <path class="wire" marker-end="url(#a2)" d="M460 240H548"/><text class="small" x="470" y="232">times</text>
   <path class="wire" marker-end="url(#a2)" d="M550 285H462"/><text class="small" x="466" y="304">alerts</text>
  </svg></div>
- <figcaption><strong>Figure 2.</strong> Where information goes. Check-ins and notes reach the account only if the person turns on check-in sync, which lets a check-in made on one device appear on another. It is off by default.</figcaption>
+ <figcaption><strong>Figure 2.</strong> Where information goes. When the person is signed in, check-ins and notes also go to the account, so a check-in made on one device appears on another.</figcaption>
 </figure>
 
 <h2>How a pattern is found</h2>
@@ -161,7 +161,7 @@
 
 <h2>Safety</h2>
 <ul>
- <li>If a person rates stress 4 or 5 on at least 3 of the last 4 calendar days, counting today, the app suggests talking to someone and links to support.</li>
+ <li>If a person rates stress 4 or 5, or mood Rough or Low, on at least 3 of the last 4 calendar days, counting today, the app suggests talking to someone and links to support.</li>
  <li>Settings lists crisis contacts, including 911 and the 988 Lifeline, and says plainly that the app can’t respond in a crisis.</li>
  <li><strong>Nobody reviews entries.</strong> There is no clinician view and no escalation. High scores alert no one. Even should not be relied on for monitoring risk.</li>
  <li>The app does not screen for depression, anxiety or any other condition, and does not advise on medication.</li>
@@ -187,7 +187,7 @@
 
 <h2>Privacy</h2>
 <ul>
- <li>Mood, stress and notes stay on the device unless the person turns on check-in sync. With it on, they’re stored in the account as readable text, and erasing synced data removes them and turns sync off. Reflections always stay on the device. If the app is deleted with sync off and no backup, this data is gone.</li>
+ <li>Mood, stress and notes are stored on the device and, when the person is signed in, in the account as readable text. Erasing synced data removes them from the account and from the person’s devices. Reflections always stay on the device. If the app is deleted while signed out with no backup, this data is gone.</li>
  <li>Synced records are limited to the verified account that owns them, and each person can erase them or delete their account from the app. Removing a tester deletes their synced data, and devices unused for 90 days disconnect.</li>
  <li>Data travels over encrypted connections. It is not end-to-end encrypted, so the service’s operators could technically access synced records, including calendar titles, alarm names and any synced check-ins and notes.</li>
  <li>A first name can appear in notifications at the start and end of the day and at hard moments, so it can show on the Lock Screen.</li>

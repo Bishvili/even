@@ -49,6 +49,7 @@ CREATE TABLE IF NOT EXISTS even_calendars (
   owner_email TEXT NOT NULL REFERENCES even_users(email),
   name TEXT NOT NULL,
   enabled INTEGER NOT NULL DEFAULT 1,
+  category TEXT,
   PRIMARY KEY (owner_email, name)
 );
 CREATE TABLE IF NOT EXISTS even_push_subscriptions (

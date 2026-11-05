@@ -337,3 +337,10 @@ test("a subject whose comparisons disagree is marked mixed",()=>{
  const row=findings(moods,events,[],[],new Date()).find(r=>r.subject==="Work");
  assert.equal(row.mixed,true);
 });
+test("the support suggestion covers mood-only, stress-only, mixed and recovery",()=>{
+ const today=past(0),day=n=>past(n).toISOString();
+ assert.equal(hardStretch([0,1,2].map(n=>({ts:day(n),score:1})),today),true);
+ assert.equal(hardStretch([0,1,2].map(n=>({ts:day(n),score:3,stress:5})),today),true);
+ assert.equal(hardStretch([{ts:day(0),score:2},{ts:day(1),stress:4,score:3},{ts:day(2),score:1}],today),true);
+ assert.equal(hardStretch([{ts:day(0),score:4},{ts:day(1),score:4},{ts:day(5),score:1},{ts:day(6),score:1},{ts:day(7),score:1}],today),false);
+});

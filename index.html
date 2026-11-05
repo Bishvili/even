@@ -33,7 +33,7 @@
     <span class="brand-icon" aria-hidden="true"><svg viewBox="0 0 512 512"><path d="M146 300a110 110 0 0 1 220 0Z" fill="currentColor"/><path d="M96 346h320" class="icon-line" stroke-width="30" stroke-linecap="round"/></svg></span>
     <span class="brand-type"><strong>Even</strong></span>
    </a>
-   <button class="sync-light" id="sync-light" data-go="data"><span class="light-dot"></span><span id="sync-light-text">Local only</span></button>
+   <button class="sync-light" id="sync-light" data-go="data"><span class="light-dot"></span><span id="sync-light-text">Sign in</span></button>
   </header>
 
   <main id="main">
@@ -81,7 +81,7 @@
      <label class="note-label" for="mood-note">Add a note <span class="hint">optional</span></label>
      <textarea id="mood-note" rows="2" maxlength="400" placeholder="What’s on your mind?"></textarea>
      <button type="button" class="btn primary full" id="save-mood">Save check-in</button>
-     <p class="privacy-micro">🔒 Mood notes stay on this device unless you sync check-ins.</p>
+     <p class="privacy-micro">🔒 Check-ins and notes sync to your account when you’re signed in.</p>
     </div>
     <div class="hard-stretch" id="hard-stretch" role="note" hidden><span id="hard-stretch-text">It’s been a hard few days. Talking to someone can help.</span> <a href="#settings" data-go="settings">Find support</a></div>
     <section class="today-brief" id="today-brief" aria-labelledby="today-title">
@@ -149,7 +149,7 @@
       <button type="button" class="btn primary full" id="login-button">Sign in</button>
      </div>
      <div id="login-ready" hidden>
-      <div class="account-banner"><span class="account-dot" aria-hidden="true"></span><div><small>Signed in as</small><strong id="auth-email">—</strong></div><button id="refresh-devices" class="small-action" type="button">Refresh</button></div>
+      <div class="account-banner" id="account-banner"><span class="account-dot" aria-hidden="true"></span><div><small>Signed in as</small><strong id="auth-email">—</strong></div></div>
       <div id="owner-mismatch" class="sync-warning" hidden>This iPhone’s records belong to another account. Back them up in Settings and erase them before switching.</div>
       <div id="need-device" hidden>
        <button type="button" class="btn primary full" id="issue-device">Connect this iPhone</button>
@@ -198,11 +198,6 @@
      </details>
     </section>
     
-    <section class="card" id="mood-sync-card" aria-labelledby="mood-sync-title" hidden>
-     <h2 id="mood-sync-title">Check-ins on your devices</h2>
-     <p class="muted">Saves your check-ins and notes to your account, so a check-in from your computer appears on your iPhone. Sign in to Even on each device.</p>
-     <div class="calendar-list"><label class="calendar-row"><span>Sync check-ins</span><input type="checkbox" role="switch" id="mood-sync-toggle"></label></div>
-    </section>
     <section class="card" id="calendar-card" aria-labelledby="sync-settings-title" hidden>
      <h2 id="sync-settings-title">What Even Sync sends</h2>
      <p class="muted">Even Sync checks these each time it runs. Turning one off stops new data, and what’s already saved stays until you erase it.</p>
@@ -256,7 +251,7 @@
     <button type="button" class="btn subtle full" id="sign-out">Sign out</button>
     <button type="button" class="btn subtle full" id="delete-account">Delete my account</button>
     </details>
-    <div class="help-note"><strong>Privacy</strong><p>Your first name can appear in notifications, including on your Lock Screen. Mood check-ins stay on this iPhone unless you turn on check-in sync, which saves them and their notes to your account. Health data, calendar events and alarms you sync are sent over an encrypted connection and stored in your private account. They aren’t end-to-end encrypted. Sign-in codes are sent through our email provider. If you use Google, it tells us your email and name. You can disconnect a device or erase synced data at any time.</p></div>
+    <div class="help-note"><strong>Privacy</strong><p>Your first name can appear in notifications, including on your Lock Screen. When you’re signed in, check-ins and their notes are saved to your private account so they appear on your other devices. They’re stored as readable text. Health data, calendar events and alarms you sync are sent over an encrypted connection and stored in your private account. None of this is end-to-end encrypted. Sign-in codes are sent through our email provider. If you use Google, it tells us your email and name. You can disconnect a device or erase synced data at any time.</p></div>
    </section>
 
    <section id="view-settings" class="view" aria-labelledby="settings-title">
@@ -305,7 +300,7 @@
      </div>
      <button type="button" class="btn subtle full" id="intake-retake">Answer the questions again</button>
     </section>
-    <div class="card"><h2>Your local data</h2><p class="muted">Mood check-ins, notes and locally imported health and calendar data are kept in this app’s storage on this device. Check-ins and notes also go to your account if you turn on check-in sync. Clearing site data or deleting the Home Screen app may erase them.</p><div class="settings-meta" id="storage-summary"></div><p class="muted" id="storage-note"></p><p class="muted" id="backup-note"></p><button class="btn secondary full" id="backup-button">Save a backup</button><label class="file-label">Restore from backup <input type="file" id="restore-input" accept="application/json,.json"></label><button class="btn danger full" id="erase-local">Erase all data on this device</button></div>
+    <div class="card"><h2>Your local data</h2><p class="muted">Mood check-ins, notes and locally imported health and calendar data are kept in this app’s storage on this device. Check-ins and notes also go to your account when you’re signed in. Clearing site data or deleting the Home Screen app may erase them.</p><div class="settings-meta" id="storage-summary"></div><p class="muted" id="storage-note"></p><p class="muted" id="backup-note"></p><button class="btn secondary full" id="backup-button">Save a backup</button><label class="file-label">Restore from backup <input type="file" id="restore-input" accept="application/json,.json"></label><button class="btn danger full" id="erase-local">Erase all data on this device</button></div>
     
     <section class="card" id="support" aria-labelledby="support-title">
      <h2 id="support-title">Need support?</h2>
@@ -334,7 +329,7 @@
      <p class="muted">Start a session on this site’s code.</p>
      <a class="btn primary full" id="improve-site" href="https://claude.ai/code/new?repo=Bishvili%2Feven&branch=main&q=Help%20me%20get%20set%20up%20to%20improve%20Even%2C%20one%20step%20at%20a%20time%20and%20in%20plain%20language.%20Follow%20the%20onboarding%20section%20of%20AGENTS.md%3A%20check%20which%20connections%20I%20already%20have%2C%20then%20offer%20each%20missing%20one%20as%20a%20card%20I%20can%20approve.%20Don%27t%20ask%20me%20for%20any%20keys.%20Run%20the%20tests%2C%20and%20read%20the%20frontend%20guide%20and%20whitepaper.html%20so%20you%20know%20how%20the%20app%20behaves.%20Then%20ask%20what%20I%27d%20like%20to%20change.%20Before%20you%20push%20anything%2C%20tell%20me%20in%20a%20sentence%20what%20will%20change%20for%20people%20using%20the%20app%2C%20because%20pushes%20go%20live%20right%20away." target="_blank" rel="noopener noreferrer">Improve This Site with Claude <span aria-hidden="true">↗</span></a>
     </section>
-    <div class="card"><h2>About the insights</h2><p class="muted">Comparisons need at least 5 check-ins in each group. Mood data is subjective and gaps can skew results. Nothing here is a diagnosis or proves a cause.</p><button type="button" class="btn subtle full" id="setup-again">Go through setup again</button><a class="btn subtle full" id="whitepaper-link" href="/whitepaper.html" target="_blank" rel="noopener">How Even works <span aria-hidden="true">↗</span></a><p class="muted">Version <span id="version">2.30.0</span> · No ads or analytics</p></div>
+    <div class="card"><h2>About the insights</h2><p class="muted">Comparisons need at least 5 check-ins in each group. Mood data is subjective and gaps can skew results. Nothing here is a diagnosis or proves a cause.</p><button type="button" class="btn subtle full" id="setup-again">Go through setup again</button><a class="btn subtle full" id="whitepaper-link" href="/whitepaper.html" target="_blank" rel="noopener">How Even works <span aria-hidden="true">↗</span></a><p class="muted">Version <span id="version">2.32.0</span> · No ads or analytics</p></div>
     <div class="card"><h2>Explore a sample month</h2><p class="muted">See 28 days of fictional check-ins and events. They stay separate from your own data and are never uploaded.</p><button class="btn secondary full" id="demo-button">Load 28-day calendar demo</button><button class="btn subtle full" id="clear-demo-button">Remove demo data</button></div>
    </section>
   </main>
@@ -410,6 +405,19 @@
     <p class="signin-error" id="restore-passphrase-note" role="alert" hidden>That passphrase didn’t work. Nothing was changed.</p>
     <button type="submit" class="btn primary full">Restore</button>
     <button type="button" class="btn subtle full" id="restore-cancel">Cancel</button>
+   </form>
+  </dialog>
+  <dialog class="welcome signin-sheet" id="edit-sheet" aria-labelledby="edit-title">
+   <h2 id="edit-title">Edit check-in</h2>
+   <form id="edit-form">
+    <label for="edit-score">Mood</label>
+    <select id="edit-score"><option value="1">Rough</option><option value="2">Low</option><option value="3">Okay</option><option value="4">Good</option><option value="5">Great</option></select>
+    <label for="edit-when">When</label>
+    <input id="edit-when" type="datetime-local" required>
+    <label for="edit-note">Note</label>
+    <textarea id="edit-note" maxlength="400" rows="3"></textarea>
+    <button type="submit" class="btn primary full">Save</button>
+    <button type="button" class="btn subtle full" id="edit-cancel">Cancel</button>
    </form>
   </dialog>
   <dialog class="welcome" id="confirm-sheet" aria-labelledby="confirm-text">

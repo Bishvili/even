@@ -94,7 +94,7 @@ Only an iPhone proves iOS behavior, and each round trip costs the owner time. Be
 - Failures log one JSON line through `logEvent` in `worker/index.js`, from named fields only. Each cron run records itself in `even_service`, and Developer tools shows the last run. Lint runs as a test (`tests/lint.test.cjs`), so it stops a deploy.
 - Worker, repository and address renames need dashboard steps. Push only after they're done, because a mismatch can deploy to the wrong place.
 - Change a live D1 schema before pushing code that needs it, with additive changes only. Add a numbered file in `db/migrations`, update `db/schema.sql` in the same commit, and apply it with `wrangler d1 migrations apply even-private --remote`. `tests/migrations.test.cjs` checks that the migrations rebuild the schema.
-- The public address is `https://even.bishvili.org`: `PUBLIC_ORIGIN` in `wrangler.jsonc`, `HOME_ORIGIN` in `app.js` and `evenAddress` in each Shortcut. The earlier workers.dev address stays on, for installed copies that haven't moved. Rate limits are the `INVITE_LIMIT` and `DEVICE_LIMIT` bindings, and refusals return `429` with the code `rate_limited`.
+- The public address is `https://even.bishvili.org`: `PUBLIC_ORIGIN` in `wrangler.jsonc`, `HOME_ORIGIN` in `app.js` and `evenAddress` in each Shortcut. The earlier workers.dev address stays on, for installed copies that haven't moved. Rate limits are the `INVITE_LIMIT`, `DEVICE_LIMIT`, `SIGNIN_LIMIT` (entering codes), `SEND_LIMIT` and `NETWORK_LIMIT` (sending codes) bindings, plus 5 sends an hour per email counted in `even_service`, and refusals return `429` with the code `rate_limited`.
 - After someone adds a Worker secret, list the secret names and compare them with what the code reads. A misspelled name fails silently.
 - Every page and asset is served with a strict content security policy, so inline styles and scripts are blocked, including `style="…"` attributes that JavaScript writes into `innerHTML`. Set dynamic values with `element.style` or a class, keep styles and scripts in separate files, and add each file to `SHELL` in `sw.js`.
 - Check the Workers Builds result for the exact commit, then the deployed code. When you can't test something on a device, say so plainly.
@@ -123,7 +123,7 @@ Only an iPhone proves iOS behavior, and each round trip costs the owner time. Be
 Even is an iPhone-first, installable progressive web app for quick mood check-ins and useful context from calendars and selected health metrics. Hold the interface to the finish, consistency, speed, and restraint of a popular App Store app, while remaining truthful about web-platform capabilities.
 
 - A check-in should take seconds. The interface must work while offline.
-- Personal mood check-ins and notes stay on the device unless the person turns on check-in sync, which is off by default and belongs to their account.
+- Mood check-ins and notes are kept on the device and, once signed in, always sync to the person's own account.
 - Cloud-synced Health and Calendar records are private to their verified owner.
 - Correlations are exploratory. Show sample counts, time windows, missing-data limitations, and appropriate uncertainty; never suggest causation or provide medical diagnoses.
 - Fictional demo data must be clearly marked, reproducible, and fully isolated from real data and personal summary statistics.
@@ -134,9 +134,11 @@ Even is an iPhone-first, installable progressive web app for quick mood check-in
 - Write tickets with **Problem**, **Evidence** (permalinks to lines), **Proposed fix**, **Acceptance criteria**, **Tests** and **Rollout notes**. Start each title with P0 (wrong now, or a data or privacy risk), P1 (trust, accuracy or first impression) or P2 (foundations). Never copy personal values into a ticket: use code references and aggregate counts.
 - The owner has decided the following. Don't reopen them without asking:
   - Even Sync reads the calendars and data kinds left on in the app, and skips the rest. Titles of synced events are stored. The Worker discards anything turned off that still arrives.
-  - Check-ins and notes can sync through the account, as an opt-in that is off by default. Erasing synced data removes them and turns it off.
+  - Check-ins and notes always sync through the account when signed in. There is no setting to turn it off. Erasing synced data removes them from the account and from the person's devices.
   - Removing a tester deletes their synced data. Planned in #22.
+  - A day counts as hard when stress is 4 or 5, or mood is Rough or Low, and the support suggestion appears after 3 such days in the last 4.
   - Sources and Sync are one **Data** tab, leaving four tabs (#27).
+  - Even is for the US and in English for now: the support numbers are US only, and Even Sync matches English Health names.
   - Even Sync is installed only from the iCloud link the app offers. There is no third-party listing.
   - Resting heart rate becomes personal recovery context, compared with the person's own usual level (planned in #37). Average heart rate is no longer collected.
   - Even Sync also sends tomorrow's events, so the wind-down and morning brief can plan around the first commitment. Even Sync 3 sends them; coaching starts using them in #37.
@@ -212,15 +214,15 @@ What Even holds and where it goes. Write every privacy statement from this table
 
 | Data | Comes from | On the iPhone | In the account | Used for |
 | --- | --- | --- | --- | --- |
-| Mood, optional stress and energy, tags, notes | Check-ins | Yes | Only with check-in sync on, as readable text. A deleted check-in leaves only its ID, so other devices can remove it. | Insights, coaching and notification times. Notes are only displayed. |
+| Mood, optional stress and energy, tags, notes | Check-ins | Yes | Yes when signed in, as readable text. A deleted check-in leaves only its ID, so other devices can remove it. | Insights, coaching and notification times. Notes are only displayed. |
 | Weekly reflections and breathing sessions | The app | Yes | No | Insights. Breathing also feeds what tends to help. |
 | Health days and events added by hand or imported | The Data tab | Yes | No | Insights and coaching |
 | Steps, exercise minutes, sleep hours, HRV | Even Sync, from Apple Health. Sleep arrives as asleep intervals from recent nights, up to a month on the first sync | Yes | Yes | Insights and coaching. HRV: Insights only. |
 | Bedtimes | Worked out from the sleep intervals | Yes | Yes | Bedtime estimate and wind-down |
 | Resting heart rate | Even Sync, from Apple Health | Yes | Yes | Insights: compared with the person's own usual level |
 | Today's and tomorrow's calendar events: title, start, end, calendar name | Even Sync reads calendars left on. Saved events from a turned-off calendar can be removed in the app; the Worker adds a category | Yes, without the calendar name | Yes, except events from turned-off calendars, which are discarded on arrival | Insights, coaching and nudges before events |
-| Calendar names and on/off state | Even Sync and the app | No | Yes | Calendar settings |
-| What Even Sync sends, and whether check-ins sync | The app | Yes | Yes | Followed by Even Sync and the Worker |
+| Calendar names, on/off state and what each is for | Even Sync and the app | No | Yes | Calendar settings and event categories |
+| What Even Sync sends | The app | Yes | Yes | Followed by Even Sync and the Worker |
 | Alarms: time, repeat days, on/off, name | Even Sync, from Clock | Yes | Yes, plus each synced day's first morning alarm | Brief, wind-down, next steps and the early-alarm pattern |
 | Notification settings and answers | The app | Yes, including each message's text | Dated times for the next 7 days and their kinds, time zone, weekends, sync reminder time, times of expected harder moments, latest check-in time, push subscription and delivery status | Sending notifications |
 | Account and devices | Sign-in and Even Sync | Account email, first name, device ID and credential | Email; the name from sign-in, if any, shown to developer accounts; each device's label, dates (devices unused for 90 days disconnect), last error, Shortcut version and how many records its last upload held; only a hash of each credential; sign-in sessions with the browser's description, and whether the account uses Google | Sync status and access |
