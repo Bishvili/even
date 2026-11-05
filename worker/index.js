@@ -235,7 +235,7 @@ async function authApi(request,env,ctx,path){
   const person=firstName(await displayName(env,email));
   const welcome=await env.DB.prepare("SELECT display_name FROM even_release_emails WHERE email=? AND display_name IS NOT NULL AND welcomed_at IS NULL").bind(email).first();
   const release=await canRelease(env,email);
-  return reply({ok:true,email,canRelease:release,helper:release?await loadHelperLink(env):null,firstName:person,welcomeName:welcome?person:null,devices:(r.results||[]).map(d=>({id:d.device_id,label:d.label,createdAt:d.created_at,lastUsedAt:d.last_used_at,lastAttemptAt:d.last_attempt_at,lastErrorCode:d.last_error_code,shortcutVersion:d.shortcut_version,revoked:!!d.revoked_at}))});
+  return reply({ok:true,email,canRelease:release,helper:release?await loadHelperLink(env):null,firstName:person,name:await displayName(env,email),welcomeName:welcome?person:null,devices:(r.results||[]).map(d=>({id:d.device_id,label:d.label,createdAt:d.created_at,lastUsedAt:d.last_used_at,lastAttemptAt:d.last_attempt_at,lastErrorCode:d.last_error_code,shortcutVersion:d.shortcut_version,revoked:!!d.revoked_at}))});
  }
  if(path==="/api/auth/device"){
   if(!browserPostAllowed(request))return error("This request isn't allowed.",403,"same_origin_required");
@@ -556,6 +556,14 @@ async function syncApi(request,env,path){
   if(!updated.meta?.changes)return error("Calendar not found",404,"calendar_not_found");
   return reply({ok:true});
  }
+ if(path==="/api/profile/name"&&request.method==="POST"){
+  let input;try{input=await payload(request);}catch(e){return error("Even couldn't read that request.",400,"invalid_body");}
+  const name=String(input?.name||"").trim().replace(/[\x00-\x1f]/g,"").slice(0,60);
+  if(name)await env.DB.prepare("INSERT INTO even_names(email,name,set_by,updated_at) VALUES(?,?,?,?) ON CONFLICT(email) DO UPDATE SET name=excluded.name,set_by=excluded.set_by,updated_at=excluded.updated_at").bind(owner,name,owner,new Date().toISOString()).run();
+  else await env.DB.prepare("DELETE FROM even_names WHERE email=?").bind(owner).run();
+  const current=await displayName(env,owner);
+  return reply({ok:true,name:current,firstName:firstName(current)});
+ }
  if(path==="/api/sync/settings"&&request.method==="GET"){
   const off=await syncOff(env,owner);
   return reply({ok:true,settings:Object.fromEntries(SYNC_KINDS.map(kind=>[kind,!off.has(kind)]))});
@@ -642,7 +650,7 @@ async function syncApi(request,env,path){
    if(!grouped[h.day])grouped[h.day]={date:h.day,source:"shortcut"};
    grouped[h.day][h.metric]=h.value;
   }
-  return reply({ok:true,email:owner,firstName:firstName(await displayName(env,owner)),health:Object.values(grouped),events:(events.results||[]).map(e=>({id:e.event_id,start:e.start_time,end:e.end_time,title:e.title,category:e.category,source:"shortcut"})),alarms:(alarms.results||[]).map(a=>({timeMin:a.time_min,days:a.days?a.days.split(",").map(Number):[],enabled:a.enabled!==0,label:a.label||null})),syncAt:new Date().toISOString()});
+  return reply({ok:true,email:owner,firstName:firstName(await displayName(env,owner)),name:await displayName(env,owner),health:Object.values(grouped),events:(events.results||[]).map(e=>({id:e.event_id,start:e.start_time,end:e.end_time,title:e.title,category:e.category,source:"shortcut"})),alarms:(alarms.results||[]).map(a=>({timeMin:a.time_min,days:a.days?a.days.split(",").map(Number):[],enabled:a.enabled!==0,label:a.label||null})),syncAt:new Date().toISOString()});
  }
  if(path==="/api/ingest"&&request.method==="POST"){
   let input;
@@ -715,6 +723,7 @@ async function syncApi(request,env,path){
    env.DB.prepare("DELETE FROM even_calendars WHERE owner_email=?").bind(owner),
    env.DB.prepare("DELETE FROM even_alarms WHERE owner_email=?").bind(owner),
    env.DB.prepare("DELETE FROM even_moods WHERE owner_email=?").bind(owner),
+   env.DB.prepare("DELETE FROM even_names WHERE email=?").bind(owner),
    env.DB.prepare("UPDATE even_users SET mood_sync=0 WHERE email=?").bind(owner)
   ]);
   return reply({ok:true,erased:true,email:owner});
@@ -722,7 +731,7 @@ async function syncApi(request,env,path){
  return error("Not found",404,"not_found");
 }
 async function api(request,env,ctx,path){
- if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:"Even",version:"2.12.0",sync:"email-access"});
+ if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:"Even",version:"2.13.0",sync:"email-access"});
  if(path.startsWith("/api/auth/"))return authApi(request,env,ctx,path);
  return syncApi(request,env,path);
 }

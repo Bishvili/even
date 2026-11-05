@@ -767,3 +767,22 @@ test("a first name appears only on messages that start or close the day, or at a
  assert.doesNotMatch(runtime.reminderMessage(1100,false,false,"Sam"),/Sam/);
  assert.equal(runtime.reminderMessage(500,false,false,null),"Good morning. How are you starting the day?");
 });
+
+test("people set their own name, for their account only, and an erase removes it",async()=>{
+ const{call,ctx,rows}=harness();
+ const a=await call("/api/auth/device",{method:"POST",body:{label:"A"},context:ctx("owner-b@example.com")});
+ const b=await call("/api/auth/device",{method:"POST",body:{label:"B"},context:ctx("owner-a@example.com")});
+ const A={Authorization:"Bearer "+a.data.token};
+ assert.equal((await call("/api/profile/name",{method:"POST",body:{name:"Sam"}})).status,401);
+ const saved=await call("/api/profile/name",{method:"POST",headers:A,body:{name:"  Sam Lee ",email:"owner-a@example.com"}});
+ assert.equal(saved.data.name,"Sam Lee");
+ assert.equal(saved.data.firstName,"Sam");
+ assert.equal(rows.names.get("owner-b@example.com"),"Sam Lee");
+ assert.equal(rows.names.has("owner-a@example.com"),false);
+ assert.equal((await call("/api/pull",{headers:A})).data.firstName,"Sam");
+ assert.equal((await call("/api/pull",{headers:{Authorization:"Bearer "+b.data.token}})).data.firstName,"Ada");
+ assert.equal((await call("/api/profile/name",{method:"POST",headers:A,body:{name:""}})).data.name,null);
+ await call("/api/profile/name",{method:"POST",headers:A,body:{name:"Sam"}});
+ await call("/api/erase",{method:"POST",headers:A});
+ assert.equal(rows.names.has("owner-b@example.com"),false);
+});

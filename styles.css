@@ -193,3 +193,4 @@ html{touch-action:manipulation}
 #view-checkin.setup-active .today-brief,#view-checkin.setup-active .next-actions,#view-checkin.setup-active .reflection-prompt{display:none}
 #tester-name-input{width:100%;margin:8px 0}#tester-name-form .btn+.btn{margin-top:8px}#setup-again{margin-top:10px}
 .tester-actions{gap:0}
+#your-name-form{display:flex;gap:8px;margin-top:12px}#your-name-form input{flex:1;min-width:0}#your-name-form .btn{flex:none}
