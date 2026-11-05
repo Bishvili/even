@@ -39,7 +39,7 @@ test("a code signs an approved email in, and is stored only as a hash",{skip:!re
  const signed=await call("sign-in/email-otp",{email:"in@example.com",otp:codes["in@example.com"]});
  assert.equal(signed.status,200);
  const cookie=signed.headers.get("set-cookie");
- assert.match(cookie,/even\.session_token/);
+ assert.match(cookie,/health\.session_token/);
  const session=await auth.api.getSession({headers:new Headers({Cookie:cookie.split(";")[0]})});
  assert.equal(session.user.email,"in@example.com");
 });
