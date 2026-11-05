@@ -32,7 +32,7 @@ export function createAuth(env,{appName,baseURL=env.PUBLIC_ORIGIN,isApproved,del
    ...(env.GOOGLE_RELAY_ORIGIN?[oAuthProxy({productionURL:env.GOOGLE_RELAY_ORIGIN,maxAge:60})]:[])],
   databaseHooks:{
    user:{create:{before:async user=>{
-    if(!await isApproved(String(user.email).trim().toLowerCase()))throw new APIError("FORBIDDEN",{message:"This email isn't on the list yet."});
+    if(!await isApproved(String(user.email).trim().toLowerCase()))throw new APIError("FORBIDDEN",{message:"This email isn't on the list yet.",code:"NOT_APPROVED"});
     return {data:user};
    }}},
    // Google's tokens aren't used after sign-in, so they aren't kept.
