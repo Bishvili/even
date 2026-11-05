@@ -1,6 +1,6 @@
 (function () {
 "use strict";
-var VERSION = "2.14.0";
+var VERSION = "2.14.1";
 var SHORTCUT_PAGE = "https://routinehub.co/shortcut/26978/";
 var STORAGE_KEY = "even:v1";
 var MOOD_NAMES = ["","Rough","Low","Okay","Good","Great"];
@@ -761,11 +761,14 @@ function watchForUpdates(){
  navigator.serviceWorker.addEventListener("controllerchange",function(){
   if(!wasControlled){wasControlled=true;return;}
   updateReady=true;
-  if(document.hidden&&!hasDraft())window.location.reload();else $("update-banner").hidden=false;
+  if(document.hidden&&!hasDraft())return;
+  $("update-banner").hidden=false;
  });
  document.addEventListener("visibilitychange",function(){
-  if(!document.hidden){checkForUpdate();return;}
-  if(updateReady&&!hasDraft())window.location.reload();
+  if(document.hidden)return;
+  // Reloading while hidden can leave iOS with a stale layout, so wait until the app is back on screen.
+  if(updateReady&&!hasDraft()){window.location.reload();return;}
+  checkForUpdate();
  });
  $("apply-update").addEventListener("click",function(){window.location.reload();});
 }
