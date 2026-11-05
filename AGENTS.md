@@ -105,6 +105,7 @@ Only an iPhone proves iOS behavior, and each round trip costs the owner time. Be
 - When what Even collects, sends or stores changes, update the **Data inventory**, Sync → Help and privacy, Settings, the README's Privacy section and `whitepaper.html` in the same commit.
 
 **Analysis and copy**
+- Use a first name only where it adds care: messages that start or close the day, a hard moment, and invitations. Keep it out of routine check-ins, sync messages, insights and errors.
 - Each comparison has one implementation: stress in `coach.js`, and mood in `app.js` until #32 merges them. Extend those rather than adding another.
 - Give each comparison one minimum count and one threshold. Never show an average below the minimum, and use the same numbers in the interface and How Even Works.
 - Write counts with the right singular or plural form: "1 entry", never "1 entries".
@@ -218,8 +219,8 @@ What Even holds and where it goes. Write every privacy statement from this table
 | What Even Sync sends, and whether check-ins sync | The app | Yes | Yes | Followed by Even Sync and the Worker |
 | Alarms: time, repeat days, on/off, name | Even Sync, from Clock | Yes | Yes, plus each synced day's first morning alarm | Brief, wind-down, next steps and the early-alarm pattern |
 | Notification settings and answers | The app | Yes, including each message's text | Times and their kinds, time zone, weekends, sync reminder time, times of expected harder moments, latest check-in time, push subscription and delivery status | Sending notifications |
-| Account and devices | Sign-in and Even Sync | Account email, device ID and credential | Email; the name from sign-in, if any, shown to developer accounts; each device's label, dates, last error and Shortcut version; only a hash of each credential | Sync status and access |
-| Testers and release accounts | Developer tools and the owner | No | Email, who added them, display name | Who can sign in and publish |
+| Account and devices | Sign-in and Even Sync | Account email, first name, device ID and credential | Email; the name from sign-in, if any, shown to developer accounts; each device's label, dates, last error and Shortcut version; only a hash of each credential | Sync status and access |
+| Testers and release accounts | Developer tools and the owner | No | Email, who added them, display name, any name a developer set and who set it | Who can sign in and publish. The first name also goes in some notifications, the Today brief, the hard-days note and invitations. |
 
 Backups are unencrypted JSON files that people save themselves. Outside services: Cloudflare hosts the app and sends sign-in codes, Apple's push service carries encrypted notifications, Resend sends invitation emails, and releases send the public Shortcut link to GitHub and RoutineHub.
 

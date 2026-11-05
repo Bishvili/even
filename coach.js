@@ -52,8 +52,8 @@
   return rows.filter(function(r){return r&&r.gap>=0.3;}).sort(function(a,b){return b.gap-a.gap;}).slice(0,5);
  }
 
- function brief(day,helper){
-  if(day.level==="harder")return day.name+"s have tended to be harder for you. "+(helper?helper.tip:DEFAULT_ACTION);
+ function brief(day,helper,name){
+  if(day.level==="harder")return(name?name+", ":"")+day.name+"s have tended to be harder for you. "+(helper?helper.tip:DEFAULT_ACTION);
   if(day.level==="easier")return day.name+"s have tended to be easier for you. A good day to keep some of that calm.";
   if(day.level==="typical")return day.name+"s have tended to be about average for you.";
   return "Keep checking in. A few more "+day.name+"s will show your pattern.";
@@ -279,12 +279,17 @@
   return best&&best.part;
  }
  // Moments ahead that past check-ins suggest may be harder. Each needs evidence and leads to an action.
+ // Weekday names keep their capital after a first name.
+ function addressed(message,name){
+  if(!name)return message;
+  return name+", "+(DAYS.indexOf(message.split(" ")[0])>=0?message:message[0].toLowerCase()+message.slice(1));
+ }
  function anticipate(moods,events,health,today,prefs){
   var now=new Date(today),found=[],from=minutesOf(prefs.from),to=minutesOf(prefs.to);
   function add(at,message,why){
    var minutes=at.getHours()*60+at.getMinutes(),weekend=at.getDay()===0||at.getDay()===6;
    if(at<=now||minutes<from||minutes>to||(prefs.weekends===false&&weekend))return;
-   found.push({at:at.toISOString(),message:message,why:why});
+   found.push({at:at.toISOString(),message:addressed(message,prefs.firstName),why:why});
   }
   var seen={},soon=now.getTime()+DAY_MS;
   events.forEach(function(e){
@@ -341,17 +346,18 @@
  function element(tag,className,text){var e=document.createElement(tag);if(className)e.className=className;if(text!==undefined)e.textContent=text;return e;}
 
  function openReset(){if(!$("reset-dialog").open){$("reset-dialog").showModal();startBreathing();root.EvenApp.logReset();}}
- function saveBriefs(days,helper){
+ function saveBriefs(days,helper,name){
   if(!("caches" in root))return;
-  var body={};days.forEach(function(d){if(d.level!=="unknown")body[d.date]=brief(d,helper);});
+  var body={};days.forEach(function(d){if(d.level!=="unknown")body[d.date]=d.level==="harder"?brief(d,helper,name):(name?"Good morning, "+name+". ":"")+brief(d,helper);});
   caches.open(BRIEF_CACHE).then(function(cache){return cache.put("/brief",new Response(JSON.stringify(body)));}).catch(function(){});
  }
  function renderToday(data){
   var personal=data.moods.filter(function(m){return !m.demo;}),now=new Date(),days=outlook(personal,now);
   var real=function(x){return !x.demo;},helper=whatHelps(personal,data.events.filter(real),data.health.filter(real),data.resets,now).filter(function(row){return row.id!=="sleep";})[0];
-  $("today-brief-text").textContent=brief(days[0],helper);
+  $("today-brief-text").textContent=brief(days[0],helper,data.firstName);
   $("hard-stretch").hidden=!hardStretch(personal,now);
-  saveBriefs(days,helper);
+  $("hard-stretch-text").textContent="It’s been a hard few days"+(data.firstName?", "+data.firstName:"")+". Talking to someone can help.";
+  saveBriefs(days,helper,data.firstName);
   renderActions(data,personal,now);
  }
  function renderActions(data,personal,now){

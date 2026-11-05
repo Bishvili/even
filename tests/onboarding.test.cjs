@@ -84,3 +84,19 @@ test("only the security note about the key file mentions a key, and nothing asks
   assert.doesNotMatch(copy.replace(/Your device key is saved as a plain-text file[^<]*/,""),/device key|sync key/i,file);
  }
 });
+const {replayStep}=globalThis.EvenOnboarding;
+const replayDone={ios:true,installed:true,installable:false,connected:true,signedIn:true,synced:true,notify:"later",now:0};
+test("going through setup again shows every step, even when all are done",()=>{
+ const order=[0,1,2,3].map(n=>replayStep(replayDone,n));
+ assert.deepEqual(order.map(s=>s.id),["install","signin","shortcut","notifications"]);
+ assert.deepEqual(order.map(s=>s.done),[true,true,true,false]);
+ assert.deepEqual(order.map(s=>s.last),[false,false,false,true]);
+ assert.equal(replayStep(replayDone,4),null);
+ assert.equal(order[1].total,4);
+});
+test("steps that aren't done keep their usual action",()=>{
+ const fresh={ios:true,installed:false,installable:true,connected:false,signedIn:false,synced:false,notify:"later",now:0};
+ assert.equal(replayStep(fresh,1).variant,"signin");
+ assert.equal(replayStep(fresh,1).done,false);
+ assert.equal(replayStep(fresh,0).variant,"share");
+});

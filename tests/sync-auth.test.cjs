@@ -26,6 +26,7 @@ function harness({verified=false,buildVersion="2.8.0",helperBuild="2.0.0",source
  const env={GITHUB_API_KEY:"server-only",APPROVED_SYNC_EMAILS:JSON.stringify(allowed),ASSETS:{async get(key){return {"config:shortcut:latest":release,"config:helper:latest":helperLink&&JSON.stringify(helperLink),"config:shortcut:source":sourceVersions&&JSON.stringify(sourceVersions)}[key]||null;}},DB:{
   prepare(sql){return{bind(...args){return {
    async first(){
+    if(sql.startsWith("SELECT (SELECT name FROM even_names")){const email=args[0];return{chosen:rows.names?.get(email)||null,given:email==="owner-a@example.com"?"Ada Lovelace":null,signin:(rows.userFields?.get(email)||{}).name||null};}
     if(sql.startsWith("SELECT sync_off FROM even_users"))return (rows.userFields?.get(args[0]))||null;
     if(sql.startsWith("SELECT mood_sync FROM even_users"))return (rows.userFields?.get(args[0]))||null;
     if(sql.includes("FROM even_approved_emails WHERE email"))return rows.approved.has(args[0])?{allowed:1}:null;
@@ -43,6 +44,7 @@ function harness({verified=false,buildVersion="2.8.0",helperBuild="2.0.0",source
    async all(){
     if(sql.startsWith("SELECT email FROM even_approved_emails"))return{results:[...rows.approved.keys()].map(email=>({email}))};
     if(sql.startsWith("SELECT email,display_name FROM even_release_emails"))return{results:[{email:"owner-a@example.com",display_name:"Ada"}]};
+    if(sql.startsWith("SELECT email,name FROM even_names"))return{results:[...(rows.names||new Map()).entries()].map(([email,name])=>({email,name}))};
     if(sql.startsWith("SELECT email,name FROM even_users"))return{results:[...rows.users.keys()].map(email=>({email,name:(rows.userFields?.get(email)||{}).name}))};
     if(sql.startsWith("SELECT id,ts,score"))return{results:(rows.moods||[]).filter(m=>m.owner===args[0])};
     if(sql.startsWith("SELECT s.endpoint"))return{results:[...rows.subs.values()].filter(s=>[...rows.devices.values()].some(d=>d.device_id===s.device_id&&!d.revoked_at))};
@@ -68,6 +70,8 @@ function harness({verified=false,buildVersion="2.8.0",helperBuild="2.0.0",source
      if(sql.includes("SET mood_sync=?"))row.mood_sync=args[0];if(sql.includes("SET mood_sync=0")){u.set(args[0],{...(u.get(args[0])||{}),mood_sync:0});return{meta:{changes:1}};}
      u.set(email,row);return{meta:{changes:1}};
     }
+    if(sql.startsWith("INSERT INTO even_names")){(rows.names=rows.names||new Map()).set(args[0],args[1]);return{meta:{changes:1}};}
+    if(sql.startsWith("DELETE FROM even_names")){rows.names?.delete(args[0]);return{meta:{changes:1}};}
     if(sql.startsWith("DELETE FROM even_moods")){rows.moods=(rows.moods||[]).filter(m=>m.owner!==args[0]);return{meta:{changes:1}};}
     if(sql.startsWith("INSERT INTO even_moods")){
      rows.moods=rows.moods||[];const existing=rows.moods.find(m=>m.owner===args[0]&&m.id===args[1]);
@@ -726,4 +730,40 @@ test("devices can be renamed only by their owner, and sign-in names label tester
  const listed=(await call("/api/auth/testers",{context:ctx("owner-a@example.com")})).data.testers;
  assert.equal(listed.find(t=>t.email==="owner-b@example.com").name,"Sam Lee");
  assert.equal(listed.find(t=>t.email==="owner-a@example.com").name,"Ada");
+});
+
+test("developers can set a tester's name, which outranks sign-in and leaves with the tester",async()=>{
+ const{call,ctx,env,dispatches}=harness();
+ const a=ctx("owner-a@example.com"),b=ctx("owner-b@example.com");
+ env.RESEND_API_KEY="server-only";
+ await call("/api/auth/testers",{method:"POST",body:{email:"new@example.com"},context:a});
+ const name=(email,value,context=a)=>call("/api/auth/testers/name",{method:"POST",body:{email,name:value},context});
+ assert.equal((await name("new@example.com","Sam Lee",b)).status,403);
+ assert.equal((await name("stranger@example.com","Sam")).status,404);
+ assert.equal((await name("new@example.com"," Sam Lee ")).data.name,"Sam Lee");
+ const listed=async()=>(await call("/api/auth/testers",{context:a})).data.testers.find(t=>t.email==="new@example.com");
+ assert.equal((await listed()).name,"Sam Lee");
+ await call("/api/auth/testers/invite",{method:"POST",body:{email:"new@example.com"},context:a});
+ const mail=JSON.parse(dispatches.at(-1).init?.body||dispatches.at(-1).body);
+ assert.match(mail.subject,/^Ada invited you/);
+ assert.match(mail.text,/^Hi Sam,/);
+ assert.equal((await name("new@example.com","<b>Sam</b>")).status,200);
+ await call("/api/auth/testers/invite",{method:"POST",body:{email:"new@example.com"},context:a});
+ const escaped=JSON.parse(dispatches.at(-1).init?.body||dispatches.at(-1).body);
+ assert.doesNotMatch(escaped.html,/<b>Sam/);
+ assert.equal((await name("new@example.com","")).data.name,null);
+ assert.equal((await listed()).name,null);
+ await name("new@example.com","Sam");
+ await call("/api/auth/testers/remove",{method:"POST",body:{email:"new@example.com"},context:a});
+ await call("/api/auth/testers",{method:"POST",body:{email:"new@example.com"},context:a});
+ assert.equal((await listed()).name,null);
+});
+test("a first name appears only on messages that start or close the day, or at a hard moment",()=>{
+ const{runtime}=harness();
+ assert.match(runtime.reminderMessage(500,false,false,"Sam"),/^Good morning, Sam\./);
+ assert.match(runtime.reminderMessage(1300,true,false,"Sam"),/^Bedtime soon, Sam\./);
+ assert.match(runtime.reminderMessage(900,false,true,"Sam"),/^Sam, this is often/);
+ assert.doesNotMatch(runtime.reminderMessage(760,false,false,"Sam"),/Sam/);
+ assert.doesNotMatch(runtime.reminderMessage(1100,false,false,"Sam"),/Sam/);
+ assert.equal(runtime.reminderMessage(500,false,false,null),"Good morning. How are you starting the day?");
 });

@@ -12,7 +12,7 @@
  function deviceHeaders(){return{"Authorization":"Bearer "+app.deviceToken(),"Content-Type":"application/json"};}
  function planFor(values){return globalThis.EvenCoach.smartPlan(app.personalMoods(),app.personalHealth(),values.from,values.to,values.count,new Date(),Object.assign({alarms:app.alarms()},values));}
  function anticipated(values){
-  return values.stressNudges===false?[]:globalThis.EvenCoach.anticipate(app.personalMoods(),app.personalEvents(),app.personalHealth(),new Date(),Object.assign({resets:app.resets()},values));
+  return values.stressNudges===false?[]:globalThis.EvenCoach.anticipate(app.personalMoods(),app.personalEvents(),app.personalHealth(),new Date(),Object.assign({resets:app.resets(),firstName:app.firstName()},values));
  }
  // One hour into the day, unless a time has been chosen.
  function syncTime(values){

@@ -191,3 +191,5 @@ html{touch-action:manipulation}
 #checkin-title{outline:0}
 @media(max-width:355px){.intro h1{font-size:2.2rem}}
 #view-checkin.setup-active .today-brief,#view-checkin.setup-active .next-actions,#view-checkin.setup-active .reflection-prompt{display:none}
+#tester-name-input{width:100%;margin:8px 0}#tester-name-form .btn+.btn{margin-top:8px}#setup-again{margin-top:10px}
+.tester-actions{gap:0}

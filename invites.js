@@ -4,7 +4,7 @@
  function $(id){return document.getElementById(id);}
  function send(path,email){return fetch(path,{method:"POST",credentials:"same-origin",cache:"no-store",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:email})});}
 
- var ICONS={send:'<path d="M21 3 10 14"/><path d="M21 3 14.5 21 10 14 3 9.5 21 3Z"/>',trash:'<path d="M4 7h16"/><path d="M10 11v6M14 11v6"/><path d="M6 7l1 13h10l1-13"/><path d="M9 7V4h6v3"/>'};
+ var ICONS={edit:'<path d="M4 20h4L19 9l-4-4L4 16v4Z"/><path d="m13.5 6.5 4 4"/>',send:'<path d="M21 3 10 14"/><path d="M21 3 14.5 21 10 14 3 9.5 21 3Z"/>',trash:'<path d="M4 7h16"/><path d="M10 11v6M14 11v6"/><path d="M6 7l1 13h10l1-13"/><path d="M9 7V4h6v3"/>'};
  function action(label,icon,handler){
   var button=document.createElement("button");
   button.type="button";button.className="icon-action";button.setAttribute("aria-label",label);button.title=label;
@@ -22,6 +22,22 @@
   if(!confirm("Remove "+email+"? They’ll lose access to Sync."))return;
   send("/api/auth/testers/remove",email).then(function(r){if(!r.ok)throw Error();app.toast(email+" removed.");load();}).catch(function(){app.toast("Couldn’t remove that email.");});
  }
+ function openName(tester){
+  var dialog=$("tester-name-dialog");
+  dialog.dataset.email=tester.email;
+  $("tester-name-email").textContent=tester.email;
+  $("tester-name-input").value=tester.name||"";
+  dialog.showModal();
+ }
+ function saveName(event){
+  event.preventDefault();
+  var dialog=$("tester-name-dialog"),save=$("tester-name-save");
+  save.disabled=true;
+  fetch("/api/auth/testers/name",{method:"POST",credentials:"same-origin",cache:"no-store",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:dialog.dataset.email,name:$("tester-name-input").value})})
+   .then(function(r){if(!r.ok)throw Error();dialog.close();app.toast("Name saved.");load();})
+   .catch(function(){app.toast("Couldn’t save that name. Check your connection and try again.");})
+   .finally(function(){save.disabled=false;});
+ }
  function renderList(testers){
   var list=$("tester-list");list.textContent="";
   testers.forEach(function(tester){
@@ -30,6 +46,7 @@
    title.textContent=tester.name||tester.email;
    status.textContent=(tester.name?tester.email+" · ":"")+(tester.signedIn?"Signed in":"Not signed in yet");
    who.appendChild(title);who.appendChild(status);
+   actions.appendChild(action("Edit name for "+tester.email,"edit",function(){openName(tester);}));
    var invite=action("Resend invite to "+tester.email,"send",function(){resend(tester.email,invite);});
    actions.appendChild(invite);
    if(tester.removable)actions.appendChild(action("Remove "+tester.email,"trash",function(){remove(tester.email);}));
@@ -62,6 +79,8 @@
   }catch(e){if(e.name!=="AbortError")app.toast("Couldn’t share the link.");}
  }
  $("tester-form").addEventListener("submit",add);
+ $("tester-name-form").addEventListener("submit",saveName);
+ $("tester-name-cancel").addEventListener("click",function(){$("tester-name-dialog").close();});
  $("share-even").addEventListener("click",share);
  // Only release accounts see testers, so the list loads once Developer tools appears.
  var card=$("release-card");

@@ -100,3 +100,9 @@ CREATE TABLE IF NOT EXISTS even_moods (
   deleted_at TEXT,
   PRIMARY KEY(owner_email,id)
 );
+CREATE TABLE IF NOT EXISTS even_names (
+  email TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  set_by TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);

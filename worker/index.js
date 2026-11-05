@@ -194,16 +194,25 @@ async function markUpload(env,dev,version,at){
   .bind(at,at,clientVersion,dev.id,dev.owner).run();
  return clientVersion;
 }
-async function sendInvite(env,to){
+// A name set by a developer comes first, then one given for a release account, then the one from sign-in.
+async function displayName(env,email){
+ const row=await env.DB.prepare("SELECT (SELECT name FROM even_names WHERE email=?) AS chosen,(SELECT display_name FROM even_release_emails WHERE email=?) AS given,(SELECT name FROM even_users WHERE email=?) AS signin").bind(email,email,email).first();
+ return row?.chosen||row?.given||row?.signin||null;
+}
+function firstName(name){return String(name||"").trim().split(/\s+/)[0]||null;}
+function escapeHtml(text){return String(text).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+async function sendInvite(env,to,from){
  if(!env.RESEND_API_KEY)return false;
  const url="https://even.bishvili.workers.dev/";
  // The same steps, in the same words, as the setup card in the app.
  const steps=["Open the link in Safari on your iPhone. Tap Share (or ••• and then Share), then Add to Home Screen.","Open Even from your Home Screen and sign in with this email. We'll send you a one-time code.","Tap Get Even Sync, then Run Even Sync, to bring in your sleep, activity, calendar and alarms."];
  try{
+  const guest=firstName(await displayName(env,to)),host=firstName(await displayName(env,from));
+  const opening=(host?host+" invited you":"You've been invited")+" to try Even, a private way to understand your harder days.",hello=guest?"Hi "+guest+",":"";
   const sent=await fetch("https://api.resend.com/emails",{method:"POST",headers:{"Authorization":"Bearer "+env.RESEND_API_KEY,"Content-Type":"application/json"},body:JSON.stringify({
-   from:"Even <hello@bishvili.org>",to:[to],subject:"You're invited to try Even",
-   text:"You've been invited to try Even, a private way to understand your harder days.\n\n"+url+"\n\n"+steps.map((s,i)=>(i+1)+". "+s).join("\n")+"\n\nHow Even works: "+url+"whitepaper.html",
-   html:'<p>You\'ve been invited to try Even, a private way to understand your harder days.</p><p><a href="'+url+'">Open Even</a></p><ol>'+steps.map(s=>"<li>"+s+"</li>").join("")+'</ol><p><a href="'+url+'whitepaper.html">How Even works</a></p>'
+   from:"Even <hello@bishvili.org>",to:[to],subject:host?host+" invited you to try Even":"You're invited to try Even",
+   text:(hello?hello+"\n\n":"")+opening+"\n\n"+url+"\n\n"+steps.map((s,i)=>(i+1)+". "+s).join("\n")+"\n\nHow Even works: "+url+"whitepaper.html",
+   html:(hello?"<p>"+escapeHtml(hello)+"</p>":"")+"<p>"+escapeHtml(opening)+'</p><p><a href="'+url+'">Open Even</a></p><ol>'+steps.map(s=>"<li>"+s+"</li>").join("")+'</ol><p><a href="'+url+'whitepaper.html">How Even works</a></p>'
   })});
   return sent.ok;
  }catch(e){return false;}
@@ -223,9 +232,10 @@ async function authApi(request,env,ctx,path){
    if(name)await env.DB.prepare("UPDATE even_users SET name=? WHERE email=? AND (name IS NULL OR name<>?)").bind(name,email,name).run();
   }catch(e){}
   const r=await env.DB.prepare("SELECT device_id,label,created_at,last_used_at,last_attempt_at,last_error_code,shortcut_version,revoked_at FROM even_devices WHERE owner_email=? ORDER BY created_at DESC LIMIT 30").bind(email).all();
+  const person=firstName(await displayName(env,email));
   const welcome=await env.DB.prepare("SELECT display_name FROM even_release_emails WHERE email=? AND display_name IS NOT NULL AND welcomed_at IS NULL").bind(email).first();
   const release=await canRelease(env,email);
-  return reply({ok:true,email,canRelease:release,helper:release?await loadHelperLink(env):null,welcomeName:welcome?.display_name||null,devices:(r.results||[]).map(d=>({id:d.device_id,label:d.label,createdAt:d.created_at,lastUsedAt:d.last_used_at,lastAttemptAt:d.last_attempt_at,lastErrorCode:d.last_error_code,shortcutVersion:d.shortcut_version,revoked:!!d.revoked_at}))});
+  return reply({ok:true,email,canRelease:release,helper:release?await loadHelperLink(env):null,firstName:person,welcomeName:welcome?person:null,devices:(r.results||[]).map(d=>({id:d.device_id,label:d.label,createdAt:d.created_at,lastUsedAt:d.last_used_at,lastAttemptAt:d.last_attempt_at,lastErrorCode:d.last_error_code,shortcutVersion:d.shortcut_version,revoked:!!d.revoked_at}))});
  }
  if(path==="/api/auth/device"){
   if(!browserPostAllowed(request))return error("This request isn't allowed.",403,"same_origin_required");
@@ -241,15 +251,17 @@ async function authApi(request,env,ctx,path){
  if(path.startsWith("/api/auth/testers")){
   if(!await canRelease(env,email))return error("This account can't manage testers",403,"not_release_account");
   if(path==="/api/auth/testers"&&request.method==="GET"){
-   const [added,developers,users]=await Promise.all([
+   const [added,developers,users,chosen]=await Promise.all([
     env.DB.prepare("SELECT email FROM even_approved_emails").bind().all(),
     env.DB.prepare("SELECT email,display_name FROM even_release_emails").bind().all(),
-    env.DB.prepare("SELECT email,name FROM even_users").bind().all()
+    env.DB.prepare("SELECT email,name FROM even_users").bind().all(),
+    env.DB.prepare("SELECT email,name FROM even_names").bind().all()
    ]);
+   const chosenNames=new Map((chosen.results||[]).map(r=>[r.email,r.name]));
    const removable=new Set((added.results||[]).map(r=>r.email)),signInNames=new Map((users.results||[]).map(r=>[r.email,r.name])),names=new Map((developers.results||[]).map(r=>[r.email,r.display_name])),signedIn=new Set((users.results||[]).map(r=>r.email));
    ownerEmails(env).forEach(owner=>removable.delete(owner));
    const everyone=[...new Set([...ownerEmails(env),...names.keys(),...(added.results||[]).map(r=>r.email)])].sort();
-   return reply({ok:true,testers:everyone.map(address=>({email:address,name:names.get(address)||signInNames.get(address)||null,signedIn:signedIn.has(address),removable:removable.has(address)}))});
+   return reply({ok:true,testers:everyone.map(address=>({email:address,name:chosenNames.get(address)||names.get(address)||signInNames.get(address)||null,signedIn:signedIn.has(address),removable:removable.has(address)}))});
   }
   if(!browserPostAllowed(request))return error("This request isn't allowed.",403,"same_origin_required");
   let input;try{input=await payload(request);}catch(e){return error("Even couldn't read that request.",400,"invalid_body");}
@@ -257,14 +269,21 @@ async function authApi(request,env,ctx,path){
   if(tester.length>254||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(tester))return error("Enter a valid email address.",400,"invalid_email");
   if(path==="/api/auth/testers"){
    await env.DB.prepare("INSERT OR IGNORE INTO even_approved_emails(email,added_by,created_at) VALUES(?,?,?)").bind(tester,email,new Date().toISOString()).run();
-   return reply({ok:true,emailed:await sendInvite(env,tester)});
+   return reply({ok:true,emailed:await sendInvite(env,tester,email)});
   }
   if(path==="/api/auth/testers/invite"){
    if(!await approved(env,tester)&&!await canRelease(env,tester))return error("Add this email first.",404,"not_a_tester");
-   return reply({ok:true,emailed:await sendInvite(env,tester)});
+   return reply({ok:true,emailed:await sendInvite(env,tester,email)});
+  }
+  if(path==="/api/auth/testers/name"){
+   if(!await approved(env,tester)&&!await canRelease(env,tester))return error("Add this email first.",404,"not_a_tester");
+   const name=String(input?.name||"").trim().replace(/[\x00-\x1f]/g,"").slice(0,60);
+   if(name)await env.DB.prepare("INSERT INTO even_names(email,name,set_by,updated_at) VALUES(?,?,?,?) ON CONFLICT(email) DO UPDATE SET name=excluded.name,set_by=excluded.set_by,updated_at=excluded.updated_at").bind(tester,name,email,new Date().toISOString()).run();
+   else await env.DB.prepare("DELETE FROM even_names WHERE email=?").bind(tester).run();
+   return reply({ok:true,name:await displayName(env,tester)});
   }
   if(path==="/api/auth/testers/remove"){
-   await env.DB.prepare("DELETE FROM even_approved_emails WHERE email=?").bind(tester).run();
+   await env.DB.batch([env.DB.prepare("DELETE FROM even_approved_emails WHERE email=?").bind(tester),env.DB.prepare("DELETE FROM even_names WHERE email=?").bind(tester)]);
    return reply({ok:true});
   }
   return error("Not found",404,"not_found");
@@ -375,10 +394,11 @@ async function encryptPush(text,p256dh,auth){
 function pushPayload(body,path,extra={}){
  return JSON.stringify({web_push:8030,mutable:true,...extra,notification:{title:"Even",body,navigate:"https://even.bishvili.workers.dev"+path}});
 }
-function reminderMessage(minutes,atBedtime,atHardTime){
- if(atBedtime)return "Bedtime soon. Take a moment to check in, then rest.";
- if(atHardTime)return "This is often a harder part of your day. How are you doing?";
- if(minutes<660)return "Good morning. How are you starting the day?";
+// A first name goes only on the messages that start or close the day, or come at a hard moment.
+function reminderMessage(minutes,atBedtime,atHardTime,name){
+ if(atBedtime)return name?"Bedtime soon, "+name+". Take a moment to check in, then rest.":"Bedtime soon. Take a moment to check in, then rest.";
+ if(atHardTime)return name?name+", this is often a harder part of your day. How are you doing?":"This is often a harder part of your day. How are you doing?";
+ if(minutes<660)return name?"Good morning, "+name+". How are you starting the day?":"Good morning. How are you starting the day?";
  if(minutes<840)return "How is your day going so far?";
  if(minutes<1020)return "Afternoon check-in. How is your energy?";
  return "How did today go?";
@@ -408,7 +428,7 @@ async function sendAnticipation(env,key,sub,now){
  const due=JSON.parse(sub.stress_times||"[]").filter(at=>{const t=Date.parse(at);return t<=now.getTime()&&now.getTime()-t<DUE_WINDOW_MS&&t>last;}).sort();
  if(!due.length)return;
  const at=due[due.length-1];
- const sent=await deliverPush(env,key,sub,now,pushPayload("A harder stretch may be coming. Take a minute?","/?do=reset",{stressAt:at}));
+ const sent=await deliverPush(env,key,sub,now,pushPayload(firstName(sub.person)?firstName(sub.person)+", a harder stretch may be coming. Take a minute?":"A harder stretch may be coming. Take a minute?","/?do=reset",{stressAt:at}));
  if(sent.ok)await env.DB.prepare("UPDATE even_push_subscriptions SET last_stress_at=? WHERE endpoint=?").bind(at,sub.endpoint).run();
 }
 // Only for people who have synced before and haven't lately.
@@ -422,7 +442,7 @@ async function sendSyncReminder(env,key,sub,now,local){
 }
 async function sendReminders(env,now=new Date()){
  const key=pushKey(env);if(!key)return;
- const subs=await env.DB.prepare("SELECT s.endpoint,s.p256dh,s.auth,s.mode,s.times,s.bedtime_at,s.brief_at,s.hard_at,s.weekends,s.sync_at,s.last_sync_prompt_day,s.stress_times,s.last_stress_at,d.last_used_at,s.time_zone,s.last_sent_day,s.last_sent_target,s.last_check_in_at FROM even_push_subscriptions s JOIN even_devices d ON d.device_id=s.device_id WHERE d.revoked_at IS NULL AND s.p256dh IS NOT NULL AND s.times IS NOT NULL").bind().all();
+ const subs=await env.DB.prepare("SELECT s.endpoint,s.p256dh,s.auth,s.mode,s.times,s.bedtime_at,s.brief_at,s.hard_at,s.weekends,s.sync_at,s.last_sync_prompt_day,s.stress_times,s.last_stress_at,d.last_used_at,s.time_zone,s.last_sent_day,s.last_sent_target,s.last_check_in_at,COALESCE((SELECT name FROM even_names n WHERE n.email=s.owner_email),(SELECT display_name FROM even_release_emails r WHERE r.email=s.owner_email),(SELECT name FROM even_users u WHERE u.email=s.owner_email)) AS person FROM even_push_subscriptions s JOIN even_devices d ON d.device_id=s.device_id WHERE d.revoked_at IS NULL AND s.p256dh IS NOT NULL AND s.times IS NOT NULL").bind().all();
  for(const sub of subs.results||[]){
   const local=localTime(sub.time_zone,now),target=dueTarget(JSON.parse(sub.times),local.minutes);
   await sendAnticipation(env,key,sub,now);
@@ -432,7 +452,7 @@ async function sendReminders(env,now=new Date()){
   // A smart reminder isn't needed right after a check-in.
   const quiet=sub.mode==="smart"&&sub.last_check_in_at&&now.getTime()-new Date(sub.last_check_in_at).getTime()<SMART_QUIET_MS;
   const isTarget=time=>{if(!time)return false;const[hour,minute]=time.split(":").map(Number);return hour*60+minute===target;};
-  const smart=sub.mode==="smart",body=smart?reminderMessage(target,isTarget(sub.bedtime_at),isTarget(sub.hard_at)):"How are you feeling?";
+  const smart=sub.mode==="smart",body=smart?reminderMessage(target,isTarget(sub.bedtime_at),isTarget(sub.hard_at),firstName(sub.person)):"How are you feeling?";
   const sent=quiet?{ok:true}:await deliverPush(env,key,sub,now,pushPayload(body,"/#checkin",{brief:smart&&isTarget(sub.brief_at)}));
   if(sent.ok)await env.DB.prepare("UPDATE even_push_subscriptions SET last_sent_day=?,last_sent_target=? WHERE endpoint=?").bind(local.day,target,sub.endpoint).run();
  }
@@ -622,7 +642,7 @@ async function syncApi(request,env,path){
    if(!grouped[h.day])grouped[h.day]={date:h.day,source:"shortcut"};
    grouped[h.day][h.metric]=h.value;
   }
-  return reply({ok:true,email:owner,health:Object.values(grouped),events:(events.results||[]).map(e=>({id:e.event_id,start:e.start_time,end:e.end_time,title:e.title,category:e.category,source:"shortcut"})),alarms:(alarms.results||[]).map(a=>({timeMin:a.time_min,days:a.days?a.days.split(",").map(Number):[],enabled:a.enabled!==0,label:a.label||null})),syncAt:new Date().toISOString()});
+  return reply({ok:true,email:owner,firstName:firstName(await displayName(env,owner)),health:Object.values(grouped),events:(events.results||[]).map(e=>({id:e.event_id,start:e.start_time,end:e.end_time,title:e.title,category:e.category,source:"shortcut"})),alarms:(alarms.results||[]).map(a=>({timeMin:a.time_min,days:a.days?a.days.split(",").map(Number):[],enabled:a.enabled!==0,label:a.label||null})),syncAt:new Date().toISOString()});
  }
  if(path==="/api/ingest"&&request.method==="POST"){
   let input;
@@ -702,7 +722,7 @@ async function syncApi(request,env,path){
  return error("Not found",404,"not_found");
 }
 async function api(request,env,ctx,path){
- if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:"Even",version:"2.11.0",sync:"email-access"});
+ if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:"Even",version:"2.12.0",sync:"email-access"});
  if(path.startsWith("/api/auth/"))return authApi(request,env,ctx,path);
  return syncApi(request,env,path);
 }

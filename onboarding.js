@@ -24,7 +24,15 @@
   if(!c.checkedIn)return{id:"checkin",number:0,total:list.length};
   return c.notify==="ready"?step("notifications","start"):null;
  }
- var api={nextStep:nextStep,render:function(){}};
+ // Going through setup again shows every step, marks those already done, and moves on with Next.
+ function replayStep(c,index){
+  var list=steps(c),id=list[index];
+  if(!id)return null;
+  var variant=id==="install"?(c.ios?"share":"prompt"):id==="signin"?(c.connecting?"connecting":c.signedIn?"connect":"signin"):id==="shortcut"?(c.gotShortcut?"run":"get"):"start";
+  var done=id==="install"?c.installed:id==="signin"?c.connected:id==="shortcut"?c.synced:false;
+  return{id:id,variant:variant,number:index+1,total:list.length,done:!!done,last:index===list.length-1,replay:true};
+ }
+ var api={nextStep:nextStep,replayStep:replayStep,render:function(){},restart:function(){}};
  root.EvenOnboarding=api;
  if(typeof document==="undefined"||!root.EvenApp)return;
 
@@ -41,7 +49,7 @@
   "notifications:start":{title:"Fit notifications to your day",text:"Five quick questions, then you choose whether to turn them on.",action:"Start"}
  };
  var OFFLINE={signin:"Connect to the internet to sign in.",connect:"Connect to the internet to connect this device.",get:"Connect to the internet to get Even Sync.",run:"Connect to the internet to run Even Sync.",again:"Connect to the internet to run Even Sync."};
- var app=root.EvenApp,installEvent=null,progress=readProgress(),current=null;
+ var app=root.EvenApp,installEvent=null,progress=readProgress(),current=null,replay=null;
  function $(id){return document.getElementById(id);}
  function readProgress(){
   try{var saved=JSON.parse(localStorage.getItem(STORAGE_KEY)||"{}");return saved&&typeof saved==="object"&&!Array.isArray(saved)?saved:{};}
@@ -58,7 +66,7 @@
  }
  // Moves focus after a tap that changed the step, so it isn't left on a control that disappeared.
  function render(moveFocus){
-  var s=app.setup(),step=nextStep(context(s)),card=$("setup-card");
+  var s=app.setup(),step=replay===null?nextStep(context(s)):replayStep(context(s),replay),card=$("setup-card");
   current=step&&step.id!=="checkin"?step:null;
   $("view-checkin").classList.toggle("setup-active",!!step);
   card.hidden=!current;
@@ -68,16 +76,19 @@
   if(current.id==="signin"&&s.email&&(current.variant==="connect"||current.variant==="connecting"))text=("Signed in as "+s.email+". "+text).trim();
   // With check-in sync on, check-ins made in Safari do reach the app.
   if(copy.unsynced&&!s.moodSync)text+=" "+copy.unsynced;
+  if(current.done)text=(text+" You’ve already done this.").trim();
   $("setup-step").textContent="Step "+current.number+" of "+current.total;
   $("setup-title").textContent=named(copy.title);
   $("setup-text").textContent=text;
+  var finished=current.done&&current.id!=="shortcut";
   var url=copy.link?s.shortcutUrl:"";
   $("setup-link").hidden=!url;
   if(url)$("setup-link").href=url;else $("setup-link").removeAttribute("href");
   // Without a link to open, the same label says why when tapped.
-  var label=copy.action?named(copy.action):copy.link&&!url?"Get Even Sync":"";
+  var label=finished?"":copy.action?named(copy.action):copy.link&&!url?"Get Even Sync":"";
   $("setup-action").hidden=!label;$("setup-action").textContent=label;
-  $("setup-skip").hidden=!!copy.busy;
+  $("setup-skip").hidden=!!copy.busy&&!current.replay;
+  $("setup-skip").textContent=current.replay?(current.last?"Done":"Next"):"Not now";
   var altRun=copy.alt==="run",altGet=copy.alt==="get"&&!!s.shortcutUrl;
   $("setup-alt").hidden=!altRun&&!altGet;
   $("setup-alt-text").textContent=altRun?"Already have it?":"Not added yet?";
@@ -89,6 +100,7 @@
  }
  function skip(){
   if(!current)return;
+  if(current.replay){replay=current.last?null:replay+1;render(true);return;}
   if(current.id==="notifications"){root.EvenReminders.dismissIntake();render(true);return;}
   progress.skipped=Object.assign({},progress.skipped);progress.skipped[current.id]=Date.now();
   saveProgress();render(true);
@@ -125,5 +137,7 @@
  root.addEventListener("online",function(){render();});
  root.addEventListener("offline",function(){render();});
  api.render=function(){render();};
+ api.restart=function(){replay=0;app.navigate("checkin");render(true);};
+ $("setup-again").addEventListener("click",api.restart);
  render();
 })(globalThis);

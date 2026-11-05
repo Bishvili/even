@@ -60,7 +60,7 @@
      <p><strong>Weekly reflection</strong>Four quick questions about your week.</p>
      <button type="button" class="btn secondary" id="open-reflection">Start</button>
     </section>
-    <div class="hard-stretch" id="hard-stretch" role="note" hidden>It’s been a hard few days. Talking to someone can help. <a href="#settings" data-go="settings">Find support</a></div>
+    <div class="hard-stretch" id="hard-stretch" role="note" hidden><span id="hard-stretch-text">It’s been a hard few days. Talking to someone can help.</span> <a href="#settings" data-go="settings">Find support</a></div>
     <div class="card mood-card">
      <div class="card-top"><span class="mini-heading">RIGHT NOW</span><span class="muted" id="current-time">—</span></div>
      <div class="mood-grid" role="group" aria-label="Choose your mood">
@@ -252,7 +252,7 @@
     </div>
     <button type="button" class="btn subtle full" id="erase-remote">Erase synced data</button>
     </details>
-    <div class="help-note"><strong>Privacy</strong><p>Mood check-ins stay on this iPhone unless you turn on check-in sync, which saves them and their notes to your account. Health data, calendar events and alarms you sync are sent over an encrypted connection and stored in your private account. They aren’t end-to-end encrypted. You can disconnect a device or erase synced data at any time.</p></div>
+    <div class="help-note"><strong>Privacy</strong><p>Your first name can appear in notifications, including on your Lock Screen. Mood check-ins stay on this iPhone unless you turn on check-in sync, which saves them and their notes to your account. Health data, calendar events and alarms you sync are sent over an encrypted connection and stored in your private account. They aren’t end-to-end encrypted. You can disconnect a device or erase synced data at any time.</p></div>
     
     
     
@@ -323,7 +323,7 @@
      <p class="muted">Start a session on this site’s code.</p>
      <a class="btn primary full" id="improve-site" href="https://claude.ai/code/new?repo=Bishvili%2Feven&branch=main&q=Help%20me%20get%20set%20up%20to%20improve%20Even%2C%20one%20step%20at%20a%20time%20and%20in%20plain%20language.%20Follow%20the%20onboarding%20section%20of%20AGENTS.md%3A%20check%20which%20connections%20I%20already%20have%2C%20then%20offer%20each%20missing%20one%20as%20a%20card%20I%20can%20approve.%20Don%27t%20ask%20me%20for%20any%20keys.%20Run%20the%20tests%2C%20and%20read%20the%20frontend%20guide%20and%20whitepaper.html%20so%20you%20know%20how%20the%20app%20behaves.%20Then%20ask%20what%20I%27d%20like%20to%20change.%20Before%20you%20push%20anything%2C%20tell%20me%20in%20a%20sentence%20what%20will%20change%20for%20people%20using%20the%20app%2C%20because%20pushes%20go%20live%20right%20away." target="_blank" rel="noopener noreferrer">Improve This Site with Claude <span aria-hidden="true">↗</span></a>
     </section>
-    <div class="card"><h2>About the insights</h2><p class="muted">Comparisons need at least 3 check-ins in each group. Mood data is subjective and gaps can skew results. Nothing here is a diagnosis or proves a cause.</p><a class="btn subtle full" id="whitepaper-link" href="/whitepaper.html" target="_blank" rel="noopener">How Even works <span aria-hidden="true">↗</span></a><p class="muted">Version <span id="version">2.11.0</span> · No ads or analytics</p></div>
+    <div class="card"><h2>About the insights</h2><p class="muted">Comparisons need at least 3 check-ins in each group. Mood data is subjective and gaps can skew results. Nothing here is a diagnosis or proves a cause.</p><button type="button" class="btn subtle full" id="setup-again">Go through setup again</button><a class="btn subtle full" id="whitepaper-link" href="/whitepaper.html" target="_blank" rel="noopener">How Even works <span aria-hidden="true">↗</span></a><p class="muted">Version <span id="version">2.12.0</span> · No ads or analytics</p></div>
     <div class="card"><h2>Explore a sample month</h2><p class="muted">See 28 days of fictional check-ins and events. They stay separate from your own data and are never uploaded.</p><button class="btn secondary full" id="demo-button">Load 28-day calendar demo</button><button class="btn subtle full" id="clear-demo-button">Remove demo data</button></div>
    </section>
   </main>
@@ -359,6 +359,16 @@
    <a class="btn primary full" id="welcome-improve" target="_blank" rel="noopener noreferrer">Improve This Site with Claude <span aria-hidden="true">↗</span></a>
    <button type="button" class="btn subtle full" id="welcome-close">Maybe later</button>
    <p class="muted welcome-note">You’ll find this anytime in Settings, under Developer tools.</p>
+  </dialog>
+  <dialog class="welcome" id="tester-name-dialog" aria-labelledby="tester-name-title">
+   <h2 id="tester-name-title">Edit name</h2>
+   <p class="muted" id="tester-name-email"></p>
+   <form id="tester-name-form">
+    <input id="tester-name-input" type="text" maxlength="60" autocomplete="off" aria-label="Name">
+    <p class="muted">Leave blank to use the name from sign-in.</p>
+    <button type="submit" class="btn primary full" id="tester-name-save">Save</button>
+    <button type="button" class="btn subtle full" id="tester-name-cancel">Cancel</button>
+   </form>
   </dialog>
   <dialog class="welcome" id="rename-device-dialog" aria-labelledby="rename-device-title">
    <h2 id="rename-device-title">Rename device</h2>

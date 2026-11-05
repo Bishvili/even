@@ -203,3 +203,14 @@ test("a recent hard check-in is matched with what has gone with relief, and brea
  assert.match(action.text,/^You noted high stress\. Take a minute\./);
  assert.equal(action.action,"reset");
 });
+
+test("a name opens a hard day's brief and a nudge, and is left out without one",()=>{
+ const day={level:"harder",name:"Monday"};
+ assert.match(brief(day,null,"Sam"),/^Sam, Mondays have tended/);
+ assert.match(brief(day),/^Mondays have tended/);
+ assert.doesNotMatch(brief({level:"typical",name:"Monday"},null,"Sam"),/Sam/);
+ const now=new Date("2026-11-09T08:00:00"),moods=[];
+ for(let week=1;week<=6;week++){moods.push({ts:hours(now,-7*week,15).toISOString(),stress:5});moods.push({ts:hours(now,-7*week,16).toISOString(),stress:5});moods.push({ts:hours(now,-7*week+1,10).toISOString(),stress:1});}
+ const found=anticipate(moods,[],[],now,{from:"07:00",to:"22:00",firstName:"Sam"});
+ assert.match(found[0].message,/^Sam, Monday afternoons/);
+});

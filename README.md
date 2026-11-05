@@ -67,6 +67,8 @@ Static files currently live in Cloudflare Workers KV with keys of the form asset
 
 ## Privacy
 
+Your first name can appear in notifications, including on your Lock Screen.
+
 Reminder times, time zone and the time of each check-in are stored server-side so reminders can be sent. Check-in contents stay on the device unless you turn on check-in sync, which stores them in your account until you turn it off or erase synced data.
 
 No ads or external analytics scripts. Backups are unencrypted JSON. Cloudflare stores only the fields sent through Shortcuts. If the PWA is removed or browser storage is cleared, local data can be lost. Apple Shortcut actions and automatic execution vary by iOS version. Calendar ICS timezone handling is approximate; verify imported event times.
