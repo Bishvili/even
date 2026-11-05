@@ -1,11 +1,13 @@
 (function () {
 "use strict";
-var VERSION = "2.32.0";
+var VERSION = "2.33.0";
 var STORAGE_KEY = "even:v1";
 var HOME_ORIGIN = "https://even.bishvili.org";
 var MOOD_NAMES = ["","Rough","Low","Okay","Good","Great"];
 var MOOD_EMOJI = ["","😣","😕","😐","🙂","😄"];
 var ENERGY_NAMES = ["","Very low","Low","Medium","High","Very high"];
+// The account keeps the same limits (LIMITS in worker/index.js).
+var LIMITS = {moods:6000,healthDays:1200,events:2000};
 var CALENDAR_PURPOSES = ["Work","Family","Exercise","Social","Rest","Other"];
 var CATEGORIES = ["Meeting","Work","Exercise","Social","Family","Rest","Commute","Other"];
 var ACTIVITY_LABELS = ["Work","Meeting","Exercise","Social","Family","Rest","Outdoors","Commute","Food"];
@@ -15,7 +17,7 @@ var authService = null, authEmail = "", authDevices = [], authChecking = false, 
 var currentView = "", scrollTops = {};
 var shortcutRelease = null, shortcutStatus = null, shortcutStatusLoading = false, sessionLoading = false;
 function $(id){ return document.getElementById(id); }
-function emptyState(){ return {demo:{moods:[],health:[],events:[]},moods:[],health:[],events:[],reflections:[],alarms:[],resets:[],editedMoods:[],deletedMoods:[],firstName:"",name:"",token:"",deviceId:"",syncOwnerEmail:"",pairedAt:null,lastSync:null}; }
+function emptyState(){ return {demo:{moods:[],health:[],events:[]},moods:[],health:[],events:[],reflections:[],alarms:[],resets:[],pendingMoods:[],deletedMoods:[],moodCursor:"",lastMoodSync:null,firstName:"",name:"",token:"",deviceId:"",syncOwnerEmail:"",pairedAt:null,lastSync:null}; }
 // Fictional records live apart from personal ones. Older saved state kept them together, marked demo.
 function withDemoApart(loaded,saved){
  var demo={};
@@ -29,7 +31,7 @@ function withDemoApart(loaded,saved){
 function readState(){
  try { var raw=JSON.parse(localStorage.getItem(STORAGE_KEY)||"null"); if(!raw || typeof raw!=="object")return emptyState();
  var owner=typeof raw.syncOwnerEmail==="string"?raw.syncOwnerEmail.toLowerCase():"",deviceId=typeof raw.deviceId==="string"?raw.deviceId:"";
- var loaded={moods:Array.isArray(raw.moods)?raw.moods.slice(-6000):[],health:Array.isArray(raw.health)?raw.health.slice(-1200):[],events:Array.isArray(raw.events)?raw.events.slice(-2000):[],reflections:Array.isArray(raw.reflections)?raw.reflections.slice(-200):[],alarms:Array.isArray(raw.alarms)?raw.alarms.slice(0,40):[],resets:Array.isArray(raw.resets)?raw.resets.slice(-500):[],editedMoods:Array.isArray(raw.editedMoods)?raw.editedMoods:[],lastBackup:typeof raw.lastBackup==="string"?raw.lastBackup:null,deletedMoods:Array.isArray(raw.deletedMoods)?raw.deletedMoods.slice(-500):[],firstName:typeof raw.firstName==="string"?raw.firstName.slice(0,60):"",name:typeof raw.name==="string"?raw.name.slice(0,60):"",token:owner&&deviceId&&typeof raw.token==="string"?raw.token:"",deviceId:deviceId,syncOwnerEmail:owner,pairedAt:raw.pairedAt||null,lastSync:raw.lastSync||null};
+ var loaded={moods:Array.isArray(raw.moods)?raw.moods.slice(-LIMITS.moods):[],health:Array.isArray(raw.health)?raw.health.slice(-LIMITS.healthDays):[],events:Array.isArray(raw.events)?raw.events.slice(-LIMITS.events):[],reflections:Array.isArray(raw.reflections)?raw.reflections.slice(-200):[],alarms:Array.isArray(raw.alarms)?raw.alarms.slice(0,40):[],resets:Array.isArray(raw.resets)?raw.resets.slice(-500):[],pendingMoods:Array.isArray(raw.pendingMoods)?raw.pendingMoods:[],moodCursor:String(raw.moodCursor||""),lastMoodSync:raw.lastMoodSync||null,lastBackup:typeof raw.lastBackup==="string"?raw.lastBackup:null,deletedMoods:Array.isArray(raw.deletedMoods)?raw.deletedMoods.slice(-500):[],firstName:typeof raw.firstName==="string"?raw.firstName.slice(0,60):"",name:typeof raw.name==="string"?raw.name.slice(0,60):"",token:owner&&deviceId&&typeof raw.token==="string"?raw.token:"",deviceId:deviceId,syncOwnerEmail:owner,pairedAt:raw.pairedAt||null,lastSync:raw.lastSync||null};
  return withDemoApart(loaded,raw.demo);
  } catch(e){return emptyState();}
 }
@@ -196,6 +198,7 @@ function renderSync(){
  $("pair-badge").textContent=paired?"On":"Off";
  $("pair-badge").classList.toggle("on",paired);
  $("account-banner").hidden=paired;
+ renderMoodStatus();
  renderSyncLight(paired);
  $("last-sync").textContent=state.lastSync?"Last synced "+formatDate(state.lastSync)+" at "+formatTime(state.lastSync):"Not synced yet";
  $("shortcut-setup").hidden=!!(shortcutStatus&&shortcutStatus.lastDataUploadAt);
@@ -254,6 +257,8 @@ async function renderStorageNote(){
  var kept=null;
  try{if(navigator.storage&&navigator.storage.persisted)kept=await navigator.storage.persisted();}catch(e){/* Unknown; the note stays empty. */}
  $("storage-note").textContent=kept===true?"This device won’t clear your data on its own.":kept===false?"This browser can clear your data if you don’t use Even for a while. Keep a backup, or add Even to your Home Screen.":"";
+ var nearLimit=state.moods.length>=LIMITS.moods*.9||state.health.length>=LIMITS.healthDays*.9||state.events.length>=LIMITS.events*.9;
+ $("limit-note").hidden=!nearLimit;
 }
 function renderSettings(){
  $("demo-button").textContent=hasDemoData()?"Refresh the calendar demo":"Load 28-day calendar demo";
@@ -353,49 +358,72 @@ var energyTouched=false;
 function setEnergyText(){$("energy-label").textContent=energyTouched?$("energy").value+" · "+ENERGY_NAMES[Number($("energy").value)]:"Not set";}
 function selectStress(n){selectedStress=n;document.querySelectorAll("[data-stress]").forEach(function(b){var on=Number(b.dataset.stress)===n;b.classList.toggle("selected",on);b.setAttribute("aria-pressed",String(on));});}
 // Check-ins sync only when the account has turned it on. Each device uploads what the account lacks and removes what another device deleted.
-var moodSyncing=false;
+var moodSyncing=false,moodSyncFailed=false;
 async function moodRequest(body){
  var r=await fetch("/api/moods",{method:"POST",headers:{"Authorization":"Bearer "+state.token,"Content-Type":"application/json"},body:JSON.stringify(body),cache:"no-store"});
  if(!r.ok)throw Error("Check-ins didn’t sync");
 }
-// The session already carries the check-ins when the app comes back, so this only fetches after a change here.
+// The session already carries what changed when the app comes back, so this only fetches after a change here.
 async function syncMoods(given){
- if(!state.token||!navigator.onLine||moodSyncing)return;
+ if(!state.token||moodSyncing)return;
+ if(!navigator.onLine){renderMoodStatus();return;}
  moodSyncing=true;
  try{
   var body=given;
   if(!body){
-   var r=await fetch("/api/moods",{headers:{"Authorization":"Bearer "+state.token},cache:"no-store"});
-   if(!r.ok)return;
+   var r=await fetch("/api/moods"+moodSince(),{headers:{"Authorization":"Bearer "+state.token},cache:"no-store"});
+   if(!r.ok)throw Error("Check-ins didn’t sync");
    body=await r.json();
   }
   if(!body.email||body.email!==state.syncOwnerEmail)return;
-  var before=JSON.stringify([state.moods,state.editedMoods,state.deletedMoods]);
-  var edited=state.moods.filter(function(m){return state.editedMoods.indexOf(m.id)>=0;});
-  var justEdited={};edited.forEach(function(m){justEdited[m.id]=true;});
-  if(edited.length){await moodRequest({moods:edited});state.editedMoods=[];}
-  var pending=state.deletedMoods.slice();
-  for(var i=0;i<pending.length;i+=100)await moodRequest({deleted:pending.slice(i,i+100)});
-  state.deletedMoods=state.deletedMoods.filter(function(id){return pending.indexOf(id)<0;});
-  var gone={},remote={},local={};
-  body.deleted.concat(pending).forEach(function(id){gone[id]=true;});
-  body.moods.forEach(function(m){remote[m.id]=true;});
-  state.moods=state.moods.filter(function(m){return !gone[m.id];});
-  state.moods.forEach(function(m){local[m.id]=true;});
-  body.moods.forEach(function(m){
-   if(gone[m.id]||justEdited[m.id])return;
-   var item={id:m.id,ts:m.ts,score:m.score,energy:m.energy||null,tags:m.tags||[],note:m.note||""};
-   if(m.stress)item.stress=m.stress;
-   // The account's copy wins, so an edit on one device reaches the others.
-   if(local[m.id])state.moods=state.moods.map(function(x){return x.id===m.id?item:x;});
-   else state.moods.push(item);
-  });
-  state.moods.sort(function(a,b){return new Date(a.ts)-new Date(b.ts);});
-  if(JSON.stringify([state.moods,state.editedMoods,state.deletedMoods])!==before){persist();render();}
-  var missing=state.moods.filter(function(m){return !remote[m.id];});
-  for(var n=0;n<missing.length;n+=100)await moodRequest({moods:missing.slice(n,n+100)});
- }catch(e){/* Offline or refused; the next return to the app tries again. */}
- finally{moodSyncing=false;}
+  mergeMoods(body);
+  var waiting=state.pendingMoods.slice();
+  for(var n=0;n<waiting.length;n+=100){
+   var ids=waiting.slice(n,n+100),batch=state.moods.filter(function(m){return ids.indexOf(m.id)>=0;});
+   if(batch.length)await moodRequest({moods:batch});
+   state.pendingMoods=state.pendingMoods.filter(function(id){return ids.indexOf(id)<0;});
+  }
+  var removed=state.deletedMoods.slice();
+  for(var i=0;i<removed.length;i+=100)await moodRequest({deleted:removed.slice(i,i+100)});
+  state.deletedMoods=state.deletedMoods.filter(function(id){return removed.indexOf(id)<0;});
+  moodSyncFailed=false;state.lastMoodSync=new Date().toISOString();
+  if(waiting.length||removed.length)persist();
+ }catch(e){moodSyncFailed=true;persist();}
+ finally{moodSyncing=false;renderMoodStatus();}
+}
+function moodSince(){return state.moodCursor?"?since="+encodeURIComponent(state.moodCursor):"";}
+// A check-in waiting to upload is newer than the account's copy. Otherwise the account's copy wins, so an edit on one device reaches the others.
+function mergeMoods(body){
+ var before=JSON.stringify(state.moods),full=!state.moodCursor,gone={},remote={},waiting={};
+ (body.deleted||[]).concat(state.deletedMoods).forEach(function(id){gone[id]=true;});
+ state.pendingMoods=state.pendingMoods.filter(function(id){return !gone[id];});
+ state.pendingMoods.forEach(function(id){waiting[id]=true;});
+ state.moods=state.moods.filter(function(m){return !gone[m.id];});
+ (body.moods||[]).forEach(function(m){
+  remote[m.id]=true;
+  if(gone[m.id]||waiting[m.id])return;
+  var item={id:m.id,ts:m.ts,score:m.score,energy:m.energy||null,tags:m.tags||[],note:m.note||""};
+  if(m.stress)item.stress=m.stress;
+  var found=false;
+  state.moods=state.moods.map(function(x){if(x.id!==m.id)return x;found=true;return item;});
+  if(!found)state.moods.push(item);
+ });
+ // The first full list shows which check-ins the account has never seen.
+ if(full)state.moods.forEach(function(m){if(!remote[m.id]&&!waiting[m.id])state.pendingMoods.push(m.id);});
+ state.moods.sort(function(a,b){return new Date(a.ts)-new Date(b.ts);});
+ if(body.cursor)state.moodCursor=body.cursor;
+ if(JSON.stringify(state.moods)!==before)render();
+ if(body.cursor||state.pendingMoods.length)persist();
+}
+function agoText(at){
+ var minutes=Math.floor((Date.now()-new Date(at).getTime())/60000);
+ return minutes<2?"just now":minutes<60?minutes+" min ago":minutes<1440?Math.floor(minutes/60)+" hr ago":formatDate(at);
+}
+function renderMoodStatus(){
+ var line=$("mood-sync-status"),retry=$("mood-sync-retry"),count=state.pendingMoods.length+state.deletedMoods.length,noun=count===1?"1 check-in":count+" check-ins";
+ var failed=moodSyncFailed&&navigator.onLine&&count>0;
+ line.textContent=failed?"Couldn’t sync "+noun+".":count&&!navigator.onLine?noun+" waiting. They’ll sync when you’re online.":count?noun+" waiting to sync.":state.lastMoodSync?"All check-ins synced · "+agoText(state.lastMoodSync):"Check-ins sync to your account.";
+ line.classList.toggle("sync-problem",failed);retry.hidden=!failed;
 }
 var SYNC_SETTING_NAMES={calendar:"Calendar events",sleep:"Sleep",steps:"Steps",restingHR:"Resting heart rate",hrv:"Heart rate variability",workout:"Exercise minutes",alarms:"Alarms"};
 function renderSyncSettings(settings){
@@ -445,13 +473,14 @@ function saveEdit(ev){
  var id=$("edit-sheet").dataset.mood,when=new Date($("edit-when").value);
  if(isNaN(when.getTime())||when>new Date(Date.now()+60000)){toast("Choose a time that has already passed.");return;}
  state.moods=state.moods.map(function(m){return m.id===id?Object.assign({},m,{score:Number($("edit-score").value),ts:when.toISOString(),note:$("edit-note").value.trim().slice(0,400)}):m;}).sort(function(a,b){return new Date(a.ts)-new Date(b.ts);});
- if(state.editedMoods.indexOf(id)<0)state.editedMoods.push(id);
+ if(state.pendingMoods.indexOf(id)<0)state.pendingMoods.push(id);
  if(!persist())return;
  $("edit-sheet").close();render();toast("Check-in updated.");syncMoods();
 }
 function handleMoodSave(){
  if(!selectedMood){toast("Choose how you’re feeling first.");return;}
- state.moods.push({id:newId(),ts:new Date().toISOString(),score:selectedMood,energy:energyTouched?Number($("energy").value):null,tags:Array.from(selectedTags),note:$("mood-note").value.trim().slice(0,400)});
+ var moodId=newId();state.pendingMoods.push(moodId);
+ state.moods.push({id:moodId,ts:new Date().toISOString(),score:selectedMood,energy:energyTouched?Number($("energy").value):null,tags:Array.from(selectedTags),note:$("mood-note").value.trim().slice(0,400)});
  if(selectedStress)state.moods[state.moods.length-1].stress=selectedStress;
  if(!persist())return;if(state.moods.length===1)keepStorage();selectMood(0);selectStress(0);selectedTags.clear();document.querySelectorAll("[data-tag]").forEach(function(b){b.classList.remove("selected");b.setAttribute("aria-pressed","false");});$("mood-note").value="";$("energy").value="3";energyTouched=false;setEnergyText();render();toast("Check-in saved. Thanks for checking in.");if(globalThis.EvenReminders)globalThis.EvenReminders.checkedIn();syncMoods();
 }
@@ -539,7 +568,10 @@ function openBackup(){
 async function saveBackup(passphrase){
  var name="even-backup-"+dateKey(now())+".json";
  var text=JSON.stringify({app:"Even",version:VERSION,account:state.syncOwnerEmail||null,exportedAt:new Date().toISOString(),moods:state.moods,health:state.health,events:state.events,reflections:state.reflections,alarms:state.alarms,resets:state.resets},null,2);
- if(passphrase)text=await globalThis.EvenBackup.protect(text,passphrase);
+ if(passphrase){
+  try{text=await globalThis.EvenBackup.protect(text,passphrase);}
+  catch(e){toast("Couldn’t save the backup. Nothing was saved.");return;}
+ }
  var file=new File([text],name,{type:"application/json"});
  var done=passphrase?"Backup saved, protected by your passphrase.":"Backup saved. It isn’t encrypted, so keep it somewhere safe.";
  if(navigator.canShare&&navigator.canShare({files:[file]})){
@@ -570,14 +602,17 @@ async function openProtectedBackup(ev){
 async function applyBackup(data){
  if(data.app!=="Even"||!Array.isArray(data.moods)||!Array.isArray(data.health)||!Array.isArray(data.events))throw Error("Not a backup");
  if(data.account&&state.syncOwnerEmail&&data.account!==state.syncOwnerEmail){toast("This backup belongs to another account.");return;}
- if(!await askConfirm("Replace the check-ins, health and calendar data on this device with this backup? This can’t be undone. This iPhone stays connected.","Replace"))return;
- state.reflections=Array.isArray(data.reflections)?data.reflections.slice(-200):[];
- state.moods=data.moods.slice(-6000).filter(function(x){return !x.demo&&Number.isInteger(x.score)&&x.score>=1&&x.score<=5&&!isNaN(new Date(x.ts).getTime());}).map(function(x){return {id:String(x.id||newId()),ts:new Date(x.ts).toISOString(),score:x.score,energy:Number(x.energy)||null,tags:Array.isArray(x.tags)?x.tags.filter(function(y){return ACTIVITY_LABELS.includes(y);}).slice(0,10):[],note:String(x.note||"").slice(0,400),stress:Number.isInteger(x.stress)&&x.stress>=1&&x.stress<=5?x.stress:undefined,demo:!!x.demo};});
- state.health=[];data.health.slice(-1200).filter(function(x){return !x.demo;}).forEach(function(x){var h=normalizeHealth(x,x.source);if(h)upsertHealth(h);});
- state.events=[];data.events.slice(-2000).filter(function(x){return !x.demo;}).forEach(function(x){var e=normalizeEvent(x,x.source);if(e)upsertEvent(e);});
- state.alarms=Array.isArray(data.alarms)?data.alarms.filter(function(a){return a&&Number.isInteger(a.timeMin)&&Array.isArray(a.days);}).slice(0,100):[];
- state.resets=Array.isArray(data.resets)?data.resets.filter(function(at){return !isNaN(new Date(at).getTime());}).slice(-500):[];
- persist();render();toast("Backup restored.");
+ if(!await askConfirm("Replace the check-ins, health and calendar data on this device with this backup? This can’t be undone. Check-ins saved to your account stay there and come back to this device.","Replace"))return;
+ var kept=globalThis.EvenBackup.clean(data);
+ state.reflections=kept.reflections;
+ state.moods=data.moods.slice(-LIMITS.moods).filter(function(x){return !x.demo&&Number.isInteger(x.score)&&x.score>=1&&x.score<=5&&!isNaN(new Date(x.ts).getTime());}).map(function(x){return {id:String(x.id||newId()),ts:new Date(x.ts).toISOString(),score:x.score,energy:Number.isInteger(x.energy)&&x.energy>=1&&x.energy<=5?x.energy:null,tags:Array.isArray(x.tags)?x.tags.filter(function(y){return ACTIVITY_LABELS.includes(y);}).slice(0,10):[],note:String(x.note||"").slice(0,400),stress:Number.isInteger(x.stress)&&x.stress>=1&&x.stress<=5?x.stress:undefined,demo:!!x.demo};});
+ state.health=[];data.health.slice(-LIMITS.healthDays).filter(function(x){return !x.demo;}).forEach(function(x){var h=normalizeHealth(x,x.source);if(h)upsertHealth(h);});
+ state.events=[];data.events.slice(-LIMITS.events).filter(function(x){return !x.demo;}).forEach(function(x){var e=normalizeEvent(x,x.source);if(e)upsertEvent(e);});
+ state.alarms=kept.alarms;state.resets=kept.resets;
+ // Everything restored uploads again, and the full list then brings back what the account holds.
+ state.pendingMoods=state.moods.map(function(m){return m.id;});state.moodCursor="";
+ persist();render();syncMoods();
+ toast(kept.skipped?"Backup restored. "+kept.skipped+(kept.skipped===1?" damaged item was":" damaged items were")+" left out.":"Backup restored.");
 }
 function buildDemoCalendarScenario(base){
  var result={moods:[],events:[],health:[]};
@@ -701,7 +736,7 @@ async function loadSession(){
  if(!state.token||!state.deviceId||!navigator.onLine||sessionLoading)return;
  sessionLoading=true;
  try{
-  var r=await fetch("/api/session",{headers:{"Authorization":"Bearer "+state.token},cache:"no-store"});
+  var r=await fetch("/api/session"+moodSince(),{headers:{"Authorization":"Bearer "+state.token},cache:"no-store"});
   if(r.status===401){deviceDisconnected();renderSync();return;}
   if(!r.ok)throw Error();
   var data=await r.json();
@@ -829,12 +864,15 @@ async function pull(silent){
   if(r.status===401){state.token="";state.deviceId="";shortcutStatus=null;shortcutRelease=null;persist();render();throw Error("This iPhone was disconnected. Sign in to connect it again.");}
   if(!r.ok)throw Error(body.error||"Sync failed");
   if(!body.email||body.email!==state.syncOwnerEmail)throw Error("Account mismatch. Nothing was imported.");
-  var serverHealth=body.health||[];if(serverHealth.length<600)state.health=state.health.filter(function(x){return x.source!=="shortcut";});
+  var serverHealth=body.health||[],complete=body.complete||{};
+  // Only a complete list can show that something was removed.
+  var oldestDay=serverHealth.reduce(function(low,x){return !low||x.date<low?x.date:low;},"");
+  state.health=state.health.filter(function(x){return x.source!=="shortcut"||(!complete.health&&oldestDay&&x.date<oldestDay);});
   var h=0,e=0;serverHealth.forEach(function(x){var v=normalizeHealth(x,"shortcut");if(v){upsertHealth(v);h++;}});
   (body.events||[]).forEach(function(x){var v=normalizeEvent(x,"shortcut");if(v){upsertEvent(v);e++;}});
   var serverEvents=body.events||[],serverIds={},oldest=null;
   serverEvents.forEach(function(x){serverIds[x.id]=true;if(!oldest||x.start<oldest)oldest=x.start;});
-  var complete=serverEvents.length<1200;state.events=state.events.filter(function(x){return x.source!=="shortcut"||serverIds[x.id]||(!complete&&x.start<oldest);});
+  state.events=state.events.filter(function(x){return x.source!=="shortcut"||serverIds[x.id]||(!complete.events&&x.start<oldest);});
   state.alarms=Array.isArray(body.alarms)?body.alarms:[];applyName(body);
   state.lastSync=Date.parse(body.syncAt)||Date.now();persist();render();if(globalThis.EvenReminders)globalThis.EvenReminders.dataChanged();if(!silent)toast("Synced "+h+" health days and "+e+" calendar events for "+state.syncOwnerEmail+".");
   checkShortcutUpload(true);
@@ -851,7 +889,7 @@ async function deleteAccount(){
   if(r.status===401||r.status===403){await refreshAuth();toast("Sign in again to delete your account.");globalThis.EvenSignin.open();return;}
   if(!r.ok)throw Error();
   if(globalThis.EvenReminders)globalThis.EvenReminders.turnOff();
-  state.token="";state.deviceId="";state.pairedAt=null;state.editedMoods=[];state.deletedMoods=[];shortcutStatus=null;shortcutRelease=null;
+  state.token="";state.deviceId="";state.pairedAt=null;state.pendingMoods=[];state.deletedMoods=[];state.moodCursor="";state.lastMoodSync=null;shortcutStatus=null;shortcutRelease=null;
   persist();await refreshAuth();render();toast("Account deleted.");
  }catch(e){toast("Couldn’t delete your account. Check your connection and try again.");}
 }
@@ -878,7 +916,7 @@ async function eraseLocal(){
 async function eraseRemote(){
  if(!authEmail){toast("Sign in first to erase synced data.");globalThis.EvenSignin.open();return;}
  if(!await askConfirm("Permanently delete everything synced for "+authEmail+": Health, calendar, alarms, your notification schedule, the name you set, and your check-ins and notes on all your devices? This can’t be undone. Health and calendar records already on this device stay.","Erase"))return;
- try{var r=await fetch(accountPath("erase"),{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:"{}",cache:"no-store"});if(!r.ok)throw Error("Delete failed");state.moods=[];state.editedMoods=[];state.deletedMoods=[];persist();if(globalThis.EvenReminders)globalThis.EvenReminders.turnOff();render();toast("Synced data erased.");}catch(e){toast("Could not delete cloud data.");}
+ try{var r=await fetch(accountPath("erase"),{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:"{}",cache:"no-store"});if(!r.ok)throw Error("Delete failed");state.moods=[];state.pendingMoods=[];state.deletedMoods=[];persist();if(globalThis.EvenReminders)globalThis.EvenReminders.turnOff();render();toast("Synced data erased.");}catch(e){toast("Could not delete cloud data.");}
 }
 var swRegistration=null;
 function checkForUpdate(){if(swRegistration)swRegistration.update().catch(function(){});}
@@ -925,7 +963,7 @@ function init(){
  $("recent-list").addEventListener("click",function(ev){var e=ev.target.closest("[data-edit-mood]");if(e)openEdit(e.dataset.editMood);});
  $("edit-form").addEventListener("submit",saveEdit);
  $("edit-cancel").addEventListener("click",function(){$("edit-sheet").close();});
- $("recent-list").addEventListener("click",function(ev){var b=ev.target.closest("[data-delete-mood]");if(b)askConfirm("Delete this check-in? This can’t be undone.","Delete").then(function(yes){if(!yes)return;state.moods=state.moods.filter(function(x){return x.id!==b.dataset.deleteMood;});state.deletedMoods.push(b.dataset.deleteMood);persist();render();syncMoods();});});
+ $("recent-list").addEventListener("click",function(ev){var b=ev.target.closest("[data-delete-mood]");if(b)askConfirm("Delete this check-in? This can’t be undone.","Delete").then(function(yes){if(!yes)return;state.moods=state.moods.filter(function(x){return x.id!==b.dataset.deleteMood;});state.pendingMoods=state.pendingMoods.filter(function(id){return id!==b.dataset.deleteMood;});state.deletedMoods.push(b.dataset.deleteMood);persist();render();syncMoods();});});
  $("context-list").addEventListener("click",function(ev){var b=ev.target.closest("[data-delete-health]");if(b)askConfirm("Delete this health day from this device?","Delete").then(function(yes){if(!yes)return;state.health=state.health.filter(function(x){return x.date!==b.dataset.deleteHealth;});persist();render();});
  b=ev.target.closest("[data-delete-event]");if(b)askConfirm("Delete this event from this device?","Delete").then(function(yes){if(!yes)return;state.events=state.events.filter(function(x){return x.id!==b.dataset.deleteEvent;});persist();render();});});
  document.querySelectorAll("[data-days]").forEach(function(b){b.addEventListener("click",function(){insightDays=Number(b.dataset.days);document.querySelectorAll("[data-days]").forEach(function(x){x.classList.toggle("selected",x===b);});renderInsights();});});
@@ -959,7 +997,8 @@ function init(){
  $("erase-local").addEventListener("click",eraseLocal);$("delete-account").addEventListener("click",deleteAccount);
  $("demo-button").addEventListener("click",demo);$("clear-demo-button").addEventListener("click",clearDemo);
  setEnergyText();navigate(location.hash.slice(1)||"checkin");
- window.addEventListener("online",renderSync);window.addEventListener("offline",renderSync);
+ window.addEventListener("online",function(){renderSync();syncMoods();});window.addEventListener("offline",function(){renderSync();renderMoodStatus();});
+ $("mood-sync-retry").addEventListener("click",function(){moodSyncFailed=false;renderMoodStatus();syncMoods();});
  if(navigator.onLine)refreshAuth();
  if(state.token&&navigator.onLine)loadSession();
  window.addEventListener("online",foreground);

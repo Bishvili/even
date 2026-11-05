@@ -1,8 +1,12 @@
 // Optional passphrase protection for backup files. The passphrase is never stored or sent.
 (function(root){
  "use strict";
- var ROUNDS=310000;
- function toBase64(bytes){return btoa(String.fromCharCode.apply(null,new Uint8Array(bytes)));}
+ var ROUNDS=600000,MIN_ROUNDS=100000,MAX_ROUNDS=5000000,CHUNK=32768;
+ function toBase64(bytes){
+  var view=new Uint8Array(bytes),text="";
+  for(var i=0;i<view.length;i+=CHUNK)text+=String.fromCharCode.apply(null,view.subarray(i,i+CHUNK));
+  return btoa(text);
+ }
  function fromBase64(text){return Uint8Array.from(atob(text),function(c){return c.charCodeAt(0);});}
  async function keyFor(passphrase,salt,rounds){
   var base=await crypto.subtle.importKey("raw",new TextEncoder().encode(passphrase),"PBKDF2",false,["deriveKey"]);
@@ -16,8 +20,24 @@
  function isProtected(backup){return !!backup&&backup.app==="Even"&&backup.protected===true;}
  // Throws when the passphrase is wrong or the file was changed.
  async function unprotect(backup,passphrase){
+  if(!Number.isInteger(backup.rounds)||backup.rounds<MIN_ROUNDS||backup.rounds>MAX_ROUNDS)throw Error("Unreadable backup");
   var opened=await crypto.subtle.decrypt({name:"AES-GCM",iv:fromBase64(backup.iv)},await keyFor(passphrase,fromBase64(backup.salt),backup.rounds),fromBase64(backup.data));
   return new TextDecoder().decode(opened);
  }
- root.EvenBackup={protect:protect,unprotect:unprotect,isProtected:isProtected};
+ function isTime(value){return typeof value==="string"&&!isNaN(new Date(value).getTime());}
+ function validReflection(r){
+  var answers=r&&r.answers&&typeof r.answers==="object"?Object.values(r.answers):[];
+  return !!r&&isTime(r.ts)&&answers.length>0&&answers.every(function(a){return Number.isFinite(a);});
+ }
+ function validAlarm(a){
+  return !!a&&Number.isInteger(a.timeMin)&&a.timeMin>=0&&a.timeMin<1440&&Array.isArray(a.days)&&a.days.every(function(d){return Number.isInteger(d)&&d>=0&&d<=6;});
+ }
+ // What can be trusted from a restored file, and how much had to be left out.
+ function clean(data){
+  var given={reflections:Array.isArray(data.reflections)?data.reflections:[],alarms:Array.isArray(data.alarms)?data.alarms:[],resets:Array.isArray(data.resets)?data.resets:[]};
+  var reflections=given.reflections.filter(validReflection),resets=given.resets.filter(isTime);
+  var alarms=given.alarms.filter(validAlarm).map(function(a){return{timeMin:a.timeMin,days:a.days,enabled:a.enabled!==false,label:String(a.label||"").slice(0,80)};});
+  return{reflections:reflections.slice(-200),alarms:alarms.slice(0,40),resets:resets.slice(-500),skipped:given.reflections.length-reflections.length+given.alarms.length-alarms.length+given.resets.length-resets.length};
+ }
+ root.EvenBackup={protect:protect,unprotect:unprotect,isProtected:isProtected,clean:clean};
 })(globalThis);

@@ -37,6 +37,8 @@ jobs:
           npx playwright install --with-deps chromium webkit
       - name: Load every screen with the production security rules
         run: node scripts/smoke.cjs chromium webkit
+      - name: Check signed-in flows against a fake API
+        run: node scripts/signed-in.cjs chromium webkit
 
   shortcut-compile:
     runs-on: ubuntu-latest

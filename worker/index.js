@@ -38,7 +38,7 @@ async function payload(request){
  if(type.includes("application/x-www-form-urlencoded"))return Object.fromEntries(new URLSearchParams(text));
  try{return JSON.parse(text);}catch(e){return Object.fromEntries(new URLSearchParams(text));}
 }
-const VERSION_NAME="2.32.0";
+const VERSION_NAME="2.33.0";
 function normalEmail(value){return String(value||"").trim().toLowerCase();}
 async function signinAuth(env,ctx){
  const {createAuth}=await import("./signin.mjs");
@@ -513,10 +513,8 @@ async function deliverPush(env,key,sub,now,payload){
  return sent;
 }
 const SMART_QUIET_MS=5400000;
-function dueTarget(times,minutes){
- const targets=times.map(t=>{const[h,m]=t.split(":").map(Number);return h*60+m;}).filter(t=>t<=minutes&&minutes-t<60);
- return targets.length?Math.max(...targets):null;
-}
+// The phone keeps the same limits (LIMITS in app.js).
+const LIMITS={moods:6000,healthDays:1200,events:2000},HEALTH_MEASURES=8;
 const SCHEDULE_KINDS=["custom","brief","bedtime","hard"],WEEK_MS=604800000,REMINDER_BATCH=5,SYNC_STALE_MS=72000000,DUE_WINDOW_MS=3600000;
 // Sent ahead of an anticipated hard moment. The device fills in the specific message.
 async function sendAnticipation(env,key,sub,now){
@@ -539,7 +537,7 @@ async function sendSyncReminder(env,key,sub,now,local){
 }
 async function sendReminders(env,now=new Date()){
  const key=pushKey(env);if(!key)return;
- const subs=await env.DB.prepare("SELECT s.endpoint,s.p256dh,s.auth,s.mode,s.times,s.bedtime_at,s.brief_at,s.hard_at,s.weekends,s.sync_at,s.last_sync_prompt_day,s.stress_times,s.last_stress_at,s.schedule,s.last_schedule_at,d.last_used_at,s.time_zone,s.last_sent_day,s.last_sent_target,s.last_check_in_at,COALESCE((SELECT name FROM even_names n WHERE n.email=s.owner_email),(SELECT display_name FROM even_release_emails r WHERE r.email=s.owner_email),(SELECT name FROM even_users u WHERE u.email=s.owner_email)) AS person FROM even_push_subscriptions s JOIN even_devices d ON d.device_id=s.device_id WHERE d.revoked_at IS NULL AND s.p256dh IS NOT NULL AND s.times IS NOT NULL").bind().all();
+ const subs=await env.DB.prepare("SELECT s.endpoint,s.p256dh,s.auth,s.mode,s.sync_at,s.last_sync_prompt_day,s.stress_times,s.last_stress_at,s.schedule,s.last_schedule_at,d.last_used_at,s.time_zone,s.last_check_in_at,COALESCE((SELECT name FROM even_names n WHERE n.email=s.owner_email),(SELECT display_name FROM even_release_emails r WHERE r.email=s.owner_email),(SELECT name FROM even_users u WHERE u.email=s.owner_email)) AS person FROM even_push_subscriptions s JOIN even_devices d ON d.device_id=s.device_id WHERE d.revoked_at IS NULL AND s.p256dh IS NOT NULL AND s.times IS NOT NULL").bind().all();
  const rows=subs.results||[];
  let failed=0;
  // A failure stays with its own subscription, and a slow endpoint holds up only its small group.
@@ -555,40 +553,38 @@ async function sendReminders(env,now=new Date()){
 async function notifySubscriber(env,key,sub,now){
  const local=localTime(sub.time_zone,now);
  if(await sendAnticipation(env,key,sub,now))return;
- if(await sendCheckIn(env,key,sub,now,local))return;
+ if(await sendScheduled(env,key,sub,now))return;
  await sendSyncReminder(env,key,sub,now,local);
 }
+// The same local time some weeks later, so a repeat stays put across a clock change.
+function sameLocalTime(at,weeks,timeZone){
+ const moved=at+weeks*WEEK_MS;
+ let shift=localTime(timeZone,new Date(at)).minutes-localTime(timeZone,new Date(moved)).minutes;
+ if(shift>720)shift-=1440;
+ if(shift<-720)shift+=1440;
+ return moved+shift*60000;
+}
 // The latest dated notification now due. A plan that has run out repeats its last week until the app is next opened.
-function dueScheduled(schedule,now,after){
+function dueScheduled(schedule,now,after,timeZone){
  let due=null;
  for(const item of schedule){
   let at=Date.parse(item.at);
-  if(at<now-DUE_WINDOW_MS)at+=Math.ceil((now-DUE_WINDOW_MS-at)/WEEK_MS)*WEEK_MS;
+  if(at<now-DUE_WINDOW_MS){
+   const weeks=Math.max(1,Math.floor((now-DUE_WINDOW_MS-at)/WEEK_MS)),next=sameLocalTime(at,weeks,timeZone);
+   at=next<now-DUE_WINDOW_MS?sameLocalTime(at,weeks+1,timeZone):next;
+  }
   if(at<=now&&at>after&&(!due||at>due.at))due={at,kind:item.kind};
  }
  return due;
 }
 async function sendScheduled(env,key,sub,now){
- const due=dueScheduled(JSON.parse(sub.schedule),now.getTime(),sub.last_schedule_at?Date.parse(sub.last_schedule_at):0);
+ const due=dueScheduled(JSON.parse(sub.schedule),now.getTime(),sub.last_schedule_at?Date.parse(sub.last_schedule_at):0,sub.time_zone);
  if(!due)return false;
  const quiet=sub.mode==="smart"&&sub.last_check_in_at&&now.getTime()-new Date(sub.last_check_in_at).getTime()<SMART_QUIET_MS;
  const minutes=localTime(sub.time_zone,new Date(due.at)).minutes,custom=sub.mode!=="smart";
  const body=custom?"How are you feeling?":reminderMessage(minutes,due.kind==="bedtime",due.kind==="hard",firstName(sub.person));
  const sent=quiet?{ok:true}:await deliverPush(env,key,sub,now,pushPayload(env,body,"/#checkin",{brief:due.kind==="brief"}));
  if(sent.ok)await env.DB.prepare("UPDATE even_push_subscriptions SET last_schedule_at=? WHERE endpoint=?").bind(new Date(due.at).toISOString(),sub.endpoint).run();
- return sent.ok&&!quiet;
-}
-async function sendCheckIn(env,key,sub,now,local){
- if(sub.schedule)return sendScheduled(env,key,sub,now);
- const target=dueTarget(JSON.parse(sub.times),local.minutes);
- if(target===null||(sub.last_sent_day===local.day&&sub.last_sent_target>=target))return false;
- if(sub.weekends===0&&[0,6].includes(new Date(local.day+"T12:00:00Z").getUTCDay()))return false;
- // A smart reminder isn't needed right after a check-in.
- const quiet=sub.mode==="smart"&&sub.last_check_in_at&&now.getTime()-new Date(sub.last_check_in_at).getTime()<SMART_QUIET_MS;
- const isTarget=time=>{if(!time)return false;const[hour,minute]=time.split(":").map(Number);return hour*60+minute===target;};
- const smart=sub.mode==="smart",body=smart?reminderMessage(target,isTarget(sub.bedtime_at),isTarget(sub.hard_at),firstName(sub.person)):"How are you feeling?";
- const sent=quiet?{ok:true}:await deliverPush(env,key,sub,now,pushPayload(env,body,"/#checkin",{brief:smart&&isTarget(sub.brief_at)}));
- if(sent.ok)await env.DB.prepare("UPDATE even_push_subscriptions SET last_sent_day=?,last_sent_target=? WHERE endpoint=?").bind(local.day,target,sub.endpoint).run();
  return sent.ok&&!quiet;
 }
 const BUILDS="https://github.com/Bishvili/even/releases/download/shortcut-latest/";
@@ -617,10 +613,12 @@ async function syncChoices(env,owner){
  const off=await syncOff(env,owner);
  return Object.fromEntries(SYNC_KINDS.map(kind=>[kind,!off.has(kind)]));
 }
-async function syncedMoods(env,owner){
- const rows=await env.DB.prepare("SELECT id,ts,score,energy,stress,tags,note,deleted_at FROM even_moods WHERE owner_email=? ORDER BY ts DESC LIMIT 8000").bind(owner).all();
+// Only what changed since the app last asked. The cursor is read first, so a change made during this query is sent again rather than missed.
+async function syncedMoods(env,owner,since){
+ const cursor=new Date().toISOString(),from=Number.isFinite(Date.parse(since))?new Date(since).toISOString():"";
+ const rows=await env.DB.prepare("SELECT id,ts,score,energy,stress,tags,note,deleted_at FROM even_moods WHERE owner_email=? AND updated_at>=? ORDER BY ts DESC LIMIT ?").bind(owner,from,LIMITS.moods).all();
  const live=(rows.results||[]).filter(m=>!m.deleted_at);
- return{email:owner,
+ return{email:owner,cursor,
   moods:live.map(m=>{let tags=[];try{tags=JSON.parse(m.tags||"[]");}catch(e){/* Unreadable tags read as none. */}return{id:m.id,ts:m.ts,score:m.score,energy:m.energy,stress:m.stress,tags,note:m.note||""};}),
   deleted:(rows.results||[]).filter(m=>m.deleted_at).map(m=>m.id)};
 }
@@ -678,18 +676,16 @@ async function syncApi(request,env,path){
  if(path==="/api/push/key"&&request.method==="GET"){const key=pushKey(env);return reply({ok:true,key:key?pushPublicKey(key):null});}
  if(path==="/api/push/subscribe"&&request.method==="POST"){
   let input;try{input=await payload(request);}catch(e){return error("Invalid reminder request",400,"invalid_reminder");}
-  const endpoint=pushEndpoint(input?.endpoint),mode=input?.mode,times=input?.times,timeZone=String(input?.timeZone||"");
+  const endpoint=pushEndpoint(input?.endpoint),mode=input?.mode,timeZone=String(input?.timeZone||"");
   const p256dh=String(input?.keys?.p256dh||""),auth=String(input?.keys?.auth||"");
   try{if(fromBase64url(p256dh).length!==65||fromBase64url(auth).length!==16)return error("Invalid reminder request",400,"invalid_reminder");}catch(e){return error("Invalid reminder request",400,"invalid_reminder");}
-  if(!endpoint||!["smart","custom"].includes(mode)||!Array.isArray(times)||!times.length||times.length>24||!times.every(t=>REMIND_AT.test(String(t))))return error("Invalid reminder request",400,"invalid_reminder");
-  const smartTime=value=>mode==="smart"&&REMIND_AT.test(String(value||""))?String(value):null;
-  const bedtimeAt=smartTime(input?.bedtimeAt),briefAt=smartTime(input?.briefAt),hardAt=smartTime(input?.hardAt),weekends=input?.weekends===false?0:1;
+  if(!endpoint||!["smart","custom"].includes(mode))return error("Invalid reminder request",400,"invalid_reminder");
   const syncAt=REMIND_AT.test(String(input?.syncAt||""))?String(input.syncAt):null;
   const scheduled=Array.isArray(input?.schedule)?input.schedule.slice(0,100).filter(x=>SCHEDULE_KINDS.includes(x?.kind)&&Number.isFinite(Date.parse(x?.at))).map(x=>({at:new Date(x.at).toISOString(),kind:x.kind})):null;
+  if(!scheduled?.length)return error("Invalid reminder request",400,"invalid_reminder");
   const stressTimes=Array.isArray(input?.stressTimes)?input.stressTimes.slice(0,14).map(String).filter(at=>Number.isFinite(Date.parse(at))):[];
-  const schedule=JSON.stringify([...new Set(times.map(String))].sort());
   try{localTime(timeZone,new Date());}catch(e){return error("Invalid reminder request",400,"invalid_reminder");}
-  await env.DB.prepare("INSERT INTO even_push_subscriptions(endpoint,owner_email,device_id,mode,times,time_zone,created_at,p256dh,auth,bedtime_at,brief_at,hard_at,weekends,sync_at,stress_times,schedule) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(endpoint) DO UPDATE SET schedule=excluded.schedule,sync_at=excluded.sync_at,stress_times=excluded.stress_times, bedtime_at=excluded.bedtime_at,brief_at=excluded.brief_at,hard_at=excluded.hard_at,weekends=excluded.weekends,p256dh=excluded.p256dh,auth=excluded.auth,owner_email=excluded.owner_email,device_id=excluded.device_id,mode=excluded.mode,times=excluded.times,time_zone=excluded.time_zone").bind(endpoint,owner,dev.id,mode,schedule,timeZone,new Date().toISOString(),p256dh,auth,bedtimeAt,briefAt,hardAt,weekends,syncAt,JSON.stringify(stressTimes),scheduled?JSON.stringify(scheduled):null).run();
+  await env.DB.prepare("INSERT INTO even_push_subscriptions(endpoint,owner_email,device_id,mode,time_zone,created_at,p256dh,auth,sync_at,stress_times,schedule) VALUES(?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(endpoint) DO UPDATE SET schedule=excluded.schedule,sync_at=excluded.sync_at,stress_times=excluded.stress_times,p256dh=excluded.p256dh,auth=excluded.auth,owner_email=excluded.owner_email,device_id=excluded.device_id,mode=excluded.mode,time_zone=excluded.time_zone").bind(endpoint,owner,dev.id,mode,timeZone,new Date().toISOString(),p256dh,auth,syncAt,JSON.stringify(stressTimes),JSON.stringify(scheduled)).run();
   return reply({ok:true});
  }
  if(path==="/api/push/synced"&&request.method==="POST"){
@@ -757,7 +753,7 @@ async function syncApi(request,env,path){
   return reply({ok:true});
  }
  if(path==="/api/moods"&&request.method==="GET"){
-  return reply({ok:true,...await syncedMoods(env,owner)});
+  return reply({ok:true,...await syncedMoods(env,owner,new URL(request.url).searchParams.get("since"))});
  }
  if(path==="/api/moods"&&request.method==="POST"){
   let input;try{input=await payload(request);}catch(e){return error("Even couldn't read that request.",400,"invalid_body");}
@@ -772,7 +768,7 @@ async function syncApi(request,env,path){
  }
  // Everything the app shows about this device and account, so coming back to the app takes one request.
  if(path==="/api/session"&&request.method==="GET"){
-  const [status,release,calendars,settings,moods]=await Promise.all([deviceStatus(env,dev,owner),loadShortcutRelease(env),calendarList(env,owner),syncChoices(env,owner),syncedMoods(env,owner)]);
+  const [status,release,calendars,settings,moods]=await Promise.all([deviceStatus(env,dev,owner),loadShortcutRelease(env),calendarList(env,owner),syncChoices(env,owner),syncedMoods(env,owner,new URL(request.url).searchParams.get("since"))]);
   if(!status)return error("This device was revoked",401,"device_revoked");
   return reply({ok:true,status,release,calendars,settings,moods});
  }
@@ -805,15 +801,17 @@ async function syncApi(request,env,path){
 
  if(path==="/api/pull"&&request.method==="GET"){
   const [health,events,alarms]=await Promise.all([
-   env.DB.prepare("SELECT day,metric,value FROM even_health_metrics WHERE owner_email=? ORDER BY day DESC LIMIT 3000").bind(owner).all(),
-   env.DB.prepare("SELECT event_id,start_time,end_time,title,category FROM even_calendar_events WHERE owner_email=? AND (calendar IS NULL OR calendar NOT IN (SELECT name FROM even_calendars WHERE owner_email=? AND enabled=0)) ORDER BY start_time DESC LIMIT 1200").bind(owner,owner).all(),
+   env.DB.prepare("SELECT day,metric,value FROM even_health_metrics WHERE owner_email=? ORDER BY day DESC LIMIT ?").bind(owner,LIMITS.healthDays*HEALTH_MEASURES).all(),
+   env.DB.prepare("SELECT event_id,start_time,end_time,title,category FROM even_calendar_events WHERE owner_email=? AND (calendar IS NULL OR calendar NOT IN (SELECT name FROM even_calendars WHERE owner_email=? AND enabled=0)) ORDER BY start_time DESC LIMIT ?").bind(owner,owner,LIMITS.events).all(),
    env.DB.prepare("SELECT time_min,days,enabled,label FROM even_alarms WHERE owner_email=? ORDER BY time_min").bind(owner).all()
   ]);
   const grouped={};for(const h of health.results||[]){
    if(!grouped[h.day])grouped[h.day]={date:h.day,source:"shortcut"};
    grouped[h.day][h.metric]=h.value;
   }
-  return reply({ok:true,email:owner,firstName:firstName(await displayName(env,owner)),name:await displayName(env,owner),health:Object.values(grouped),events:(events.results||[]).map(e=>({id:e.event_id,start:e.start_time,end:e.end_time,title:e.title,category:e.category,source:"shortcut"})),alarms:(alarms.results||[]).map(a=>({timeMin:a.time_min,days:a.days?a.days.split(",").map(Number):[],enabled:a.enabled!==0,label:a.label||null})),syncAt:new Date().toISOString()});
+  // A full page may have cut off older rows, so the app keeps its own older days and events.
+  const complete={health:(health.results||[]).length<LIMITS.healthDays*HEALTH_MEASURES,events:(events.results||[]).length<LIMITS.events};
+  return reply({ok:true,email:owner,complete,firstName:firstName(await displayName(env,owner)),name:await displayName(env,owner),health:Object.values(grouped),events:(events.results||[]).map(e=>({id:e.event_id,start:e.start_time,end:e.end_time,title:e.title,category:e.category,source:"shortcut"})),alarms:(alarms.results||[]).map(a=>({timeMin:a.time_min,days:a.days?a.days.split(",").map(Number):[],enabled:a.enabled!==0,label:a.label||null})),syncAt:new Date().toISOString()});
  }
  if(path==="/api/ingest"&&request.method==="POST"){
   let input;

@@ -146,10 +146,6 @@
   });
  }
  function keyBytes(key){var text=atob(key.replace(/-/g,"+").replace(/_/g,"/"));return Uint8Array.from(text,function(c){return c.charCodeAt(0);});}
- function fixedTimes(){
-  if(settings.mode!=="smart")return{bedtimeAt:null,briefAt:null,hardAt:null};
-  var plan=smartPlan();return{bedtimeAt:plan.bedtimeAt,briefAt:plan.briefAt,hardAt:plan.hardAt};
- }
  async function subscribe(){
   var permission=Notification.permission==="granted"?"granted":await Notification.requestPermission();
   if(permission!=="granted")throw Error("Notifications are off. Turn them on in Settings.");
@@ -159,7 +155,7 @@
   var registration=await navigator.serviceWorker.ready;
   var subscription=await registration.pushManager.getSubscription()||await registration.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:keyBytes(key)});
   var stressItems=anticipated(settings);saveAnticipated(stressItems);
-  var saved=await fetch("/api/push/subscribe",{method:"POST",headers:deviceHeaders(),cache:"no-store",body:JSON.stringify({endpoint:subscription.endpoint,keys:subscription.toJSON().keys,mode:settings.mode==="smart"?"smart":"custom",times:schedule(),...fixedTimes(),schedule:globalThis.EvenCoach.weekSchedule(app.personalMoods(),app.personalHealth(),Object.assign({alarms:app.alarms(),events:app.personalEvents(),customTimes:schedule()},settings),new Date()),weekends:settings.weekends,syncAt:settings.syncReminder?syncTime(settings):null,stressTimes:stressItems.map(function(item){return item.at;}),timeZone:Intl.DateTimeFormat().resolvedOptions().timeZone})});
+  var saved=await fetch("/api/push/subscribe",{method:"POST",headers:deviceHeaders(),cache:"no-store",body:JSON.stringify({endpoint:subscription.endpoint,keys:subscription.toJSON().keys,mode:settings.mode==="smart"?"smart":"custom",schedule:globalThis.EvenCoach.weekSchedule(app.personalMoods(),app.personalHealth(),Object.assign({alarms:app.alarms(),events:app.personalEvents(),customTimes:schedule()},settings),new Date()),syncAt:settings.syncReminder?syncTime(settings):null,stressTimes:stressItems.map(function(item){return item.at;}),timeZone:Intl.DateTimeFormat().resolvedOptions().timeZone})});
   if(!saved.ok)throw Error("Couldn’t save your notifications.");
  }
  async function unsubscribe(){

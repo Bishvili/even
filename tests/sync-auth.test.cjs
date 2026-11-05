@@ -51,7 +51,7 @@ function harness({verified=false,buildVersion="2.8.0",helperBuild="2.0.0",source
     if(sql.startsWith("SELECT email,display_name FROM even_release_emails"))return{results:[{email:"owner-a@example.com",display_name:"Ada"}]};
     if(sql.startsWith("SELECT email,name FROM even_names"))return{results:[...(rows.names||new Map()).entries()].map(([email,name])=>({email,name}))};
     if(sql.startsWith("SELECT email,name FROM even_users"))return{results:[...rows.users.keys()].map(email=>({email,name:(rows.userFields?.get(email)||{}).name}))};
-    if(sql.startsWith("SELECT id,ts,score"))return{results:(rows.moods||[]).filter(m=>m.owner===args[0])};
+    if(sql.startsWith("SELECT id,ts,score"))return{results:(rows.moods||[]).filter(m=>m.owner===args[0]&&(m.updated_at||"")>=args[1])};
     if(sql.startsWith("SELECT s.endpoint"))return{results:[...rows.subs.values()].filter(s=>[...rows.devices.values()].some(d=>d.device_id===s.device_id&&!d.revoked_at))};
     if(sql.startsWith("SELECT event_id,title FROM even_calendar_events"))return{results:[]};
     if(sql.startsWith("SELECT name FROM even_calendars"))return{results:[...rows.calendars.values()].filter(c=>c.owner===args[0]&&!c.enabled)};
@@ -93,7 +93,7 @@ function harness({verified=false,buildVersion="2.8.0",helperBuild="2.0.0",source
     }
     if(sql.startsWith("UPDATE even_devices SET label")){let changes=0;for(const d of rows.devices.values())if(d.device_id===args[1]&&d.owner_email===args[2]&&!d.revoked_at){d.label=args[0];changes++;}return{meta:{changes}};}
     if(sql.startsWith("INSERT INTO even_health_metrics")){rows.health.set(args[0]+"|"+args[1]+"|"+args[2],{owner:args[0],day:args[1],metric:args[2],value:args[3]});return{meta:{changes:1}};}
-    if(sql.startsWith("INSERT INTO even_push_subscriptions")){rows.subs.set(args[0],{endpoint:args[0],owner:args[1],device_id:args[2],mode:args[3],times:args[4],time_zone:args[5],p256dh:args[7],auth:args[8],bedtime_at:args[9],brief_at:args[10],hard_at:args[11],weekends:args[12],sync_at:args[13],stress_times:args[14],schedule:args[15],last_sent_day:null,last_sent_target:null,last_check_in_at:null});return{meta:{changes:1}};}
+    if(sql.startsWith("INSERT INTO even_push_subscriptions")){rows.subs.set(args[0],{endpoint:args[0],owner:args[1],device_id:args[2],mode:args[3],time_zone:args[4],p256dh:args[6],auth:args[7],sync_at:args[8],stress_times:args[9],schedule:args[10],last_check_in_at:null});return{meta:{changes:1}};}
     if(sql.startsWith("INSERT OR IGNORE INTO even_approved_emails")){rows.approved.set(args[0],args[1]);return{meta:{changes:1}};}
     if(sql.startsWith("DELETE FROM even_approved_emails")){rows.approved.delete(args[0]);return{meta:{changes:1}};}
     if(sql.includes("SET last_check_in_at")){for(const x of rows.subs.values())if(x.owner===args[1])x.last_check_in_at=args[0];return{meta:{changes:1}};}
@@ -101,7 +101,6 @@ function harness({verified=false,buildVersion="2.8.0",helperBuild="2.0.0",source
     if(sql.includes("SET last_schedule_at")){rows.subs.get(args[1]).last_schedule_at=args[0];return{meta:{changes:1}};}
     if(sql.includes("SET last_stress_at")){rows.subs.get(args[1]).last_stress_at=args[0];return{meta:{changes:1}};}
     if(sql.includes("SET last_sync_prompt_day")){rows.subs.get(args[1]).last_sync_prompt_day=args[0];return{meta:{changes:1}};}
-    if(sql.startsWith("UPDATE even_push_subscriptions")){const s=rows.subs.get(args[2]);s.last_sent_day=args[0];s.last_sent_target=args[1];return{meta:{changes:1}};}
     if(sql.startsWith("UPDATE even_devices SET last_seen_at")){for(const d of rows.devices.values())if(d.device_id===args[1])d.last_seen_at=args[0];return{meta:{changes:1}};}
     if(sql.startsWith("DELETE FROM even_devices")){for(const [k,d] of rows.devices)if(d.owner_email===args[0])rows.devices.delete(k);return{meta:{changes:1}};}
     if(sql.startsWith("DELETE FROM even_users")){rows.users.delete(args[0]);return{meta:{changes:1}};}
@@ -135,6 +134,7 @@ function harness({verified=false,buildVersion="2.8.0",helperBuild="2.0.0",source
  }
  return{call,ctx,rows,dispatches,env,runtime};
 }
+const plan=(...times)=>times.map(at=>({at,kind:"custom"}));
 test("untrusted identity headers and non-allowlisted Access sessions fail closed",async()=>{
  const {call,ctx}=harness();
  assert.equal((await call("/api/user/me")).status,401);
@@ -192,11 +192,11 @@ test("reminders are validated, owner-scoped, sent once a day, and stop when a de
  const A={Authorization:"Bearer "+a.data.token},B={Authorization:"Bearer "+b.data.token};
  const device=await webcrypto.subtle.generateKey({name:"ECDH",namedCurve:"P-256"},true,["deriveBits"]);
  const devicePublic=new Uint8Array(await webcrypto.subtle.exportKey("raw",device.publicKey)),authSecret=webcrypto.getRandomValues(new Uint8Array(16));
- const endpoint="https://web.push.apple.com/abc",good={endpoint,mode:"custom",times:["20:00"],timeZone:"America/Los_Angeles",keys:{p256dh:Buffer.from(devicePublic).toString("base64url"),auth:Buffer.from(authSecret).toString("base64url")}};
+ const endpoint="https://web.push.apple.com/abc",good={endpoint,mode:"custom",schedule:plan("2026-11-04T04:00:00Z"),timeZone:"America/Los_Angeles",keys:{p256dh:Buffer.from(devicePublic).toString("base64url"),auth:Buffer.from(authSecret).toString("base64url")}};
  assert.equal((await call("/api/push/subscribe",{method:"POST",body:{...good,keys:{}},headers:A})).status,400);
  assert.equal((await call("/api/push/subscribe",{method:"POST",body:good})).status,401);
  assert.equal((await call("/api/push/subscribe",{method:"POST",body:{...good,endpoint:"https://attacker.example/x"},headers:A})).status,400);
- assert.equal((await call("/api/push/subscribe",{method:"POST",body:{...good,times:["25:00"]},headers:A})).status,400);
+ assert.equal((await call("/api/push/subscribe",{method:"POST",body:{...good,schedule:[{at:"nonsense",kind:"custom"}]},headers:A})).status,400);
  assert.equal((await call("/api/push/subscribe",{method:"POST",body:{...good,timeZone:"Nowhere/Fake"},headers:A})).status,400);
  assert.equal((await call("/api/push/subscribe",{method:"POST",body:good,headers:A})).status,200);
  await call("/api/push/unsubscribe",{method:"POST",body:{endpoint},headers:B});
@@ -243,7 +243,7 @@ test("several reminder times each send once, and a check-in quiets smart reminde
  const keys={p256dh:Buffer.from(await webcrypto.subtle.exportKey("raw",device.publicKey)).toString("base64url"),auth:Buffer.alloc(16,1).toString("base64url")};
  const a=await call("/api/user/device",{method:"POST",body:{label:"A"},context:ctx("owner-a@example.com")});
  const A={Authorization:"Bearer "+a.data.token},endpoint="https://web.push.apple.com/abc";
- const save=(mode,times)=>call("/api/push/subscribe",{method:"POST",body:{endpoint,keys,mode,times,timeZone:"UTC"},headers:A});
+ const save=(mode,times)=>call("/api/push/subscribe",{method:"POST",body:{endpoint,keys,mode,schedule:plan(...times.map(x=>"2026-11-04T"+x+":00Z")),timeZone:"UTC"},headers:A});
  assert.equal((await save("other",["09:00"])).status,400);
  assert.equal((await save("custom",[])).status,400);
  assert.equal((await save("custom",["09:00","11:00"])).status,200);
@@ -257,25 +257,17 @@ test("several reminder times each send once, and a check-in quiets smart reminde
  const checkedIn=[...rows.subs.values()][0];checkedIn.last_check_in_at="2026-11-04T23:00:00Z";
  await send("2026-11-04T23:35:00Z");
  assert.equal(dispatches.length,2);
- checkedIn.last_check_in_at="2026-11-04T20:00:00Z";checkedIn.last_sent_day=null;
+ checkedIn.last_check_in_at="2026-11-04T20:00:00Z";checkedIn.last_schedule_at=null;
  await send("2026-11-04T23:35:00Z");
  assert.equal(dispatches.length,3);
 });
-test("weekends can be skipped and only the chosen slot carries the brief",async()=>{
- const{call,ctx,env,rows,runtime,dispatches}=harness();
- const device=await call("/api/user/device",{method:"POST",body:{label:"A"},context:ctx("owner-a@example.com")});
- const pair=await webcrypto.subtle.generateKey({name:"ECDSA",namedCurve:"P-256"},true,["sign"]);
- env.VAPID_PRIVATE_KEY=JSON.stringify(await webcrypto.subtle.exportKey("jwk",pair.privateKey));
- const{publicKey}=await webcrypto.subtle.generateKey({name:"ECDH",namedCurve:"P-256"},true,["deriveBits"]);
- const keys={p256dh:Buffer.from(await webcrypto.subtle.exportKey("raw",publicKey)).toString("base64url"),auth:Buffer.alloc(16,1).toString("base64url")};
- const saved=await call("/api/push/subscribe",{method:"POST",headers:{Authorization:"Bearer "+device.data.token},body:{endpoint:"https://web.push.apple.com/weekend",keys,mode:"smart",times:["09:00","15:00"],briefAt:"09:00",hardAt:"15:00",weekends:false,timeZone:"UTC"}});
- assert.equal(saved.status,200);
- const sub=rows.subs.get("https://web.push.apple.com/weekend");
- assert.equal(sub.weekends,0);assert.equal(sub.brief_at,"09:00");assert.equal(sub.hard_at,"15:00");
- await runtime.sendReminders(env,new Date("2026-11-07T09:05:00Z"));
- assert.equal(dispatches.length,0);
- await runtime.sendReminders(env,new Date("2026-11-09T09:05:00Z"));
- assert.equal(dispatches.length,1);
+test("a repeated week keeps its local time across a clock change, in both directions",()=>{
+ const{runtime}=harness(),zone="America/Los_Angeles",plan=[{at:"2026-10-29T16:00:00.000Z",kind:"custom"}];
+ // 9:00 in daylight time, then 9:00 in standard time.
+ assert.equal(runtime.dueScheduled(plan,Date.parse("2026-11-05T17:05:00Z"),0,zone).at,Date.parse("2026-11-05T17:00:00Z"));
+ assert.equal(runtime.dueScheduled(plan,Date.parse("2026-11-05T16:05:00Z"),0,zone),null);
+ const spring=[{at:"2027-03-11T17:00:00.000Z",kind:"custom"}];
+ assert.equal(runtime.dueScheduled(spring,Date.parse("2027-03-18T16:05:00Z"),0,zone).at,Date.parse("2027-03-18T16:00:00Z"));
  assert.match(runtime.reminderMessage(900,false,true),/harder part of your day/);
  assert.equal(runtime.reminderMessage(900,true,true),runtime.reminderMessage(1300,true,false));
 });
@@ -308,11 +300,23 @@ test("smart messages match the time of day, and a sync notification opens the ap
  const a=await call("/api/user/device",{method:"POST",body:{label:"A"},context:ctx("owner-a@example.com")});
  const A={Authorization:"Bearer "+a.data.token};
  assert.equal((await call("/api/push/synced",{method:"POST",body:{items:"2"},headers:A})).data.state,"none");
- await call("/api/push/subscribe",{method:"POST",body:{endpoint:"https://web.push.apple.com/abc",keys,mode:"smart",times:["09:00"],bedtimeAt:"22:40",timeZone:"UTC"},headers:A});
+ await call("/api/push/subscribe",{method:"POST",body:{endpoint:"https://web.push.apple.com/abc",keys,mode:"smart",schedule:plan("2026-11-09T09:00:00Z"),timeZone:"UTC"},headers:A});
  assert.equal((await call("/api/push/synced",{method:"POST",body:{items:"2"}})).status,401);
  assert.equal((await call("/api/push/synced",{method:"POST",body:{items:"2"},headers:A})).data.state,"sent");
  assert.equal(dispatches.length,1);
  assert.equal(JSON.parse(JSON.stringify(runtime.pushPayload(env,"x","/?sync=1"))).includes("/?sync=1"),true);
+});
+test("a return with no changes sends no check-ins, and a pull says whether it's complete",async()=>{
+ const{call,ctx}=harness();
+ const a=await call("/api/user/device",{method:"POST",body:{label:"A"},context:ctx("owner-a@example.com")}),A={Authorization:"Bearer "+a.data.token};
+ await call("/api/moods",{method:"POST",headers:A,body:{moods:[{id:"m1",ts:"2026-11-04T10:00:00Z",score:4}]}});
+ const first=await call("/api/session",{headers:A});
+ assert.equal(first.data.moods.moods.length,1);
+ const later=new Date(Date.now()+60000).toISOString();
+ assert.equal((await call("/api/session?since="+encodeURIComponent(later),{headers:A})).data.moods.moods.length,0);
+ assert.equal((await call("/api/moods?since=nonsense",{headers:A})).data.moods.length,1);
+ const pull=await call("/api/pull",{headers:A});
+ assert.equal(pull.data.complete.health,true);assert.equal(pull.data.complete.events,true);
 });
 test("each night's bedtime is its earliest sleep, ignoring naps and bad values",()=>{
  const{runtime}=harness();
@@ -490,7 +494,7 @@ test("sync reminders need an earlier sync and a stale one, and anticipated pushe
  const keys={p256dh:Buffer.from(await webcrypto.subtle.exportKey("raw",publicKey)).toString("base64url"),auth:Buffer.alloc(16,1).toString("base64url")};
  const device=await call("/api/user/device",{method:"POST",body:{label:"A"},context:ctx("owner-a@example.com")});
  const headers={Authorization:"Bearer "+device.data.token},endpoint="https://web.push.apple.com/extras";
- const saved=await call("/api/push/subscribe",{method:"POST",headers,body:{endpoint,keys,mode:"custom",times:["23:50"],syncAt:"10:00",stressTimes:["2026-11-09T15:00:00.000Z","nonsense"],timeZone:"UTC"}});
+ const saved=await call("/api/push/subscribe",{method:"POST",headers,body:{endpoint,keys,mode:"custom",schedule:plan("2026-11-09T23:50:00Z"),syncAt:"10:00",stressTimes:["2026-11-09T15:00:00.000Z","nonsense"],timeZone:"UTC"}});
  assert.equal(saved.status,200);
  const sub=rows.subs.get(endpoint);
  assert.deepEqual(JSON.parse(sub.stress_times),["2026-11-09T15:00:00.000Z"]);
@@ -812,19 +816,19 @@ async function pushHarness(){
 }
 test("one failing subscription doesn't stop the others, and is recorded",async()=>{
  const{call,ctx,env,rows,runtime,dispatches,keys}=await pushHarness();
- const save=async(who,endpoint)=>{const d=await call("/api/user/device",{method:"POST",body:{label:who},context:ctx(who)});await call("/api/push/subscribe",{method:"POST",headers:{Authorization:"Bearer "+d.data.token},body:{endpoint,keys,mode:"custom",times:["09:00"],timeZone:"UTC"}});};
+ const save=async(who,endpoint)=>{const d=await call("/api/user/device",{method:"POST",body:{label:who},context:ctx(who)});await call("/api/push/subscribe",{method:"POST",headers:{Authorization:"Bearer "+d.data.token},body:{endpoint,keys,mode:"custom",schedule:plan("2026-11-09T09:00:00Z"),timeZone:"UTC"}});};
  await save("owner-a@example.com","https://web.push.apple.com/broken");
  await save("owner-b@example.com","https://web.push.apple.com/working");
- rows.subs.get("https://web.push.apple.com/broken").times="not json";
+ rows.subs.get("https://web.push.apple.com/broken").schedule="not json";
  await runtime.sendReminders(env,new Date("2026-11-09T09:05:00Z"));
  assert.equal(dispatches.length,1);
- assert.equal(rows.subs.get("https://web.push.apple.com/working").last_sent_day,"2026-11-09");
+ assert.equal(rows.subs.get("https://web.push.apple.com/working").last_schedule_at,"2026-11-09T09:00:00.000Z");
 });
 test("three notifications due together go out one per run",async()=>{
  const{call,ctx,env,rows,runtime,dispatches,keys}=await pushHarness();
  const d=await call("/api/user/device",{method:"POST",body:{label:"A"},context:ctx("owner-a@example.com")});
  const endpoint="https://web.push.apple.com/one";
- await call("/api/push/subscribe",{method:"POST",headers:{Authorization:"Bearer "+d.data.token},body:{endpoint,keys,mode:"custom",times:["09:00"],syncAt:"09:00",stressTimes:["2026-11-09T09:00:00.000Z"],timeZone:"UTC"}});
+ await call("/api/push/subscribe",{method:"POST",headers:{Authorization:"Bearer "+d.data.token},body:{endpoint,keys,mode:"custom",schedule:plan("2026-11-09T09:00:00Z"),syncAt:"09:00",stressTimes:["2026-11-09T09:00:00.000Z"],timeZone:"UTC"}});
  rows.subs.get(endpoint).last_used_at="2026-11-01T00:00:00Z";
  const send=at=>runtime.sendReminders(env,new Date(at));
  await send("2026-11-09T09:05:00Z");assert.equal(dispatches.length,1);
@@ -839,7 +843,7 @@ test("erase leaves only the account and devices, and deleting the account leaves
  const A={Authorization:"Bearer "+a.data.token},B={Authorization:"Bearer "+b.data.token};
  const fill=async headers=>{
   await call("/api/ingest",{method:"POST",headers,body:{kind:"health",date:"2026-11-04",steps:"5000"}});
-  await call("/api/push/subscribe",{method:"POST",headers,body:{endpoint:"https://web.push.apple.com/"+headers.Authorization.slice(-6),keys,mode:"custom",times:["09:00"],timeZone:"UTC"}});
+  await call("/api/push/subscribe",{method:"POST",headers,body:{endpoint:"https://web.push.apple.com/"+headers.Authorization.slice(-6),keys,mode:"custom",schedule:plan("2026-11-09T09:00:00Z"),timeZone:"UTC"}});
  };
  await fill(A);await fill(B);
  await call("/api/user/erase",{method:"POST",body:{},context:ctx("owner-a@example.com")});
@@ -903,7 +907,7 @@ test("a dated plan sends each time once, keeps its kind, and repeats weekly once
  const d=await call("/api/user/device",{method:"POST",body:{label:"A"},context:ctx("owner-a@example.com")});
  const endpoint="https://web.push.apple.com/dated",headers={Authorization:"Bearer "+d.data.token};
  const schedule=[{at:"2026-11-09T09:47:00Z",kind:"custom"},{at:"2026-11-09T22:10:00Z",kind:"bedtime"},{at:"nonsense",kind:"custom"},{at:"2026-11-09T23:00:00Z",kind:"banana"}];
- await call("/api/push/subscribe",{method:"POST",headers,body:{endpoint,keys,mode:"smart",times:["09:00"],schedule,timeZone:"UTC"}});
+ await call("/api/push/subscribe",{method:"POST",headers,body:{endpoint,keys,mode:"smart",schedule,timeZone:"UTC"}});
  assert.equal(JSON.parse(rows.subs.get(endpoint).schedule).length,2);
  const send=at=>runtime.sendReminders(env,new Date(at));
  await send("2026-11-09T09:45:00Z");assert.equal(dispatches.length,0);
