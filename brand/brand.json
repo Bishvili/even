@@ -5,5 +5,10 @@
   "pitch": "a private way to understand your harder days",
   "support": "support@bishvili.org",
   "inviteFrom": "hello@bishvili.org",
-  "codeFrom": "sign-in@bishvili.org"
+  "codeFrom": "sign-in@bishvili.org",
+  "colors": {
+    "primary": "#28685B",
+    "highlight": "#F4D798",
+    "ground": "#10262A"
+  }
 }

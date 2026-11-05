@@ -11,9 +11,9 @@
  function paint(){
   var current=stage(),rise=canRun()?Math.max(0,Math.min((distance-LINE_DONE)/(RUN_AT-LINE_DONE),1)):0;
   label.textContent=current==="run"?"Release to run {{sync}}":current==="refresh"?(canRun()?"Release to refresh. Keep pulling to run {{sync}}.":"Release to refresh"):"Pull to refresh";
-  // The horizon draws first, then the sun rises above it until the Shortcut is ready.
-  line.style.strokeDashoffset=String(1-Math.min(distance/LINE_DONE,1));
-  sun.setAttribute("transform","translate(0 "+SUN_DEPTH*(1-rise)+")");
+  // With the logo that has them, the horizon draws first, then the sun rises above it until the Shortcut is ready.
+  if(line)line.style.strokeDashoffset=String(1-Math.min(distance/LINE_DONE,1));
+  if(sun)sun.setAttribute("transform","translate(0 "+SUN_DEPTH*(1-rise)+")");
   var moved=Math.min(distance*1.1,MAX_SHIFT);shift(moved,false);
   // The indicator emerges from above the page, so it never covers the header.
   indicator.style.transform="translateY("+Math.min(0,moved+HEADER_GAP-indicator.offsetHeight)+"px)";

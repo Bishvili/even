@@ -1,7 +1,7 @@
 // Builds what the app serves into dist: text files with their name and color tokens filled, and every image drawn from the logo. The service worker's list is the one record of public files.
 const fs=require("node:fs"),path=require("node:path");
 const root=path.join(__dirname,"..");
-const FROM={"icon.svg":"brand/logo.svg"};
+const{resolve,checkReadable}=require("./brand-colors.cjs");
 const TEXT=new Set([".html",".js",".css",".webmanifest",".svg"]);
 const readJson=file=>JSON.parse(fs.readFileSync(path.join(root,file),"utf8"));
 
@@ -10,7 +10,7 @@ function publicFiles(sw){
  return [...new Set(JSON.parse(list).filter(path=>path!=="/").map(path=>path.slice(1)).concat("sw.js"))];
 }
 // The values land inside HTML, JSON and JavaScript strings, so anything that could break out of one stops the build.
-function tokenValues(brand,stable){
+function tokenValues({colors:_colors,...brand},stable){
  const values={...brand,...stable};
  for(const[key,value]of Object.entries(values)){
   if(typeof value!=="string"||!value.trim()||/["'\\<>&\u0000-\u001f]/.test(value))throw Error("brand value "+key+" can't be used: "+JSON.stringify(value));
@@ -21,7 +21,7 @@ function tokenValues(brand,stable){
 // A color lands in CSS and in HTML attributes, and every one needs a value for each appearance.
 function colorValues(palette){
  const values={};
- for(const[group,colors]of Object.entries(palette))for(const[role,color]of Object.entries(colors))for(const mode of["light","dark"]){
+ for(const group of["app","paper"])for(const[role,color]of Object.entries(palette[group]))for(const mode of["light","dark"]){
   if(!/^(#[0-9a-f]{3,8}|rgba?\([\d.,\s]+\))$/i.test(color[mode]||""))throw Error(group+" color "+role+" needs a "+mode+" value");
   if(group==="app")values["color."+role+"."+mode]=color[mode];
  }
@@ -30,20 +30,39 @@ function colorValues(palette){
 function tokens(colors,mode){return Object.entries(colors).map(([role,color])=>"--"+role+":"+color[mode]).join(";");}
 const appColors=({app})=>":root{"+tokens(app,"light")+"}@media(prefers-color-scheme:dark){:root{"+tokens(app,"dark")+"}}\n";
 const paperColors=({paper})=>{const dark=tokens(paper,"dark")+";color-scheme:dark";return ":root{"+tokens(paper,"light")+"}@media (prefers-color-scheme:dark){:root:not([data-theme=\"light\"]){"+dark+"}}:root[data-theme=\"dark\"]{"+dark+"}\n";};
+// The logo without its background, for places that sit on their own: the header and the sign-in sheet.
+// The first full rect is the background. A logo with no rect is used whole. Its main color follows the surface it's on.
+function logoMark(logo,values){
+ const box=(logo.match(/viewBox="([^"]+)"/)||[])[1]||"0 0 512 512";
+ const inner=logo.replace(/^[\s\S]*?<svg[^>]*>/,"").replace(/<\/svg>\s*$/,"").replace(/<rect\b[^>]*\/>/,"")
+  .replaceAll('fill="'+values["color.highlight.light"]+'"','fill="currentColor"')
+  .replaceAll('stroke="'+values["color.on-contrast.light"]+'"','class="icon-line"');
+ return '<svg viewBox="'+box+'">'+inner+"</svg>";
+}
+// The refresh mark animates this logo's own sun and horizon. Any other logo shows still while the label says what's happening.
+const SUN="M146 300a110 110 0 0 1 220 0Z";
+function pullMark(logo){
+ return logo.includes(SUN)?fs.readFileSync(path.join(root,"brand/pull-mark.svg"),"utf8").trim():logo.replace("<svg ",'<svg aria-hidden="true" ').replace(/\s*xmlns="[^"]*"/,"").trim();
+}
 function fill(text,values,file){
  return text.replace(/\{\{(.*?)\}\}/g,(token,key)=>{
   if(!Object.hasOwn(values,key))throw Error("unknown token "+token+" in "+file);
   return values[key];
  });
 }
-function build({out=path.join(root,"dist"),brand=readJson("brand/brand.json"),stable=readJson("brand/stable.json"),palette=readJson("brand/palette.json")}={}){
+function build({out=path.join(root,"dist"),brand=readJson("brand/brand.json"),stable=readJson("brand/stable.json"),written=readJson("brand/palette.json"),logoFile="brand/logo.svg"}={}){
+ const palette=resolve(written,brand.colors);
+ checkReadable(palette);
  const values={...tokenValues(brand,stable),...colorValues(palette)};
+ const logo=fill(fs.readFileSync(path.join(root,logoFile),"utf8"),values,logoFile);
+ values.logoMark=logoMark(logo,values);
+ values.pullMark=pullMark(logo);
  const generated={"styles.css":appColors(palette),"whitepaper.css":paperColors(palette)};
  fs.rmSync(out,{recursive:true,force:true});
  fs.mkdirSync(out,{recursive:true});
  for(const file of publicFiles(fs.readFileSync(path.join(root,"sw.js"),"utf8"))){
   if(!TEXT.has(path.extname(file)))continue;
-  fs.writeFileSync(path.join(out,file),(generated[file]||"")+fill(fs.readFileSync(path.join(root,FROM[file]||file),"utf8"),values,file));
+  fs.writeFileSync(path.join(out,file),(generated[file]||"")+fill(fs.readFileSync(path.join(root,file==="icon.svg"?logoFile:file),"utf8"),values,file));
  }
  return out;
 }
@@ -74,7 +93,7 @@ async function renderer(){
   return page.screenshot({omitBackground:true});
  },close:()=>browser.close()};
 }
-async function buildImages(out=path.join(root,"dist"),palette=readJson("brand/palette.json")){
+async function buildImages(out=path.join(root,"dist"),palette=resolve(readJson("brand/palette.json"),readJson("brand/brand.json").colors)){
  const logo=fs.readFileSync(path.join(out,"icon.svg"),"utf8"),files=publicFiles(fs.readFileSync(path.join(root,"sw.js"),"utf8")).filter(file=>file.endsWith(".png"));
  const pen=await renderer();
  try{for(const file of files)fs.writeFileSync(path.join(out,file),await pen.draw(imageSpec(file,logo,palette)));}

@@ -1,4 +1,62 @@
 {
+ "main": {
+  "primary": "#28685B",
+  "highlight": "#F4D798",
+  "ground": "#10262A"
+ },
+ "families": {
+  "primary": [
+   "primary",
+   "accent",
+   "selected",
+   "slider",
+   "focus-ring",
+   "tint",
+   "on-hero-heading",
+   "on-hero-label",
+   "on-hero-soft",
+   "chart-line",
+   "chart-label",
+   "shadow-selected",
+   "shadow-toast",
+   "shadow-control",
+   "shadow-faint",
+   "pine",
+   "mist"
+  ],
+  "highlight": [
+   "highlight",
+   "chart-dot",
+   "sun",
+   "sun-ink"
+  ],
+  "ground": [
+   "text",
+   "text-2",
+   "text-muted",
+   "page",
+   "surface",
+   "surface-2",
+   "border",
+   "hero",
+   "contrast",
+   "on-contrast",
+   "bar",
+   "icon-faint",
+   "shadow-knob",
+   "shadow-banner",
+   "shadow-sheet",
+   "shadow-save",
+   "backdrop",
+   "chart-dot-line",
+   "chart-grid",
+   "paper",
+   "raised",
+   "ink",
+   "soft",
+   "line"
+  ]
+ },
  "app": {
   "focus-ring": {
    "light": "#9acbbb",
