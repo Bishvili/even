@@ -27,7 +27,7 @@ These are exploratory **associations, not causal effects**. Overlapping events m
 
 Cloudflare Zero Trust Access protects **even.bishvili.workers.dev/api/auth/** (including child paths), using Email One-time PIN login. An exact-address Cloudflare Access policy controls eligibility. In the Worker, identities are accepted only from validated Access runtime context and the matching Access audience, then checked against a server-side **APPROVED_SYNC_EMAILS** secret (JSON array). Do not commit this allowlist to the public GitHub repository.
 
-The PWA itself remains public and keeps anonymous/offline mood tracking. To sync, an approved email signs in, and the iPhone connects automatically with a revocable device key. This issues a random 256-bit bearer token, stored only as its SHA-256 hash in D1, associated with the verified email, and returned once to the device. Running Even Sync from the app passes it to the Shortcut, and the user can revoke it in the Sync tab.
+The PWA itself remains public and keeps anonymous/offline mood tracking. To sync, an approved email signs in, and the iPhone connects automatically with a revocable device key. This issues a random 256-bit bearer token, stored only as its SHA-256 hash in D1, associated with the verified email, and returned once to the device. Running Even Sync from the app passes it to the Shortcut, and the user can revoke it in the Data tab.
 
 - Health and calendar data is owned by an email identity. Read/write/erase endpoints derive the owner from the authenticated device token, never from request body fields.
 - Device management requires an Access-authenticated session. Revocation is restricted to the authenticated owner.
