@@ -29,6 +29,8 @@ async function run(type,base){
  const browser=await type.launch(),problems=[];
  const context=await browser.newContext({viewport:{width:390,height:844},serviceWorkers:"allow"});
  const page=await context.newPage();
+ // Playwright's WebKit stops responding when asked for a push subscription, so push is off there. Chromium covers it.
+ if(type!==chromium)await page.addInitScript(()=>{delete window.PushManager;});
  page.on("dialog",dialog=>dialog.accept());
  page.on("pageerror",error=>problems.push("Error: "+error.message));
  page.on("console",message=>{if(message.type()==="error"&&/content security|refused to|security policy/i.test(message.text()))problems.push("Policy: "+message.text());});
@@ -54,26 +56,10 @@ async function run(type,base){
  if(!/^0 personal entries$/.test(await page.textContent("#entries-count")))problems.push("The entry count reads wrong.");
  await page.click("[data-mood='3']");await page.click("#save-mood");await page.waitForTimeout(100);
  if(!/^1 personal entry$/.test(await page.textContent("#entries-count")))problems.push("The entry count reads wrong after one check-in.");
- // Playwright's WebKit can hang on the cache API, so the cache check runs in Chromium.
  const checkCache=type===chromium;
  await page.evaluate(async withCache=>{localStorage.setItem("even-setup",JSON.stringify({skipped:{signin:1}}));localStorage.setItem("even-reminder","{}");if(withCache)await(await caches.open("even-brief")).put("/brief",new Response("x"));},checkCache);
- console.log(type.name()+": erasing");
- const stepProbe=async(name,fn)=>{await page.evaluate(fn).catch(e=>console.log(name+" threw "+e.message));const r=await Promise.race([page.evaluate(()=>1),new Promise(d=>setTimeout(()=>d("HUNG"),6000))]);console.log(type.name()+" step "+name+": "+r);};
- await stepProbe("signout",()=>fetch("/api/signin/sign-out",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:"{}"}).then(r=>r.status));
- await stepProbe("reminders",()=>{EvenReminders.forget();});
- await stepProbe("onboarding",()=>{EvenOnboarding.forget();});
- await stepProbe("keys",()=>{["even-reminder","even-setup"].forEach(k=>localStorage.removeItem(k));});
- await stepProbe("cachesdelete",()=>{caches.delete("even-brief");});
- await stepProbe("render",()=>{EvenApp.navigate("settings");});
  await tab("settings");await page.click("#erase-local");await page.click("#confirm-yes");await page.waitForTimeout(400);
- console.log(type.name()+": erased");
- const probe=async(name,fn)=>{const r=await Promise.race([page.evaluate(fn).then(v=>"ok "+v),new Promise(d=>setTimeout(()=>d("HUNG"),8000))]);console.log(type.name()+" probe "+name+": "+r);};
- await probe("one",()=>1);
- await probe("open",()=>[...document.querySelectorAll("dialog")].filter(d=>d.open).map(d=>d.id).join());
- await probe("keys",()=>Object.keys(localStorage).join());
- await probe("asyncfn",async()=>2);
  const left=await Promise.race([page.evaluate(async withCache=>({keys:Object.keys(localStorage),caches:withCache?await caches.keys():[]}),checkCache),new Promise((_,fail)=>setTimeout(()=>fail(Error("The page stopped responding after erase.")),20000))]);
- console.log(type.name()+": checked");
  if(left.keys.join()!=="even:v1"||left.caches.includes("even-brief"))problems.push("Erase left something behind: "+JSON.stringify(left));
  await tab("settings");
  await tab("data");
