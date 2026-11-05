@@ -47,7 +47,7 @@ if providedKeyCount == 0 {
 // Verify the connection and record the Shortcut's version, even if no health samples are available.
 // The reply also says whether a newer version is ready.
 const handshakeRaw = jsonRequest("{evenAddress}/api/shortcut/hello", "POST", {
-    "shortcutVersion": "3.2.0"
+    "shortcutVersion": "3.3.0"
 }, {"Authorization": "{@credential}"})
 const handshake = getDictionary(handshakeRaw)
 const connectionStatusValue = getValue(handshake, "state")
@@ -123,7 +123,7 @@ for upcomingEvent in upcomingEvents {
 
 const calendarBody = formRequest("{evenAddress}/api/ingest", "POST", {
     "kind": "calendar_days",
-    "shortcutVersion": "3.2.0",
+    "shortcutVersion": "3.3.0",
     "date": "{day}",
     "utcOffset": "{utcOffset}",
     "events": "{@eventRecords}"
@@ -142,7 +142,7 @@ if calendarStatus != "accepted" {
 }
 
 // Daily groups over 30 days give Health's own totals, and a quiet day doesn't end the run.
-// The newest group is usually today, so each value is sent with its group's own date.
+// The newest group comes first and is usually today, so each value is sent with its group's own date.
 // A result limit would apply before grouping and return a single sample.
 action 'is.workflow.actions.filter.health.quantity' findLatestDay(&variable filter: 'WFContentItemFilter'): array {"WFHKSampleFilteringGroupBy":"Day","WFHKSampleFilteringFillMissing":true,"WFContentItemSortProperty":"Start Date","WFContentItemSortOrder":"Latest First"}
 
@@ -169,13 +169,9 @@ action 'is.workflow.actions.statistics' sumValues(variable values: 'Input'): num
 // Every measure goes up in one request. Anything with no data stays empty and is left out, never sent as zero.
 @healthFields = 0
 @stepsField = ""
-@stepsDay = ""
 @restingField = ""
-@restingDay = ""
 @hrvField = ""
-@hrvDay = ""
 @exerciseField = ""
-@exerciseDay = ""
 @sleepIntervals = ""
 @sleepCount = "0"
 @sleepLimit = "100"
@@ -184,24 +180,32 @@ action 'is.workflow.actions.statistics' sumValues(variable values: 'Input'): num
 const recentSamples = findRecentSamples(recentTypesFilter)
 const recentTypeValues = getSampleTypes(recentSamples)
 const recentTypes = getText(recentTypeValues)
+const recentTypeCount = count(recentTypeValues)
 
+// Up to 7 days of each measure, so a day when Even Sync didn't run is filled in on the next one.
 if syncSteps == "on" {
 const stepsMatches = matchText('(?i)steps', recentTypes)
 const stepsAvailable = count(stepsMatches)
 if stepsAvailable >= 1 {
-    const stepDays = findLatestDay(stepsFilter)
-    const samples = getFirstItem(stepDays)
-    const stepDate = getSampleStart(samples)
-    const stepDay = formatDate(stepDate, "Custom", "yyyy-MM-dd")
-    const values = getStepValues(samples)
-    const totalSteps = sumValues(values)
-    if totalSteps >= 1 {
-        const totalStepsText = getText(totalSteps)
-        const normalizedSteps = replaceText('(?<=\d)[,\s](?=\d{3}(?:\D|$))', "", totalStepsText, true, true)
-        // Keep only the number, because the text form of a Health value can include a unit.
-        const stepsValue = replaceText('^\D*(\d+(?:\.\d+)?)[\s\S]*$', "$1", normalizedSteps, true, true)
-        @stepsField = stepsValue
-        @stepsDay = stepDay
+    @stepDays = findLatestDay(stepsFilter)
+    @stepsSeen = 0
+    for stepGroup in @stepDays {
+        if @stepsSeen < 7 {
+            const stepDate = getSampleStart(@stepGroup)
+            const stepDay = formatDate(stepDate, "Custom", "yyyy-MM-dd")
+            const values = getStepValues(@stepGroup)
+            const totalSteps = sumValues(values)
+            if totalSteps >= 1 {
+                const totalStepsText = getText(totalSteps)
+                const normalizedSteps = replaceText('(?<=\d)[,\s](?=\d{3}(?:\D|$))', "", totalStepsText, true, true)
+                // Keep only the number, because the text form of a Health value can include a unit.
+                const stepsValue = replaceText('^\D*(\d+(?:\.\d+)?)[\s\S]*$', "$1", normalizedSteps, true, true)
+                @stepsField = "{@stepsField}␞{stepDay}={stepsValue}"
+                @stepsSeen += 1
+            }
+        }
+    }
+    if @stepsSeen >= 1 {
         @healthFields += 1
     }
 }
@@ -211,14 +215,20 @@ if syncRestingHR == "on" {
 const restingMatches = matchText('(?i)Resting', recentTypes)
 const restingAvailable = count(restingMatches)
 if restingAvailable >= 1 {
-    const restingDays = findLatestDay(restingFilter)
-    const restingSamples = getFirstItem(restingDays)
-    const restingDate = getSampleStart(restingSamples)
-    const restingSampleDay = formatDate(restingDate, "Custom", "yyyy-MM-dd")
-    const restingValue = getDailyNumber(restingSamples)
-    if restingValue >= 1 {
-        @restingField = "{restingValue}"
-        @restingDay = restingSampleDay
+    @restingDays = findLatestDay(restingFilter)
+    @restingSeen = 0
+    for restingGroup in @restingDays {
+        if @restingSeen < 7 {
+            const restingDate = getSampleStart(@restingGroup)
+            const restingDay = formatDate(restingDate, "Custom", "yyyy-MM-dd")
+            const restingValue = getDailyNumber(@restingGroup)
+            if restingValue >= 1 {
+                @restingField = "{@restingField}␞{restingDay}={restingValue}"
+                @restingSeen += 1
+            }
+        }
+    }
+    if @restingSeen >= 1 {
         @healthFields += 1
     }
 }
@@ -228,14 +238,20 @@ if syncHrv == "on" {
 const hrvMatches = matchText('(?i)Variability', recentTypes)
 const hrvAvailable = count(hrvMatches)
 if hrvAvailable >= 1 {
-    const hrvDays = findLatestDay(hrvFilter)
-    const hrvSamples = getFirstItem(hrvDays)
-    const hrvDate = getSampleStart(hrvSamples)
-    const hrvSampleDay = formatDate(hrvDate, "Custom", "yyyy-MM-dd")
-    const hrvValue = getDailyNumber(hrvSamples)
-    if hrvValue >= 1 {
-        @hrvField = "{hrvValue}"
-        @hrvDay = hrvSampleDay
+    @hrvDays = findLatestDay(hrvFilter)
+    @hrvSeen = 0
+    for hrvGroup in @hrvDays {
+        if @hrvSeen < 7 {
+            const hrvDate = getSampleStart(@hrvGroup)
+            const hrvDay = formatDate(hrvDate, "Custom", "yyyy-MM-dd")
+            const hrvValue = getDailyNumber(@hrvGroup)
+            if hrvValue >= 1 {
+                @hrvField = "{@hrvField}␞{hrvDay}={hrvValue}"
+                @hrvSeen += 1
+            }
+        }
+    }
+    if @hrvSeen >= 1 {
         @healthFields += 1
     }
 }
@@ -245,14 +261,20 @@ if syncWorkout == "on" {
 const exerciseMatches = matchText('(?i)Exercise', recentTypes)
 const exerciseAvailable = count(exerciseMatches)
 if exerciseAvailable >= 1 {
-    const exerciseDays = findLatestDay(exerciseFilter)
-    const exerciseSamples = getFirstItem(exerciseDays)
-    const exerciseDate = getSampleStart(exerciseSamples)
-    const exerciseSampleDay = formatDate(exerciseDate, "Custom", "yyyy-MM-dd")
-    const exerciseValue = getDailyNumber(exerciseSamples)
-    if exerciseValue >= 1 {
-        @exerciseField = "{exerciseValue}"
-        @exerciseDay = exerciseSampleDay
+    @exerciseDays = findLatestDay(exerciseFilter)
+    @exerciseSeen = 0
+    for exerciseGroup in @exerciseDays {
+        if @exerciseSeen < 7 {
+            const exerciseDate = getSampleStart(@exerciseGroup)
+            const exerciseDay = formatDate(exerciseDate, "Custom", "yyyy-MM-dd")
+            const exerciseValue = getDailyNumber(@exerciseGroup)
+            if exerciseValue >= 1 {
+                @exerciseField = "{@exerciseField}␞{exerciseDay}={exerciseValue}"
+                @exerciseSeen += 1
+            }
+        }
+    }
+    if @exerciseSeen >= 1 {
         @healthFields += 1
     }
 }
@@ -294,16 +316,12 @@ if sleepAvailable >= 1 {
 if @healthFields >= 1 {
     const healthBody = formRequest("{evenAddress}/api/ingest", "POST", {
         "kind": "health",
-        "shortcutVersion": "3.2.0",
+        "shortcutVersion": "3.3.0",
         "date": "{day}",
-        "steps": "{@stepsField}",
-        "stepsDate": "{@stepsDay}",
-        "restingHR": "{@restingField}",
-        "restingHRDate": "{@restingDay}",
-        "hrv": "{@hrvField}",
-        "hrvDate": "{@hrvDay}",
-        "workoutMin": "{@exerciseField}",
-        "workoutMinDate": "{@exerciseDay}",
+        "stepsRecent": "{@stepsField}",
+        "restingHRRecent": "{@restingField}",
+        "hrvRecent": "{@hrvField}",
+        "workoutMinRecent": "{@exerciseField}",
         "sleepIntervals": "{@sleepIntervals}",
         "sleepSamples": "{@sleepCount}",
         "sleepLimit": "{@sleepLimit}"
@@ -339,7 +357,7 @@ for alarm in alarms {
 }
 formRequest("{evenAddress}/api/ingest", "POST", {
     "kind": "alarms",
-    "shortcutVersion": "3.2.0",
+    "shortcutVersion": "3.3.0",
     "date": "{day}",
     "alarms": "{@alarmRecords}"
 }, {"Authorization": "{@credential}"})
@@ -347,7 +365,9 @@ formRequest("{evenAddress}/api/ingest", "POST", {
 
 // A push opens the app and brings the data in. Without notifications on, fall back to a plain notification.
 const syncedRaw = jsonRequest("{evenAddress}/api/push/synced", "POST", {
-    "items": "{@acceptedCount}"
+    "items": "{@acceptedCount}",
+    "healthSeen": "{recentTypeCount}",
+    "healthMatched": "{@healthFields}"
 }, {"Authorization": "{@credential}"})
 const synced = getDictionary(syncedRaw)
 const syncedValue = getValue(synced, "state")

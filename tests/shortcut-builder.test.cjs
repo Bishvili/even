@@ -15,6 +15,7 @@ function harness(){
  const store={moods:[],events:[],health:[],token:"a".repeat(64),deviceId:"test-device-001",syncOwnerEmail:"test@example.com"};
  const elements=new Map();
  const doc={
+  createElement(){return{textContent:"",appendChild(){}};},
   getElementById(id){
    if(!idSet.has(id))throw Error("Unknown DOM ID: "+id);
    if(!elements.has(id)){

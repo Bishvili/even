@@ -1,0 +1,32 @@
+name: Check the live site
+on:
+  push:
+    branches: [main]
+concurrency:
+  group: live-check
+  cancel-in-progress: true
+jobs:
+  live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Wait for this version to go live
+        run: |
+          version=$(sed -n 's/^var VERSION = "\(.*\)";.*/\1/p' app.js)
+          for attempt in $(seq 1 40); do
+            live=$(curl -fsS https://even.bishvili.org/api/status | sed -n 's/.*"version":"\([^"]*\)".*/\1/p' || true)
+            if [ "$live" = "$version" ]; then echo "Live on $version"; exit 0; fi
+            sleep 15
+          done
+          echo "::error::The live site is on '$live', not $version"
+          exit 1
+      - name: Install browsers
+        run: |
+          npm install --no-save --no-package-lock playwright@1.63.0
+          npx playwright install --with-deps chromium webkit
+      - name: Load every screen on the live site
+        run: EVEN_BASE=https://even.bishvili.org node scripts/smoke.cjs chromium webkit

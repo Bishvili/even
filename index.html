@@ -11,7 +11,29 @@
   <meta name="description" content="Notice what shapes your mood. Track check-ins and explore patterns in your days.">
   <meta name="referrer" content="no-referrer">
   <link rel="manifest" href="/manifest.webmanifest">
-  <link rel="apple-touch-icon" href="/icon-192.png">
+  <link rel="apple-touch-icon" href="/icon-180.png">
+  <link rel="apple-touch-startup-image" media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (prefers-color-scheme: light)" href="/launch-375x667-2-light.png">
+  <link rel="apple-touch-startup-image" media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (prefers-color-scheme: dark)" href="/launch-375x667-2-dark.png">
+  <link rel="apple-touch-startup-image" media="(device-width: 414px) and (device-height: 736px) and (-webkit-device-pixel-ratio: 3) and (prefers-color-scheme: light)" href="/launch-414x736-3-light.png">
+  <link rel="apple-touch-startup-image" media="(device-width: 414px) and (device-height: 736px) and (-webkit-device-pixel-ratio: 3) and (prefers-color-scheme: dark)" href="/launch-414x736-3-dark.png">
+  <link rel="apple-touch-startup-image" media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3) and (prefers-color-scheme: light)" href="/launch-375x812-3-light.png">
+  <link rel="apple-touch-startup-image" media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3) and (prefers-color-scheme: dark)" href="/launch-375x812-3-dark.png">
+  <link rel="apple-touch-startup-image" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2) and (prefers-color-scheme: light)" href="/launch-414x896-2-light.png">
+  <link rel="apple-touch-startup-image" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2) and (prefers-color-scheme: dark)" href="/launch-414x896-2-dark.png">
+  <link rel="apple-touch-startup-image" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3) and (prefers-color-scheme: light)" href="/launch-414x896-3-light.png">
+  <link rel="apple-touch-startup-image" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3) and (prefers-color-scheme: dark)" href="/launch-414x896-3-dark.png">
+  <link rel="apple-touch-startup-image" media="(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3) and (prefers-color-scheme: light)" href="/launch-390x844-3-light.png">
+  <link rel="apple-touch-startup-image" media="(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3) and (prefers-color-scheme: dark)" href="/launch-390x844-3-dark.png">
+  <link rel="apple-touch-startup-image" media="(device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3) and (prefers-color-scheme: light)" href="/launch-428x926-3-light.png">
+  <link rel="apple-touch-startup-image" media="(device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3) and (prefers-color-scheme: dark)" href="/launch-428x926-3-dark.png">
+  <link rel="apple-touch-startup-image" media="(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3) and (prefers-color-scheme: light)" href="/launch-393x852-3-light.png">
+  <link rel="apple-touch-startup-image" media="(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3) and (prefers-color-scheme: dark)" href="/launch-393x852-3-dark.png">
+  <link rel="apple-touch-startup-image" media="(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3) and (prefers-color-scheme: light)" href="/launch-430x932-3-light.png">
+  <link rel="apple-touch-startup-image" media="(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3) and (prefers-color-scheme: dark)" href="/launch-430x932-3-dark.png">
+  <link rel="apple-touch-startup-image" media="(device-width: 402px) and (device-height: 874px) and (-webkit-device-pixel-ratio: 3) and (prefers-color-scheme: light)" href="/launch-402x874-3-light.png">
+  <link rel="apple-touch-startup-image" media="(device-width: 402px) and (device-height: 874px) and (-webkit-device-pixel-ratio: 3) and (prefers-color-scheme: dark)" href="/launch-402x874-3-dark.png">
+  <link rel="apple-touch-startup-image" media="(device-width: 440px) and (device-height: 956px) and (-webkit-device-pixel-ratio: 3) and (prefers-color-scheme: light)" href="/launch-440x956-3-light.png">
+  <link rel="apple-touch-startup-image" media="(device-width: 440px) and (device-height: 956px) and (-webkit-device-pixel-ratio: 3) and (prefers-color-scheme: dark)" href="/launch-440x956-3-dark.png">
   <link rel="icon" type="image/svg+xml" href="/icon.svg">
   <link rel="stylesheet" href="/styles.css">
   <title>Even</title>
@@ -23,6 +45,7 @@
   <script src="/refresh.js" defer></script>
   <script src="/invites.js" defer></script>
   <script src="/signin-sheet.js" defer></script>
+  <script src="/feedback.js" defer></script>
   <script src="/backup.js" defer></script>
 </head>
 <body>
@@ -191,13 +214,14 @@
      <details class="shortcut-advanced">
       <summary>Help and privacy</summary>
       <div>
-       <p>Even Sync sends what you leave on under What Even Sync sends: today’s steps, resting heart rate, heart rate variability and exercise minutes; your sleep from recent nights, or up to a month on the first sync; your alarms; and the titles, times and calendar names of today’s and tomorrow’s events from the calendars you keep. Anything with no data is left out, and anything turned off that still arrives is discarded.</p>
+       <p>Even Sync sends what you leave on under What Even Sync sends: up to the last 7 days of steps, resting heart rate, heart rate variability and exercise minutes; your sleep from recent nights, or up to a month on the first sync; your alarms; and the titles, times and calendar names of today’s and tomorrow’s events from the calendars you keep. Anything with no data is left out, and anything turned off that still arrives is discarded.</p>
        <p>Your device key is saved as a plain-text file, even-device-key.txt, in an Even folder in On My iPhone. It isn’t encrypted by Even. Anyone who can open that file, and any Shortcut you let read it, can use the key. Don’t share it.</p>
        <p>If Shortcuts asks, turn on <strong>Allow Sharing Large Amounts of Data</strong> in Settings → Apps → Shortcuts → Advanced.</p>
        <p>To sync on a schedule, add a Time of Day automation in Shortcuts that runs Even Sync, and choose Run Immediately. Your iPhone must be unlocked to read Health data.</p>
        <p>To disconnect, tap Disconnect this iPhone, then delete the file in Files.</p>
       </div>
      </details>
+    <div class="measure-list" id="shortcut-measures" hidden></div><p class="muted" id="shortcut-measures-note"></p>
     </section>
     
     <section class="card" id="calendar-card" aria-labelledby="sync-settings-title" hidden>
@@ -253,7 +277,7 @@
     <button type="button" class="btn subtle full" id="sign-out">Sign out</button>
     <button type="button" class="btn subtle full" id="delete-account">Delete my account</button>
     </details>
-    <div class="help-note"><strong>Privacy</strong><p>Your first name can appear in notifications, including on your Lock Screen. When you’re signed in, check-ins and their notes are saved to your private account so they appear on your other devices. They’re stored as readable text. Health data, calendar events and alarms you sync are sent over an encrypted connection and stored in your private account. None of this is end-to-end encrypted. Sign-in codes are sent through our email provider. If you use Google, it tells us your email and name. You can disconnect a device or erase synced data at any time.</p></div>
+    <div class="help-note"><strong>Privacy</strong><p>Your first name can appear in notifications, including on your Lock Screen. When you’re signed in, check-ins and their notes are saved to your private account so they appear on your other devices. They’re stored as readable text. Health data, calendar events and alarms you sync are sent over an encrypted connection and stored in your private account. None of this is end-to-end encrypted. Sign-in codes are sent through our email provider. If you use Google, it tells us your email and name. You can disconnect a device or erase synced data at any time. Even is for the US and in English for now: support numbers are US only, and Even Sync reads Health in English. Send feedback in Settings opens an email with your app and sync details, and nothing else, and sends only if you send it.</p></div>
    </section>
 
    <section id="view-settings" class="view" aria-labelledby="settings-title">
@@ -331,7 +355,12 @@
      <p class="muted">Start a session on this site’s code.</p>
      <a class="btn primary full" id="improve-site" href="https://claude.ai/code/new?repo=Bishvili%2Feven&branch=main&q=Help%20me%20get%20set%20up%20to%20improve%20Even%2C%20one%20step%20at%20a%20time%20and%20in%20plain%20language.%20Follow%20the%20onboarding%20section%20of%20AGENTS.md%3A%20check%20which%20connections%20I%20already%20have%2C%20then%20offer%20each%20missing%20one%20as%20a%20card%20I%20can%20approve.%20Don%27t%20ask%20me%20for%20any%20keys.%20Run%20the%20tests%2C%20and%20read%20the%20frontend%20guide%20and%20whitepaper.html%20so%20you%20know%20how%20the%20app%20behaves.%20Then%20ask%20what%20I%27d%20like%20to%20change.%20Before%20you%20push%20anything%2C%20tell%20me%20in%20a%20sentence%20what%20will%20change%20for%20people%20using%20the%20app%2C%20because%20pushes%20go%20live%20right%20away." target="_blank" rel="noopener noreferrer">Improve This Site with Claude <span aria-hidden="true">↗</span></a>
     </section>
-    <div class="card"><h2>About the insights</h2><p class="muted">Comparisons need at least 5 check-ins in each group. Mood data is subjective and gaps can skew results. Nothing here is a diagnosis or proves a cause.</p><button type="button" class="btn subtle full" id="setup-again">Go through setup again</button><a class="btn subtle full" id="whitepaper-link" href="/whitepaper.html" target="_blank" rel="noopener">How Even works <span aria-hidden="true">↗</span></a><p class="muted">Version <span id="version">2.33.0</span> · No ads or analytics</p></div>
+    <section class="card" aria-labelledby="feedback-title">
+     <h2 id="feedback-title">Send feedback</h2>
+     <p class="muted">Tell us what went wrong or what you’d change.</p>
+     <button type="button" class="btn secondary full" id="feedback-open">Send feedback</button>
+    </section>
+    <div class="card"><h2>About the insights</h2><p class="muted">Comparisons need at least 5 check-ins in each group. Mood data is subjective and gaps can skew results. Nothing here is a diagnosis or proves a cause.</p><button type="button" class="btn subtle full" id="setup-again">Go through setup again</button><a class="btn subtle full" id="whitepaper-link" href="/whitepaper.html" target="_blank" rel="noopener">How Even works <span aria-hidden="true">↗</span></a><p class="muted">Version <span id="version">2.34.0</span> · No ads or analytics</p></div>
     <div class="card"><h2>Explore a sample month</h2><p class="muted">See 28 days of fictional check-ins and events. They stay separate from your own data and are never uploaded.</p><button class="btn secondary full" id="demo-button">Load 28-day calendar demo</button><button class="btn subtle full" id="clear-demo-button">Remove demo data</button></div>
    </section>
   </main>
@@ -421,6 +450,13 @@
     <button type="submit" class="btn primary full">Save</button>
     <button type="button" class="btn subtle full" id="edit-cancel">Cancel</button>
    </form>
+  </dialog>
+  <dialog class="welcome signin-sheet" id="feedback-sheet" aria-labelledby="feedback-sheet-title">
+   <h2 id="feedback-sheet-title">Send feedback</h2>
+   <p class="muted">This opens an email to us with these details. Nothing is sent until you send it. It never includes your check-ins, notes, Health or calendar data.</p>
+   <pre class="feedback-summary" id="feedback-summary"></pre>
+   <button type="button" class="btn primary full" id="feedback-send">Write email</button>
+   <button type="button" class="btn subtle full" id="feedback-cancel">Cancel</button>
   </dialog>
   <dialog class="welcome" id="confirm-sheet" aria-labelledby="confirm-text">
    <p id="confirm-text"></p>

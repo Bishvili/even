@@ -15,8 +15,23 @@ action 'is.workflow.actions.file.createfolder' createKeyFolder(&variable locatio
 action 'is.workflow.actions.documentpicker.open' readSavedDeviceKey(&variable folder: 'WFFile'): text {"WFGetFilePath":"even-device-key.txt","WFFileErrorIfNotFound":false,"WFShowFilePicker":false}
 
 // Change this with every change to the helper, so it can update itself and share the new link.
-const helperVersion = "2.1.0"
+const helperVersion = "2.2.0"
 const evenAddress = "https://even.bishvili.org"
+
+// Updating needs no connection, so the helper can always replace itself first.
+const latestHelperRaw = downloadURL("https://github.com/Bishvili/even/releases/download/shortcut-latest/Even-Release-version.txt")
+const latestHelperText = getText(latestHelperRaw)
+const latestHelper = replaceText('\s+', "", latestHelperText, true, true)
+const latestHelperLength = count(latestHelper, "Characters")
+if latestHelperLength >= 1 {
+    if latestHelper != helperVersion {
+        showNotification("Tap Replace, then run this helper again.", "Even Release")
+        const newHelperBuild = downloadURL("https://github.com/Bishvili/even/releases/download/shortcut-latest/Even-Release.shortcut")
+        const newHelperName = setName(newHelperBuild, "Even Release.shortcut")
+        openFile(newHelperName)
+        stop()
+    }
+}
 
 const keyFolder = createKeyFolder(onMyIPhone)
 
@@ -34,7 +49,6 @@ for candidate in allShortcuts {
 @state = "install"
 @credential = ""
 @latest = ""
-@helperState = "current"
 @helperLinkState = "current"
 if @hasSync == 1 {
     // Running it reports the installed version and shows its result before anything goes public.
@@ -49,19 +63,8 @@ if @hasSync == 1 {
     @state = getText(stateValue)
     const latestValue = getValue(stateInfo, "latest")
     @latest = getText(latestValue)
-    const helperStateValue = getValue(stateInfo, "helperState")
-    @helperState = getText(helperStateValue)
     const helperLinkValue = getValue(stateInfo, "helperLinkState")
     @helperLinkState = getText(helperLinkValue)
-}
-
-// The helper updates itself first, so every later step runs on the latest version.
-if @helperState == "update" {
-    showNotification("Tap Replace, then run this helper again.", "Even Release")
-    const helperBuild = downloadURL("https://github.com/Bishvili/even/releases/download/shortcut-latest/Even-Release.shortcut")
-    const namedHelper = setName(helperBuild, "Even Release.shortcut")
-    openFile(namedHelper)
-    stop()
 }
 
 // Share this version's link once, so Set Up Release Helper installs it for other developers.

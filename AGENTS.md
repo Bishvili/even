@@ -61,7 +61,7 @@ Only an iPhone proves iOS behavior, and each round trip costs the owner time. Be
 - `env(safe-area-inset-top)` doesn't clear the Dynamic Island's blur. Leave extra room above the header.
 - Coming back to the app makes one `/api/session` request, plus one more only when there is new data to bring in. Add what a screen needs to that response, not a new request.
 - Ask with `askConfirm` (the in-app sheet), never the native `confirm()`, which shows the site address as its title.
-- Installed apps resume without reloading. Bump the version in `app.js`, `sw.js`, `worker/index.js` and `index.html`, and a new script must be added to `index.html` and to `SHELL` in `sw.js`, which is the one list of public files (`scripts/build-assets.cjs`). `tests/versions.test.cjs` checks this.
+- Installed apps resume without reloading. Bump the version with `node scripts/bump-version.cjs x.y.z`, and a new script must be added to `index.html` and to `SHELL` in `sw.js`, which is the one list of public files (`scripts/build-assets.cjs`). `tests/versions.test.cjs` checks this.
 - An installed app shows same-site downloads as a blank page. Open them in Safari with an `x-safari-https://` link.
 - Trace a feature from a fresh install, from an upgraded install with old saved state, signed out, and offline.
 - Each page is cached under its own path (`pageKey` in `sw.js`). After adding or linking a page, confirm `scripts/smoke.cjs` still opens the app offline.
@@ -99,7 +99,7 @@ Only an iPhone proves iOS behavior, and each round trip costs the owner time. Be
 - Every page and asset is served with a strict content security policy, so inline styles and scripts are blocked, including `style="…"` attributes that JavaScript writes into `innerHTML`. Set dynamic values with `element.style` or a class, keep styles and scripts in separate files, and add each file to `SHELL` in `sw.js`.
 - Check the Workers Builds result for the exact commit, then the deployed code. When you can't test something on a device, say so plainly.
 - Workers Builds runs `node --test tests/*.test.cjs` before each deploy, so a failing test stops it. Run the tests before pushing anyway, and check **Validate application and Shortcut** afterward, which also compiles and checks both Shortcuts.
-- `scripts/deploy.sh` deploys the Worker and the files as one version with Workers Static Assets, so a failed deploy changes nothing. Release records stay in KV and are written after the deploy. To roll back, redeploy the previous version.
+- `scripts/deploy.sh` deploys the Worker and the files as one version with Workers Static Assets, so a failed deploy changes nothing. Release records stay in KV and are written after the deploy. To roll back, follow `ROLLBACK.md`. **Check the live site** confirms each push reached production and loads there.
 
 **Data and privacy**
 - Anything personal stored on a device joins `DEVICE_KEYS` or `DEVICE_CACHES` in `app.js`, so Erase clears it. `tests/erase.test.cjs` checks this.
@@ -217,7 +217,7 @@ What Even holds and where it goes. Write every privacy statement from this table
 | Mood, optional stress and energy, tags, notes | Check-ins | Yes | Yes when signed in, as readable text. A deleted check-in leaves only its ID, so other devices can remove it. | Insights, coaching and notification times. Notes are only displayed. |
 | Weekly reflections and breathing sessions | The app | Yes | No | Insights. Breathing also feeds what tends to help. |
 | Health days and events added by hand or imported | The Data tab | Yes | No | Insights and coaching |
-| Steps, exercise minutes, sleep hours, HRV | Even Sync, from Apple Health. Sleep arrives as asleep intervals from recent nights, up to a month on the first sync | Yes | Yes | Insights and coaching. HRV: Insights only. |
+| Steps, exercise minutes, sleep hours, HRV | Even Sync, from Apple Health, up to the last 7 days each run. Sleep arrives as asleep intervals from recent nights, up to a month on the first sync | Yes | Yes | Insights and coaching. HRV: Insights only. |
 | Bedtimes | Worked out from the sleep intervals | Yes | Yes | Bedtime estimate and wind-down |
 | Resting heart rate | Even Sync, from Apple Health | Yes | Yes | Insights: compared with the person's own usual level |
 | Today's and tomorrow's calendar events: title, start, end, calendar name | Even Sync reads calendars left on. Saved events from a turned-off calendar can be removed in the app; the Worker adds a category | Yes, without the calendar name | Yes, except events from turned-off calendars, which are discarded on arrival | Insights, coaching and nudges before events |
@@ -228,7 +228,7 @@ What Even holds and where it goes. Write every privacy statement from this table
 | Account and devices | Sign-in and Even Sync | Account email, first name, device ID and credential | Email; the name from sign-in, if any, shown to developer accounts; each device's label, dates (devices unused for 90 days disconnect), last error, Shortcut version and how many records its last upload held; only a hash of each credential; sign-in sessions with the browser's description, and whether the account uses Google | Sync status and access |
 | Testers and release accounts | Developer tools and the owner | No | Email, who added them, display name, any name a person or developer set and who set it (erasing synced data removes it) | Who can sign in and publish. The first name also goes in some notifications, the Today brief, the hard-days note and invitations. |
 
-Backups are JSON files that people save themselves, unencrypted unless they add a passphrase (`backup.js`), which is never stored or sent. Outside services: Cloudflare hosts the app, Apple's push service carries encrypted notifications, Resend sends invitation emails and sign-in codes, Google signs in people who choose it, and releases send the public Shortcut link to GitHub.
+Send feedback opens a mail draft holding only the app and sync details listed in `feedback.js`, and nothing leaves until the person sends it. Backups are JSON files that people save themselves, unencrypted unless they add a passphrase (`backup.js`), which is never stored or sent. Outside services: Cloudflare hosts the app, Apple's push service carries encrypted notifications, Resend sends invitation emails and sign-in codes, Google signs in people who choose it, and releases send the public Shortcut link to GitHub.
 
 ## Schema evolution and cleanup
 

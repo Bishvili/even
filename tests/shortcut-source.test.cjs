@@ -41,8 +41,8 @@ test("the device key is read from its file, checked by the server, and saved onl
 test("every comparison is typed text or a number, never a Boolean",()=>{
  assert.deepEqual(conditions(sync),[
   'providedKeyCount == 0','savedKeyMatchCount == 0','connectionStatus != "connected"','syncCalendar == "on"','todayOffCount == 0','upcomingOffCount == 0','calendarStatus != "accepted"',
-  'syncSteps == "on"','stepsAvailable >= 1','totalSteps >= 1','syncRestingHR == "on"','restingAvailable >= 1','restingValue >= 1','syncHrv == "on"','hrvAvailable >= 1','hrvValue >= 1',
-  'syncWorkout == "on"','exerciseAvailable >= 1','exerciseValue >= 1','syncSleep == "on"','sleepAvailable >= 1','historyState == "needed"','stageCount >= 1',
+  'syncSteps == "on"','stepsAvailable >= 1','@stepsSeen < 7','totalSteps >= 1','@stepsSeen >= 1','syncRestingHR == "on"','restingAvailable >= 1','@restingSeen < 7','restingValue >= 1','@restingSeen >= 1','syncHrv == "on"','hrvAvailable >= 1','@hrvSeen < 7','hrvValue >= 1','@hrvSeen >= 1',
+  'syncWorkout == "on"','exerciseAvailable >= 1','@exerciseSeen < 7','exerciseValue >= 1','@exerciseSeen >= 1','syncSleep == "on"','sleepAvailable >= 1','historyState == "needed"','stageCount >= 1',
   '@healthFields >= 1','healthStatus != "accepted"','updateStatus == "new_release"','syncAlarms == "on"','syncedState != "sent"'
  ]);
  for(const source of [sync,helper])assert.doesNotMatch(source,/if\s+@?\w+\s*(==|!=)\s*(true|false)/);
@@ -77,10 +77,9 @@ test("today's and tomorrow's events go up together as records with full timestam
  for(const name of ["todayEventsFilter","upcomingEventsFilter"])assert.equal(filters[name].WFSerializationType,"WFContentPredicateTableTemplate");
 });
 
-test("Health goes up in one request, each measure with its own date and no average heart rate",()=>{
+test("Health goes up in one request, up to 7 days of each measure with their dates, and no average heart rate",()=>{
  for(const [field,variable] of [["steps","steps"],["restingHR","resting"],["hrv","hrv"],["workoutMin","exercise"]]){
-  assert.ok(sync.includes(`"${field}": "{@${variable}Field}"`),field);
-  assert.ok(sync.includes(`"${field}Date": "{@${variable}Day}"`),field);
+  assert.ok(sync.includes(`"${field}Recent": "{@${variable}Field}"`),field);
  }
  assert.equal((sync.match(/"kind": "health"/g)||[]).length,1);
  assert.doesNotMatch(sync,/heartRate|"Heart Rate"/);
@@ -105,7 +104,7 @@ test("the step total is sent as a plain number, with grouping separators removed
  assert.ok(number,"Missing step number extraction");
  const extract=value=>value.replace(new RegExp(number[1]),"$1");
  for(const [input,output] of [["12345","12345"],["12345 steps","12345"],["12345 count","12345"],["1234.5","1234.5"],["12345\nsteps","12345"],["",""]])assert.equal(extract(input),output);
- assert.match(sync,/^\s*@stepsField = stepsValue$/m);
+ assert.ok(sync.includes('@stepsField = "{@stepsField}␞{stepDay}={stepsValue}"'));
 });
 
 test("sleep goes up as asleep intervals, with the sample count so the server knows when a night may be cut off",()=>{
@@ -141,11 +140,11 @@ test("the release helper holds no credentials, updates itself, and asks before p
  assert.doesNotMatch(helper,/searchShortcuts|api\.github\.com/);
  assert.doesNotMatch(helper,/github_pat_[A-Za-z0-9]{10}|ghp_[A-Za-z0-9]{10}|Bearer [a-f0-9]{64}/i);
  assert.deepEqual(conditions(helper),[
-  'candidateText == "Even Sync"','@hasSync == 1','@helperState == "update"','@helperLinkState == "share"','helperText == "Even Release"',
+  'latestHelperLength >= 1','latestHelper != helperVersion','candidateText == "Even Sync"','@hasSync == 1','@helperLinkState == "share"','helperText == "Even Release"',
   'sharedErrorLength >= 1','@state == "install"','@state == "building"','@state == "ahead"','@state == "current"','@state != "publish"',
   'decision != "Publish"','linkText == "Even Sync"','errorLength >= 1','@live == 0','checkState == "current"','@live == 1'
  ]);
- assert.ok(position(helper,'if @helperState == "update"')<position(helper,'if @state == "install"'));
+ assert.ok(position(helper,'if latestHelper != helperVersion')<position(helper,'createKeyFolder(onMyIPhone)'));
  assert.ok(position(helper,"chooseFromList(")<position(helper,"/api/shortcut/publish"));
 });
 

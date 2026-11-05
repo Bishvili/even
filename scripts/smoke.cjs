@@ -2,6 +2,7 @@
 "use strict";
 // Loads the app as it ships: the public file list and the Worker's security headers, signed out.
 // Fails on any uncaught error or security-policy violation. Usage: node scripts/smoke.cjs [chromium] [webkit]
+// Set EVEN_BASE to check a deployed address instead.
 const {serve,SECURITY}=require("./serve-app.cjs");
 const {chromium,webkit}=require("playwright");
 async function run(type,base){
@@ -73,13 +74,13 @@ async function run(type,base){
  return problems;
 }
 (async()=>{
- const names=process.argv.slice(2),server=await serve(),base="http://localhost:"+server.address().port;
+ const names=process.argv.slice(2),server=process.env.EVEN_BASE?null:await serve(),base=process.env.EVEN_BASE||"http://localhost:"+server.address().port;
  let failed=false;
  for(const name of names.length?names:["chromium"]){
   const problems=await run({chromium,webkit}[name],base);
   console.log(name+": "+(problems.length?problems.length+" problem(s)":"ok"));
   problems.forEach(problem=>{failed=true;console.log("  "+problem);});
  }
- server.close();
+ if(server)server.close();
  process.exit(failed?1:0);
 })().catch(error=>{console.error(error);process.exit(1);});

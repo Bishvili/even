@@ -1,6 +1,6 @@
 (function () {
 "use strict";
-var VERSION = "2.33.0";
+var VERSION = "2.34.0";
 var STORAGE_KEY = "even:v1";
 var HOME_ORIGIN = "https://even.bishvili.org";
 var MOOD_NAMES = ["","Rough","Low","Okay","Good","Great"];
@@ -180,6 +180,25 @@ function renderSyncLight(paired){
  $("sync-light-text").textContent=text;
  $("sync-light").classList.toggle("connected",navigator.onLine&&paired&&!!last&&minutes<1440);
 }
+var MEASURES=[["sleepHours","Sleep","sleep"],["steps","Steps","steps"],["workoutMin","Exercise","workout"],["restingHR","Resting heart rate","restingHR"],["hrv","Heart rate variability","hrv"]];
+// What has arrived, measure by measure, and the likely reason when something hasn't.
+function renderMeasures(){
+ var box=$("shortcut-measures"),note=$("shortcut-measures-note");
+ box.textContent="";box.hidden=!shortcutStatus;note.textContent="";
+ if(!shortcutStatus)return;
+ var received=shortcutStatus.measures||{},missing=false,choices=syncChoicesShown||{};
+ MEASURES.forEach(function(item){
+  var row=document.createElement("div"),name=document.createElement("span"),when=document.createElement("span"),got=received[item[0]];
+  row.className="measure-row";name.textContent=item[1];
+  if(choices[item[2]]===false)when.textContent="Off";
+  else if(got)when.textContent=formatDate(got.lastDay+"T12:00:00");
+  else{when.textContent="Not received yet";missing=true;}
+  row.appendChild(name);row.appendChild(when);box.appendChild(row);
+ });
+ var sent=shortcutStatus.lastUpload||{};
+ if(missing&&sent.healthSeen>0&&sent.healthMatched===0)note.textContent="Even Sync found Health data but couldn’t read it. It reads Health in English only for now.";
+ else if(missing&&shortcutStatus.lastDataUploadAt)note.textContent="If something isn’t arriving, check Health > Sharing > Apps > Shortcuts, and that a device is recording it.";
+}
 function renderSync(){
  $("release-card").hidden=!authCanRelease;
  // The helper shares its own link, so this always installs the current one.
@@ -229,6 +248,7 @@ function renderSync(){
  var sent=shortcutStatus&&shortcutStatus.lastUpload;
  $("shortcut-upload-counts").textContent=sent?countsLabel(sent.health||0,sent.events||0):"";
  $("shortcut-stored").textContent=shortcutStatus?"Stored in your account: "+countsLabel(shortcutStatus.healthMetrics,shortcutStatus.calendarEvents):"";
+ renderMeasures();
  $("calendar-card").hidden=!state.token;
  renderDevices();
  if(globalThis.EvenOnboarding)globalThis.EvenOnboarding.render();
@@ -426,7 +446,9 @@ function renderMoodStatus(){
  line.classList.toggle("sync-problem",failed);retry.hidden=!failed;
 }
 var SYNC_SETTING_NAMES={calendar:"Calendar events",sleep:"Sleep",steps:"Steps",restingHR:"Resting heart rate",hrv:"Heart rate variability",workout:"Exercise minutes",alarms:"Alarms"};
+var syncChoicesShown=null;
 function renderSyncSettings(settings){
+ syncChoicesShown=settings;renderMeasures();
  var list=$("sync-settings");
  list.textContent="";
  Object.keys(SYNC_SETTING_NAMES).forEach(function(kind){
@@ -1035,6 +1057,6 @@ function setup(){
  return {ios:isIOS(),installed:isInstalled(),deviceName:thisDeviceName(),online:navigator.onLine,signedIn:!!authEmail,authKnown:authKnown,email:authEmail,connected:paired,connectedBefore:!!state.pairedAt,connecting:connecting,moodSync:!!state.moodSync,
   shortcutUrl:shortcutLink(),shortcutConnected:!!(shortcutStatus&&shortcutStatus.installedShortcutVersion),synced:synced,checkedIn:state.moods.length>0};
 }
-globalThis.EvenApp={askConfirm:askConfirm,accountPath:accountPath,refreshAuth:refreshAuth,firstName:function(){return state.firstName;},navigate:navigate,setup:setup,signIn:signIn,connect:issueDevice,isInstalled:isInstalled,isIOS:isIOS,alarms:function(){return state.alarms;},resets:function(){return state.resets;},logReset:function(){state.resets.push(new Date().toISOString());state.resets=state.resets.slice(-500);persist();},personalEvents:function(){return state.events;},personalHealth:function(){return state.health;},personalMoods:function(){return state.moods;},refresh:refresh,runShortcut:runShortcut,refreshCoach:refreshCoach,addReflection:function(r){state.reflections.push(r);if(persist())render();},toast:toast,formatTime:formatTime,deviceToken:function(){return state.token;}};
+globalThis.EvenApp={version:VERSION,syncStatus:function(){return shortcutStatus;},signedIn:function(){return !!authEmail;},askConfirm:askConfirm,accountPath:accountPath,refreshAuth:refreshAuth,firstName:function(){return state.firstName;},navigate:navigate,setup:setup,signIn:signIn,connect:issueDevice,isInstalled:isInstalled,isIOS:isIOS,alarms:function(){return state.alarms;},resets:function(){return state.resets;},logReset:function(){state.resets.push(new Date().toISOString());state.resets=state.resets.slice(-500);persist();},personalEvents:function(){return state.events;},personalHealth:function(){return state.health;},personalMoods:function(){return state.moods;},refresh:refresh,runShortcut:runShortcut,refreshCoach:refreshCoach,addReflection:function(r){state.reflections.push(r);if(persist())render();},toast:toast,formatTime:formatTime,deviceToken:function(){return state.token;}};
 init();
 })();

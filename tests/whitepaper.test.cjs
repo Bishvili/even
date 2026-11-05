@@ -48,7 +48,7 @@ test("the paper is reachable and allowed by the page's security policy",()=>{
 
 test("the paper and the guide name everything Even Sync uploads",()=>{
  const sync=read("shortcuts/even-sync.cherri"),guide=read("AGENTS.md"),readme=read("README.md");
- const uploads={steps:[/"steps":/,/steps/i],resting:[/"restingHR":/,/resting heart rate/i],hrv:[/"hrv":/,/heart rate variability|HRV/],exercise:[/"workoutMin":/,/exercise minutes/i],sleep:[/"sleepIntervals":/,/sleep/i],alarms:[/"kind": "alarms"/,/alarms/i],calendar:[/"kind": "calendar_days"/,/events/i]};
+ const uploads={steps:[/"stepsRecent":/,/steps/i],resting:[/"restingHRRecent":/,/resting heart rate/i],hrv:[/"hrvRecent":/,/heart rate variability|HRV/],exercise:[/"workoutMinRecent":/,/exercise minutes/i],sleep:[/"sleepIntervals":/,/sleep/i],alarms:[/"kind": "alarms"/,/alarms/i],calendar:[/"kind": "calendar_days"/,/events/i]};
  for(const [name,[source,words]] of Object.entries(uploads)){
   assert.match(sync,source,name);
   for(const text of [paper,guide,readme])assert.match(text,words,name);

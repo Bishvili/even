@@ -54,6 +54,7 @@ function harness({verified=false,buildVersion="2.8.0",helperBuild="2.0.0",source
     if(sql.startsWith("SELECT id,ts,score"))return{results:(rows.moods||[]).filter(m=>m.owner===args[0]&&(m.updated_at||"")>=args[1])};
     if(sql.startsWith("SELECT s.endpoint"))return{results:[...rows.subs.values()].filter(s=>[...rows.devices.values()].some(d=>d.device_id===s.device_id&&!d.revoked_at))};
     if(sql.startsWith("SELECT event_id,title FROM even_calendar_events"))return{results:[]};
+    if(sql.startsWith("SELECT metric,MAX(day)")){const by={};for(const h of rows.health.values())if(h.owner===args[0]){const m=by[h.metric]||(by[h.metric]={metric:h.metric,day:h.day,days:0});m.days++;if(h.day>m.day)m.day=h.day;}return{results:Object.values(by)};}
     if(sql.startsWith("SELECT name FROM even_calendars"))return{results:[...rows.calendars.values()].filter(c=>c.owner===args[0]&&!c.enabled)};
     if(sql.startsWith("SELECT name,enabled,category FROM even_calendars"))return{results:[...rows.calendars.values()].filter(c=>c.owner===args[0])};
     if(sql.includes("SELECT device_id,label,created_at"))return{results:[...rows.devices.values()].filter(d=>d.owner_email===args[0]).map(d=>({device_id:d.device_id,label:d.label,created_at:d.created_at,last_used_at:d.last_used_at,revoked_at:d.revoked_at}))};
@@ -317,6 +318,20 @@ test("a return with no changes sends no check-ins, and a pull says whether it's 
  assert.equal((await call("/api/moods?since=nonsense",{headers:A})).data.moods.length,1);
  const pull=await call("/api/pull",{headers:A});
  assert.equal(pull.data.complete.health,true);assert.equal(pull.data.complete.events,true);
+});
+test("a run can fill in a week of each measure, and status reports dates and counts, not values",async()=>{
+ const{call,ctx}=harness();
+ const a=await call("/api/user/device",{method:"POST",body:{label:"A"},context:ctx("owner-a@example.com")}),A={Authorization:"Bearer "+a.data.token};
+ const b=await call("/api/user/device",{method:"POST",body:{label:"B"},context:ctx("owner-b@example.com")}),B={Authorization:"Bearer "+b.data.token};
+ const week=["2026-11-04=5000","2026-11-03=4200","bad=1","2026-11-02=999999"].map(x=>"␞"+x).join("");
+ const up=await call("/api/ingest",{method:"POST",headers:A,body:{kind:"health",date:"2026-11-04",stepsRecent:week,hrvRecent:"␞2026-11-04=40"}});
+ assert.equal(up.data.healthMetrics,3);
+ const status=await call("/api/session",{headers:A});
+ assert.equal(status.data.status.measures.steps.lastDay,"2026-11-04");
+ assert.equal(status.data.status.measures.steps.days,2);
+ assert.equal(JSON.stringify(status.data.status.measures).includes("5000"),false);
+ assert.equal(Object.keys((await call("/api/session",{headers:B})).data.status.measures).length,0);
+ assert.equal((await call("/api/ingest",{method:"POST",headers:A,body:{kind:"health",date:"2026-11-04",steps:"7000",stepsDate:"2026-11-04"}})).status,200);
 });
 test("each night's bedtime is its earliest sleep, ignoring naps and bad values",()=>{
  const{runtime}=harness();

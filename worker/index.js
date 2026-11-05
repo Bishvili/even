@@ -38,7 +38,7 @@ async function payload(request){
  if(type.includes("application/x-www-form-urlencoded"))return Object.fromEntries(new URLSearchParams(text));
  try{return JSON.parse(text);}catch(e){return Object.fromEntries(new URLSearchParams(text));}
 }
-const VERSION_NAME="2.33.0";
+const VERSION_NAME="2.34.0";
 function normalEmail(value){return String(value||"").trim().toLowerCase();}
 async function signinAuth(env,ctx){
  const {createAuth}=await import("./signin.mjs");
@@ -195,6 +195,13 @@ function readHealth(x){
   const raw=x[metric];if(raw===undefined||raw===null||String(raw).trim()==="")continue;
   const day=dateOnly(x[metric+"Date"])||base,value=measure(raw);
   if(day&&Number.isFinite(value)&&value>=low&&value<=high)results.push({day,metric,value});
+ }
+ // Even Sync 3.3 and later send up to a week of each measure as day=value pairs.
+ for(const [metric,[low,high]] of Object.entries(METRICS)){
+  for(const pair of String(x[metric+"Recent"]||"").split("␞").filter(Boolean).slice(0,7)){
+   const[rawDay,rawValue]=pair.split("="),day=dateOnly(rawDay),value=measure(rawValue);
+   if(day&&Number.isFinite(value)&&value>=low&&value<=high)results.push({day,metric,value});
+  }
  }
  return results;
 }
@@ -623,10 +630,11 @@ async function syncedMoods(env,owner,since){
   deleted:(rows.results||[]).filter(m=>m.deleted_at).map(m=>m.id)};
 }
 async function deviceStatus(env,dev,owner){
- const [device,h,c]=await Promise.all([
+ const [device,h,c,received]=await Promise.all([
   env.DB.prepare("SELECT last_used_at,last_attempt_at,last_error_code,shortcut_version,last_upload_counts FROM even_devices WHERE device_id=? AND owner_email=? AND revoked_at IS NULL").bind(dev.id,owner).first(),
   env.DB.prepare("SELECT COUNT(*) AS count FROM even_health_metrics WHERE owner_email=?").bind(owner).first(),
-  env.DB.prepare("SELECT COUNT(*) AS count FROM even_calendar_events WHERE owner_email=?").bind(owner).first()
+  env.DB.prepare("SELECT COUNT(*) AS count FROM even_calendar_events WHERE owner_email=?").bind(owner).first(),
+  env.DB.prepare("SELECT metric,MAX(day) AS day,COUNT(*) AS days FROM even_health_metrics WHERE owner_email=? GROUP BY metric").bind(owner).all()
  ]);
  if(!device)return null;
  let lastUpload=null;
@@ -634,7 +642,8 @@ async function deviceStatus(env,dev,owner){
  return{credentialValid:true,deviceId:dev.id,lastDataUploadAt:device.last_used_at||null,
   lastAttemptAt:device.last_attempt_at||null,lastErrorCode:device.last_error_code||null,
   installedShortcutVersion:device.shortcut_version||null,lastUpload,
-  healthMetrics:Number(h?.count||0),calendarEvents:Number(c?.count||0)};
+  healthMetrics:Number(h?.count||0),calendarEvents:Number(c?.count||0),
+  measures:Object.fromEntries((received.results||[]).map(m=>[m.metric,{lastDay:m.day,days:Number(m.days||0)}]))};
 }
 async function syncApi(request,env,path){
  const dev=await validDevice(request,env);
@@ -690,6 +699,9 @@ async function syncApi(request,env,path){
  }
  if(path==="/api/push/synced"&&request.method==="POST"){
   let input;try{input=await payload(request);}catch(e){return error("Even couldn't read that request.",400,"invalid_body");}
+  // How many Health types the run saw, and how many it could read, tells "no data" from "nothing matched".
+  const seen=Number(input?.healthSeen),matched=Number(input?.healthMatched);
+  if(Number.isInteger(seen)&&seen>=0&&Number.isInteger(matched)&&matched>=0)await env.DB.prepare("UPDATE even_devices SET last_upload_counts=json_patch(COALESCE(last_upload_counts,'{}'),?) WHERE device_id=? AND owner_email=?").bind(JSON.stringify({healthSeen:seen,healthMatched:matched}),dev.id,owner).run();
   const items=Number(input?.items),key=pushKey(env);
   const sub=key&&await env.DB.prepare("SELECT endpoint,p256dh,auth FROM even_push_subscriptions WHERE device_id=? AND owner_email=? AND p256dh IS NOT NULL").bind(dev.id,owner).first();
   if(!sub||!Number.isInteger(items)||items<0)return reply({ok:true,state:"none"});

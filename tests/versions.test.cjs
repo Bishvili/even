@@ -43,3 +43,27 @@ test("each page has its own offline copy, so the app is never replaced",()=>{
  assert.equal(sandbox.pageKey("/whitepaper.html"),"/whitepaper.html");
  assert.ok(read("sw.js").includes('"/whitepaper.css"'));
 });
+test("the bump script changes every place the version appears",()=>{
+ const os=require("node:os"),path=require("node:path"),dir=fs.mkdtempSync(path.join(os.tmpdir(),"even-"));
+ fs.mkdirSync(path.join(dir,"worker"));
+ for(const file of ["app.js","sw.js","worker/index.js","index.html"])fs.writeFileSync(path.join(dir,file),read(file));
+ require("../scripts/bump-version.cjs").bump("9.9.9",dir);
+ assert.ok(fs.readFileSync(path.join(dir,"app.js"),"utf8").includes('var VERSION = "9.9.9"'));
+ assert.ok(fs.readFileSync(path.join(dir,"sw.js"),"utf8").includes("even-shell-v9.9.9"));
+ assert.ok(fs.readFileSync(path.join(dir,"worker/index.js"),"utf8").includes('VERSION_NAME="9.9.9"'));
+ assert.ok(fs.readFileSync(path.join(dir,"index.html"),"utf8").includes(">9.9.9<"));
+ fs.rmSync(dir,{recursive:true});
+});
+test("the phone and the account keep the same limits",()=>{
+ const limits=file=>read(file).match(/LIMITS ?= ?(\{moods:\d+,healthDays:\d+,events:\d+\})/)[1];
+ assert.equal(limits("app.js"),limits("worker/index.js"));
+});
+test("feedback holds only the listed details",()=>{
+ const source=read("feedback.js"),keys=[...source.slice(source.indexOf("function summary()"),source.indexOf("function summaryText()")).matchAll(/^\s*"([A-Z][\w ]+)":/gm)].map(m=>m[1]);
+ assert.deepEqual(keys,["App version","Software","Opened from","Signed in","Even Sync version","Last upload","Last error"]);
+ assert.ok(read("index.html").includes('id="feedback-open"'));
+});
+test("startup images exist for every size the page lists",()=>{
+ for(const [,file] of read("index.html").matchAll(/apple-touch-startup-image"[^>]*href="\/([\w.-]+)"/g))assert.ok(fs.existsSync(require("node:path").join(__dirname,"..",file)),file);
+ assert.ok(read("sw.js").includes("/launch-390x844-3-dark.png"));
+});
