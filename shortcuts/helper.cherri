@@ -1,4 +1,4 @@
-#define name Even Release
+#define name Release Helper
 #define color teal
 #define glyph key
 #define mac false
@@ -10,13 +10,13 @@
 
 #ref onMyIPhone eyJkaXNwbGF5TmFtZSI6Ik9uIE15IGlQaG9uZSIsImZpbGVuYW1lIjoiRmlsZSBQcm92aWRlciBTdG9yYWdlIiwiZmlsZUxvY2F0aW9uIjp7IldGRmlsZUxvY2F0aW9uVHlwZSI6IkxvY2FsU3RvcmFnZSIsInJlbGF0aXZlU3VicGF0aCI6IiJ9fQ==
 
-action 'is.workflow.actions.file.createfolder' createKeyFolder(&variable location: 'WFFolder') {"WFFilePath":"Even"}
+action 'is.workflow.actions.file.createfolder' createKeyFolder(&variable location: 'WFFolder') {"WFFilePath":"Health Sync"}
 
-action 'is.workflow.actions.documentpicker.open' readSavedDeviceKey(&variable folder: 'WFFile'): text {"WFGetFilePath":"even-device-key.txt","WFFileErrorIfNotFound":false,"WFShowFilePicker":false}
+action 'is.workflow.actions.documentpicker.open' readSavedDeviceKey(&variable folder: 'WFFile'): text {"WFGetFilePath":"device-key.txt","WFFileErrorIfNotFound":false,"WFShowFilePicker":false}
 
 // Change this with every change to the helper, so it can update itself and share the new link.
-const helperVersion = "2.3.0"
-const appAddress = "https://even.bishvili.org"
+const helperVersion = "3.0.0"
+const appAddress = "https://sync.bishvili.org"
 
 // Updating needs no connection, so the helper can always replace itself first.
 const latestHelperRaw = downloadURL("{appAddress}/api/shortcut/build/helper/version")
@@ -25,9 +25,9 @@ const latestHelper = replaceText('\s+', "", latestHelperText, true, true)
 const latestHelperLength = count(latestHelper, "Characters")
 if latestHelperLength >= 1 {
     if latestHelper != helperVersion {
-        showNotification("Tap Replace, then run this helper again.", "Even Release")
+        showNotification("Tap Replace, then run this helper again.", "Release Helper")
         const newHelperBuild = downloadURL("{appAddress}/api/shortcut/build/helper")
-        const newHelperName = setName(newHelperBuild, "Even Release.shortcut")
+        const newHelperName = setName(newHelperBuild, "Release Helper.shortcut")
         openFile(newHelperName)
         stop()
     }
@@ -41,7 +41,7 @@ const allShortcuts = getShortcuts()
 for candidate in allShortcuts {
     const candidateName = getShortcutDetail(@candidate, "Name")
     const candidateText = getText(candidateName)
-    if candidateText == "Even Sync" {
+    if candidateText == "Health Sync" {
         @hasSync = 1
     }
 }
@@ -53,7 +53,7 @@ for candidate in allShortcuts {
 if @hasSync == 1 {
     // Running it reports the installed version and shows its result before anything goes public.
     const runRequest = text("release check")
-    run("Even Sync", runRequest)
+    run("Health Sync", runRequest)
 
     const savedKeyFile = readSavedDeviceKey(keyFolder)
     @credential = getText(savedKeyFile)
@@ -73,7 +73,7 @@ if @helperLinkState == "share" {
     for helperCandidate in allShortcuts {
         const helperName = getShortcutDetail(@helperCandidate, "Name")
         const helperText = getText(helperName)
-        if helperText == "Even Release" {
+        if helperText == "Release Helper" {
             const helperLinkResult = createShortcutLink(@helperCandidate)
             @helperLink = getText(helperLinkResult)
         }
@@ -86,40 +86,40 @@ if @helperLinkState == "share" {
     const sharedError = getText(sharedErrorValue)
     const sharedErrorLength = count(sharedError, "Characters")
     if sharedErrorLength >= 1 {
-        showNotification("{sharedError}", "Even Release")
+        showNotification("{sharedError}", "Release Helper")
     }
 }
 
 if @state == "install" {
-    showNotification("Tap Replace, then run this helper again.", "Even Release")
+    showNotification("Tap Replace, then run this helper again.", "Release Helper")
     const build = downloadURL("{appAddress}/api/shortcut/build/sync")
-    const namedBuild = setName(build, "Even Sync.shortcut")
+    const namedBuild = setName(build, "Health Sync.shortcut")
     openFile(namedBuild)
     stop()
 }
 
 if @state == "building" {
-    alert("The new build is still being signed. Try again in a few minutes.", "Even Release")
+    alert("The new build is still being signed. Try again in a few minutes.", "Release Helper")
     stop()
 }
 
 if @state == "ahead" {
-    alert("This iPhone has a newer Even Sync than the latest build, so there's nothing to install.", "Even Release")
+    alert("This iPhone has a newer Health Sync than the latest build, so there's nothing to install.", "Release Helper")
     stop()
 }
 
 if @state == "current" {
-    alert("The latest version is installed and published.", "Even Release")
+    alert("The latest version is installed and published.", "Release Helper")
     stop()
 }
 
 if @state != "publish" {
-    alert("Open Even, go to Data, and tap Run Even Sync, then try again.", "Couldn't check the version")
+    alert("Open the app, go to Data, and tap Run Health Sync, then try again.", "Couldn't check the version")
     stop()
 }
 
 const confirmOptions = list("Publish", "Cancel")
-const confirmed = chooseFromList(confirmOptions, "Did Even Sync work? This publishes version {@latest}.")
+const confirmed = chooseFromList(confirmOptions, "Did Health Sync work? This publishes version {@latest}.")
 const decision = getText(confirmed)
 if decision != "Publish" {
     stop()
@@ -129,7 +129,7 @@ if decision != "Publish" {
 for linkCandidate in allShortcuts {
     const linkName = getShortcutDetail(@linkCandidate, "Name")
     const linkText = getText(linkName)
-    if linkText == "Even Sync" {
+    if linkText == "Health Sync" {
         const linkResult = createShortcutLink(@linkCandidate)
         @shareLink = getText(linkResult)
     }
@@ -146,7 +146,7 @@ if errorLength >= 1 {
     alert("{errorText}", "Publishing didn't start")
     stop()
 }
-showNotification("Publishing version {@latest}. This takes a few minutes.", "Even Release")
+showNotification("Publishing version {@latest}. This takes a few minutes.", "Release Helper")
 
 // Wait until the app offers the new version, checking every 20 seconds for up to four minutes.
 @live = 0
@@ -163,7 +163,7 @@ repeat attempt for 12 {
     }
 }
 if @live == 1 {
-    alert("Version {@latest} is live.", "Even Release")
+    alert("Version {@latest} is live.", "Release Helper")
 } else {
-    alert("Publishing is still running. Run this helper again in a few minutes to check.", "Even Release")
+    alert("Publishing is still running. Run this helper again in a few minutes to check.", "Release Helper")
 }

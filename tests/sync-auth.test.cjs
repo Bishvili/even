@@ -16,7 +16,7 @@ function harness({verified=false,buildVersion="2.8.0",helperBuild="2.0.0",source
  assert.notEqual(source,loaded,"Worker ESM export not found");
  const dispatches=[];
  const runtime={crypto:webcrypto,TextEncoder,Response,Request,Headers,URL,atob,btoa,Intl,Uint8Array,console,async fetch(url,init){
-  if(String(url).includes("/shortcuts/api/records/")){const id=String(url).split("/").pop();return new Response(JSON.stringify({fields:{name:{value:id==="0".repeat(32)?"Other Shortcut":id==="1".repeat(32)?"Even Release":"Even Sync"}}}));}
+  if(String(url).includes("/shortcuts/api/records/")){const id=String(url).split("/").pop();return new Response(JSON.stringify({fields:{name:{value:id==="0".repeat(32)?"Other Shortcut":id==="1".repeat(32)?"Release Helper":"Health Sync"}}}));}
   if(String(url).endsWith("/sync-version.txt"))return new Response(buildVersion+"\n");
   if(String(url).endsWith("/helper-version.txt"))return helperBuild?new Response(helperBuild+"\n"):new Response("",{status:404});
   if(String(url).endsWith(".shortcut"))return new Response("file");
@@ -633,7 +633,7 @@ test("the handshake says when a verified update is ready",async()=>{
  const b=await unverified.call("/api/user/device",{method:"POST",body:{label:"A"},context:unverified.ctx("owner-a@example.com")});
  assert.equal((await unverified.call("/api/shortcut/hello",{method:"POST",body:{shortcutVersion:"0.9.0"},headers:{Authorization:"Bearer "+b.data.token}})).data.updateStatus,"current");
 });
-test("Even Release 2 waits for a build being signed, never offers a downgrade, updates itself, and shares its link once",async()=>{
+test("Release Helper 2 waits for a build being signed, never offers a downgrade, updates itself, and shares its link once",async()=>{
  const shared={version:"1.0.0",url:"https://www.icloud.com/shortcuts/ae34096d23534730ae2f82a99d861414"};
  async function state(options,installed,helper){
   const t=harness(options);
@@ -654,7 +654,7 @@ test("Even Release 2 waits for a build being signed, never offers a downgrade, u
  assert.deepEqual([current.state,current.helperState,current.helperLinkState],["current","current","current"]);
  assert.equal((await state({buildVersion:"2.9.0",sourceVersions:{sync:"3.0.0",release:"2.0.0"}},"2.9.0",null)).state,"publish");
 });
-test("only release accounts can share the helper link, and only a link named Even Release",async()=>{
+test("only release accounts can share the helper link, and only a link named Release Helper",async()=>{
  const{call,ctx,dispatches}=harness();
  const a=await call("/api/user/device",{method:"POST",body:{label:"A"},context:ctx("owner-a@example.com")});
  const b=await call("/api/user/device",{method:"POST",body:{label:"B"},context:ctx("owner-b@example.com")});
@@ -1037,4 +1037,16 @@ test("each build has one lasting link, named as iOS should install it, with no s
   assert.equal((await get("/api/shortcut/build/"+role+"/version")).status,200);
  }
  assert.equal((await get("/api/shortcut/build/other")).status,404);
+});
+
+test("the Shortcuts' address serves only what they call",async()=>{
+ const{runtime,env}=harness();env.SHORTCUT_ORIGIN="https://sync.example.com";
+ const get=route=>runtime.__worker.fetch(new Request("https://sync.example.com"+route),env,{waitUntil(){}});
+ for(const route of ["/","/index.html","/api/status","/api/session","/api/user/device","/api/signin/get-session"])assert.equal((await get(route)).status,404,route);
+ assert.equal((await get("/api/shortcut/build/sync")).status,200);
+ assert.equal((await get("/api/shortcut/hello")).status,401);
+});
+test("every path the Shortcuts call is served on their address",()=>{
+ const worker=require("node:fs").readFileSync("worker/index.js","utf8"),listed=JSON.parse(worker.match(/SHORTCUT_PATHS=new Set\((\[.*?\])\)/)[1]);
+ for(const file of ["shortcuts/sync.cherri","shortcuts/helper.cherri"])for(const[,route]of require("node:fs").readFileSync(file,"utf8").matchAll(/\{appAddress\}(\/api\/[\w/.-]+)/g))assert.ok(listed.includes(route)||route.startsWith("/api/shortcut/build/"),route);
 });

@@ -1,4 +1,4 @@
-name: Publish Even Sync
+name: Publish Health Sync
 
 on:
   workflow_dispatch:
@@ -80,6 +80,6 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add shortcuts/release.json
-          git commit -m "release: Even Sync ${RELEASE_VERSION}"
+          git commit -m "release: Health Sync ${RELEASE_VERSION}"
           git pull --rebase origin main
           git push origin main

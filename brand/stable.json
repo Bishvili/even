@@ -1,5 +1,6 @@
 {
-  "sync": "Even Sync",
-  "helper": "Even Release",
-  "keyFolder": "Even"
+  "sync": "Health Sync",
+  "helper": "Release Helper",
+  "keyFolder": "Health Sync",
+  "keyFile": "device-key.txt"
 }

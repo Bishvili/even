@@ -69,7 +69,7 @@ test("a valid Shortcut handshake does not imply accepted Health data",()=>{
  assert.match(t.elements.get("shortcut-stored").textContent,/0 health/);
 });
 test("the PWA setup instructions and source agree",()=>{
- assert.match(html,/even-device-key\.txt/);
+ assert.match(html,/\{\{keyFile\}\}/);
  assert.match(html,/target="_blank"/);
 });
 

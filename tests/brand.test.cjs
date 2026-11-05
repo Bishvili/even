@@ -3,7 +3,7 @@ const test=require("node:test"),assert=require("node:assert/strict"),fs=require(
 const{build,publicFiles,tokenValues}=require("../scripts/build-assets.cjs");
 const brand=JSON.parse(fs.readFileSync("brand/brand.json","utf8")),stable=JSON.parse(fs.readFileSync("brand/stable.json","utf8"));
 const rehearsal={name:"Zzyzx Labs",installName:"Zzyzx",tagline:"A tagline.",pitch:"a pitch",support:"help@example.com",inviteFrom:"a@example.com",codeFrom:"b@example.com"};
-const renamed={sync:"Zzyzx Sync",helper:"Zzyzx Helper",keyFolder:"Zzyzx"};
+const renamed={sync:"Zzyzx Sync",helper:"Zzyzx Helper",keyFolder:"Zzyzx",keyFile:"key.txt"};
 const text=file=>/\.(html|js|css|webmanifest|svg)$/.test(file);
 // Old backups say which app wrote them, so these two checks stay whatever the app is called.
 const LEGACY=/data\.app!=="Even"|backup\.app==="Even"/g;

@@ -42,7 +42,7 @@ test("records on the device are offered from sign-in, and offline opens them",()
  assert.equal(gate({...app,connectedBefore:true,online:false}),null);
  assert.equal(gate({...app,online:false}).id,"signin");
 });
-test("Even Sync asks until it has run, and Not now brings it back after three days",()=>{
+test("Health Sync asks until it has run, and Not now brings it back after three days",()=>{
  assert.equal(gate(connected).variant,"get");
  assert.equal(gate({...connected,gotShortcut:true}).variant,"run");
  assert.equal(gate({...connected,shortcutConnected:true}).variant,"again");

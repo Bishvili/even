@@ -113,7 +113,7 @@ Spacing and shape:
 - Make sign-in, connection, removing a device, sync freshness, and error recovery easy to find.
 - Do not show a device as linked before the server confirms it. Never show a device key.
 - Do not display an actionable install link until a real, verified iCloud Shortcut link exists.
-- Say plainly what's sent: Even Sync reads every calendar, events from turned-off calendars are discarded when they arrive, and titles are stored. Write privacy copy from the Data inventory in AGENTS.md.
+- Say plainly what's sent: Health Sync reads every calendar, events from turned-off calendars are discarded when they arrive, and titles are stored. Write privacy copy from the Data inventory in AGENTS.md.
 - When signed out, show only sign-in; reveal Shortcut setup after sign-in.
 
 ### Settings and privacy
@@ -126,12 +126,12 @@ Spacing and shape:
 
 Write natural product copy for a thoughtful wellness tool.
 
-- Buttons state verbs and outcomes: "Save check-in", "Run Even Sync", "Remove device".
+- Buttons state verbs and outcomes: "Save check-in", "Run Health Sync", "Remove device".
 - Error messages explain what failed, what remains safe, and the next step.
 - Empty states guide action without making someone feel judged.
 - Use specific facts, not broad reassurance. Do not claim that synced health data is equivalent to on-device storage or end-to-end encryption.
 - Avoid artificially enthusiastic praise, generic status badges, marketing superlatives, and patterned "label / tagline / adjective" layouts.
-- Use one vocabulary: sign in, connect or disconnect this iPhone, sync, Even Sync. Never say generate, device key, token, server, HTTPS or handshake, except in the security note about the key file.
+- Use one vocabulary: sign in, connect or disconnect this iPhone, sync, Health Sync. Never say generate, device key, token, server, HTTPS or handshake, except in the security note about the key file.
 - Write counts with the right singular or plural form.
 - Reserve ↗ for links that leave the app.
 

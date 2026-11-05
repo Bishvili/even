@@ -1,11 +1,11 @@
-name: Share Even Release link
+name: Share Release Helper link
 
-# Even Release starts this after it shares its own iCloud link, so Set Up Release Helper installs the current helper.
+# Release Helper starts this after it shares its own iCloud link, so Set Up Release Helper installs the current helper.
 on:
   workflow_dispatch:
     inputs:
       icloud_link:
-        description: "iCloud link to the installed Even Release"
+        description: "iCloud link to the installed Release Helper"
         type: string
         required: true
 
@@ -49,6 +49,6 @@ jobs:
             echo "The helper link is already current."
             exit 0
           fi
-          git commit -m "release: Even Release link"
+          git commit -m "release: Release Helper link"
           git pull --rebase origin main
           git push origin main

@@ -16,8 +16,8 @@ const position=(text,needle)=>{const index=text.indexOf(needle);assert.ok(index>
 const filters=Object.fromEntries([...sync.matchAll(/^#ref (\w+) (\S+)$/gm)].filter(m=>m[1]!=="onMyIPhone").map(m=>[m[1],JSON.parse(Buffer.from(m[2],"base64").toString())]));
 const rows=name=>filters[name].Value.WFActionParameterFilterTemplates;
 
-test("Even Sync keeps its stable name and has no install question",()=>{
- assert.match(sync,/^#define name Even Sync$/m);
+test("Health Sync keeps its stable name and has no install question",()=>{
+ assert.match(sync,/^#define name Health Sync$/m);
  assert.doesNotMatch(sync,/^#define name.*v\d/m);
  assert.doesNotMatch(sync,/#question|prompt\(/);
  assert.doesNotMatch(sync,/\brun\("/);
@@ -26,14 +26,14 @@ test("Even Sync keeps its stable name and has no install question",()=>{
 });
 
 test("the device key is read from its file, checked by the server, and saved only once accepted",()=>{
- assert.match(sync,/"WFGetFilePath":"even-device-key.txt","WFFileErrorIfNotFound":false,"WFShowFilePicker":false/);
- assert.equal((sync.match(/even-device-key\.txt/g)||[]).length,2);
+ assert.match(sync,/"WFGetFilePath":"device-key.txt","WFFileErrorIfNotFound":false,"WFShowFilePicker":false/);
+ assert.equal((sync.match(/device-key\.txt/g)||[]).length,2);
  assert.doesNotMatch(sync,/\b(getFolderContents|getFileFromFolder|deleteFiles)\s*\(/);
  const saved=position(sync,"@credential = getText(savedKeyFile)"),handshake=position(sync,'jsonRequest("{appAddress}/api/shortcut/hello"');
  const refused=position(sync,'if connectionStatus != "connected"'),save=position(sync,"saveDeviceKey(@credential, keyFolder)"),events=position(sync,"const todayEvents = findEvents(todayEventsFilter)");
  assert.ok(saved<handshake&&handshake<refused&&refused<save&&save<events);
  assert.equal((sync.match(/^saveDeviceKey\(/gm)||[]).length,1);
- assert.match(sync,/alert\("Open Even, go to Data, and tap Run Even Sync to reconnect/);
+ assert.match(sync,/alert\("Open the app, go to Data, and tap Run Health Sync to reconnect/);
  assert.match(sync,/Authorization": "\{@credential\}"/);
  assert.doesNotMatch(sync,/Bearer [a-f0-9]{64}/i);
 });
@@ -57,7 +57,7 @@ test("a run makes five requests, each with one version, and learns about updates
  assert.equal(new Set(versions).size,1);
  assert.doesNotMatch(sync,/\/api\/shortcut\/release\?/);
  assert.match(sync,/getValue\(handshake, "updateStatus"\)/);
- assert.match(sync,/showNotification\("A new version is ready in Even > Sync\.", "Even Sync"\)/);
+ assert.match(sync,/showNotification\("A new version is ready in the app\.", "Health Sync"\)/);
 });
 
 test("the next week's events go up together as records with full timestamps",()=>{
@@ -90,7 +90,7 @@ test("Health goes up in one request, up to 7 days of each measure with their dat
  }
  assert.doesNotMatch(sync,/\): array \{"WFContentItemFilter"/);
  assert.ok(position(sync,'@healthFields = 0')<position(sync,'if @healthFields >= 1'));
- assert.match(sync,/showNotification\("Your Health data didn't sync\. \{healthError\}", "Even Sync"\)/);
+ assert.match(sync,/showNotification\("Your Health data didn't sync\. \{healthError\}", "Health Sync"\)/);
 });
 
 test("the step total is sent as a plain number, with grouping separators removed",()=>{
@@ -122,13 +122,13 @@ test("sleep goes up as asleep intervals, with the sample count so the server kno
 test("alarms come after the uploads that matter most, and the run ends with one notification",()=>{
  const health=position(sync,'"kind": "health"'),alarms=position(sync,"const alarms = getAlarms()"),synced=position(sync,"/api/push/synced");
  assert.ok(health<alarms&&alarms<synced);
- assert.match(sync,/showNotification\("Sync finished\. Open Even to see it\.", "Even Sync"\)/);
+ assert.match(sync,/showNotification\("Sync finished\. Open the app to see it\.", "Health Sync"\)/);
  assert.doesNotMatch(sync,/Skipped \{|\bnothing\(\)/);
  assert.doesNotMatch(sync,/@(?:gmail|icloud)\.com/i);
 });
 
 test("the release helper holds no credentials, updates itself, and asks before publishing",()=>{
- assert.match(helper,/^#define name Even Release$/m);
+ assert.match(helper,/^#define name Release Helper$/m);
  assert.doesNotMatch(helper,/#question/);
  assert.match(helper,/^const helperVersion = "\d+\.\d+\.\d+"$/m);
  assert.match(helper,/\/api\/shortcut\/release-state\?helper=\{helperVersion\}/);
@@ -140,9 +140,9 @@ test("the release helper holds no credentials, updates itself, and asks before p
  assert.doesNotMatch(helper,/searchShortcuts|api\.github\.com/);
  assert.doesNotMatch(helper,/github_pat_[A-Za-z0-9]{10}|ghp_[A-Za-z0-9]{10}|Bearer [a-f0-9]{64}/i);
  assert.deepEqual(conditions(helper),[
-  'latestHelperLength >= 1','latestHelper != helperVersion','candidateText == "Even Sync"','@hasSync == 1','@helperLinkState == "share"','helperText == "Even Release"',
+  'latestHelperLength >= 1','latestHelper != helperVersion','candidateText == "Health Sync"','@hasSync == 1','@helperLinkState == "share"','helperText == "Release Helper"',
   'sharedErrorLength >= 1','@state == "install"','@state == "building"','@state == "ahead"','@state == "current"','@state != "publish"',
-  'decision != "Publish"','linkText == "Even Sync"','errorLength >= 1','@live == 0','checkState == "current"','@live == 1'
+  'decision != "Publish"','linkText == "Health Sync"','errorLength >= 1','@live == 0','checkState == "current"','@live == 1'
  ]);
  assert.ok(position(helper,'if latestHelper != helperVersion')<position(helper,'createKeyFolder(onMyIPhone)'));
  assert.ok(position(helper,"chooseFromList(")<position(helper,"/api/shortcut/publish"));

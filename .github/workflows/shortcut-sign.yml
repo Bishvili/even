@@ -1,4 +1,4 @@
-name: Build signed Even Sync
+name: Build signed Health Sync
 
 on:
   push:
@@ -50,8 +50,8 @@ jobs:
         run: |
           /tmp/cherri-compiler shortcuts/sync.cherri --debug --derive-uuids --skip-sign --output=/tmp/sync-unsigned.shortcut
           /tmp/cherri-compiler shortcuts/helper.cherri --debug --derive-uuids --skip-sign --output=/tmp/helper-unsigned.shortcut
-          PLIST="$(find . -type f -name 'Even Sync.plist' -print -quit)"
-          HELPER="$(find . -type f -name 'Even Release.plist' -print -quit)"
+          PLIST="$(find . -type f -name 'Health Sync.plist' -print -quit)"
+          HELPER="$(find . -type f -name 'Release Helper.plist' -print -quit)"
           test -n "$PLIST"
           test -n "$HELPER"
           python3 scripts/check-shortcut-conditions.py "$PLIST"
@@ -82,15 +82,15 @@ jobs:
             done
             return 1
           }
-          sign_one shortcuts/sync.cherri "$GITHUB_WORKSPACE/dist/Even Sync.shortcut"
-          sign_one shortcuts/helper.cherri "$GITHUB_WORKSPACE/dist/Even Release.shortcut"
+          sign_one shortcuts/sync.cherri "$GITHUB_WORKSPACE/dist/Health Sync.shortcut"
+          sign_one shortcuts/helper.cherri "$GITHUB_WORKSPACE/dist/Release Helper.shortcut"
 
       - name: Verify the signed files
         run: |
           python3 - <<'PY'
           from pathlib import Path
 
-          expected = ["Even Sync.shortcut", "Even Release.shortcut"]
+          expected = ["Health Sync.shortcut", "Release Helper.shortcut"]
           for name in expected:
               signed = Path("dist") / name
               data = signed.read_bytes()
@@ -114,15 +114,10 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release view shortcut-latest >/dev/null 2>&1 || gh release create shortcut-latest --title "Latest Shortcut builds" --notes "Signed builds from main." --prerelease
-          cp "dist/Even Sync.shortcut" dist/sync.shortcut
-          cp "dist/Even Release.shortcut" dist/helper.shortcut
-          cp "dist/Even Sync.shortcut" dist/Even-Sync.shortcut
-          cp "dist/Even Release.shortcut" dist/Even-Release.shortcut
+          cp "dist/Health Sync.shortcut" dist/sync.shortcut
+          cp "dist/Release Helper.shortcut" dist/helper.shortcut
           grep -oE '"shortcutVersion": "[0-9.]+"' shortcuts/sync.cherri | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' > dist/sync-version.txt
           grep -oE 'const helperVersion = "[0-9.]+"' shortcuts/helper.cherri | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' > dist/helper-version.txt
           test -s dist/sync-version.txt
           test -s dist/helper-version.txt
-          # Helpers older than 2.3.0 still look for these names. Remove once the Shortcuts are renamed.
-          cp dist/sync-version.txt dist/Even-Sync-version.txt
-          cp dist/helper-version.txt dist/Even-Release-version.txt
-          gh release upload shortcut-latest dist/sync.shortcut dist/helper.shortcut dist/sync-version.txt dist/helper-version.txt dist/Even-Sync.shortcut dist/Even-Release.shortcut dist/Even-Sync-version.txt dist/Even-Release-version.txt --clobber
+          gh release upload shortcut-latest dist/sync.shortcut dist/helper.shortcut dist/sync-version.txt dist/helper-version.txt --clobber

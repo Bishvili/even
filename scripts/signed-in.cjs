@@ -204,7 +204,7 @@ const scenarios={
  "the sync label says what a tap does":async(browser,base)=>{
   const api=fakeApi();api.status={lastDataUploadAt:new Date(Date.now()-3*3600000).toISOString()};
   await open(browser,base,saved({moodCursor:shared.cursor}),api,async({page,context})=>{
-   await until(page,()=>document.getElementById("sync-light").getAttribute("aria-label")==="Synced 3h ago. Run Even Sync.");
+   await until(page,()=>document.getElementById("sync-light").getAttribute("aria-label")==="Synced 3h ago. Run Health Sync.");
    await context.setOffline(true);
    await until(page,()=>document.getElementById("sync-light").getAttribute("aria-label").startsWith("Offline"));
    await page.click("#sync-light");
@@ -235,9 +235,9 @@ const scenarios={
    assert.equal(await page.isVisible(".bottom-nav"),false);
   },{iphone:true});
  },
- "Even Sync can be put off, and the app opens":async(browser,base)=>{
+ "Health Sync can be put off, and the app opens":async(browser,base)=>{
   await open(browser,base,saved({moodCursor:shared.cursor}),fakeApi(),async({page})=>{
-   await until(page,()=>document.getElementById("gate-title").textContent==="Add Even Sync");
+   await until(page,()=>document.getElementById("gate-title").textContent==="Add Health Sync");
    await page.click("#gate-skip");
    await until(page,()=>document.getElementById("gate").hidden&&!document.body.classList.contains("gated"));
    assert.equal(await page.isVisible("[data-mood='3']"),true);

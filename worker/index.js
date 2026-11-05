@@ -40,7 +40,7 @@ async function payload(request){
  if(type.includes("application/x-www-form-urlencoded"))return Object.fromEntries(new URLSearchParams(text));
  try{return JSON.parse(text);}catch(e){return Object.fromEntries(new URLSearchParams(text));}
 }
-const VERSION_NAME="2.43.4";
+const VERSION_NAME="2.44.0";
 function normalEmail(value){return String(value||"").trim().toLowerCase();}
 async function signinAuth(env,ctx){
  const {createAuth}=await import("./signin.mjs");
@@ -902,6 +902,10 @@ async function syncApi(request,env,path){
  }
  return error("Not found",404,"not_found");
 }
+// Installed Shortcuts use their own address, so the app's can move. It serves only what they call, with no second copy of the app.
+const SHORTCUT_PATHS=new Set(["/api/shortcut/hello","/api/ingest","/api/push/synced","/api/shortcut/release-state","/api/shortcut/publish","/api/shortcut/helper-link"]);
+const onShortcutHost=(request,env)=>!!env.SHORTCUT_ORIGIN&&new URL(request.url).origin===env.SHORTCUT_ORIGIN;
+const shortcutPath=path=>SHORTCUT_PATHS.has(path)||path.startsWith("/api/shortcut/build/");
 async function api(request,env,ctx,path){
  if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:BRAND.name,version:VERSION_NAME,sync:"email-access"});
  if(path.startsWith("/api/shortcut/build/")&&request.method==="GET")return shortcutBuild(path);
@@ -931,7 +935,9 @@ async function runCron(env){
  }catch(e){logEvent("cron_failed",{error:e?.name});}
 }
 export default {async fetch(request,env,ctx){
- try{const path=new URL(request.url).pathname;if(path.startsWith("/api/"))return await api(request,env,ctx,path);
+ try{const path=new URL(request.url).pathname;
+ if(onShortcutHost(request,env)&&!shortcutPath(path))return error("Not found",404,"not_found");
+ if(path.startsWith("/api/"))return await api(request,env,ctx,path);
  if(request.method!=="GET"&&request.method!=="HEAD")return new Response("Method not allowed",{status:405,headers:SECURITY});
  return await asset(request,env,path);
  }catch(e){logEvent("request_failed",{route:new URL(request.url).pathname,status:500,error:e?.name});return error("Request could not be processed",500,"server_error");}

@@ -54,7 +54,7 @@ test("the paper is reachable and allowed by the page's security policy",()=>{
  }
 });
 
-test("the paper and the guide name everything Even Sync uploads",()=>{
+test("the paper and the guide name everything Health Sync uploads",()=>{
  const sync=read("shortcuts/sync.cherri"),guide=read("AGENTS.md"),readme=read("README.md");
  const uploads={steps:[/"stepsRecent":/,/steps/i],resting:[/"restingHRRecent":/,/resting heart rate/i],hrv:[/"hrvRecent":/,/heart rate variability|HRV/],exercise:[/"workoutMinRecent":/,/exercise minutes/i],sleep:[/"sleepIntervals":/,/sleep/i],alarms:[/"kind": "alarms"/,/alarms/i],calendar:[/"kind": "calendar_days"/,/events/i]};
  for(const [name,[source,words]] of Object.entries(uploads)){

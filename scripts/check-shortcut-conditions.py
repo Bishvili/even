@@ -5,8 +5,8 @@ This inspects the generated property list, not the higher-level Cherri source. A
 successfully while an If action has no usable right operand, or while a field no longer refers to the
 value it should send.
 
-Usage: check-shortcut-conditions.py <Even Sync.plist>
-       check-shortcut-conditions.py --helper <Even Release.plist>
+Usage: check-shortcut-conditions.py <Health Sync.plist>
+       check-shortcut-conditions.py --helper <Release Helper.plist>
 """
 
 from __future__ import annotations
@@ -21,7 +21,7 @@ from pathlib import Path
 SYNC_TEXT = collections.Counter({"on": 7, "connected": 1, "accepted": 2, "needed": 1, "new_release": 1, "sent": 1})
 SYNC_NUMBERS = [0, 0, 0, 0] + [1] * 15 + [7] * 4
 HELPER_TEXT = collections.Counter({
-    "Even Sync": 2, "Even Release": 1, "\ufffc": 1, "share": 1, "install": 1, "building": 1,
+    "Health Sync": 2, "Release Helper": 1, "\ufffc": 1, "share": 1, "install": 1, "building": 1,
     "ahead": 1, "current": 2, "publish": 1, "Publish": 1,
 })
 HELPER_NUMBERS = [0, 1, 1, 1, 1, 1]
@@ -151,11 +151,11 @@ def check_timestamps_and_records(actions) -> None:
     if len(calendar) != 1:
         raise AssertionError(f"Expected one calendar upload, found {len(calendar)}")
     if any(fields.get("kind", {}).get("string") in ("calendar", "calendar_complete") for _, fields in sent):
-        raise AssertionError("Even Sync still sends events one at a time")
+        raise AssertionError("Health Sync still sends events one at a time")
     if not refers_to_variable(calendar[0].get("events"), "eventRecords"):
         raise AssertionError("The calendar upload does not send the event records")
     if any("heartRate" in fields for _, fields in sent):
-        raise AssertionError("Even Sync still sends average heart rate")
+        raise AssertionError("Health Sync still sends average heart rate")
     print("Calendar and sleep records keep full ISO date-times with time zones, and both days go up together.")
 
 
@@ -163,22 +163,22 @@ def check_alarms(actions) -> None:
     """Alarm details exist only as variable properties, so confirm they survive compiling."""
     identifiers = [a.get("WFWorkflowActionIdentifier") for a in actions]
     if "com.apple.mobiletimer-framework.MobileTimerIntents.MTGetAlarmsIntent" not in identifiers:
-        raise AssertionError("Even Sync does not read alarms")
+        raise AssertionError("Health Sync does not read alarms")
     compiled = plistlib.dumps({"actions": actions}).decode()
     for name in ("Time", "Repeat", "Is Enabled", "Name"):
         if f"<string>{name}</string>" not in compiled:
             raise AssertionError(f"Alarm property {name} is missing from the compiled Shortcut")
-    print("Even Sync reads alarms with their time, repeat, state and name.")
+    print("Health Sync reads alarms with their time, repeat, state and name.")
 
 
 def check_connection_and_health(document, actions) -> None:
     if document.get("WFWorkflowImportQuestions", []):
-        raise AssertionError("Even Sync cannot ask for a device key when reinstalled")
+        raise AssertionError("Health Sync cannot ask for a device key when reinstalled")
 
     named = named_outputs(actions)
     by_id = lambda identifier: [a for a in actions if a.get("WFWorkflowActionIdentifier") == identifier]
     if any("runworkflow" in a.get("WFWorkflowActionIdentifier", "") for a in actions):
-        raise AssertionError("Even Sync must not depend on another Shortcut")
+        raise AssertionError("Health Sync must not depend on another Shortcut")
 
     for finder, types in (
         ("is.workflow.actions.filter.calendarevents", [None, None]),
@@ -196,7 +196,7 @@ def check_connection_and_health(document, actions) -> None:
             if actual != expected_type:
                 raise AssertionError(f"Expected filter type {expected_type}, found {actual}")
             if any(row.get("Values", {}).get("Enumeration", {}).get("Value") == "Heart Rate" for row in rows):
-                raise AssertionError("Even Sync still reads average heart rate")
+                raise AssertionError("Health Sync still reads average heart rate")
 
     reads = [a for a in by_id("is.workflow.actions.documentpicker.open") if a.get("WFWorkflowActionParameters", {}).get("WFGetFilePath") == KEY_FILE]
     if len(reads) != 1:
@@ -206,7 +206,7 @@ def check_connection_and_health(document, actions) -> None:
     if len(folders) != 1:
         raise AssertionError(f"Expected one key folder step, found {len(folders)}")
     folder = folders[0].get("WFWorkflowActionParameters", {})
-    if folder.get("WFFilePath") != "Even" or "LocalStorage" not in json.dumps(folder.get("WFFolder", {})):
+    if folder.get("WFFilePath") != "Health Sync" or "LocalStorage" not in json.dumps(folder.get("WFFolder", {})):
         raise AssertionError("Key folder must be created in On My iPhone")
     if "keyFolder" not in json.dumps(read.get("WFFile", {})):
         raise AssertionError("Saved-key read must use the created folder")
@@ -262,13 +262,13 @@ def check_connection_and_health(document, actions) -> None:
 
 def check_helper(document, actions) -> None:
     if document.get("WFWorkflowImportQuestions", []):
-        raise AssertionError("Even Release must not ask questions when installed")
+        raise AssertionError("Release Helper must not ask questions when installed")
     urls = [json.dumps(a.get("WFWorkflowActionParameters", {}).get("WFURL", "")) for a in actions if a.get("WFWorkflowActionIdentifier") == "is.workflow.actions.downloadurl"]
     if not any("release-state?helper=" in url for url in urls):
-        raise AssertionError("Even Release does not report its own version")
+        raise AssertionError("Release Helper does not report its own version")
     if not any("build/helper" in url for url in urls):
-        raise AssertionError("Even Release cannot update itself")
-    print("Even Release reports its version and can update itself.")
+        raise AssertionError("Release Helper cannot update itself")
+    print("Release Helper reports its version and can update itself.")
 
 
 def check(plist_path: Path, helper: bool) -> None:

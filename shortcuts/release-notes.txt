@@ -1,1 +1,1 @@
-Brings in the week ahead from your calendar.
+Renamed. Install it from the app, run it once, set up your automation again, then delete the old one.

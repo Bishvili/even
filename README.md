@@ -27,7 +27,7 @@ These are exploratory **associations, not causal effects**. Overlapping events m
 
 Even has its own sign-in, using Better Auth: an emailed one-time code, or Google. Only approved emails can get in, checked on every request. Codes are stored only as hashes, and Google's tokens aren't kept.
 
-The PWA itself remains public and keeps anonymous/offline mood tracking. To sync, an approved email signs in, and the iPhone connects automatically with a revocable device key. This issues a random 256-bit bearer token, stored only as its SHA-256 hash in D1, associated with the verified email, and returned once to the device. Running Even Sync from the app passes it to the Shortcut, and the user can revoke it in the Data tab.
+The PWA itself remains public and keeps anonymous/offline mood tracking. To sync, an approved email signs in, and the iPhone connects automatically with a revocable device key. This issues a random 256-bit bearer token, stored only as its SHA-256 hash in D1, associated with the verified email, and returned once to the device. Running Health Sync from the app passes it to the Shortcut, and the user can revoke it in the Data tab.
 
 - Health and calendar data is owned by an email identity. Read/write/erase endpoints derive the owner from the authenticated device token, never from request body fields.
 - Device management requires a signed-in session. Revocation is restricted to the authenticated owner.
@@ -39,11 +39,11 @@ The PWA itself remains public and keeps anonymous/offline mood tracking. To sync
 
 Even uses an Apple Shortcut to transmit selected Calendar and Health measurements from the owner's iPhone to the Cloudflare Worker. The PWA itself does not access HealthKit or EventKit.
 
-Even Sync is a single Shortcut with no import questions, installed from the app. Running it from Even → **Data** passes the device key, and the Shortcut saves it for later runs and automations. Nobody copies a key.
+Health Sync is a single Shortcut with no import questions, installed from the app. Running it from Even → **Data** passes the device key, and the Shortcut saves it for later runs and automations. Nobody copies a key.
 
-Even Sync reads its Authorization value from the saved file and, if none has been accepted yet, shows a message pointing back to the app. It sends an authenticated `/api/shortcut/hello` handshake, then the next week's Calendar events in one upload, all Health measures in another, and alarms last, through `/api/ingest`; every upload is checked explicitly. The Data tab distinguishes a successful connection from actual accepted data and allows the user to revoke the device credential. Version checks only offer newer verified releases, and Apple requires approval before replacing an installed Shortcut.
+Health Sync reads its Authorization value from the saved file and, if none has been accepted yet, shows a message pointing back to the app. It sends an authenticated `/api/shortcut/hello` handshake, then the next week's Calendar events in one upload, all Health measures in another, and alarms last, through `/api/ingest`; every upload is checked explicitly. The Data tab distinguishes a successful connection from actual accepted data and allows the user to revoke the device credential. Version checks only offer newer verified releases, and Apple requires approval before replacing an installed Shortcut.
 
-The file `even-device-key.txt` in an `Even` folder in On My iPhone holds the private Authorization value as plain text. It is not encrypted by Even or held in the iOS Keychain, and Shortcuts granted access to it can read it; treat any untrusted Shortcuts on the device as a privacy risk. Do not share the file, and keep your private Authorization value out of public Shortcuts and source code. Deleting the Shortcut does not delete the file, so revoke the key and delete the file to disconnect a device. See [Shortcuts installation and diagnostics](shortcuts/README.md) and [Shortcut source](shortcuts/sync.cherri).
+The file `device-key.txt` in a `Health Sync` folder in On My iPhone holds the private Authorization value as plain text. It is not encrypted by Even or held in the iOS Keychain, and Shortcuts granted access to it can read it; treat any untrusted Shortcuts on the device as a privacy risk. Do not share the file, and keep your private Authorization value out of public Shortcuts and source code. Deleting the Shortcut does not delete the file, so revoke the key and delete the file to disconnect a device. See [Shortcuts installation and diagnostics](shortcuts/README.md) and [Shortcut source](shortcuts/sync.cherri).
 
 ## Deployment configuration
 
@@ -69,6 +69,6 @@ The public files are the ones listed in `SHELL` in `sw.js`. `scripts/build-asset
 
 Your first name can appear in notifications, including on your Lock Screen.
 
-Even Sync sends what you leave on in the app: steps, resting heart rate, heart rate variability, exercise minutes, sleep from recent nights (up to a month on the first sync), alarms, and the titles, times and calendar names of the next week's events. Your account also stores notification times and what each is for, your time zone, your latest check-in time, your settings and your device records. Check-ins and notes are stored in your account as readable text when you’re signed in, until you delete them or erase synced data.
+Health Sync sends what you leave on in the app: steps, resting heart rate, heart rate variability, exercise minutes, sleep from recent nights (up to a month on the first sync), alarms, and the titles, times and calendar names of the next week's events. Your account also stores notification times and what each is for, your time zone, your latest check-in time, your settings and your device records. Check-ins and notes are stored in your account as readable text when you’re signed in, until you delete them or erase synced data.
 
 No ads or external analytics scripts. Backups are JSON files, unencrypted unless you add a passphrase. If the PWA is removed or browser storage is cleared, local data can be lost. Apple Shortcut actions and automatic execution vary by iOS version. Calendar ICS timezone handling is approximate; verify imported event times.
