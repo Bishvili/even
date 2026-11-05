@@ -38,7 +38,7 @@ async function payload(request){
  if(type.includes("application/x-www-form-urlencoded"))return Object.fromEntries(new URLSearchParams(text));
  try{return JSON.parse(text);}catch(e){return Object.fromEntries(new URLSearchParams(text));}
 }
-const VERSION_NAME="2.42.1";
+const VERSION_NAME="2.42.2";
 function normalEmail(value){return String(value||"").trim().toLowerCase();}
 async function signinAuth(env,ctx){
  const {createAuth}=await import("./signin.mjs");
@@ -547,7 +547,7 @@ async function sendSyncReminder(env,key,sub,now,local){
 }
 async function sendReminders(env,now=new Date()){
  const key=pushKey(env);if(!key)return;
- const subs=await env.DB.prepare("SELECT s.endpoint,s.p256dh,s.auth,s.mode,s.sync_at,s.last_sync_prompt_day,s.stress_times,s.last_stress_at,s.schedule,s.last_schedule_at,d.last_used_at,s.time_zone,s.last_check_in_at,COALESCE((SELECT name FROM health_names n WHERE n.email=s.owner_email),(SELECT display_name FROM health_release_emails r WHERE r.email=s.owner_email),(SELECT name FROM health_users u WHERE u.email=s.owner_email)) AS person FROM health_push_subscriptions s JOIN health_devices d ON d.device_id=s.device_id WHERE d.revoked_at IS NULL AND s.p256dh IS NOT NULL AND s.times IS NOT NULL").bind().all();
+ const subs=await env.DB.prepare("SELECT s.endpoint,s.p256dh,s.auth,s.mode,s.sync_at,s.last_sync_prompt_day,s.stress_times,s.last_stress_at,s.schedule,s.last_schedule_at,d.last_used_at,s.time_zone,s.last_check_in_at,COALESCE((SELECT name FROM health_names n WHERE n.email=s.owner_email),(SELECT display_name FROM health_release_emails r WHERE r.email=s.owner_email),(SELECT name FROM health_users u WHERE u.email=s.owner_email)) AS person FROM health_push_subscriptions s JOIN health_devices d ON d.device_id=s.device_id WHERE d.revoked_at IS NULL AND s.p256dh IS NOT NULL AND s.schedule IS NOT NULL").bind().all();
  const rows=subs.results||[];
  let failed=0;
  // A failure stays with its own subscription, and a slow endpoint holds up only its small group.
