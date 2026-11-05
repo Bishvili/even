@@ -1,4 +1,4 @@
-# Even — mood patterns PWA
+# Mood patterns PWA
 
 Live app: https://health.bishvili.org
 
@@ -25,7 +25,7 @@ These are exploratory **associations, not causal effects**. Overlapping events m
 
 ## Sign-in and owner-scoped sync
 
-Even has its own sign-in, using Better Auth: an emailed one-time code, or Google. Only approved emails can get in, checked on every request. Codes are stored only as hashes, and Google's tokens aren't kept.
+The app has its own sign-in, using Better Auth: an emailed one-time code, or Google. Only approved emails can get in, checked on every request. Codes are stored only as hashes, and Google's tokens aren't kept.
 
 The PWA itself remains public and keeps anonymous/offline mood tracking. To sync, an approved email signs in, and the iPhone connects automatically with a revocable device key. This issues a random 256-bit bearer token, stored only as its SHA-256 hash in D1, associated with the verified email, and returned once to the device. Running Health Sync from the app passes it to the Shortcut, and the user can revoke it in the Data tab.
 
@@ -33,17 +33,17 @@ The PWA itself remains public and keeps anonymous/offline mood tracking. To sync
 - Device management requires a signed-in session. Revocation is restricted to the authenticated owner.
 - The shared pairing route and unscoped tables have been removed after confirming the legacy tables were empty. Cloud endpoints now require an authenticated, unrevoked, owner-specific device token.
 - Existing local mood entries are not uploaded. The PWA requires explicit consent before assigning existing local records to a verified account, and rejects a different account using the same local profile.
-- Even is not a clinical records system. HTTPS is used, but D1 records are not end-to-end encrypted. Device bearer tokens are sensitive.
+- The app is not a clinical records system. HTTPS is used, but D1 records are not end-to-end encrypted. Device bearer tokens are sensitive.
 
 ## Apple Shortcuts sync
 
-Even uses an Apple Shortcut to transmit selected Calendar and Health measurements from the owner's iPhone to the Cloudflare Worker. The PWA itself does not access HealthKit or EventKit.
+The app uses an Apple Shortcut to transmit selected Calendar and Health measurements from the owner's iPhone to the Cloudflare Worker. The PWA itself does not access HealthKit or EventKit.
 
-Health Sync is a single Shortcut with no import questions, installed from the app. Running it from Even → **Data** passes the device key, and the Shortcut saves it for later runs and automations. Nobody copies a key.
+Health Sync is a single Shortcut with no import questions, installed from the app. Running it from WebApp → **Data** passes the device key, and the Shortcut saves it for later runs and automations. Nobody copies a key.
 
 Health Sync reads its Authorization value from the saved file and, if none has been accepted yet, shows a message pointing back to the app. It sends an authenticated `/api/shortcut/hello` handshake, then the next week's Calendar events in one upload, all Health measures in another, and alarms last, through `/api/ingest`; every upload is checked explicitly. The Data tab distinguishes a successful connection from actual accepted data and allows the user to revoke the device credential. Version checks only offer newer verified releases, and Apple requires approval before replacing an installed Shortcut.
 
-The file `device-key.txt` in a `Health Sync` folder in On My iPhone holds the private Authorization value as plain text. It is not encrypted by Even or held in the iOS Keychain, and Shortcuts granted access to it can read it; treat any untrusted Shortcuts on the device as a privacy risk. Do not share the file, and keep your private Authorization value out of public Shortcuts and source code. Deleting the Shortcut does not delete the file, so revoke the key and delete the file to disconnect a device. See [Shortcuts installation and diagnostics](shortcuts/README.md) and [Shortcut source](shortcuts/sync.cherri).
+The file `device-key.txt` in a `Health Sync` folder in On My iPhone holds the private Authorization value as plain text. It is not encrypted by the app or held in the iOS Keychain, and Shortcuts granted access to it can read it; treat any untrusted Shortcuts on the device as a privacy risk. Do not share the file, and keep your private Authorization value out of public Shortcuts and source code. Deleting the Shortcut does not delete the file, so revoke the key and delete the file to disconnect a device. See [Shortcuts installation and diagnostics](shortcuts/README.md) and [Shortcut source](shortcuts/sync.cherri).
 
 ## Deployment configuration
 
