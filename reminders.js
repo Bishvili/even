@@ -10,7 +10,7 @@
  function saveSettings(){try{localStorage.setItem(SETTINGS_KEY,JSON.stringify(settings));}catch(e){}}
  function canPush(){return "serviceWorker" in navigator&&"PushManager" in window&&"Notification" in window;}
  function deviceHeaders(){return{"Authorization":"Bearer "+app.deviceToken(),"Content-Type":"application/json"};}
- function planFor(values){return globalThis.EvenCoach.smartPlan(app.personalMoods(),app.personalHealth(),values.from,values.to,values.count,new Date(),Object.assign({alarms:app.alarms()},values));}
+ function planFor(values){return globalThis.EvenCoach.smartPlan(app.personalMoods(),app.personalHealth(),values.from,values.to,values.count,new Date(),Object.assign({alarms:app.alarms(),events:app.personalEvents()},values));}
  function anticipated(values){
   return values.stressNudges===false?[]:globalThis.EvenCoach.anticipate(app.personalMoods(),app.personalEvents(),app.personalHealth(),new Date(),Object.assign({resets:app.resets(),firstName:app.firstName()},values));
  }
@@ -159,7 +159,7 @@
   var registration=await navigator.serviceWorker.ready;
   var subscription=await registration.pushManager.getSubscription()||await registration.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:keyBytes(key)});
   var stressItems=anticipated(settings);saveAnticipated(stressItems);
-  var saved=await fetch("/api/push/subscribe",{method:"POST",headers:deviceHeaders(),cache:"no-store",body:JSON.stringify({endpoint:subscription.endpoint,keys:subscription.toJSON().keys,mode:settings.mode==="smart"?"smart":"custom",times:schedule(),...fixedTimes(),schedule:globalThis.EvenCoach.weekSchedule(app.personalMoods(),app.personalHealth(),Object.assign({alarms:app.alarms(),customTimes:schedule()},settings),new Date()),weekends:settings.weekends,syncAt:settings.syncReminder?syncTime(settings):null,stressTimes:stressItems.map(function(item){return item.at;}),timeZone:Intl.DateTimeFormat().resolvedOptions().timeZone})});
+  var saved=await fetch("/api/push/subscribe",{method:"POST",headers:deviceHeaders(),cache:"no-store",body:JSON.stringify({endpoint:subscription.endpoint,keys:subscription.toJSON().keys,mode:settings.mode==="smart"?"smart":"custom",times:schedule(),...fixedTimes(),schedule:globalThis.EvenCoach.weekSchedule(app.personalMoods(),app.personalHealth(),Object.assign({alarms:app.alarms(),events:app.personalEvents(),customTimes:schedule()},settings),new Date()),weekends:settings.weekends,syncAt:settings.syncReminder?syncTime(settings):null,stressTimes:stressItems.map(function(item){return item.at;}),timeZone:Intl.DateTimeFormat().resolvedOptions().timeZone})});
   if(!saved.ok)throw Error("Couldn’t save your notifications.");
  }
  async function unsubscribe(){

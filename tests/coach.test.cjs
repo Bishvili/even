@@ -268,3 +268,42 @@ test("a nudge before an event is planned 20 minutes ahead",()=>{
  const nudge=new Date(anticipate(moods,events.concat(soon),[],now,{from:"07:00",to:"22:00",weekends:true})[0].at);
  assert.equal(nudge.getHours(),16);assert.equal(nudge.getMinutes(),40);
 });
+
+// A few fictional people, so a rule change can't silently break them.
+const dayKey=d=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+const past=n=>{const d=new Date();d.setDate(d.getDate()-n);d.setHours(12,0,0,0);return d;};
+test("someone with history is compared with their own usual, including resting heart rate",()=>{
+ const moods=[],health=[];
+ for(let i=1;i<=21;i++){const high=i%2===0;moods.push({ts:past(i).toISOString(),stress:high?5:2,score:3,tags:[]});health.push({date:dayKey(past(i)),restingHR:high?70:55,sleepHours:9.5});}
+ const rows=findings(moods,[],health,[],new Date());
+ const resting=rows.find(r=>r.id==="resting");
+ assert.match(resting.label,/above your usual/);
+ assert.equal(resting.effect.name,"higher stress");
+ assert.ok(resting.effect.consistent);
+ assert.doesNotMatch(JSON.stringify(rows),/diagnos|abnormal|at risk/i);
+});
+test("someone with no Health or calendar data still gets tag patterns, and no invented ones",()=>{
+ const moods=[];
+ for(let i=1;i<=12;i++)moods.push({ts:past(i).toISOString(),stress:i%2?5:2,tags:i%2?["Commute"]:[]});
+ assert.deepEqual(findings(moods,[],[],[],new Date()).map(r=>r.label),["Commute"]);
+});
+test("a pattern from only recent check-ins is labeled an early sign",()=>{
+ const moods=[];
+ for(let i=1;i<=24;i++)moods.push({ts:past(i).toISOString(),stress:i<=12?(i%2?5:2):(i%2?1:2),tags:i%2?["Commute"]:[]});
+ const row=findings(moods,[],[],[],new Date())[0];
+ if(row)assert.equal(row.effect.consistent,false);
+});
+test("no check-in lands during a calendar event, and tomorrow's first event sets the wind-down",()=>{
+ const now=new Date("2026-11-09T07:00:00");
+ const prefs={mode:"smart",from:"08:00",to:"22:00",count:8,weekends:true,alarms:[],windDown:true};
+ const plain=weekSchedule([],[],prefs,now).filter(i=>i.kind==="custom"&&i.at.startsWith(new Date("2026-11-09T12:00:00").toISOString().slice(0,10)));
+ assert.ok(plain.length);
+ const when=new Date(plain[0].at),start=new Date(when.getTime()-600000),end=new Date(when.getTime()+1800000);
+ const event={start:start.toISOString(),end:end.toISOString(),category:"Work"};
+ const moved=weekSchedule([],[],Object.assign({},prefs,{events:[event]}),now);
+ assert.ok(moved.filter(i=>i.kind==="custom").every(i=>{const t=Date.parse(i.at);return t<start.getTime()||t>=end.getTime();}));
+ const early={start:"2026-11-10T07:00:00",end:"2026-11-10T08:00:00",category:"Work"};
+ const withEvent=smartPlan([],[],"08:00","23:30",5,now,{events:[early]}),without=smartPlan([],[],"08:00","23:30",5,now,{});
+ assert.equal(withEvent.slots.find(s=>s.kind==="bedtime").source,"alarm");
+ assert.notEqual((without.slots.find(s=>s.kind==="bedtime")||{}).source,"alarm");
+});

@@ -103,7 +103,7 @@ Only an iPhone proves iOS behavior, and each round trip costs the owner time. Be
 **Data and privacy**
 - Fictional records live only in `state.demo`, and `state.moods`, `state.health` and `state.events` hold only personal ones. Never pass demo records through `upsertHealth` or `upsertEvent`, and only the demo view reads `state.demo`.
 - A new table or column that holds an owner's data must be covered by erase, account deletion and the cross-account tests in the same change.
-- Resting heart rate is synced, but no feature uses it yet; #37 makes it personal context. Don't add another measure without a feature that uses it.
+- Resting heart rate is personal context only, compared with the person's own usual level. Don't add another measure without a feature that uses it.
 - When what Even collects, sends or stores changes, update the **Data inventory**, Data → Help and privacy, Settings, the README's Privacy section and `whitepaper.html` in the same commit.
 
 **Analysis and copy**
@@ -215,7 +215,7 @@ What Even holds and where it goes. Write every privacy statement from this table
 | Health days and events added by hand or imported | The Data tab | Yes | No | Insights and coaching |
 | Steps, exercise minutes, sleep hours, HRV | Even Sync, from Apple Health. Sleep arrives as asleep intervals from recent nights, up to a month on the first sync | Yes | Yes | Insights and coaching. HRV: Insights only. |
 | Bedtimes | Worked out from the sleep intervals | Yes | Yes | Bedtime estimate and wind-down |
-| Resting heart rate | Even Sync, from Apple Health | Yes | Yes | Shown on the Data tab only (#37) |
+| Resting heart rate | Even Sync, from Apple Health | Yes | Yes | Insights: compared with the person's own usual level |
 | Today's and tomorrow's calendar events: title, start, end, calendar name | Even Sync reads calendars left on. Saved events from a turned-off calendar can be removed in the app; the Worker adds a category | Yes, without the calendar name | Yes, except events from turned-off calendars, which are discarded on arrival | Insights, coaching and nudges before events |
 | Calendar names and on/off state | Even Sync and the app | No | Yes | Calendar settings |
 | What Even Sync sends, and whether check-ins sync | The app | Yes | Yes | Followed by Even Sync and the Worker |

@@ -137,10 +137,15 @@
  var LONGEST_DAY=1200;
  function dayEnd(from,to){var start=minutesOf(from),end=minutesOf(to);return end>start?end:end+1440;}
  function validDay(from,to){return dayEnd(from,to)-minutesOf(from)<=LONGEST_DAY;}
+ // Tomorrow morning's first event counts like an alarm an hour before it, for planning the wind-down.
+ function morningEvents(events,today){
+  var day=new Date(new Date(today).getTime()+DAY_MS),key=localDay(day),first=(events||[]).filter(function(e){return localDay(e.start)===key;}).map(function(e){var d=new Date(e.start);return d.getHours()*60+d.getMinutes();}).filter(function(m){return m<720;}).sort(function(a,b){return a-b;})[0];
+  return first===undefined||first<60?[]:[{timeMin:first-60,days:[day.getDay()],enabled:true,label:"First event"}];
+ }
  function smartPlan(moods,health,from,to,count,today,preferences){
   var prefs=Object.assign({windDown:true,brief:false,hardest:"varies"},preferences),start=minutesOf(from),end=timeOf(dayEnd(from,to));
   function within(time){var minutes=minutesOf(time);return timeOf(minutes<start?minutes+1440:minutes);}
-  var estimate=bedtimeEstimate(health,moods,to,today),alarmBed=bedtimeForAlarm(prefs.alarms,health,today);
+  var estimate=bedtimeEstimate(health,moods,to,today),alarmBed=bedtimeForAlarm((prefs.alarms||[]).concat(morningEvents(prefs.events,today)),health,today);
   if(alarmBed){var earlier=timeOf(minutesOf(alarmBed.bed)-20);if(nightMinutes(minutesOf(earlier))<nightMinutes(minutesOf(estimate.time)))estimate={time:earlier,source:"alarm",alarmMin:alarmBed.alarm.timeMin};}
   var bedTime=within(estimate.time),bedtime=prefs.windDown&&bedTime<=end?bedTime:null;
   var wake=morningAlarm(prefs.alarms,today),morning=timeOf(wake?wake.timeMin+15:start+30),briefAt=prefs.brief&&morning<=end&&morning!==bedtime?morning:null;
@@ -156,6 +161,14 @@
   return{slots:slots,times:slots.map(function(slot){return slot.time;}),bedtimeAt:at("bedtime"),briefAt:at("brief"),hardAt:at("hard"),left:wanted.slice(count).map(function(slot){return slot.kind;})};
  }
  // The next 7 days of notifications, each with its date, so a time tied to one day's alarm stays on that day.
+ function afterEvents(at,events){
+  var moved=at;
+  (events||[]).slice().sort(function(a,b){return Date.parse(a.start)-Date.parse(b.start);}).forEach(function(e){
+   var start=Date.parse(e.start),end=Date.parse(e.end);
+   if(end-start<DAY_MS&&moved.getTime()>=start&&moved.getTime()<end)moved=new Date(end+AFTER_EVENT_MS);
+  });
+  return moved;
+ }
  function weekSchedule(moods,health,prefs,today){
   var now=new Date(today),first=new Date(now),items=[],repeating=(prefs.alarms||[]).filter(function(a){return a.days.length;});
   first.setHours(12,0,0,0);
@@ -165,6 +178,8 @@
    var slots=prefs.mode==="smart"?smartPlan(moods,health,prefs.from,prefs.to,prefs.count,noon,Object.assign({},prefs,{alarms:i===0?prefs.alarms:repeating})).slots:prefs.customTimes.map(function(time){var minutes=minutesOf(time);return{minute:prefs.mode==="repeat"&&minutes<minutesOf(prefs.from)?minutes+1440:minutes,kind:"custom"};});
    slots.forEach(function(slot){
     var at=new Date(noon);at.setHours(0,slot.minute,0,0);
+    // A check-in waits until the event it would interrupt has ended.
+    if(slot.kind==="usual"||slot.kind==="spaced")at=afterEvents(at,prefs.events);
     if(at>now)items.push({at:at.toISOString(),kind:slot.kind==="usual"||slot.kind==="spaced"?"custom":slot.kind});
    });
   }
@@ -194,7 +209,7 @@
  }
 
  // What has tended to go with feeling better. Many things are compared, so this asks for more check-ins than a stress pattern.
- var HELP_SAMPLES=5,HELP_GAP=0.4,RESET_WINDOW_MS=7200000;
+ var AFTER_EVENT_MS=300000,USUAL_DAYS=28,USUAL_MINIMUM=7,SHORT_OF_USUAL=0.5,HELP_SAMPLES=5,HELP_GAP=0.4,RESET_WINDOW_MS=7200000;
  var HELP_METRICS=[{key:"stress",direction:-1,name:"lower stress",worse:"higher stress"},{key:"score",direction:1,name:"better mood",worse:"lower mood"},{key:"energy",direction:1,name:"more energy",worse:"less energy"}];
  var HELP_ACTIVITIES=[["Exercise","moving","Fit in some movement."],["Outdoors","being outdoors","Get outside for a few minutes."],["Rest","rest","Take a real break."],["Social","time with people","Reach out to someone."],["Family","time with family","Make time for family."]];
  function helpFactors(moods,events,health,resets,now){
@@ -203,9 +218,15 @@
   function dayFactor(id,label,tip,key,met){
    return{id:id,label:label,tip:tip,test:function(m){var h=days[localDay(m.ts)];return h&&Number.isFinite(h[key])?met(h[key]):null;},done:!!days[today]&&Number.isFinite(days[today][key])&&met(days[today][key])};
   }
+  // The person's own usual level once there's enough history, and a fixed starting point until then.
+  function usual(key){
+   var cutoff=now.getTime()-USUAL_DAYS*DAY_MS,values=health.filter(function(h){return Number.isFinite(h[key])&&new Date(h.date+"T12:00:00").getTime()>=cutoff;}).map(function(h){return h[key];});
+   return values.length>=USUAL_MINIMUM?median(values):null;
+  }
+  var usualSleepHours=usual("sleepHours"),usualSteps=usual("steps"),sleepLine=usualSleepHours===null?7:usualSleepHours,stepLine=usualSteps===null?6000:usualSteps;
   var factors=[
-   dayFactor("sleep","After 7 or more hours of sleep","Protect your sleep tonight.","sleepHours",function(v){return v>=7;}),
-   dayFactor("steps","On days with 6,000 or more steps","Go for a walk.","steps",function(v){return v>=6000;}),
+   dayFactor("sleep",usualSleepHours===null?"After 7 or more hours of sleep":"After your usual sleep or more","Protect your sleep tonight.","sleepHours",function(v){return v>=sleepLine;}),
+   dayFactor("steps",usualSteps===null?"On days with 6,000 or more steps":"On days with your usual steps or more","Go for a walk.","steps",function(v){return v>=stepLine;}),
    dayFactor("workout","On days with a workout","Fit in some movement.","workoutMin",function(v){return v>0;})
   ];
   var resetTimes=(resets||[]).map(function(at){return Date.parse(at);}).filter(Number.isFinite);
@@ -222,7 +243,13 @@
   var alarms={};health.forEach(function(h){if(Number.isFinite(h.firstAlarmMin))alarms[h.date]=h.firstAlarmMin;});
   var hrv=health.map(function(h){return Number(h.hrv);}).filter(function(v,i){return health[i].hrv!=null&&Number.isFinite(v);}).sort(function(a,b){return a-b;});
   var usualHrv=hrv.length?hrv[Math.floor(hrv.length/2)]:null;
-  factors.push(dayFactor("short-sleep","After under 6.5 hours of sleep","","sleepHours",function(v){return v<SHORT_SLEEP;}));
+  factors.push(dayFactor("short-sleep",usualSleepHours===null?"After under 6.5 hours of sleep":"After less sleep than your usual","","sleepHours",function(v){return v<(usualSleepHours===null?SHORT_SLEEP:usualSleepHours-SHORT_OF_USUAL);}));
+  var usualResting=usual("restingHR");
+  // Personal context only, compared with the person's own level.
+  if(usualResting!==null)factors.push(dayFactor("resting","On days with resting heart rate above your usual","","restingHR",function(v){return v>usualResting;}));
+  var busy={};events.forEach(function(e){var length=(Date.parse(e.end)-Date.parse(e.start))/60000;if(length>0&&length<1440){var day=localDay(e.start);busy[day]=(busy[day]||0)+length;}});
+  var busyDays=Object.keys(busy).map(function(day){return busy[day];});
+  if(busyDays.length>=USUAL_MINIMUM){var usualBusy=median(busyDays);factors.push({id:"busy",label:"On days with more on your calendar than usual",test:function(m){var minutes=busy[localDay(m.ts)];return minutes===undefined?null:minutes>usualBusy;}});}
   factors.push({id:"early-alarm",label:"On days with an alarm before 7 AM",test:function(m){var at=alarms[localDay(m.ts)];return at===undefined?null:at<EARLY_ALARM;}});
   if(usualHrv!==null)factors.push(dayFactor("hrv","On days with heart rate variability above your usual","","hrv",function(v){return v>=usualHrv;}));
   var named={},categories={};HELP_ACTIVITIES.forEach(function(item){named[item[0]]=true;});
@@ -233,6 +260,15 @@
    factors.push({id:"event:"+category,label:"Around "+category.toLowerCase()+" events",test:function(m){var t=Date.parse(m.ts);return spans.some(function(s){return t>=s[0]&&t<=s[1];});}});
   });
   return factors;
+ }
+ // A pattern counts as consistent only when it points the same way in the older and newer half of its check-ins.
+ function holdsThroughout(factor,moods,metric,gap){
+  var sorted=moods.slice().sort(function(a,b){return Date.parse(a.ts)-Date.parse(b.ts);}),middle=Math.floor(sorted.length/2);
+  return [sorted.slice(0,middle),sorted.slice(middle)].every(function(half){
+   var yes=[],no=[];
+   half.forEach(function(m){var value=m[metric.key];if(!Number.isInteger(value))return;var met=factor.test(m);if(met===null||met===undefined)return;(met?yes:no).push(value);});
+   return yes.length>0&&no.length>0&&(mean(yes)-mean(no))*metric.direction*gap>0;
+  });
  }
  // Every comparison comes from here: one minimum per group and one smallest difference.
  // A positive gap means feeling better, whichever way the measure runs.
@@ -246,7 +282,7 @@
    });
    if(yes.length<HELP_SAMPLES||no.length<HELP_SAMPLES)return;
    var gap=(mean(yes)-mean(no))*metric.direction;
-   if(Math.abs(gap)>=HELP_GAP)effects.push({metric:metric.key,name:gap>0?metric.name:metric.worse,gap:gap,withCount:yes.length,withoutCount:no.length});
+   if(Math.abs(gap)>=HELP_GAP)effects.push({metric:metric.key,name:gap>0?metric.name:metric.worse,gap:gap,withCount:yes.length,withoutCount:no.length,consistent:holdsThroughout(factor,moods,metric,gap)});
   });
   return effects.sort(function(a,b){return Math.abs(b.gap)-Math.abs(a.gap);});
  }
@@ -380,9 +416,10 @@
  function element(tag,className,text){var e=document.createElement(tag);if(className)e.className=className;if(text!==undefined)e.textContent=text;return e;}
 
  function openReset(){if(!$("reset-dialog").open){$("reset-dialog").showModal();startBreathing();}}
- function saveBriefs(days,helper,name){
+ function saveBriefs(days,helper,name,hard){
   if(!("caches" in root))return;
   var body={};days.forEach(function(d){if(d.level!=="unknown")body[d.date]=d.level==="harder"?brief(d,helper,name):(name?"Good morning, "+name+". ":"")+brief(d,helper);});
+  if(hard&&days[0])body[days[0].date]=(body[days[0].date]||(name?"Good morning, "+name+".":"Good morning."))+" It’s been a hard few days. Talking to someone can help.";
   caches.open(BRIEF_CACHE).then(function(cache){return cache.put("/brief",new Response(JSON.stringify(body)));}).catch(function(){});
  }
  function renderToday(data){
@@ -391,7 +428,7 @@
   $("today-brief-text").textContent=personal.length?brief(days[0],helper,data.firstName):"Your first check-in starts your pattern.";
   $("hard-stretch").hidden=!hardStretch(personal,now);
   $("hard-stretch-text").textContent="It’s been a hard few days"+(data.firstName?", "+data.firstName:"")+". Talking to someone can help.";
-  saveBriefs(days,helper,data.firstName);
+  saveBriefs(days,helper,data.firstName,hardStretch(personal,now));
   renderActions(data,personal,now);
  }
  function renderActions(data,personal,now){
@@ -419,7 +456,7 @@
  function findingRow(r){
   var row=element("div","outlook-row"),text=element("div");
   text.appendChild(element("strong","",r.label));
-  text.appendChild(element("small","",r.effect.withCount+" check-ins with, "+r.effect.withoutCount+" without"));
+  text.appendChild(element("small","",r.effect.withCount+" check-ins with, "+r.effect.withoutCount+" without"+(r.effect.consistent?"":" · An early sign")));
   row.appendChild(text);row.appendChild(element("span","outlook-level",Math.abs(r.effect.gap).toFixed(1)+" points "+r.effect.name));
   return row;
  }
@@ -428,7 +465,7 @@
   top.textContent="";rest.textContent="";
   if(!rows.length){top.appendChild(element("p","muted","Keep checking in with stress, energy and tags. This fills in after a few weeks."));}
   rows.slice(0,3).forEach(function(r){top.appendChild(findingRow(r));});
-  if(rows.length)top.appendChild(element("p","muted","Last 8 weeks. Each needs at least 5 check-ins each way and a 0.4 point difference. A pattern in your check-ins, not proof of cause."));
+  if(rows.length)top.appendChild(element("p","muted","Last 8 weeks, through "+new Date(Math.max.apply(null,moods.map(function(m){return Date.parse(m.ts);}))).toLocaleDateString(undefined,{month:"short",day:"numeric"})+". Each needs at least 5 check-ins each way and a 0.4 point difference. A pattern in your check-ins, not proof of cause."));
   rows.slice(3).forEach(function(r){rest.appendChild(findingRow(r));});
   $("more-findings-section").hidden=rows.length<4;
  }
