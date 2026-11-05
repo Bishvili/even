@@ -293,7 +293,7 @@
     <button type="button" class="btn subtle full" id="sign-out">Sign out</button>
     <button type="button" class="btn subtle full" id="delete-account">Delete my account</button>
     </details>
-    <div class="help-note"><strong>Privacy</strong><p>Your first name can appear in notifications, including on your Lock Screen. When you’re signed in, check-ins and their notes are saved to your private account so they appear on your other devices. They’re stored as readable text. Health data, calendar events and alarms you sync are sent over an encrypted connection and stored in your private account. None of this is end-to-end encrypted. Sign-in codes are sent through our email provider. If you use Google, it tells us your email and name. You can disconnect a device or erase synced data at any time. Even is for the US and in English for now: support numbers are US only, and Even Sync reads Health in English. Send feedback in Settings opens an email with your app and sync details, and nothing else, and sends only if you send it.</p></div>
+    <div class="help-note"><strong>Privacy</strong><p>Your first name can appear in notifications, including on your Lock Screen. When you’re signed in, check-ins and their notes are saved to your private account so they appear on your other devices. They’re stored as readable text. Health data, calendar events and alarms you sync are sent over an encrypted connection and stored in your private account. None of this is end-to-end encrypted. Weekly reflections, breathing sessions, suggestions you mark done and which check-ins you answered stay on this device. Sign-in codes are sent through our email provider. If you use Google, it tells us your email and name. You can disconnect a device or erase synced data at any time. Even is for the US and in English for now: support numbers are US only, and Even Sync reads Health in English. Send feedback in Settings opens an email with your app and sync details, and nothing else, and sends only if you send it.</p></div>
    </section>
 
    <section id="view-settings" class="view" aria-labelledby="settings-title">
@@ -338,6 +338,7 @@
       <label class="calendar-row"><span>Remind me to sync</span><input type="checkbox" role="switch" id="reminder-sync"></label>
       <label class="calendar-row" id="reminder-sync-time-row"><span>Sync reminder time</span><input type="time" id="reminder-sync-time"></label>
       <label class="calendar-row"><span>Send on weekends</span><input type="checkbox" role="switch" id="reminder-weekends"></label>
+      <label class="calendar-row"><span>Move check-ins I don’t answer</span><input type="checkbox" role="switch" id="reminder-learn"></label>
       <div id="reminder-times"><div id="reminder-time-list"></div><button type="button" class="btn subtle full" id="add-reminder-time">Add a time</button></div>
      </div>
      <button type="button" class="btn subtle full" id="intake-retake">Answer the questions again</button>
@@ -376,7 +377,7 @@
      <p class="muted">Tell us what went wrong or what you’d change.</p>
      <button type="button" class="btn secondary full" id="feedback-open">Send feedback</button>
     </section>
-    <div class="card"><h2>About the insights</h2><p class="muted">Comparisons need at least 5 check-ins in each group. Mood data is subjective and gaps can skew results. Nothing here is a diagnosis or proves a cause.</p><button type="button" class="btn subtle full" id="setup-again">Go through setup again</button><a class="btn subtle full" id="whitepaper-link" href="/whitepaper.html" target="_blank" rel="noopener">How Even works <span aria-hidden="true">↗</span></a><p class="muted">Version <span id="version">2.39.0</span> · No ads or analytics</p></div>
+    <div class="card"><h2>About the insights</h2><p class="muted">Comparisons need at least 5 check-ins in each group. Mood data is subjective and gaps can skew results. Nothing here is a diagnosis or proves a cause.</p><button type="button" class="btn subtle full" id="setup-again">Go through setup again</button><a class="btn subtle full" id="whitepaper-link" href="/whitepaper.html" target="_blank" rel="noopener">How Even works <span aria-hidden="true">↗</span></a><p class="muted">Version <span id="version">2.40.0</span> · No ads or analytics</p></div>
     <div class="card"><h2>Explore a sample month</h2><p class="muted">See 28 days of fictional check-ins and events. They stay separate from your own data and are never uploaded.</p><button class="btn secondary full" id="demo-button">Load 28-day calendar demo</button><button class="btn subtle full" id="clear-demo-button">Remove demo data</button></div>
    </section>
   </main>

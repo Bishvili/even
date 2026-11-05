@@ -1,6 +1,6 @@
 (function () {
 "use strict";
-var VERSION = "2.39.0";
+var VERSION = "2.40.0";
 var STORAGE_KEY = "even:v1";
 var MOOD_NAMES = ["","Rough","Low","Okay","Good","Great"];
 var MOOD_EMOJI = ["","😣","😕","😐","🙂","😄"];
@@ -16,7 +16,7 @@ var authService = null, authEmail = "", authDevices = [], authChecking = false, 
 var currentView = "", scrollTops = {};
 var shortcutRelease = null, shortcutStatus = null, shortcutStatusLoading = false, sessionLoading = false;
 function $(id){ return document.getElementById(id); }
-function emptyState(){ return {demo:{moods:[],health:[],events:[]},moods:[],health:[],events:[],reflections:[],alarms:[],resets:[],pendingMoods:[],deletedMoods:[],moodCursor:"",lastMoodSync:null,firstName:"",name:"",token:"",deviceId:"",syncOwnerEmail:"",pairedAt:null,lastSync:null}; }
+function emptyState(){ return {demo:{moods:[],health:[],events:[]},moods:[],health:[],events:[],reflections:[],alarms:[],resets:[],tries:[],planLog:[],planMoves:[],pendingMoods:[],deletedMoods:[],moodCursor:"",lastMoodSync:null,firstName:"",name:"",token:"",deviceId:"",syncOwnerEmail:"",pairedAt:null,lastSync:null}; }
 // Fictional records live apart from personal ones. Older saved state kept them together, marked demo.
 function withDemoApart(loaded,saved){
  var demo={};
@@ -30,7 +30,7 @@ function withDemoApart(loaded,saved){
 function readState(){
  try { var raw=JSON.parse(localStorage.getItem(STORAGE_KEY)||"null"); if(!raw || typeof raw!=="object")return emptyState();
  var owner=typeof raw.syncOwnerEmail==="string"?raw.syncOwnerEmail.toLowerCase():"",deviceId=typeof raw.deviceId==="string"?raw.deviceId:"";
- var loaded={moods:Array.isArray(raw.moods)?raw.moods.slice(-LIMITS.moods):[],health:Array.isArray(raw.health)?raw.health.slice(-LIMITS.healthDays):[],events:Array.isArray(raw.events)?raw.events.slice(-LIMITS.events):[],reflections:Array.isArray(raw.reflections)?raw.reflections.slice(-200):[],alarms:Array.isArray(raw.alarms)?raw.alarms.slice(0,40):[],resets:Array.isArray(raw.resets)?raw.resets.slice(-500):[],pendingMoods:Array.isArray(raw.pendingMoods)?raw.pendingMoods:[],moodCursor:String(raw.moodCursor||""),lastMoodSync:raw.lastMoodSync||null,lastBackup:typeof raw.lastBackup==="string"?raw.lastBackup:null,deletedMoods:Array.isArray(raw.deletedMoods)?raw.deletedMoods.slice(-500):[],firstName:typeof raw.firstName==="string"?raw.firstName.slice(0,60):"",name:typeof raw.name==="string"?raw.name.slice(0,60):"",token:owner&&deviceId&&typeof raw.token==="string"?raw.token:"",deviceId:deviceId,syncOwnerEmail:owner,pairedAt:raw.pairedAt||null,lastSync:raw.lastSync||null};
+ var loaded={moods:Array.isArray(raw.moods)?raw.moods.slice(-LIMITS.moods):[],health:Array.isArray(raw.health)?raw.health.slice(-LIMITS.healthDays):[],events:Array.isArray(raw.events)?raw.events.slice(-LIMITS.events):[],reflections:Array.isArray(raw.reflections)?raw.reflections.slice(-200):[],alarms:Array.isArray(raw.alarms)?raw.alarms.slice(0,40):[],resets:Array.isArray(raw.resets)?raw.resets.slice(-500):[],tries:Array.isArray(raw.tries)?raw.tries.slice(-500):[],planLog:Array.isArray(raw.planLog)?raw.planLog.slice(-300):[],planMoves:Array.isArray(raw.planMoves)?raw.planMoves.slice(-60):[],pendingMoods:Array.isArray(raw.pendingMoods)?raw.pendingMoods:[],moodCursor:String(raw.moodCursor||""),lastMoodSync:raw.lastMoodSync||null,lastBackup:typeof raw.lastBackup==="string"?raw.lastBackup:null,deletedMoods:Array.isArray(raw.deletedMoods)?raw.deletedMoods.slice(-500):[],firstName:typeof raw.firstName==="string"?raw.firstName.slice(0,60):"",name:typeof raw.name==="string"?raw.name.slice(0,60):"",token:owner&&deviceId&&typeof raw.token==="string"?raw.token:"",deviceId:deviceId,syncOwnerEmail:owner,pairedAt:raw.pairedAt||null,lastSync:raw.lastSync||null};
  return withDemoApart(loaded,raw.demo);
  } catch(e){return emptyState();}
 }
@@ -112,7 +112,7 @@ function resetPageScroll(top){
  page.scrollTop=top;
  setTimeout(function(){page.style.overflowY="";page.scrollTop=top;},60);
 }
-function refreshCoach(){renderAlarms();if(globalThis.EvenCoach&&globalThis.EvenCoach.render)globalThis.EvenCoach.render({moods:state.moods,events:state.events,health:state.health,demo:state.demo,reflections:state.reflections,alarms:state.alarms,resets:state.resets,firstName:state.firstName,connected:!!state.token,lastUpload:shortcutStatus&&shortcutStatus.lastDataUploadAt,notifyPrefs:globalThis.EvenReminders?globalThis.EvenReminders.preferences():{from:"09:00",to:"21:00",weekends:true},scope:insightScope});}
+function refreshCoach(){renderAlarms();if(globalThis.EvenCoach&&globalThis.EvenCoach.render)globalThis.EvenCoach.render({moods:state.moods,events:state.events,health:state.health,demo:state.demo,reflections:state.reflections,alarms:state.alarms,resets:state.resets,tries:state.tries,firstName:state.firstName,connected:!!state.token,lastUpload:shortcutStatus&&shortcutStatus.lastDataUploadAt,notifyPrefs:globalThis.EvenReminders?globalThis.EvenReminders.preferences():{from:"09:00",to:"21:00",weekends:true},scope:insightScope});}
 function render(){
  $("date-label").textContent=formatPrettyDate(now());
  $("current-time").textContent=formatTime(now());
@@ -347,12 +347,15 @@ function drawTimes(moods){
 function calendarPatternSummary(moods,events){return globalThis.EvenDay.eventPairs(moods,events,CATEGORIES);}
 function signedScore(delta){return (delta>0?"+":"")+delta.toFixed(1);}
 function drawCalendar(moods,events){
- var patterns=calendarPatternSummary(moods,events);
+ var patterns=calendarPatternSummary(moods,events),close=insightScope==="demo"?"":patterns.close.map(function(r){
+  var on=globalThis.EvenReminders&&globalThis.EvenReminders.pairs().indexOf(r.category)>=0;
+  return '<div class="calendar-pair"><div class="calendar-pair-label"><strong>'+esc(r.category)+'</strong><small>'+r.count+' of 5 paired events so far</small></div><button type="button" class="small-action" data-pair="'+esc(r.category)+'" aria-pressed="'+on+'">'+(on?"Stop extra check-ins":"Add check-ins around these events")+'</button></div>';
+ }).join("");
  if(!patterns.paired.length){
-  $("calendar-insights").innerHTML=blank("Needs at least 5 events of the same type, each with a check-in within 90 minutes before it starts and after it ends.");
+  $("calendar-insights").innerHTML=close+blank("Needs at least 5 events of the same type, each with a check-in within 90 minutes before it starts and after it ends.");
   return;
  }
- $("calendar-insights").innerHTML=patterns.paired.map(function(r){
+ $("calendar-insights").innerHTML=close+patterns.paired.map(function(r){
   var cls=r.delta>0?"positive":"negative";
   return '<div class="calendar-pair"><div class="calendar-pair-label"><strong>'+esc(r.category)+'</strong><small>'+plural(r.count,"paired event","paired events")+'</small></div><div class="calendar-pair-scores">'+score(r.before)+' <span aria-hidden="true">→</span> '+score(r.after)+'</div><span class="calendar-delta '+cls+'">'+signedScore(r.delta)+'</span></div>';
  }).join("")+'<p class="calendar-explainer">These are associations, not proof of cause. Overlapping events can share check-ins.</p>';
@@ -361,7 +364,7 @@ function selectMood(n){selectedMood=n;document.querySelectorAll("[data-mood]").f
 var energyTouched=false;
 function setEnergyText(){$("energy-label").textContent=energyTouched?$("energy").value+" · "+ENERGY_NAMES[Number($("energy").value)]:"Not set";}
 function selectStress(n){selectedStress=n;document.querySelectorAll("[data-stress]").forEach(function(b){var on=Number(b.dataset.stress)===n;b.classList.toggle("selected",on);b.setAttribute("aria-pressed",String(on));});}
-// Check-ins sync only when the account has turned it on. Each device uploads what the account lacks and removes what another device deleted.
+// Each device uploads what the account lacks and removes what another device deleted.
 var moodSyncing=false,moodSyncFailed=false;
 async function moodRequest(body){
  var r=await fetch("/api/moods",{method:"POST",headers:{"Authorization":"Bearer "+state.token,"Content-Type":"application/json"},body:JSON.stringify(body),cache:"no-store"});
@@ -573,7 +576,7 @@ function openBackup(){
 // Saves through the share sheet where files can be shared, because a download shows a blank page in the installed app.
 async function saveBackup(passphrase){
  var name="even-backup-"+dateKey(now())+".json";
- var text=JSON.stringify({app:"Even",version:VERSION,account:state.syncOwnerEmail||null,exportedAt:new Date().toISOString(),moods:state.moods,health:state.health,events:state.events,reflections:state.reflections,alarms:state.alarms,resets:state.resets},null,2);
+ var text=JSON.stringify({app:"Even",version:VERSION,account:state.syncOwnerEmail||null,exportedAt:new Date().toISOString(),moods:state.moods,health:state.health,events:state.events,reflections:state.reflections,alarms:state.alarms,resets:state.resets,tries:state.tries,planLog:state.planLog,planMoves:state.planMoves},null,2);
  if(passphrase){
   try{text=await globalThis.EvenBackup.protect(text,passphrase);}
   catch(e){toast("Couldn’t save the backup. Nothing was saved.");return;}
@@ -614,7 +617,7 @@ async function applyBackup(data){
  state.moods=data.moods.slice(-LIMITS.moods).filter(function(x){return !x.demo&&Number.isInteger(x.score)&&x.score>=1&&x.score<=5&&!isNaN(new Date(x.ts).getTime());}).map(function(x){return {id:String(x.id||newId()),ts:new Date(x.ts).toISOString(),score:x.score,energy:Number.isInteger(x.energy)&&x.energy>=1&&x.energy<=5?x.energy:null,tags:Array.isArray(x.tags)?x.tags.filter(function(y){return ACTIVITY_LABELS.includes(y);}).slice(0,10):[],note:String(x.note||"").slice(0,400),stress:Number.isInteger(x.stress)&&x.stress>=1&&x.stress<=5?x.stress:undefined,demo:!!x.demo};});
  state.health=[];data.health.slice(-LIMITS.healthDays).filter(function(x){return !x.demo;}).forEach(function(x){var h=normalizeHealth(x,x.source);if(h)upsertHealth(h);});
  state.events=[];data.events.slice(-LIMITS.events).filter(function(x){return !x.demo;}).forEach(function(x){var e=normalizeEvent(x,x.source);if(e)upsertEvent(e);});
- state.alarms=kept.alarms;state.resets=kept.resets;
+ state.alarms=kept.alarms;state.resets=kept.resets;state.tries=kept.tries;state.planLog=kept.planLog;state.planMoves=kept.planMoves;
  // Everything restored uploads again, and the full list then brings back what the account holds.
  state.pendingMoods=state.moods.map(function(m){return m.id;});state.moodCursor="";
  persist();render();syncMoods();
@@ -991,6 +994,7 @@ function init(){
   ev.preventDefault();item.click();
  });
  $("sync-light").addEventListener("click",tapSyncLight);
+ $("calendar-insights").addEventListener("click",function(ev){var b=ev.target.closest("[data-pair]");if(b&&globalThis.EvenReminders){globalThis.EvenReminders.togglePair(b.dataset.pair);renderInsights();}});
  $("pull-button").addEventListener("click",function(){pull(false);});$("run-shortcut").addEventListener("click",function(event){event.preventDefault();runShortcut();});
  $("unpair-button").addEventListener("click",function(){if(state.deviceId)revokeDevice(state.deviceId);});
  $("sign-out").addEventListener("click",signOut);
@@ -1042,6 +1046,14 @@ function setup(){
  return {ios:isIOS(),installed:isInstalled(),deviceName:thisDeviceName(),online:navigator.onLine,signedIn:!!authEmail,authKnown:authKnown,email:authEmail,connected:paired,connectedBefore:!!state.pairedAt,connecting:connecting,safari:/Safari/.test(navigator.userAgent)&&!/FBAN|FBAV|Instagram|GSA|Line\//.test(navigator.userAgent),records:state.moods.length>0||state.health.length>0||state.events.length>0,otherAccount:!!(authEmail&&state.syncOwnerEmail&&authEmail!==state.syncOwnerEmail),
   shortcutUrl:shortcutLink(),shortcutConnected:!!(shortcutStatus&&shortcutStatus.installedShortcutVersion),synced:synced,checkedIn:state.moods.length>0};
 }
-globalThis.EvenApp={version:VERSION,signOut:signOut,syncStatus:function(){return shortcutStatus;},signedIn:function(){return !!authEmail;},askConfirm:askConfirm,accountPath:accountPath,refreshAuth:refreshAuth,firstName:function(){return state.firstName;},navigate:navigate,setup:setup,signIn:signIn,connect:issueDevice,isInstalled:isInstalled,isIOS:isIOS,alarms:function(){return state.alarms;},resets:function(){return state.resets;},logReset:function(){state.resets.push(new Date().toISOString());state.resets=state.resets.slice(-500);persist();},personalEvents:function(){return state.events;},personalHealth:function(){return state.health;},personalMoods:function(){return state.moods;},refresh:refresh,runShortcut:runShortcut,refreshCoach:refreshCoach,addReflection:function(r){state.reflections.push(r);if(persist())render();},toast:toast,formatTime:formatTime,deviceToken:function(){return state.token;}};
+function logTry(id){state.tries.push({id:id,at:new Date().toISOString()});state.tries=state.tries.slice(-500);if(persist())render();toast("Marked done.");}
+// Today's planned check-ins, so times that go unanswered can move. Kept on this device.
+function logPlan(date,minutes,moves){
+ minutes.forEach(function(minute){if(!state.planLog.some(function(item){return item.date===date&&item.minute===minute;}))state.planLog.push({date:date,minute:minute});});
+ state.planLog=state.planLog.slice(-300);
+ state.planMoves=state.planMoves.concat(moves).slice(-60);
+ persist();
+}
+globalThis.EvenApp={logTry:logTry,logPlan:logPlan,planLog:function(){return state.planLog;},planMoves:function(){return state.planMoves;},tries:function(){return state.tries;},version:VERSION,signOut:signOut,syncStatus:function(){return shortcutStatus;},signedIn:function(){return !!authEmail;},askConfirm:askConfirm,accountPath:accountPath,refreshAuth:refreshAuth,firstName:function(){return state.firstName;},navigate:navigate,setup:setup,signIn:signIn,connect:issueDevice,isInstalled:isInstalled,isIOS:isIOS,alarms:function(){return state.alarms;},resets:function(){return state.resets;},logReset:function(){state.resets.push(new Date().toISOString());state.resets=state.resets.slice(-500);persist();},personalEvents:function(){return state.events;},personalHealth:function(){return state.health;},personalMoods:function(){return state.moods;},refresh:refresh,runShortcut:runShortcut,refreshCoach:refreshCoach,addReflection:function(r){state.reflections.push(r);if(persist())render();},toast:toast,formatTime:formatTime,deviceToken:function(){return state.token;}};
 init();
 })();

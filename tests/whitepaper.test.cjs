@@ -28,6 +28,8 @@ const RULES=[
  [day,/from:660,nudge:630/,/midday from 11 AM to 2 PM/],
  [day,/from:840,nudge:810/,/afternoon from 2 PM to 5 PM/],
  [day,/from:1020,nudge:990/,/evening from 5 PM to 5 AM/],
+ [day,/learnMinimumPlanned:8,learnAnsweredShare:0\.25/,/planned at least 8 times with under a quarter answered/],
+ [day,/stretchGapMin:10,stretchFloorMin:120/,/gaps of 10 minutes or less, lasting at least 120 minutes/],
  [worker,/SYNC_STALE_MS=72000000\b/,/nothing has synced in 20 hours/]
 ];
 test("the paper states the rules the app applies",()=>{

@@ -5,12 +5,12 @@
  var SETTINGS_KEY="even-reminder";
  var blockedReason="",syncError="",settings=readSettings();
 
- function defaults(){return{on:false,mode:"smart",from:"09:00",to:"21:00",count:5,times:["09:00"],every:2,hardest:"varies",brief:true,windDown:true,weekends:true,stressNudges:true,syncReminder:true,syncAt:"",intakeDone:false,intakeDismissed:false};}
+ function defaults(){return{on:false,mode:"smart",from:"09:00",to:"21:00",count:5,times:["09:00"],every:2,hardest:"varies",brief:true,windDown:true,weekends:true,learnTimes:true,pairs:[],stressNudges:true,syncReminder:true,syncAt:"",intakeDone:false,intakeDismissed:false};}
  function readSettings(){try{return Object.assign(defaults(),JSON.parse(localStorage.getItem(SETTINGS_KEY)||"{}"));}catch(e){return defaults();}}
  function saveSettings(){try{localStorage.setItem(SETTINGS_KEY,JSON.stringify(settings));}catch(e){/* Storage is full or blocked; settings last until the app closes. */}}
  function canPush(){return "serviceWorker" in navigator&&"PushManager" in window&&"Notification" in window;}
  function deviceHeaders(){return{"Authorization":"Bearer "+app.deviceToken(),"Content-Type":"application/json"};}
- function planFor(values){return globalThis.EvenCoach.smartPlan(app.personalMoods(),app.personalHealth(),values.from,values.to,values.count,new Date(),Object.assign({alarms:app.alarms(),events:app.personalEvents()},values));}
+ function planFor(values){return globalThis.EvenCoach.smartPlan(app.personalMoods(),app.personalHealth(),values.from,values.to,values.count,new Date(),Object.assign({alarms:app.alarms(),events:app.personalEvents(),moves:values.learnTimes===false?[]:app.planMoves()},values));}
  function anticipated(values){
   return values.stressNudges===false?[]:globalThis.EvenCoach.anticipate(app.personalMoods(),app.personalEvents(),app.personalHealth(),new Date(),Object.assign({resets:app.resets(),firstName:app.firstName()},values));
  }
@@ -25,6 +25,14 @@
   if(!("caches" in window)||!items.length)return;
   var body={};items.forEach(function(item){body[item.at]=item.message;});
   caches.open("even-brief").then(function(cache){return cache.put("/anticipate",new Response(JSON.stringify(body)));}).catch(function(){});
+ }
+ // Logs today's check-in times, works out any that should move, and returns every move still in force.
+ function learnFromToday(){
+  if(settings.learnTimes===false||settings.mode!=="smart")return [];
+  var now=new Date(),date=now.getFullYear()+"-"+String(now.getMonth()+1).padStart(2,"0")+"-"+String(now.getDate()).padStart(2,"0");
+  var minutes=planFor(settings).slots.filter(function(slot){return slot.kind==="usual"||slot.kind==="spaced";}).map(function(slot){return slot.minute;});
+  app.logPlan(date,minutes,globalThis.EvenCoach.learnedMoves(app.planLog(),app.planMoves(),app.personalMoods(),now,settings.from,settings.to));
+  return app.planMoves();
  }
  function smartPlan(){return planFor(settings);}
  function schedule(){
@@ -49,7 +57,7 @@
  function renderReminder(){
   var toggle=$("reminder-toggle"),note=$("reminder-note");
   blockedReason=blocked();toggle.disabled=false;toggle.checked=!blockedReason&&settings.on;
-  note.textContent=blockedReason||syncError||"Your notification times and what each is for, your time zone and your latest check-in time are saved to your account. What you write stays here unless you sync check-ins.";
+  note.textContent=blockedReason||syncError||"Your notification times and what each is for, your time zone and your latest check-in time are saved to your account. Your check-ins and notes sync to your account too.";
   renderSchedule();
   if(globalThis.EvenOnboarding)globalThis.EvenOnboarding.render();
  }
@@ -63,6 +71,8 @@
   if(slot.kind==="times")return["Check-in","A time you set"];
   if(slot.kind==="repeat")return["Check-in","Every "+settings.every+(settings.every===1?" hour":" hours")];
   if(slot.kind==="hard")return["Check-in","You said "+PARTS[slot.part]+" are often harder"];
+  if(slot.kind==="pair")return["Check-in",(slot.side==="before"?"Before":"After")+": to compare how you feel around "+slot.category.toLowerCase()+" events ("+slot.count+" of 5 so far)"];
+  if(slot.learned){var later=slot.learned.to>slot.learned.from,gap=Math.abs(slot.learned.to-slot.learned.from);return["Check-in","Moved "+gap+" minutes "+(later?"later":"earlier")+": check-ins at "+minuteLabel(slot.learned.from%1440)+" went unanswered"];}
   return["Check-in",slot.moved?"Moved to after an event":slot.kind==="usual"?"Around when you often check in":"Spaced across your day"];
  }
  function renderSlots(box,slots){
@@ -99,7 +109,7 @@
   items.forEach(function(item){var at=new Date(item.at),today=at.toDateString()===new Date().toDateString();row((today?"":at.toLocaleDateString([],{weekday:"short"})+" ")+app.formatTime(at),"Before a harder moment",item.message);});
   if(settings.stressNudges&&!items.length)row("—","Before a harder moment","Nothing ahead yet. These appear once your check-ins show a pattern.");
   $("reminder-sync-time-row").hidden=!settings.syncReminder;
-  $("reminder-stress").checked=settings.stressNudges;$("reminder-sync").checked=settings.syncReminder;$("reminder-sync-time").value=syncTime(settings);
+  $("reminder-learn").checked=settings.learnTimes;$("reminder-stress").checked=settings.stressNudges;$("reminder-sync").checked=settings.syncReminder;$("reminder-sync-time").value=syncTime(settings);
  }
  function renderSchedule(){
   document.querySelectorAll("[data-reminder-mode]").forEach(function(b){var on=b.dataset.reminderMode===settings.mode;b.classList.toggle("selected",on);b.setAttribute("aria-pressed",String(on));});
@@ -155,7 +165,7 @@
   var registration=await navigator.serviceWorker.ready;
   var subscription=await registration.pushManager.getSubscription()||await registration.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:keyBytes(key)});
   var stressItems=anticipated(settings);saveAnticipated(stressItems);
-  var saved=await fetch("/api/push/subscribe",{method:"POST",headers:deviceHeaders(),cache:"no-store",body:JSON.stringify({endpoint:subscription.endpoint,keys:subscription.toJSON().keys,mode:settings.mode==="smart"?"smart":"custom",schedule:globalThis.EvenCoach.weekSchedule(app.personalMoods(),app.personalHealth(),Object.assign({alarms:app.alarms(),events:app.personalEvents(),customTimes:schedule()},settings),new Date()),syncAt:settings.syncReminder?syncTime(settings):null,stressTimes:stressItems.map(function(item){return item.at;}),timeZone:Intl.DateTimeFormat().resolvedOptions().timeZone})});
+  var saved=await fetch("/api/push/subscribe",{method:"POST",headers:deviceHeaders(),cache:"no-store",body:JSON.stringify({endpoint:subscription.endpoint,keys:subscription.toJSON().keys,mode:settings.mode==="smart"?"smart":"custom",schedule:globalThis.EvenCoach.weekSchedule(app.personalMoods(),app.personalHealth(),Object.assign({alarms:app.alarms(),events:app.personalEvents(),customTimes:schedule(),moves:learnFromToday()},settings),new Date()),syncAt:settings.syncReminder?syncTime(settings):null,stressTimes:stressItems.map(function(item){return item.at;}),timeZone:Intl.DateTimeFormat().resolvedOptions().timeZone})});
   if(!saved.ok)throw Error("Couldn’t save your notifications.");
  }
  async function unsubscribe(){
@@ -200,12 +210,12 @@
  $("reminder-every").addEventListener("change",function(){settings.every=Number(this.value);scheduleChanged();});
  document.querySelectorAll("[data-reminder-mode]").forEach(function(b){b.addEventListener("click",function(){settings.mode=b.dataset.reminderMode;renderSchedule();scheduleChanged();});});
  $("reminder-hardest").addEventListener("change",function(){settings.hardest=this.value;scheduleChanged();});
- [["brief","brief"],["wind-down","windDown"],["weekends","weekends"],["stress","stressNudges"],["sync","syncReminder"]].forEach(function(item){$("reminder-"+item[0]).addEventListener("change",function(){settings[item[1]]=this.checked;scheduleChanged();});});
+ [["brief","brief"],["wind-down","windDown"],["weekends","weekends"],["learn","learnTimes"],["stress","stressNudges"],["sync","syncReminder"]].forEach(function(item){$("reminder-"+item[0]).addEventListener("change",function(){settings[item[1]]=this.checked;scheduleChanged();});});
  $("reminder-sync-time").addEventListener("blur",function(){if(this.value&&this.value!==syncTime(settings)){settings.syncAt=this.value;scheduleChanged();}});
  function dismissIntake(){settings.intakeDismissed=true;saveSettings();renderReminder();}
  $("intake-retake").addEventListener("click",function(){openIntake("Cancel",function(){});});
  $("add-reminder-time").addEventListener("click",function(){if(settings.times.length>=12)return;settings.times.push("12:00");renderSchedule();scheduleChanged();});
- globalThis.EvenReminders={forget:function(){if(canPush())navigator.serviceWorker.ready.then(function(r){return r.pushManager.getSubscription();}).then(function(s){if(s)return s.unsubscribe();}).catch(function(){});settings=defaults();lastSent=0;renderReminder();},notificationsOpen:notificationsOpen,reopenIntake:function(){settings.intakeDismissed=false;saveSettings();renderReminder();},turnOff:function(){settings.on=false;saveSettings();if(canPush())navigator.serviceWorker.ready.then(function(r){return r.pushManager.getSubscription();}).then(function(s){if(s)return s.unsubscribe();}).catch(function(){});renderReminder();},checkedIn:checkedIn,dataChanged:function(){renderPlan();syncReminder();},preferences:function(){return settings;},notificationStep:notificationStep,startIntake:function(){openIntake("Not now",dismissIntake);},dismissIntake:dismissIntake};
+ globalThis.EvenReminders={pairs:function(){return settings.pairs;},togglePair:function(category){settings.pairs=settings.pairs.indexOf(category)>=0?settings.pairs.filter(function(c){return c!==category;}):settings.pairs.concat([category]);scheduleChanged();},forget:function(){if(canPush())navigator.serviceWorker.ready.then(function(r){return r.pushManager.getSubscription();}).then(function(s){if(s)return s.unsubscribe();}).catch(function(){});settings=defaults();lastSent=0;renderReminder();},notificationsOpen:notificationsOpen,reopenIntake:function(){settings.intakeDismissed=false;saveSettings();renderReminder();},turnOff:function(){settings.on=false;saveSettings();if(canPush())navigator.serviceWorker.ready.then(function(r){return r.pushManager.getSubscription();}).then(function(s){if(s)return s.unsubscribe();}).catch(function(){});renderReminder();},checkedIn:checkedIn,dataChanged:function(){renderPlan();syncReminder();},preferences:function(){return settings;},notificationStep:notificationStep,startIntake:function(){openIntake("Not now",dismissIntake);},dismissIntake:dismissIntake};
  app.refreshCoach();
  document.addEventListener("visibilitychange",function(){if(!document.hidden){renderReminder();if(Date.now()-lastSent>6*3600000)syncReminder();}});
  renderReminder();

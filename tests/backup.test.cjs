@@ -29,3 +29,7 @@ test("restore leaves out what it can't trust, and says how much",()=>{
  assert.equal(kept.reflections.length,1);assert.equal(kept.alarms.length,1);assert.equal(kept.resets.length,1);assert.equal(kept.skipped,6);
  assert.equal(globalThis.EvenBackup.clean({}).skipped,0);
 });
+test("restore keeps what's been learned and leaves out damaged entries",()=>{
+ const kept=globalThis.EvenBackup.clean({tries:[{id:"steps",at:"2026-11-01T00:00:00Z"},{id:1}],planLog:[{date:"2026-11-01",minute:540},{date:"x",minute:1}],planMoves:[{from:540,to:570,at:"2026-11-01T00:00:00Z"},{from:"a"}]});
+ assert.equal(kept.tries.length,1);assert.equal(kept.planLog.length,1);assert.equal(kept.planMoves.length,1);assert.equal(kept.skipped,3);
+});

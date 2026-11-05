@@ -216,7 +216,7 @@ What Even holds and where it goes. Write every privacy statement from this table
 | Data | Comes from | On the iPhone | In the account | Used for |
 | --- | --- | --- | --- | --- |
 | Mood, optional stress and energy, tags, notes | Check-ins | Yes | Yes when signed in, as readable text. A deleted check-in leaves only its ID, so other devices can remove it. | Insights, coaching and notification times. Notes are only displayed. |
-| Weekly reflections and breathing sessions | The app | Yes | No | Insights. Breathing also feeds what tends to help. |
+| Weekly reflections, breathing sessions, suggestions marked done, and which planned check-ins were answered | The app | Yes | No | Insights. Breathing and suggestions marked done also feed what tends to help. Unanswered times move check-ins. |
 | Health days and events added by hand or imported | The Data tab | Yes | No | Insights and coaching |
 | Steps, exercise minutes, sleep hours, HRV | Even Sync, from Apple Health, up to the last 7 days each run. Sleep arrives as asleep intervals from recent nights, up to a month on the first sync | Yes | Yes | Insights and coaching. HRV: Insights only. |
 | Bedtimes | Worked out from the sleep intervals | Yes | Yes | Bedtime estimate and wind-down |

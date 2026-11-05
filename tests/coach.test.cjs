@@ -385,3 +385,51 @@ test("building the day model stays fast at the largest saved history",()=>{
  Day.build({health,events},TODAY);
  assert.ok(Number(process.hrtime.bigint()-started)/1e6<100);
 });
+const {learnedMoves}=globalThis.EvenCoach;
+const minuteAt=require("./people.cjs").at;
+test("a suggestion marked done feeds what tends to help under the same rules, and outranks a correlation",()=>{
+ const moods=[],tries=[],health=[];
+ for(let i=0;i<24;i++){
+  const tried=i%2===0;
+  if(tried)tries.push({id:"steps",at:at(i,10)});
+  moods.push({id:"t"+i,ts:at(i,11),score:tried?5:3,stress:tried?1:4,tags:[]});
+  health.push({date:day(i),source:"shortcut",steps:i%2?2000:9000});
+ }
+ const rows=whatHelps(moods,[],health,[],TODAY,tries);
+ const tried=rows.findIndex(r=>r.id==="tried:steps"),plain=rows.findIndex(r=>r.id==="steps");
+ assert.ok(tried>=0);assert.ok(plain<0||tried<plain);
+ assert.ok(whatHelps(moods,[],health,[],TODAY,tries.slice(0,3)).every(r=>r.id!=="tried:steps"));
+});
+test("a time moves only after 8 planned with under a quarter answered",()=>{
+ const log=[],moods=[];
+ for(let i=1;i<=21;i++)log.push({date:day(i),minute:540});
+ assert.deepEqual(learnedMoves(log.slice(0,7),[],moods,TODAY,"08:00","22:00"),[]);
+ const moved=learnedMoves(log,[],moods,TODAY,"08:00","22:00");
+ assert.equal(moved.length,1);assert.equal(moved[0].from,540);assert.equal(moved[0].to,570);
+ assert.deepEqual(learnedMoves(log,moved,moods,TODAY,"08:00","22:00"),[]);
+ const answered=[];for(let i=1;i<=21;i++)answered.push({ts:minuteAt(i,9,20),score:3});
+ assert.deepEqual(learnedMoves(log,[],answered,TODAY,"08:00","22:00"),[]);
+ const usual=[];for(let i=1;i<=6;i++)usual.push({ts:minuteAt(i,8,30),score:3});
+ assert.equal(learnedMoves(log,[],usual,TODAY,"08:00","22:00")[0].to,510);
+});
+test("a moved time stays in the plan with its reason, and bedtime and brief never move",()=>{
+ const moves=[{from:600,to:630,at:at(1)}];
+ const plain=smartPlan([],[],"08:00","22:00",5,TODAY,{brief:true,windDown:true});
+ const planned=plain.slots.find(s=>(s.kind==="usual"||s.kind==="spaced"));
+ const bucket=Math.floor(planned.minute/30)*30;
+ const plan=smartPlan([],[],"08:00","22:00",5,TODAY,{brief:true,windDown:true,moves:[{...moves[0],from:bucket,to:bucket+30}]});
+ const moved=plan.slots.find(s=>s.learned);
+ assert.ok(moved);assert.equal(moved.learned.to-moved.learned.from,30);
+ for(const kind of ["bedtime","brief"])assert.equal(plan.slots.find(s=>s.kind===kind).minute,plain.slots.find(s=>s.kind===kind).minute);
+});
+test("paired check-ins appear only after the opt-in, at most one pair a day, and keep the total",()=>{
+ const events=[],moods=[];
+ for(let i=1;i<=3;i++){events.push(span(i,11,60,"Exercise"));moods.push({ts:minuteAt(i,10,30),score:3},{ts:minuteAt(i,12,20),score:4});}
+ events.push(span(0,15,60,"Exercise"),span(0,18,30,"Exercise"));
+ const today=new Date(TODAY);today.setHours(6);
+ const without=smartPlan(moods,[],"08:00","22:00",5,today,{events,brief:false,windDown:false});
+ assert.equal(without.slots.filter(s=>s.kind==="pair").length,0);
+ const plan=smartPlan(moods,[],"08:00","22:00",5,today,{events,brief:false,windDown:false,pairs:["Exercise"]});
+ assert.equal(plan.slots.filter(s=>s.kind==="pair").length,2);
+ assert.equal(plan.slots.length,without.slots.length);
+});
