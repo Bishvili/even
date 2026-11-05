@@ -65,7 +65,7 @@ Spacing and shape:
 - Do not disable pinch zoom, text selection, long-press, or scrolling to force an app-like appearance.
 - Use descriptive labels, stable navigation, and predictable back/forward behavior. Do not hide an essential feature behind gestures.
 - The active tab carries `aria-current="page"`, focus moves to the new view's title, and each tab keeps its scroll position. Tapping the active tab scrolls to the top.
-- The owner has decided on four tabs: Check in, Insights, Data and Settings. #27 merges today's Sources and Sync into Data. Don't add a tab.
+- There are four tabs: Check in, Insights, Data and Settings. Don't add a tab.
 - Show one overlay at a time. Toasts and the update banner never cover the primary action.
 - Confirm destructive actions with an in-app sheet that names whose data and which data. Native `confirm()` shows the site address as its title; #27 adds the sheet, so use it once it exists.
 
@@ -107,7 +107,7 @@ Spacing and shape:
 - Set chart sizes with SVG attributes or `element.style`, never a `style=` attribute in markup, which the security policy blocks.
 - Show each subject once. When two comparisons cover the same thing, such as a tag and a calendar category, lead with the stronger one and put the other in its detail.
 
-### Sources and sync
+### Data
 - Distinguish device-local information from synced records.
 - Explain precisely what Apple permissions are requested and how the Shortcut operates.
 - Make sign-in, connection, removing a device, sync freshness, and error recovery easy to find.

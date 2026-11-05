@@ -7,7 +7,7 @@ Even Sync is listed at [#26978](https://routinehub.co/shortcut/26978/). A new ve
 1. Save a RoutineHub developer API key as the `ROUTINEHUB_API_KEY` repository secret.
 2. Save a fine-grained GitHub token limited to this repository, with **Actions: Read and write**, as the `GITHUB_API_KEY` Worker secret. The Worker uses it to start the publishing and helper-link workflows.
 3. Add the publisher's email to the `even_release_emails` D1 table. Their account must also be approved for sign-in.
-4. On that iPhone, sign in to Even → **Sync**, which connects it automatically. In **Settings** → **Developer tools**, tap **Set Up Release Helper**, install Even Sync, and tap **Run Even Sync** once so the key is saved. No key is ever copied, and the helper holds no credentials.
+4. On that iPhone, sign in to Even → **Data**, which connects it automatically. In **Settings** → **Developer tools**, tap **Set Up Release Helper**, install Even Sync, and tap **Run Even Sync** once so the key is saved. No key is ever copied, and the helper holds no credentials.
 
 ## Publish a version
 

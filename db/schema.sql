@@ -16,7 +16,8 @@ CREATE TABLE IF NOT EXISTS even_devices (
   last_seen_at TEXT,
   last_error_code TEXT,
   shortcut_version TEXT,
-  revoked_at TEXT
+  revoked_at TEXT,
+  last_upload_counts TEXT
 );
 CREATE INDEX IF NOT EXISTS even_devices_owner ON even_devices(owner_email, revoked_at);
 CREATE TABLE IF NOT EXISTS even_health_metrics (

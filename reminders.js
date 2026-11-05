@@ -36,7 +36,7 @@
 
  function blocked(){
   if(!canPush())return app.isIOS()&&!app.isInstalled()?"Add Even to your Home Screen to turn on notifications.":"This browser can’t show notifications.";
-  if(!app.deviceToken())return "Sign in under Sync to turn on notifications.";
+  if(!app.deviceToken())return "Sign in under Data to turn on notifications.";
   if(Notification.permission==="denied")return "Notifications are off. Turn them on in Settings.";
   return "";
  }
@@ -168,9 +168,10 @@
   await subscription.unsubscribe();
  }
  // Keep the saved reminder in step with this device's push credentials.
+ var lastSent=0;
  function syncReminder(){
   if(!settings.on||!canPush()||!app.deviceToken()||Notification.permission!=="granted"||!schedule().length)return;
-  subscribe().then(function(){if(syncError){syncError="";renderReminder();}}).catch(function(e){syncError=e.message||"Couldn’t update your notifications.";renderReminder();});
+  subscribe().then(function(){lastSent=Date.now();if(syncError){syncError="";renderReminder();}}).catch(function(e){syncError=e.message||"Couldn’t update your notifications.";renderReminder();});
  }
  function checkedIn(){
   if(!settings.on||!app.deviceToken())return;
@@ -209,7 +210,7 @@
  $("add-reminder-time").addEventListener("click",function(){if(settings.times.length>=12)return;settings.times.push("12:00");renderSchedule();scheduleChanged();});
  globalThis.EvenReminders={turnOff:function(){settings.on=false;saveSettings();if(canPush())navigator.serviceWorker.ready.then(function(r){return r.pushManager.getSubscription();}).then(function(s){if(s)return s.unsubscribe();}).catch(function(){});renderReminder();},checkedIn:checkedIn,dataChanged:function(){renderPlan();syncReminder();},preferences:function(){return settings;},notificationStep:notificationStep,startIntake:function(){openIntake("Not now",dismissIntake);},dismissIntake:dismissIntake};
  app.refreshCoach();
- document.addEventListener("visibilitychange",function(){if(!document.hidden){renderReminder();syncReminder();}});
+ document.addEventListener("visibilitychange",function(){if(!document.hidden){renderReminder();if(Date.now()-lastSent>6*3600000)syncReminder();}});
  renderReminder();
  syncReminder();
 })();

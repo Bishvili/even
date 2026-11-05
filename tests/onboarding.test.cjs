@@ -60,7 +60,7 @@ test("other browsers skip the iPhone-only steps and count only what applies",()=
 
 test("the invitation, the setup card and Sync name the same steps",()=>{
  const worker=read("worker/index.js"),invite=worker.slice(worker.indexOf("async function sendInvite"),worker.indexOf("async function authApi"));
- const card=read("onboarding.js"),html=read("index.html"),sync=html.slice(html.indexOf('id="view-sync"'),html.indexOf('id="view-settings"'));
+ const card=read("onboarding.js"),html=read("index.html"),sync=html.slice(html.indexOf('id="view-data"'),html.indexOf('id="view-settings"'));
  for(const words of ["Share (or ••• and then Share), then Add to Home Screen","one-time code"]){
   assert.ok(invite.includes(words),"invitation: "+words);
   assert.ok(card.includes(words),"card: "+words);

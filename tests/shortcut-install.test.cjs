@@ -22,7 +22,7 @@ function setup({verified=true,reportedVersion=null}={}){
   if(!elements.has(id)){
    const attrs=new Map();
    elements.set(id,{
-    disabled:false,hidden:false,textContent:"",innerHTML:"",value:"",href:"",dataset:{},
+    disabled:false,hidden:false,textContent:"",innerHTML:"",value:"",href:"",dataset:{},appendChild(){},
     setAttribute(k,v){attrs.set(k,String(v));},
     removeAttribute(k){attrs.delete(k);},
     getAttribute(k){return attrs.has(k)?attrs.get(k):null;},
@@ -31,19 +31,20 @@ function setup({verified=true,reportedVersion=null}={}){
   }
   return elements.get(id);
  }
- const document={getElementById:element,querySelectorAll(){return[];}};
+ const created=()=>({classList:{toggle(){},add(){},remove(){}},setAttribute(){},appendChild(){},addEventListener(){}});
+ const document={getElementById:element,querySelectorAll(){return[];},createElement:created};
  const initial={moods:[],health:[],events:[],token,syncOwnerEmail:email,deviceId};
  const localStorage={getItem(){return JSON.stringify(storageWrites.at(-1)||initial);},setItem(k,v){storageWrites.push(JSON.parse(v));}};
  const fetch=async(endpoint,options)=>{
-  if(endpoint==="/api/shortcut/release")return {ok:true,async json(){return {ok:true,release:{version,url:icloudUrl,verified},automaticReplacement:false};}};
+  if(endpoint==="/api/session")return {ok:true,status:200,async json(){return {ok:true,status:{credentialValid:true,deviceId,lastDataUploadAt:null,healthMetrics:0,calendarEvents:0},release:{version,url:icloudUrl,verified},calendars:[],settings:{},moods:{email,enabled:false,moods:[],deleted:[]}};}};
   if(endpoint==="/api/sync/status")return {ok:true,status:200,async json(){return {ok:true,credentialValid:true,deviceId,lastDataUploadAt:null,lastAttemptAt:reportedVersion?"2026-11-01T17:00:00Z":null,lastErrorCode:null,healthMetrics:0,calendarEvents:0,installedShortcutVersion:reportedVersion};}};
   throw Error("Unexpected request "+endpoint);
  };
- const code=source.replace(/init\(\);\s*\}\)\(\);\s*$/,'globalThis.__appTest={renderSync,loadShortcutRelease,checkShortcutUpload,setAuth:(e,d)=>{authEmail=e;authDevices=d;},getState:()=>state};})();');
+ const code=source.replace(/init\(\);\s*\}\)\(\);\s*$/,'globalThis.__appTest={renderSync,loadSession,checkShortcutUpload,setAuth:(e,d)=>{authEmail=e;authDevices=d;},getState:()=>state};})();');
  assert.notEqual(code,source,"App boot marker not found");
  const sandbox={
   document,localStorage,fetch,navigator:{onLine:true},location:{origin:base},window:{location:{assign(u){urls.push(u);}}},
-  URL,Date,console,setTimeout,clearTimeout,confirm(){return true;}
+  URL,Date,console,setTimeout,clearTimeout
  };
  vm.runInNewContext(code,sandbox,{filename:"app.js",timeout:3000});
  return {app:sandbox.__appTest,element,token,deviceId,email,urls,storageWrites};
@@ -52,7 +53,7 @@ function setup({verified=true,reportedVersion=null}={}){
 test("iCloud installer targets a new tab, not the current PWA window",async()=>{
  const t=setup();
  t.app.setAuth(t.email,[]);
- await t.app.loadShortcutRelease();
+ await t.app.loadSession();
  t.app.renderSync();
  const a=t.element("install-shortcut");
  assert.equal(a.href,icloudUrl);
@@ -65,7 +66,7 @@ test("iCloud installer targets a new tab, not the current PWA window",async()=>{
 
 test("only an active device can open the latest release",async()=>{
  const t=setup();
- await t.app.loadShortcutRelease();
+ await t.app.loadSession();
  t.app.setAuth("owner-b@example.com",[]);
  t.app.renderSync();
  assert.equal(t.element("install-shortcut").getAttribute("aria-disabled"),"true");
@@ -76,7 +77,7 @@ test("only an active device can open the latest release",async()=>{
 test("an unverified release falls back to the public listing",async()=>{
  const t=setup({verified:false});
  t.app.setAuth(t.email,[]);
- await t.app.loadShortcutRelease();
+ await t.app.loadSession();
  t.app.renderSync();
  assert.equal(t.element("install-shortcut").hidden,false);
  assert.equal(t.element("install-shortcut").href,"https://routinehub.co/shortcut/26978/");
@@ -85,17 +86,17 @@ test("an unverified release falls back to the public listing",async()=>{
 test("a valid credential is not mistaken for a successful Health upload",async()=>{
  const t=setup();
  t.app.setAuth(t.email,[]);
- await t.app.loadShortcutRelease();
+ await t.app.loadSession();
  await t.app.checkShortcutUpload(false);
  assert.match(t.element("shortcut-sync-diagnostic").textContent,/no data has arrived/i);
  assert.match(t.element("shortcut-last-upload").textContent,/Nothing received yet/);
- assert.match(t.element("shortcut-upload-counts").textContent,/0 health measurements/);
+ assert.match(t.element("shortcut-stored").textContent,/Stored in your account: 0 health measurements/);
 });
 
 test("server-reported Shortcut handshake replaces manual installation confirmation",async()=>{
  const t=setup({reportedVersion:"2.3.3"});
  t.app.setAuth(t.email,[]);
- await t.app.loadShortcutRelease();
+ await t.app.loadSession();
  await t.app.checkShortcutUpload(false);
  assert.match(t.element("shortcut-release-version").textContent,/Connected · v2\.3\.3/);
  assert.equal(t.element("run-shortcut").hidden,false);

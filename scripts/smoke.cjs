@@ -43,11 +43,19 @@ async function run(type,base){
  await page.waitForTimeout(100);
  const saveInView=await page.evaluate(()=>{const bar=document.querySelector(".bottom-nav").getBoundingClientRect().top,r=document.getElementById("save-mood").getBoundingClientRect();return r.top>=0&&r.bottom<=bar;});
  if(!saveInView)problems.push("Save isn't in view after choosing a mood.");
- for(const name of ["insights","sources","sync","settings","checkin"])await tab(name);
+ for(const name of ["insights","data","settings","checkin"])await tab(name);
+ await tab("settings");
+ await page.click("#erase-local");
+ if(!await page.evaluate(()=>document.getElementById("confirm-sheet").open))problems.push("The confirmation sheet didn't open.");
+ await page.click("#confirm-sheet button[value='no']");
+ for(const old of ["sync","sources"]){
+  await page.evaluate(name=>EvenApp.navigate(name),old);
+  if(!await page.evaluate(()=>document.getElementById("view-data").classList.contains("active")))problems.push("#"+old+" doesn't land on Data.");
+ }
  await tab("settings");
  await page.click("#demo-button");
  await page.waitForTimeout(200);
- for(const name of ["insights","sources","settings"])await tab(name);
+ for(const name of ["insights","data","settings"])await tab(name);
  await tab("insights");
  const bars=await page.$$eval("#time-insights .bar-value",nodes=>nodes.map(n=>n.getAttribute("width")));
  if(bars.length&&new Set(bars).size<2)problems.push("Time of day bars are all the same length: "+bars.join(", "));

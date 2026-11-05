@@ -18,7 +18,7 @@
   var list=steps(c),skipped=c.skipped||{};
   function step(id,variant){return{id:id,variant:variant,number:list.indexOf(id)+1,total:list.length};}
   if(c.installable&&!c.installed&&!(c.now-(skipped.install||0)<INSTALL_AGAIN_MS))return step("install",c.ios?"share":"prompt");
-  // An iPhone that has been connected before is managed from Sync, so a deliberate disconnect isn't undone here.
+  // An iPhone that has been connected before is managed from Data, so a deliberate disconnect isn't undone here.
   if(!c.connected&&!c.connectedBefore&&!skipped.signin)return step("signin",c.connecting?"connecting":c.signedIn?"connect":c.signingIn?"pending":"signin");
   if(c.connected&&c.ios&&!c.synced&&!skipped.shortcut)return step("shortcut",c.shortcutConnected?"again":c.gotShortcut?"run":"get");
   if(!c.checkedIn)return{id:"checkin",number:0,total:list.length};

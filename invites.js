@@ -19,8 +19,10 @@
   });}).catch(function(){app.toast("The email didn’t send. Share the link instead.");}).finally(function(){button.disabled=false;});
  }
  function remove(email){
-  if(!confirm("Remove "+email+"? They’ll lose access, and their synced Health, calendar, alarm and check-in data will be deleted. This can’t be undone."))return;
-  send("/api/auth/testers/remove",email).then(function(r){if(!r.ok)throw Error();app.toast(email+" removed.");load();}).catch(function(){app.toast("Couldn’t remove that email.");});
+  app.askConfirm("Remove "+email+"? They’ll lose access, and their synced Health, calendar, alarm and check-in data will be deleted. This can’t be undone.","Remove").then(function(yes){
+   if(!yes)return;
+   send("/api/auth/testers/remove",email).then(function(r){if(!r.ok)throw Error();app.toast(email+" removed.");load();}).catch(function(){app.toast("Couldn’t remove that email.");});
+  });
  }
  function openName(tester){
   var dialog=$("tester-name-dialog");
@@ -85,5 +87,4 @@
  // Only release accounts see testers, so the list loads once Developer tools appears.
  var card=$("release-card");
  new MutationObserver(function(){if(!card.hidden)load();}).observe(card,{attributes:true,attributeFilter:["hidden"]});
- document.addEventListener("visibilitychange",function(){if(!document.hidden&&!card.hidden)load();});
 })();

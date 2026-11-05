@@ -65,7 +65,7 @@ test("a valid Shortcut handshake does not imply accepted Health data",()=>{
   lastDataUploadAt:null,healthMetrics:0,calendarEvents:0});
  t.api.renderSync();
  assert.match(t.elements.get("shortcut-last-upload").textContent,/no data yet/);
- assert.match(t.elements.get("shortcut-upload-counts").textContent,/0 health/);
+ assert.match(t.elements.get("shortcut-stored").textContent,/0 health/);
 });
 test("the PWA setup instructions and source agree",()=>{
  assert.match(html,/even-device-key\.txt/);
@@ -77,5 +77,8 @@ test("the interface reads as a finished product",()=>{
  for(const copy of [html,app]){
   assert.doesNotMatch(copy,/Cherri|builder|corrected|handshake|prototype|candidate|Cloudflare/i);
   assert.doesNotMatch(copy,/\bHTTPS\b/);
+  // The security note about the key file is the one place a key is named.
+  assert.doesNotMatch(copy.replace("Your device key is saved as a plain-text file",""),/\bgenerate\b|device key|sync key|\bserver\b/i);
+  assert.doesNotMatch(copy,/\bconfirm\(/);
  }
 });

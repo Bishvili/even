@@ -359,7 +359,7 @@
   }
   var help=helpAction(data,now);
   if(help)actions.push(help);
-  if(data.connected&&(!data.lastUpload||now.getTime()-new Date(data.lastUpload).getTime()>20*3600000))actions.push({text:"Sync now to bring in last night’s sleep and today’s calendar.",action:"sync",label:"Run Even Sync"});
+  if(data.connected&&(!data.lastUpload||now.getTime()-new Date(data.lastUpload).getTime()>20*3600000))actions.push({text:"Run Even Sync to bring in last night’s sleep and today’s calendar.",action:"sync",label:"Run Even Sync"});
   return actions.slice(0,3);
  }
  var api={validDay:validDay,weekSchedule:weekSchedule,whatHelps:whatHelps,anticipate:anticipate,nextActions:nextActions,bedtimeForAlarm:bedtimeForAlarm,morningAlarm:morningAlarm,alarmsOn:alarmsOn,smartPlan:smartPlan,bedtimeReminder:bedtimeReminder,smartTimes:smartTimes,repeatTimes:repeatTimes,outlook:outlook,patterns:patterns,brief:brief,hardStretch:hardStretch,steadiness:steadiness,reflectionDue:reflectionDue,REFLECTION:REFLECTION};

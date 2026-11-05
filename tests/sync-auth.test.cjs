@@ -36,7 +36,7 @@ function harness({verified=false,buildVersion="2.8.0",helperBuild="2.0.0",source
     if(sql.startsWith("SELECT shortcut_version FROM even_devices")){const d=[...rows.devices.values()].find(x=>x.device_id===args[0]);return d||null;}
     if(sql.includes("FROM even_release_emails"))return args[0]==="owner-a@example.com"?{allowed:1}:null;
     if(sql.includes("SELECT device_id,owner_email,revoked_at"))return rows.devices.get(args[0])||null;
-    if(sql.includes("SELECT last_used_at,last_attempt_at,last_error_code,shortcut_version")){const d=[...rows.devices.values()].find(d=>d.device_id===args[0]&&d.owner_email===args[1]&&!d.revoked_at);return d||null;}
+    if(sql.includes("SELECT last_used_at,last_attempt_at,last_error_code,shortcut_version,last_upload_counts")){const d=[...rows.devices.values()].find(d=>d.device_id===args[0]&&d.owner_email===args[1]&&!d.revoked_at);return d||null;}
     if(sql.includes("SELECT COUNT(*) AS count FROM even_health_metrics"))return{count:[...rows.health.values()].filter(d=>d.owner===args[0]).length};
     if(sql.includes("SELECT COUNT(*) AS count FROM even_calendar_events"))return{count:[...rows.events.values()].filter(d=>d.owner===args[0]).length};
     if(sql.includes("COUNT(*)"))return {count:[...rows.devices.values()].filter(d=>d.owner_email===args[0]&&!d.revoked_at).length};
@@ -60,9 +60,10 @@ function harness({verified=false,buildVersion="2.8.0",helperBuild="2.0.0",source
    async run(){
     if(sql.startsWith("INSERT OR IGNORE INTO even_users")){rows.users.set(args[0],args[1]);return{meta:{changes:1}};}
     if(sql.startsWith("INSERT INTO even_devices")){rows.devices.set(args[0],{device_id:args[1],owner_email:args[2],label:args[3],created_at:args[4],last_used_at:null,last_attempt_at:null,last_error_code:null,shortcut_version:null,revoked_at:null});return{meta:{changes:1}};}
+    if(sql.startsWith("UPDATE even_devices SET last_upload_counts=NULL")){for(const d of rows.devices.values())if(d.owner_email===args[0])d.last_upload_counts=null;return{meta:{changes:1}};}
     if(sql.startsWith("UPDATE even_devices SET revoked_at")){let changes=0;for(const d of rows.devices.values())if(d.device_id===args[1]&&d.owner_email===args[2]&&!d.revoked_at){d.revoked_at=args[0];changes++;}return{meta:{changes}};}
     if(sql.startsWith("UPDATE even_devices SET last_attempt_at")){for(const d of rows.devices.values())if(d.device_id===args[2]&&d.owner_email===args[3]&&!d.revoked_at){d.last_attempt_at=args[0];if(sql.includes("last_error_code=NULL,shortcut_version=?")){d.last_error_code=null;d.shortcut_version=args[1];}else d.last_error_code=args[1];}return{meta:{changes:1}};}
-    if(sql.startsWith("UPDATE even_devices SET last_used_at")){for(const d of rows.devices.values())if(d.device_id===args[3]&&d.owner_email===args[4]&&!d.revoked_at){d.last_used_at=args[0];d.last_attempt_at=args[1];d.last_error_code=null;d.shortcut_version=args[2]||d.shortcut_version;}return{meta:{changes:1}};}
+    if(sql.startsWith("UPDATE even_devices SET last_used_at")){for(const d of rows.devices.values())if(d.device_id===args[6]&&d.owner_email===args[7]&&!d.revoked_at){d.last_upload_counts=d.last_used_at>args[3]?JSON.stringify({...JSON.parse(d.last_upload_counts||"{}"),...JSON.parse(args[4])}):args[5];d.last_used_at=args[0];d.last_attempt_at=args[1];d.last_error_code=null;d.shortcut_version=args[2]||d.shortcut_version;}return{meta:{changes:1}};}
     if(sql.startsWith("DELETE FROM even_alarms")){rows.alarms=(rows.alarms||[]).filter(x=>x.owner!==args[0]);return{meta:{changes:1}};}
     if(sql.startsWith("INSERT INTO even_alarms")){(rows.alarms=rows.alarms||[]).push({owner:args[0],time_min:args[2],days:args[3],enabled:args[4],label:args[5]});return{meta:{changes:1}};}
     if(sql.startsWith("UPDATE even_users")){
@@ -313,11 +314,11 @@ test("each night's bedtime is its earliest sleep, ignoring naps and bad values",
 });
 test("sign-in returns to the screen it started from, with nothing left in the address",async()=>{
  const{call,ctx}=harness(),owner=ctx("owner-a@example.com"),stranger=ctx("new@example.com"),base="https://even.bishvili.workers.dev";
- assert.equal((await call("/api/auth/start",{context:owner})).location,base+"/#sync");
+ assert.equal((await call("/api/auth/start",{context:owner})).location,base+"/#data");
  assert.equal((await call("/api/auth/start?to=checkin",{context:owner})).location,base+"/#checkin");
- assert.equal((await call("/api/auth/start?to=https://evil.example",{context:owner})).location,base+"/#sync");
+ assert.equal((await call("/api/auth/start?to=https://evil.example",{context:owner})).location,base+"/#data");
  assert.equal((await call("/api/auth/start?to=checkin",{context:stranger})).location,base+"/?auth=denied#checkin");
- assert.equal((await call("/api/auth/start")).location,base+"/?auth=denied#sync");
+ assert.equal((await call("/api/auth/start")).location,base+"/?auth=denied#data");
 });
 test("release accounts manage testers, and removal ends a tester's access",async()=>{
  const{call,ctx,env,dispatches}=harness();
@@ -906,4 +907,25 @@ test("a dated plan sends each time once, keeps its kind, and repeats weekly once
  await send("2026-11-16T09:50:00Z");assert.equal(dispatches.length,2);
  const{dueScheduled}=runtime;
  assert.equal(dueScheduled(schedule.slice(0,2),Date.parse("2026-11-09T22:12:00Z"),0).kind,"bedtime");
+});
+
+test("one session request carries the status, release, calendars and choices, and last upload counts one run",async()=>{
+ const{call,ctx}=harness(),owner=ctx("owner-a@example.com");
+ const device=await call("/api/auth/device",{method:"POST",context:owner,body:{label:"iPhone"}});
+ const A={Authorization:"Bearer "+device.data.token};
+ assert.equal((await call("/api/session")).status,401);
+ await call("/api/ingest",{method:"POST",headers:A,body:{kind:"batch",shortcutVersion:"3.0.0",health:[{date:"2026-11-01",steps:100}],events:[]}});
+ let session=await call("/api/session",{headers:A});
+ assert.equal(session.status,200);
+ assert.equal(session.data.status.deviceId,device.data.deviceId);
+ assert.equal(session.data.status.lastUpload.health,1);
+ assert.equal(session.data.status.lastUpload.events,0);
+ assert.deepEqual(session.data.calendars,[]);
+ assert.ok(Object.keys(session.data.settings).length>0);
+ assert.equal(session.data.moods.enabled,false);
+ await call("/api/erase",{method:"POST",headers:A});
+ session=await call("/api/session",{headers:A});
+ assert.equal(session.data.status.lastUpload,null);
+ await call("/api/auth/revoke",{method:"POST",context:owner,body:{deviceId:device.data.deviceId}});
+ assert.equal((await call("/api/session",{headers:A})).status,401);
 });
