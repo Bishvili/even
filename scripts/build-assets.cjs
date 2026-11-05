@@ -16,7 +16,7 @@ function tokenValues({colors:_colors,...brand},stable){
   if(typeof value!=="string"||!value.trim()||/["'\\<>&\u0000-\u001f]/.test(value))throw Error("brand value "+key+" can't be used: "+JSON.stringify(value));
  }
  if(values.installName.length>12)throw Error("installName is longer than the Home Screen shows");
- return {...values,syncUrl:encodeURIComponent(values.sync),helperUrl:encodeURIComponent(values.helper)};
+ return {...values,nameUrl:encodeURIComponent(values.name),syncUrl:encodeURIComponent(values.sync),helperUrl:encodeURIComponent(values.helper)};
 }
 // A color lands in CSS and in HTML attributes, and every one needs a value for each appearance.
 function colorValues(palette){

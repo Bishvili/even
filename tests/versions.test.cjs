@@ -44,7 +44,7 @@ test("each page has its own offline copy, so the app is never replaced",()=>{
  assert.ok(read("sw.js").includes('"/whitepaper.css"'));
 });
 test("the bump script changes every place the version appears",()=>{
- const os=require("node:os"),path=require("node:path"),dir=fs.mkdtempSync(path.join(os.tmpdir(),"even-"));
+ const os=require("node:os"),path=require("node:path"),dir=fs.mkdtempSync(path.join(os.tmpdir(),"versions-"));
  fs.mkdirSync(path.join(dir,"worker"));
  for(const file of ["app.js","sw.js","worker/index.js","index.html"])fs.writeFileSync(path.join(dir,file),read(file));
  require("../scripts/bump-version.cjs").bump("9.9.9",dir);

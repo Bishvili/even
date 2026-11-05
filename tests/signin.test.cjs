@@ -24,9 +24,9 @@ async function setup(extra={},DB=d1()){
  const {createAuth}=await import("../worker/signin.mjs");
  const codes={};
  const {baseURL,...config}=extra;
- const env={...config,DB,PUBLIC_ORIGIN:"https://even.example",BETTER_AUTH_SECRET:"x".repeat(40),GOOGLE_CLIENT_ID:"id",GOOGLE_CLIENT_SECRET:"secret"};
+ const env={...config,DB,PUBLIC_ORIGIN:"https://app.example",BETTER_AUTH_SECRET:"x".repeat(40),GOOGLE_CLIENT_ID:"id",GOOGLE_CLIENT_SECRET:"secret"};
  const auth=createAuth(env,{baseURL,isApproved:async email=>email==="in@example.com",deliverCode:(email,code)=>{codes[email]=code;}});
- const call=(route,body,cookie)=>auth.handler(new Request("https://even.example/api/signin/"+route,{method:"POST",headers:{"Content-Type":"application/json",Origin:"https://even.example",...(cookie?{Cookie:cookie}:{})},body:JSON.stringify(body)}));
+ const call=(route,body,cookie)=>auth.handler(new Request("https://app.example/api/signin/"+route,{method:"POST",headers:{"Content-Type":"application/json",Origin:"https://app.example",...(cookie?{Cookie:cookie}:{})},body:JSON.stringify(body)}));
  return {auth,call,codes,DB};
 }
 const ready=installed&&sqlite;
@@ -55,11 +55,11 @@ test("an email that isn't approved can't create an account",{skip:!ready},async(
 });
 test("Google sign-in opens Google and returns to the Data tab",{skip:!ready},async()=>{
  const {call}=await setup();
- const r=await call("sign-in/social",{provider:"google",callbackURL:"https://even.example/#data",errorCallbackURL:"https://even.example/?auth=denied#data"});
+ const r=await call("sign-in/social",{provider:"google",callbackURL:"https://app.example/#data",errorCallbackURL:"https://app.example/?auth=denied#data"});
  const body=await r.json();
  assert.equal(r.status,200,JSON.stringify(body));
  assert.match(body.url,/^https:\/\/accounts\.google\.com\//);
- assert.ok(body.url.includes(encodeURIComponent("https://even.example/api/signin/callback/google")));
+ assert.ok(body.url.includes(encodeURIComponent("https://app.example/api/signin/callback/google")));
  assert.match(body.url,/prompt=select_account/);
 });
 
@@ -81,7 +81,7 @@ async function relayToApp(email){
  const DB=d1(),extra={GOOGLE_RELAY_ORIGIN:RELAY};
  const app=await setup(extra,DB),stable=await setup({...extra,baseURL:RELAY},DB),restore=google(email);
  try{
-  const started=await app.call("sign-in/social",{provider:"google",callbackURL:"https://even.example/#data",errorCallbackURL:"https://even.example/?auth=denied#data"});
+  const started=await app.call("sign-in/social",{provider:"google",callbackURL:"https://app.example/#data",errorCallbackURL:"https://app.example/?auth=denied#data"});
   const opened=new URL((await started.json()).url);
   assert.equal(opened.searchParams.get("redirect_uri"),RELAY+"/api/signin/callback/google");
   google.nonce=opened.searchParams.get("nonce")||undefined;
@@ -93,12 +93,12 @@ async function relayToApp(email){
 test("the relay signs an approved Google account in on the app, and keeps no tokens",{skip:!ready},async()=>{
  const {DB,handoff,finish,back}=await relayToApp("in@example.com");
  assert.equal(back.status,302);
- assert.ok(handoff.startsWith("https://even.example/api/signin/callback/google/oauth-proxy?"),handoff);
+ assert.ok(handoff.startsWith("https://app.example/api/signin/callback/google/oauth-proxy?"),handoff);
  assert.ok(!handoff.includes("secret-access"),"tokens travel encrypted");
  assert.equal(DB.raw.prepare("SELECT COUNT(*) AS n FROM health_signin_sessions").get().n,0,"the relay's address makes no session");
  const done=await finish();
  assert.equal(done.status,302);
- assert.equal(done.headers.get("location"),"https://even.example/#data");
+ assert.equal(done.headers.get("location"),"https://app.example/#data");
  assert.match(done.headers.get("set-cookie"),/health\.session_token/);
  const account=DB.raw.prepare("SELECT accessToken,idToken,refreshToken FROM health_signin_accounts").get();
  assert.deepEqual({...account},{accessToken:null,idToken:null,refreshToken:null});
@@ -132,6 +132,6 @@ test("the relay refuses an expired handoff and one for an address that isn't tru
 test("Google saying no, or a made-up return, ends on the app with no session",{skip:!ready},async()=>{
  const DB=d1(),stable=await setup({GOOGLE_RELAY_ORIGIN:RELAY,baseURL:RELAY},DB);
  const made=await stable.auth.handler(new Request(RELAY+"/api/signin/callback/google?code=abc&state=made-up"));
- assert.ok((made.headers.get("location")||"").startsWith("https://even.example/?auth=failed"),made.headers.get("location"));
+ assert.ok((made.headers.get("location")||"").startsWith("https://app.example/?auth=failed"),made.headers.get("location"));
  assert.equal(DB.raw.prepare("SELECT COUNT(*) AS n FROM health_signin_sessions").get().n,0);
 });

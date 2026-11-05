@@ -2,6 +2,8 @@
 const test=require("node:test"),assert=require("node:assert/strict"),fs=require("node:fs"),os=require("node:os"),path=require("node:path");
 const{build,publicFiles,tokenValues}=require("../scripts/build-assets.cjs");
 const brand=JSON.parse(fs.readFileSync("brand/brand.json","utf8")),stable=JSON.parse(fs.readFileSync("brand/stable.json","utf8"));
+// Also catches the name inside an encoded link, where it has no word boundary.
+const current=new RegExp("(^|[^A-Za-z])"+brand.name+"([^A-Za-z]|$)","m");
 const rehearsal={name:"Zzyzx Labs",installName:"Zzyzx",tagline:"A tagline.",pitch:"a pitch",support:"help@example.com",inviteFrom:"a@example.com",codeFrom:"b@example.com",colors:{primary:"#2B4FA8",highlight:"#E7B8D0",ground:"#1B1F3A"}};
 const renamed={sync:"Zzyzx Sync",helper:"Zzyzx Helper",keyFolder:"Zzyzx",keyFile:"key.txt"};
 const text=file=>/\.(html|js|css|webmanifest|svg)$/.test(file);
@@ -15,7 +17,7 @@ test("renaming the app leaves the old name nowhere that ships",()=>{
   assert.doesNotMatch(css,/#28685B|#10262A/i);
   for(const file of publicFiles(fs.readFileSync("sw.js","utf8")).filter(text)){
    const shipped=fs.readFileSync(path.join(out,file),"utf8");
-   assert.doesNotMatch(shipped,/\bEven\b/,file);
+   assert.doesNotMatch(decodeURIComponent(shipped.replace(/%(?![0-9a-f]{2})/gi,"%25")),current,file);
    assert.doesNotMatch(shipped,/\{\{/,file);
   }
   assert.match(fs.readFileSync(path.join(out,"index.html"),"utf8"),/<title>Zzyzx Labs<\/title>/);
@@ -26,7 +28,7 @@ test("renaming the app leaves the old name nowhere that ships",()=>{
 test("the Worker's messages and emails take the name from the brand file",()=>{
  for(const file of ["worker/index.js","worker/signin.mjs"]){
   const code=fs.readFileSync(file,"utf8").split("\n").filter(line=>!line.trimStart().startsWith("//")).join("\n");
-  assert.doesNotMatch(code,/\bEven\b/,file);
+  assert.doesNotMatch(code,current,file);
  }
 });
 test("a value that could break out of a page, or a token nobody defined, stops the build",()=>{

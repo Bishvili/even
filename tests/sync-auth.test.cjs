@@ -1004,7 +1004,7 @@ test("sign-in answers the same for any email, only opens its own routes, and a c
 
 test("files come with the security headers, and the root serves the app",async()=>{
  const{env,runtime}=harness();
- const open=path=>runtime.__worker.fetch(new Request("https://even.example"+path),env,{});
+ const open=path=>runtime.__worker.fetch(new Request("https://app.example"+path),env,{});
  env.STATIC={async fetch(request){const path=new URL(request.url).pathname;return path==="/index.html"||path==="/sw.js"?new Response("ok",{headers:{"Content-Type":"text/html"}}):new Response("missing",{status:404});}};
  const root=await open("/"),page=await root.text();
  assert.equal(page,"ok");
@@ -1022,7 +1022,7 @@ test("logs carry only named fields, and a failed request logs without changing i
  runtime.logEvent("x",{route:"/a",error:"TypeError",email:"person@example.com",title:"Private",token:"secret",body:"text"});
  assert.deepEqual(JSON.parse(lines[0]),{event:"x",route:"/a",error:"TypeError"});
  env.STATIC={fetch(){throw new TypeError("boom person@example.com");}};
- const failed=await runtime.__worker.fetch(new Request("https://even.example/"),env,{});
+ const failed=await runtime.__worker.fetch(new Request("https://app.example/"),env,{});
  assert.equal(failed.status,500);
  assert.deepEqual(JSON.parse(lines[1]),{event:"request_failed",route:"/",status:500,error:"TypeError"});
 });
