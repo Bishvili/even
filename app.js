@@ -1,6 +1,6 @@
 (function () {
 "use strict";
-var VERSION = "2.34.0";
+var VERSION = "2.34.1";
 var STORAGE_KEY = "even:v1";
 var HOME_ORIGIN = "https://even.bishvili.org";
 var MOOD_NAMES = ["","Rough","Low","Okay","Good","Great"];

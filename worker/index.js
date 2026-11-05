@@ -38,7 +38,7 @@ async function payload(request){
  if(type.includes("application/x-www-form-urlencoded"))return Object.fromEntries(new URLSearchParams(text));
  try{return JSON.parse(text);}catch(e){return Object.fromEntries(new URLSearchParams(text));}
 }
-const VERSION_NAME="2.34.0";
+const VERSION_NAME="2.34.1";
 function normalEmail(value){return String(value||"").trim().toLowerCase();}
 async function signinAuth(env,ctx){
  const {createAuth}=await import("./signin.mjs");
@@ -895,7 +895,8 @@ async function asset(request,env,path){
  const file=await env.STATIC.fetch(new Request(new URL(path==="/"?"/index.html":path,request.url),request));
  const headers=new Headers(file.headers);
  for(const [name,value] of Object.entries(SECURITY))headers.set(name,value);
- headers.set("Cache-Control","no-cache, max-age=0, must-revalidate");
+ // no-transform also keeps the host from adding its analytics script to pages.
+ headers.set("Cache-Control","no-cache, no-transform, max-age=0, must-revalidate");
  if(path==="/sw.js")headers.set("Service-Worker-Allowed","/");
  return new Response(file.body,{status:file.status,headers});
 }
