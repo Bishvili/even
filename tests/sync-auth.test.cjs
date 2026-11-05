@@ -90,6 +90,11 @@ function harness({verified=false,buildVersion="2.8.0",helperBuild="2.0.0",source
     if(sql.includes("SET last_stress_at")){rows.subs.get(args[1]).last_stress_at=args[0];return{meta:{changes:1}};}
     if(sql.includes("SET last_sync_prompt_day")){rows.subs.get(args[1]).last_sync_prompt_day=args[0];return{meta:{changes:1}};}
     if(sql.startsWith("UPDATE even_push_subscriptions")){const s=rows.subs.get(args[2]);s.last_sent_day=args[0];s.last_sent_target=args[1];return{meta:{changes:1}};}
+    if(sql.startsWith("UPDATE even_devices SET last_seen_at")){for(const d of rows.devices.values())if(d.device_id===args[1])d.last_seen_at=args[0];return{meta:{changes:1}};}
+    if(sql.startsWith("DELETE FROM even_devices")){for(const [k,d] of rows.devices)if(d.owner_email===args[0])rows.devices.delete(k);return{meta:{changes:1}};}
+    if(sql.startsWith("DELETE FROM even_users")){rows.users.delete(args[0]);return{meta:{changes:1}};}
+    if(sql.startsWith("DELETE FROM even_push_subscriptions WHERE owner_email")){for(const [k,x] of rows.subs)if(x.owner===args[0])rows.subs.delete(k);return{meta:{changes:1}};}
+    if(sql.startsWith("DELETE FROM even_push_subscriptions WHERE device_id")){for(const [k,x] of rows.subs)if(x.device_id===args[0]&&x.owner===args[1])rows.subs.delete(k);return{meta:{changes:1}};}
     if(sql.startsWith("DELETE FROM even_push_subscriptions WHERE endpoint=? AND owner_email=?")){const s=rows.subs.get(args[0]);if(s&&s.owner===args[1])rows.subs.delete(args[0]);return{meta:{changes:1}};}
     if(sql.startsWith("DELETE FROM even_push_subscriptions"))  {rows.subs.delete(args[0]);return{meta:{changes:1}};}
     if(sql.startsWith("UPDATE even_release_emails")){if(args[1]==="owner-a@example.com")rows.welcomed=true;return{meta:{changes:1}};}
@@ -785,4 +790,83 @@ test("people set their own name, for their account only, and an erase removes it
  await call("/api/profile/name",{method:"POST",headers:A,body:{name:"Sam"}});
  await call("/api/erase",{method:"POST",headers:A});
  assert.equal(rows.names.has("owner-b@example.com"),false);
+});
+
+async function pushHarness(){
+ const h=harness();
+ const pair=await webcrypto.subtle.generateKey({name:"ECDSA",namedCurve:"P-256"},true,["sign"]);
+ h.env.VAPID_PRIVATE_KEY=JSON.stringify(await webcrypto.subtle.exportKey("jwk",pair.privateKey));
+ const{publicKey}=await webcrypto.subtle.generateKey({name:"ECDH",namedCurve:"P-256"},true,["deriveBits"]);
+ h.keys={p256dh:Buffer.from(await webcrypto.subtle.exportKey("raw",publicKey)).toString("base64url"),auth:Buffer.alloc(16,1).toString("base64url")};
+ return h;
+}
+test("one failing subscription doesn't stop the others, and is recorded",async()=>{
+ const{call,ctx,env,rows,runtime,dispatches,keys}=await pushHarness();
+ const save=async(who,endpoint)=>{const d=await call("/api/auth/device",{method:"POST",body:{label:who},context:ctx(who)});await call("/api/push/subscribe",{method:"POST",headers:{Authorization:"Bearer "+d.data.token},body:{endpoint,keys,mode:"custom",times:["09:00"],timeZone:"UTC"}});};
+ await save("owner-a@example.com","https://web.push.apple.com/broken");
+ await save("owner-b@example.com","https://web.push.apple.com/working");
+ rows.subs.get("https://web.push.apple.com/broken").times="not json";
+ await runtime.sendReminders(env,new Date("2026-11-09T09:05:00Z"));
+ assert.equal(dispatches.length,1);
+ assert.equal(rows.subs.get("https://web.push.apple.com/working").last_sent_day,"2026-11-09");
+});
+test("three notifications due together go out one per run",async()=>{
+ const{call,ctx,env,rows,runtime,dispatches,keys}=await pushHarness();
+ const d=await call("/api/auth/device",{method:"POST",body:{label:"A"},context:ctx("owner-a@example.com")});
+ const endpoint="https://web.push.apple.com/one";
+ await call("/api/push/subscribe",{method:"POST",headers:{Authorization:"Bearer "+d.data.token},body:{endpoint,keys,mode:"custom",times:["09:00"],syncAt:"09:00",stressTimes:["2026-11-09T09:00:00.000Z"],timeZone:"UTC"}});
+ rows.subs.get(endpoint).last_used_at="2026-11-01T00:00:00Z";
+ const send=at=>runtime.sendReminders(env,new Date(at));
+ await send("2026-11-09T09:05:00Z");assert.equal(dispatches.length,1);
+ await send("2026-11-09T09:20:00Z");assert.equal(dispatches.length,2);
+ await send("2026-11-09T09:35:00Z");assert.equal(dispatches.length,3);
+ await send("2026-11-09T09:50:00Z");assert.equal(dispatches.length,3);
+});
+test("erase leaves only the account and devices, and deleting the account leaves nothing",async()=>{
+ const{call,ctx,rows,keys}=await pushHarness();
+ const a=await call("/api/auth/device",{method:"POST",body:{label:"A"},context:ctx("owner-a@example.com")});
+ const b=await call("/api/auth/device",{method:"POST",body:{label:"B"},context:ctx("owner-b@example.com")});
+ const A={Authorization:"Bearer "+a.data.token},B={Authorization:"Bearer "+b.data.token};
+ const fill=async headers=>{
+  await call("/api/ingest",{method:"POST",headers,body:{kind:"health",date:"2026-11-04",steps:"5000"}});
+  await call("/api/push/subscribe",{method:"POST",headers,body:{endpoint:"https://web.push.apple.com/"+headers.Authorization.slice(-6),keys,mode:"custom",times:["09:00"],timeZone:"UTC"}});
+ };
+ await fill(A);await fill(B);
+ await call("/api/erase",{method:"POST",headers:A});
+ const owned=(who)=>[...rows.health.values(),...rows.subs.values()].filter(x=>x.owner===who).length;
+ assert.equal(owned("owner-a@example.com"),0);
+ assert.equal(owned("owner-b@example.com"),2);
+ assert.equal((await call("/api/sync/status",{headers:A})).status,200);
+ await call("/api/account/delete",{method:"POST",headers:A});
+ assert.equal([...rows.devices.values()].some(d=>d.owner_email==="owner-a@example.com"),false);
+ assert.equal(rows.users.has("owner-a@example.com"),false);
+ assert.equal((await call("/api/sync/status",{headers:A})).status,401);
+ assert.equal((await call("/api/sync/status",{headers:B})).status,200);
+});
+test("removing a tester deletes their data and stops their devices, but not an owner's",async()=>{
+ const{call,ctx,rows}=harness();
+ const a=ctx("owner-a@example.com");
+ await call("/api/auth/testers",{method:"POST",body:{email:"new@example.com"},context:a});
+ const t=await call("/api/auth/device",{method:"POST",body:{label:"T"},context:ctx("new@example.com")});
+ const T={Authorization:"Bearer "+t.data.token};
+ await call("/api/ingest",{method:"POST",headers:T,body:{kind:"health",date:"2026-11-04",steps:"5000"}});
+ assert.equal((await call("/api/auth/testers/remove",{method:"POST",body:{email:"owner-b@example.com"},context:a})).status,400);
+ assert.equal((await call("/api/auth/testers/remove",{method:"POST",body:{email:"new@example.com"},context:a})).status,200);
+ assert.equal([...rows.health.values()].some(x=>x.owner==="new@example.com"),false);
+ assert.equal([...rows.devices.values()].some(d=>d.owner_email==="new@example.com"),false);
+ assert.equal((await call("/api/sync/status",{headers:T})).status,401);
+});
+test("a device can disconnect itself, and long-unused devices stop working",async()=>{
+ const{call,ctx,rows}=harness();
+ const one=await call("/api/auth/device",{method:"POST",body:{label:"1"},context:ctx("owner-a@example.com")});
+ const two=await call("/api/auth/device",{method:"POST",body:{label:"2"},context:ctx("owner-a@example.com")});
+ const One={Authorization:"Bearer "+one.data.token},Two={Authorization:"Bearer "+two.data.token};
+ assert.equal((await call("/api/device/disconnect",{method:"POST",headers:One})).status,200);
+ assert.equal((await call("/api/sync/status",{headers:One})).status,401);
+ const device=[...rows.devices.values()].find(d=>d.device_id===two.data.deviceId);
+ assert.equal((await call("/api/sync/status",{headers:Two})).status,200);
+ assert.ok(device.last_seen_at);
+ device.last_seen_at=new Date(Date.now()-91*86400000).toISOString();
+ assert.equal((await call("/api/sync/status",{headers:Two})).status,401);
+ assert.ok(device.revoked_at);
 });

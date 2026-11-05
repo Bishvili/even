@@ -1,6 +1,6 @@
 (function () {
 "use strict";
-var VERSION = "2.15.4";
+var VERSION = "2.15.5";
 var SHORTCUT_PAGE = "https://routinehub.co/shortcut/26978/";
 var STORAGE_KEY = "even:v1";
 var MOOD_NAMES = ["","Rough","Low","Okay","Good","Great"];
@@ -204,10 +204,12 @@ function renderDevices(){
  var el=$("device-list");
  if(!authEmail){el.innerHTML=blank("Sign in to see your devices.");return;}
  if(!authDevices.length){el.innerHTML=blank("No devices yet.");return;}
- el.innerHTML=authDevices.map(function(d){
+ function row(d){
   var revoked=!!d.revoked,own=d.id===state.deviceId;
   return '<div class="device-row"><div class="device-row-main"><strong>'+esc(d.label||"iPhone")+(own?" · This device":"")+'</strong><small>'+esc(d.revoked?"Disconnected":d.lastUsedAt?"Used "+formatDate(d.lastUsedAt):"Not used yet")+'</small></div>'+(revoked?'<span class="muted">Disconnected</span>':'<button class="icon-action" type="button" data-rename-device="'+esc(d.id)+'" aria-label="Rename '+esc(d.label||"device")+'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4Z"/><path d="m13.5 6.5 4 4"/></svg></button><button class="small-action" type="button" data-revoke-device="'+esc(d.id)+'">Disconnect</button>')+'</div>';
- }).join("");
+ }
+ var active=authDevices.filter(function(d){return !d.revoked;}),old=authDevices.filter(function(d){return d.revoked;});
+ el.innerHTML=(active.map(row).join("")||blank("No connected devices."))+'<p class="muted">Devices unused for 90 days disconnect automatically.</p>'+(old.length?'<details class="device-old"><summary>'+old.length+' disconnected</summary>'+old.map(row).join("")+'</details>':"");
 }
 
 function renderSettings(){
@@ -710,7 +712,7 @@ async function issueDevice(){
  if(connecting||!accountSafe(authEmail))return;
  var button=$("issue-device");connecting=true;button.disabled=true;button.textContent="Connecting…";renderSync();
  try{
-  var r=await fetch("/api/auth/device",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json","Accept":"application/json"},body:JSON.stringify({label:"My "+thisDeviceName()}),cache:"no-store"});
+  var r=await fetch("/api/auth/device",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json","Accept":"application/json"},body:JSON.stringify({label:thisDeviceName()+" · "+new Date().toLocaleDateString([],{month:"short",day:"numeric"})}),cache:"no-store"});
   var result=await r.json();if(!r.ok||!result.token)throw Error(result.error||"Couldn’t connect this "+thisDeviceName()+". Try again.");
   if(result.email!==authEmail)throw Error("You signed in with a different account, so this "+thisDeviceName()+" wasn’t connected.");
   state.syncOwnerEmail=authEmail;state.deviceId=result.deviceId;state.token=result.token;state.pairedAt=Date.now();state.lastSync=null;
@@ -768,10 +770,33 @@ async function pull(silent){
  finally{button.disabled=false;button.textContent="↻ Sync now";}
 }
 
+async function deleteAccount(){
+ if(!state.token){toast("Connect this device first.");return;}
+ if(!navigator.onLine){toast("Connect to the internet to delete your account.");return;}
+ if(!confirm("Permanently delete the account for "+state.syncOwnerEmail+": all synced data and every connected device? This can’t be undone. Records on this device remain."))return;
+ try{
+  var r=await fetch("/api/account/delete",{method:"POST",headers:{"Authorization":"Bearer "+state.token},cache:"no-store"});
+  if(!r.ok)throw Error();
+  if(globalThis.EvenReminders)globalThis.EvenReminders.turnOff();
+  state.token="";state.deviceId="";state.syncOwnerEmail="";state.pairedAt=null;state.moodSync=false;state.deletedMoods=[];shortcutStatus=null;shortcutRelease=null;
+  persist();await refreshAuth();render();toast("Account deleted.");
+ }catch(e){toast("Couldn’t delete your account. Check your connection and try again.");}
+}
+// Erasing this device also disconnects it, so no credential is left active.
+async function eraseLocal(){
+ if(!confirm("Delete all check-ins, notes, and health and calendar data on this device, and disconnect it? Synced data in your account stays until you erase it. This can’t be undone."))return;
+ var disconnected=!state.token;
+ if(state.token&&navigator.onLine){
+  try{disconnected=(await fetch("/api/device/disconnect",{method:"POST",headers:{"Authorization":"Bearer "+state.token},cache:"no-store"})).ok;}catch(e){}
+ }
+ if(globalThis.EvenReminders)globalThis.EvenReminders.turnOff();
+ state=emptyState();shortcutRelease=null;shortcutStatus=null;persist();render();
+ toast(disconnected?"This device’s records are deleted.":"Records deleted. This device couldn’t be disconnected, so remove it under Devices on another device.");
+}
 async function eraseRemote(){
  if(!state.token){toast("Connect this device first.");return;}
- if(!confirm("Permanently delete everything synced for "+state.syncOwnerEmail+", including any synced check-ins? This can’t be undone. Records on this device remain, and check-in sync turns off."))return;
- try{var r=await fetch("/api/erase",{method:"POST",headers:{"Authorization":"Bearer "+state.token},cache:"no-store"});if(!r.ok)throw Error("Delete failed");state.moodSync=false;state.deletedMoods=[];persist();render();toast("Synced data erased.");}catch(e){toast("Could not delete cloud data.");}
+ if(!confirm("Permanently delete everything synced for "+state.syncOwnerEmail+": Health, calendar, alarms, synced check-ins, your notification schedule and the name you set? This can’t be undone. Records on this device remain, your devices stay connected, and check-in sync and notifications turn off."))return;
+ try{var r=await fetch("/api/erase",{method:"POST",headers:{"Authorization":"Bearer "+state.token},cache:"no-store"});if(!r.ok)throw Error("Delete failed");state.moodSync=false;state.deletedMoods=[];persist();if(globalThis.EvenReminders)globalThis.EvenReminders.turnOff();render();toast("Synced data erased.");}catch(e){toast("Could not delete cloud data.");}
 }
 var swRegistration=null;
 function checkForUpdate(){if(swRegistration)swRegistration.update().catch(function(){});}
@@ -831,7 +856,7 @@ function init(){
  $("unpair-button").addEventListener("click",function(){if(state.deviceId)revokeDevice(state.deviceId);});
  $("erase-remote").addEventListener("click",eraseRemote);
  $("backup-button").addEventListener("click",exportBackup);$("restore-input").addEventListener("change",function(ev){restoreBackup(ev.target.files[0]);ev.target.value="";});
- $("erase-local").addEventListener("click",function(){if(confirm("Delete all check-ins, notes, and health and calendar data on this iPhone? You’ll need to connect it again to sync. Synced data in your account stays until you erase it. This can’t be undone.")){state=emptyState();shortcutRelease=null;shortcutStatus=null;persist();render();toast("Local records deleted.");}});
+ $("erase-local").addEventListener("click",eraseLocal);$("delete-account").addEventListener("click",deleteAccount);
  $("demo-button").addEventListener("click",demo);$("clear-demo-button").addEventListener("click",clearDemo);
  setEnergyText();navigate(location.hash.slice(1)||"checkin");
  if(navigator.onLine)refreshAuth();

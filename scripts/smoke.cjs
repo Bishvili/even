@@ -42,15 +42,18 @@ async function run(type,base){
  const bars=await page.$$eval("#time-insights .bar-value",nodes=>nodes.map(n=>n.getAttribute("width")));
  if(bars.length&&new Set(bars).size<2)problems.push("Time of day bars are all the same length: "+bars.join(", "));
  // The offline app must stay the app after another page has been opened.
+ // Playwright's WebKit can't navigate offline through a service worker, so this runs in Chromium.
+ if(type===chromium){
  await page.evaluate(()=>navigator.serviceWorker.ready);
- await page.reload();
- await page.waitForTimeout(500);
- await page.goto(base+"/whitepaper.html");
- await page.waitForSelector("h1");
- await page.waitForTimeout(300);
- await context.setOffline(true);
- await page.goto(base+"/?do=none").catch(error=>problems.push("Offline launch failed: "+error.message));
- if(!await page.$("#checkin-title"))problems.push("Offline launch didn't open the app.");
+  await page.reload();
+  await page.waitForTimeout(500);
+  await page.goto(base+"/whitepaper.html");
+  await page.waitForSelector("h1");
+  await page.waitForTimeout(300);
+  await context.setOffline(true);
+  await page.goto(base+"/?do=none").catch(error=>problems.push("Offline launch failed: "+error.message));
+  if(!await page.$("#checkin-title"))problems.push("Offline launch didn't open the app.");
+ }
  await browser.close();
  return problems;
 }

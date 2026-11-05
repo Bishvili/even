@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS even_devices (
   created_at TEXT NOT NULL,
   last_used_at TEXT,
   last_attempt_at TEXT,
+  last_seen_at TEXT,
   last_error_code TEXT,
   shortcut_version TEXT,
   revoked_at TEXT

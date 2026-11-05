@@ -201,3 +201,4 @@ html,body{height:100%;overflow:hidden}
 .page{flex:1;min-height:0;overflow-x:hidden;overflow-y:auto;overscroll-behavior-y:contain;padding:0 max(22px,calc((100% - 716px)/2)) 30px}
 @media(max-width:355px){.page{padding-left:13px;padding-right:13px}}
 .bar-chart{display:block}.bar-back{fill:var(--mist)}.bar-value{fill:var(--pine)}.bar-empty{font-size:12px;color:var(--muted)}
+.device-old{margin-top:8px}.device-old summary{min-height:44px;display:flex;align-items:center;font-size:14px;color:var(--accent);font-weight:650}#delete-account{margin-top:8px}

@@ -42,13 +42,38 @@ function browserPostAllowed(request){
  return request.method==="POST"&&origin===u.origin&&
   (request.headers.get("content-type")||"").toLowerCase().includes("application/json");
 }
+const DEVICE_EXPIRY_MS=90*86400000;
+function lastActive(device){return device.last_seen_at||device.last_used_at||device.last_attempt_at||device.created_at||null;}
 async function validDevice(request,env){
  const auth=request.headers.get("authorization")||"",match=/^Bearer ([a-f0-9]{64})$/i.exec(auth);
  if(!match)return null;
  const tokenHash=await digest(match[1].toLowerCase());
- const device=await env.DB.prepare("SELECT device_id,owner_email,revoked_at FROM even_devices WHERE token_hash=?").bind(tokenHash).first();
+ const device=await env.DB.prepare("SELECT device_id,owner_email,revoked_at,created_at,last_used_at,last_attempt_at,last_seen_at FROM even_devices WHERE token_hash=?").bind(tokenHash).first();
  if(!device||device.revoked_at||!await approved(env,device.owner_email))return null;
+ const now=new Date().toISOString(),active=lastActive(device);
+ if(active&&Date.now()-Date.parse(active)>DEVICE_EXPIRY_MS){
+  await env.DB.prepare("UPDATE even_devices SET revoked_at=? WHERE device_id=? AND owner_email=? AND revoked_at IS NULL").bind(now,device.device_id,device.owner_email).run();
+  return null;
+ }
+ if(String(device.last_seen_at||"").slice(0,10)!==now.slice(0,10))await env.DB.prepare("UPDATE even_devices SET last_seen_at=? WHERE device_id=?").bind(now,device.device_id).run();
  return {id:device.device_id,owner:device.owner_email};
+}
+// Everything synced for one person, apart from their account and devices.
+function syncedDataStatements(env,owner){
+ return [
+  env.DB.prepare("DELETE FROM even_health_metrics WHERE owner_email=?").bind(owner),
+  env.DB.prepare("DELETE FROM even_calendar_events WHERE owner_email=?").bind(owner),
+  env.DB.prepare("DELETE FROM even_calendars WHERE owner_email=?").bind(owner),
+  env.DB.prepare("DELETE FROM even_alarms WHERE owner_email=?").bind(owner),
+  env.DB.prepare("DELETE FROM even_moods WHERE owner_email=?").bind(owner),
+  env.DB.prepare("DELETE FROM even_push_subscriptions WHERE owner_email=?").bind(owner),
+  env.DB.prepare("DELETE FROM even_names WHERE email=?").bind(owner)
+ ];
+}
+function accountStatements(env,owner){
+ return [...syncedDataStatements(env,owner),
+  env.DB.prepare("DELETE FROM even_devices WHERE owner_email=?").bind(owner),
+  env.DB.prepare("DELETE FROM even_users WHERE email=?").bind(owner)];
 }
 const WEEKDAYS=["sunday","monday","tuesday","wednesday","thursday","friday","saturday"];
 function alarmDays(text){
@@ -241,6 +266,7 @@ async function authApi(request,env,ctx,path){
   if(!browserPostAllowed(request))return error("This request isn't allowed.",403,"same_origin_required");
   let input;try{input=await payload(request);}catch(e){return error("Even couldn't read that request.",400,"invalid_body");}
   const label=String(input.label||"iPhone").trim().replace(/[\x00-\x1f]/g,"").slice(0,64)||"iPhone";
+  await env.DB.prepare("UPDATE even_devices SET revoked_at=? WHERE owner_email=? AND revoked_at IS NULL AND COALESCE(last_seen_at,last_used_at,last_attempt_at,created_at)<?").bind(new Date().toISOString(),email,new Date(Date.now()-DEVICE_EXPIRY_MS).toISOString()).run();
   const count=await env.DB.prepare("SELECT COUNT(*) AS count FROM even_devices WHERE owner_email=? AND revoked_at IS NULL").bind(email).first();
   if(Number(count?.count||0)>=10)return error("Ten active devices maximum; revoke one first",429,"device_limit");
   const token=secureRandomHex(),deviceId=crypto.randomUUID(),at=new Date().toISOString();
@@ -283,7 +309,8 @@ async function authApi(request,env,ctx,path){
    return reply({ok:true,name:await displayName(env,tester)});
   }
   if(path==="/api/auth/testers/remove"){
-   await env.DB.batch([env.DB.prepare("DELETE FROM even_approved_emails WHERE email=?").bind(tester),env.DB.prepare("DELETE FROM even_names WHERE email=?").bind(tester)]);
+   if(ownerEmails(env).includes(tester)||tester===email)return error("This account can't be removed.",400,"not_removable");
+   await env.DB.batch([env.DB.prepare("DELETE FROM even_approved_emails WHERE email=?").bind(tester),...accountStatements(env,tester)]);
    return reply({ok:true});
   }
   return error("Not found",404,"not_found");
@@ -421,15 +448,16 @@ function dueTarget(times,minutes){
  const targets=times.map(t=>{const[h,m]=t.split(":").map(Number);return h*60+m;}).filter(t=>t<=minutes&&minutes-t<60);
  return targets.length?Math.max(...targets):null;
 }
-const SYNC_STALE_MS=72000000,DUE_WINDOW_MS=3600000;
+const REMINDER_BATCH=5,SYNC_STALE_MS=72000000,DUE_WINDOW_MS=3600000;
 // Sent ahead of an anticipated hard moment. The device fills in the specific message.
 async function sendAnticipation(env,key,sub,now){
  const last=sub.last_stress_at?Date.parse(sub.last_stress_at):0;
  const due=JSON.parse(sub.stress_times||"[]").filter(at=>{const t=Date.parse(at);return t<=now.getTime()&&now.getTime()-t<DUE_WINDOW_MS&&t>last;}).sort();
- if(!due.length)return;
+ if(!due.length)return false;
  const at=due[due.length-1];
  const sent=await deliverPush(env,key,sub,now,pushPayload(firstName(sub.person)?firstName(sub.person)+", a harder stretch may be coming. Take a minute?":"A harder stretch may be coming. Take a minute?","/?do=reset",{stressAt:at}));
  if(sent.ok)await env.DB.prepare("UPDATE even_push_subscriptions SET last_stress_at=? WHERE endpoint=?").bind(at,sub.endpoint).run();
+ return sent.ok;
 }
 // Only for people who have synced before and haven't lately.
 async function sendSyncReminder(env,key,sub,now,local){
@@ -443,19 +471,33 @@ async function sendSyncReminder(env,key,sub,now,local){
 async function sendReminders(env,now=new Date()){
  const key=pushKey(env);if(!key)return;
  const subs=await env.DB.prepare("SELECT s.endpoint,s.p256dh,s.auth,s.mode,s.times,s.bedtime_at,s.brief_at,s.hard_at,s.weekends,s.sync_at,s.last_sync_prompt_day,s.stress_times,s.last_stress_at,d.last_used_at,s.time_zone,s.last_sent_day,s.last_sent_target,s.last_check_in_at,COALESCE((SELECT name FROM even_names n WHERE n.email=s.owner_email),(SELECT display_name FROM even_release_emails r WHERE r.email=s.owner_email),(SELECT name FROM even_users u WHERE u.email=s.owner_email)) AS person FROM even_push_subscriptions s JOIN even_devices d ON d.device_id=s.device_id WHERE d.revoked_at IS NULL AND s.p256dh IS NOT NULL AND s.times IS NOT NULL").bind().all();
- for(const sub of subs.results||[]){
-  const local=localTime(sub.time_zone,now),target=dueTarget(JSON.parse(sub.times),local.minutes);
-  await sendAnticipation(env,key,sub,now);
-  await sendSyncReminder(env,key,sub,now,local);
-  if(target===null||(sub.last_sent_day===local.day&&sub.last_sent_target>=target))continue;
-  if(sub.weekends===0&&[0,6].includes(new Date(local.day+"T12:00:00Z").getUTCDay()))continue;
-  // A smart reminder isn't needed right after a check-in.
-  const quiet=sub.mode==="smart"&&sub.last_check_in_at&&now.getTime()-new Date(sub.last_check_in_at).getTime()<SMART_QUIET_MS;
-  const isTarget=time=>{if(!time)return false;const[hour,minute]=time.split(":").map(Number);return hour*60+minute===target;};
-  const smart=sub.mode==="smart",body=smart?reminderMessage(target,isTarget(sub.bedtime_at),isTarget(sub.hard_at),firstName(sub.person)):"How are you feeling?";
-  const sent=quiet?{ok:true}:await deliverPush(env,key,sub,now,pushPayload(body,"/#checkin",{brief:smart&&isTarget(sub.brief_at)}));
-  if(sent.ok)await env.DB.prepare("UPDATE even_push_subscriptions SET last_sent_day=?,last_sent_target=? WHERE endpoint=?").bind(local.day,target,sub.endpoint).run();
+ const rows=subs.results||[];
+ // A failure stays with its own subscription, and a slow endpoint holds up only its small group.
+ for(let i=0;i<rows.length;i+=REMINDER_BATCH){
+  await Promise.all(rows.slice(i,i+REMINDER_BATCH).map(async sub=>{
+   try{await notifySubscriber(env,key,sub,now);}
+   catch(e){await env.DB.prepare("UPDATE even_push_subscriptions SET last_push_status=? WHERE endpoint=?").bind(0,sub.endpoint).run().catch(()=>{});}
+  }));
  }
+}
+// At most one notification a run. Whatever else is due goes out on a later run, while it's still within its hour.
+async function notifySubscriber(env,key,sub,now){
+ const local=localTime(sub.time_zone,now);
+ if(await sendAnticipation(env,key,sub,now))return;
+ if(await sendCheckIn(env,key,sub,now,local))return;
+ await sendSyncReminder(env,key,sub,now,local);
+}
+async function sendCheckIn(env,key,sub,now,local){
+ const target=dueTarget(JSON.parse(sub.times),local.minutes);
+ if(target===null||(sub.last_sent_day===local.day&&sub.last_sent_target>=target))return false;
+ if(sub.weekends===0&&[0,6].includes(new Date(local.day+"T12:00:00Z").getUTCDay()))return false;
+ // A smart reminder isn't needed right after a check-in.
+ const quiet=sub.mode==="smart"&&sub.last_check_in_at&&now.getTime()-new Date(sub.last_check_in_at).getTime()<SMART_QUIET_MS;
+ const isTarget=time=>{if(!time)return false;const[hour,minute]=time.split(":").map(Number);return hour*60+minute===target;};
+ const smart=sub.mode==="smart",body=smart?reminderMessage(target,isTarget(sub.bedtime_at),isTarget(sub.hard_at),firstName(sub.person)):"How are you feeling?";
+ const sent=quiet?{ok:true}:await deliverPush(env,key,sub,now,pushPayload(body,"/#checkin",{brief:smart&&isTarget(sub.brief_at)}));
+ if(sent.ok)await env.DB.prepare("UPDATE even_push_subscriptions SET last_sent_day=?,last_sent_target=? WHERE endpoint=?").bind(local.day,target,sub.endpoint).run();
+ return sent.ok&&!quiet;
 }
 const BUILDS="https://github.com/Bishvili/even/releases/download/shortcut-latest/";
 async function latestBuildVersion(name){
@@ -716,22 +758,25 @@ async function syncApi(request,env,path){
   const clientVersion=await markUpload(env,dev,input.shortcutVersion,at);
   return reply({ok:true,state:"accepted",receivedAt:at,kind,healthMetrics:metrics.length,calendarEvents:events.length,shortcutVersion:clientVersion});
  }
- if(path==="/api/erase"&&request.method==="POST"){
+ if(path==="/api/account/delete"&&request.method==="POST"){
+  await env.DB.batch(accountStatements(env,owner));
+  return reply({ok:true,deleted:true,email:owner});
+ }
+ if(path==="/api/device/disconnect"&&request.method==="POST"){
   await env.DB.batch([
-   env.DB.prepare("DELETE FROM even_health_metrics WHERE owner_email=?").bind(owner),
-   env.DB.prepare("DELETE FROM even_calendar_events WHERE owner_email=?").bind(owner),
-   env.DB.prepare("DELETE FROM even_calendars WHERE owner_email=?").bind(owner),
-   env.DB.prepare("DELETE FROM even_alarms WHERE owner_email=?").bind(owner),
-   env.DB.prepare("DELETE FROM even_moods WHERE owner_email=?").bind(owner),
-   env.DB.prepare("DELETE FROM even_names WHERE email=?").bind(owner),
-   env.DB.prepare("UPDATE even_users SET mood_sync=0 WHERE email=?").bind(owner)
+   env.DB.prepare("DELETE FROM even_push_subscriptions WHERE device_id=? AND owner_email=?").bind(dev.id,owner),
+   env.DB.prepare("UPDATE even_devices SET revoked_at=? WHERE device_id=? AND owner_email=? AND revoked_at IS NULL").bind(new Date().toISOString(),dev.id,owner)
   ]);
+  return reply({ok:true});
+ }
+ if(path==="/api/erase"&&request.method==="POST"){
+  await env.DB.batch([...syncedDataStatements(env,owner),env.DB.prepare("UPDATE even_users SET mood_sync=0 WHERE email=?").bind(owner)]);
   return reply({ok:true,erased:true,email:owner});
  }
  return error("Not found",404,"not_found");
 }
 async function api(request,env,ctx,path){
- if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:"Even",version:"2.15.4",sync:"email-access"});
+ if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:"Even",version:"2.15.5",sync:"email-access"});
  if(path.startsWith("/api/auth/"))return authApi(request,env,ctx,path);
  return syncApi(request,env,path);
 }
