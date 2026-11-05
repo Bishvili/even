@@ -40,11 +40,13 @@ async function payload(request){
  if(type.includes("application/x-www-form-urlencoded"))return Object.fromEntries(new URLSearchParams(text));
  try{return JSON.parse(text);}catch(e){return Object.fromEntries(new URLSearchParams(text));}
 }
-const VERSION_NAME="2.44.3";
+const VERSION_NAME="2.44.4";
 function normalEmail(value){return String(value||"").trim().toLowerCase();}
-async function signinAuth(env,ctx){
+async function signinAuth(env,ctx,request){
  const {createAuth}=await import("./signin.mjs");
- return createAuth(env,{appName:BRAND.name,isApproved:email=>approved(env,email),deliverCode:(email,code)=>{const sent=sendSigninCode(env,email,code);if(ctx?.waitUntil)ctx.waitUntil(sent);}});
+ // Compared with configured addresses, so a request's Host can never choose the sign-in address.
+ const relay=!!request&&!!env.GOOGLE_RELAY_ORIGIN&&new URL(request.url).origin===env.GOOGLE_RELAY_ORIGIN;
+ return createAuth(env,{appName:BRAND.name,baseURL:relay?env.GOOGLE_RELAY_ORIGIN:env.PUBLIC_ORIGIN,isApproved:email=>approved(env,email),deliverCode:(email,code)=>{const sent=sendSigninCode(env,email,code);if(ctx?.waitUntil)ctx.waitUntil(sent);}});
 }
 // Only a session from the app's sign-in proves who someone is, and approval is checked on every request.
 async function authIdentity(request,env,ctx){
@@ -287,10 +289,38 @@ async function sendSigninCode(env,to,code){
 }
 const FRESH_SIGN_IN_MS=600000,SENDS_AN_HOUR=5;
 const SIGNIN_ROUTES={"POST /email-otp/send-verification-otp":1,"POST /sign-in/email-otp":1,"POST /sign-in/social":1,"GET /callback/google":1,"POST /callback/google":1,"POST /sign-out":1};
+// The relay's last step can't tell who started a sign-in, so someone else's link could otherwise sign a person in to the wrong account.
+// A random value goes in a cookie on this browser and in the return address, and the two must match.
+const GOOGLE_START="__Host-health-google",GOOGLE_PARAM="google";
+const RELAY_ROUTE="/callback/google/oauth-proxy";
+const googleCookie=(value,age)=>GOOGLE_START+"="+value+"; Path=/; Max-Age="+age+"; HttpOnly; Secure; SameSite=Lax";
+const readCookie=(request,name)=>(request.headers.get("cookie")||"").split(/;\s*/).find(part=>part.startsWith(name+"="))?.slice(name.length+1)||"";
+async function startGoogle(request){
+ const input=await request.json().catch(()=>null);
+ if(typeof input?.callbackURL!=="string"||!URL.canParse(input.callbackURL))return {refused:error("That request couldn't be read.",400,"invalid_body")};
+ const value=secureRandomHex(),back=new URL(input.callbackURL);
+ back.searchParams.set(GOOGLE_PARAM,value);
+ return {value,request:new Request(request,{body:JSON.stringify({...input,callbackURL:back.href})})};
+}
+function googleStartedHere(request){
+ const back=new URL(request.url).searchParams.get("callbackURL")||"",value=URL.canParse(back)?new URL(back).searchParams.get(GOOGLE_PARAM):"";
+ return !!value&&value===readCookie(request,GOOGLE_START);
+}
+function withoutGoogleParam(location){
+ if(!location||!URL.canParse(location))return location;
+ const url=new URL(location);url.searchParams.delete(GOOGLE_PARAM);return url.href;
+}
 async function signinApi(request,env,ctx,path){
- const route=path.slice("/api/signin".length);
+ const route=path.slice("/api/signin".length),relay=!!env.GOOGLE_RELAY_ORIGIN,finishing=relay&&route===RELAY_ROUTE&&request.method==="GET";
+ let started=null;
+ if(finishing&&!googleStartedHere(request))return new Response(null,{status:303,headers:{...SECURITY,"Location":new URL(request.url).origin+"/?auth=failed#data","Set-Cookie":googleCookie("",0),"Cache-Control":"no-store"}});
+ if(relay&&route==="/sign-in/social"&&request.method==="POST"){
+  started=await startGoogle(request.clone());
+  if(started.refused)return started.refused;
+  request=started.request;
+ }
  if(route==="/options"&&request.method==="GET")return reply({ok:true,google:!!(env.GOOGLE_CLIENT_ID&&env.GOOGLE_CLIENT_SECRET)});
- if(!SIGNIN_ROUTES[request.method+" "+route])return error("Not found",404,"not_found");
+ if(!SIGNIN_ROUTES[request.method+" "+route]&&!finishing)return error("Not found",404,"not_found");
  if(route==="/email-otp/send-verification-otp"||route==="/sign-in/email-otp"){
   let input;try{input=await request.clone().json();}catch(e){return error("That request couldn't be read.",400,"invalid_body");}
   const email=normalEmail(input?.email);
@@ -307,10 +337,15 @@ async function signinApi(request,env,ctx,path){
    if(input.type!=="sign-in"||!await approved(env,email))return reply({success:true});
   }
  }
- const response=await (await signinAuth(env,ctx)).handler(request);
+ const response=await (await signinAuth(env,ctx,request)).handler(request);
  const headers=new Headers(response.headers);
  for(const [name,value] of Object.entries(SECURITY))headers.set(name,value);
  headers.set("Cache-Control","no-store");
+ if(started&&response.ok)headers.append("Set-Cookie",googleCookie(started.value,600));
+ if(finishing){
+  headers.append("Set-Cookie",googleCookie("",0));
+  if(headers.has("Location"))headers.set("Location",withoutGoogleParam(headers.get("Location")));
+ }
  return new Response(response.body,{status:response.status,headers});
 }
 async function authApi(request,env,ctx,path){
@@ -905,7 +940,7 @@ async function syncApi(request,env,path){
 // Installed Shortcuts use their own address, so the app's can move. It serves only what they call, with no second copy of the app.
 const SHORTCUT_PATHS=new Set(["/api/shortcut/hello","/api/ingest","/api/push/synced","/api/shortcut/release-state","/api/shortcut/publish","/api/shortcut/helper-link"]);
 const onShortcutHost=(request,env)=>!!env.SHORTCUT_ORIGIN&&new URL(request.url).origin===env.SHORTCUT_ORIGIN;
-const shortcutPath=path=>SHORTCUT_PATHS.has(path)||path.startsWith("/api/shortcut/build/");
+const shortcutPath=(path,env)=>SHORTCUT_PATHS.has(path)||path.startsWith("/api/shortcut/build/")||!!env.GOOGLE_RELAY_ORIGIN&&path==="/api/signin/callback/google";
 async function api(request,env,ctx,path){
  if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:BRAND.name,version:VERSION_NAME,sync:"email-access"});
  if(path.startsWith("/api/shortcut/build/")&&request.method==="GET")return shortcutBuild(path);
@@ -936,7 +971,7 @@ async function runCron(env){
 }
 export default {async fetch(request,env,ctx){
  try{const path=new URL(request.url).pathname;
- if(onShortcutHost(request,env)&&!shortcutPath(path))return error("Not found",404,"not_found");
+ if(onShortcutHost(request,env)&&!shortcutPath(path,env))return error("Not found",404,"not_found");
  if(path.startsWith("/api/"))return await api(request,env,ctx,path);
  if(request.method!=="GET"&&request.method!=="HEAD")return new Response("Method not allowed",{status:405,headers:SECURITY});
  return await asset(request,env,path);

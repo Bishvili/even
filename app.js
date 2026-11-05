@@ -1,6 +1,6 @@
 (function () {
 "use strict";
-var VERSION = "2.44.3";
+var VERSION = "2.44.4";
 // Brings saved data over from the earlier storage names. Remove once no installed copy has them.
 function moveSavedData(){
  [["even:v1","health:v1"],["even-reminder","health-reminder"],["even-setup","health-setup"]].forEach(function(pair){
@@ -1037,7 +1037,8 @@ function init(){
  // iOS can pan the document to reveal a focused field, and the document should never stay scrolled.
  document.addEventListener("focusout",function(){setTimeout(function(){if(window.scrollY)window.scrollTo(0,0);},100);});
  window.addEventListener("load",handleNotificationAction);
- if(new URLSearchParams(location.search).get("auth")==="denied"){var back=location.hash==="#checkin"?"checkin":"data";history.replaceState(null,"","/#"+back);navigate(back);toast("This email isn’t on the list yet. Ask the person who invited you.");}
+ var authResult=new URLSearchParams(location.search).get("auth");
+ if(authResult==="denied"||authResult==="failed"){var back=location.hash==="#checkin"?"checkin":"data";history.replaceState(null,"","/#"+back);navigate(back);toast(authResult==="denied"?"This email isn’t on the list yet. Ask the person who invited you.":"That sign-in didn’t finish. Try again.");}
  if(new URLSearchParams(location.search).get("sync")==="1"){history.replaceState(null,"","/#checkin");navigate("checkin");if(state.token)pull(false);}
 }
 // A notification can open the app to a specific action.

@@ -11,7 +11,7 @@ const {TextEncoder}=require("node:util");
 const days=(date,records)=>({kind:"calendar_days",date,utcOffset:"+00:00",events:records.map(r=>r.join("\u241f")).join("\u241e")});
 function harness({verified=false,buildVersion="2.8.0",helperBuild="2.0.0",sourceVersions=null,helperLink=null}={}){
  const source=fs.readFileSync(path.join(__dirname,"..","worker","index.js"),"utf8");
- const session='{createAuth:()=>({api:{getSession:async({headers})=>{const m=/health\\.session_token=([^;]+)/.exec(headers.get("cookie")||"");if(!m)return null;const user=JSON.parse(decodeURIComponent(m[1]));return{user,session:{createdAt:new Date(user.name==="Old session"?0:Date.now())}};}}})}';
+ const session='{createAuth:(authEnv,options)=>({handler:async request=>{const url=new URL(request.url);globalThis.lastAuth={baseURL:options.baseURL,url:request.url,body:request.method==="POST"?await request.text():""};return url.pathname.endsWith("/oauth-proxy")?new Response(null,{status:302,headers:{Location:url.searchParams.get("callbackURL"),"Set-Cookie":"health.session_token=abc; Path=/"}}):new Response("{}",{status:200,headers:{"Content-Type":"application/json"}});},api:{getSession:async({headers})=>{const m=/health\\.session_token=([^;]+)/.exec(headers.get("cookie")||"");if(!m)return null;const user=JSON.parse(decodeURIComponent(m[1]));return{user,session:{createdAt:new Date(user.name==="Old session"?0:Date.now())}};}}})}';
  const loaded=source.replace(/^import (\w+) from "\.\.\/brand\/(\w+)\.json";$/gm,(line,name,file)=>"const "+name+"="+fs.readFileSync(path.join(__dirname,"..","brand",file+".json"),"utf8")+";").replace('await import("./signin.mjs")',session).replace("export default {","globalThis.logEvent = logEvent;globalThis.runCron = runCron;globalThis.sendReminders = sendReminders;globalThis.readBedtimes = readBedtimes;globalThis.readSleep = readSleep;globalThis.reminderMessage = reminderMessage;globalThis.dueScheduled = dueScheduled;globalThis.readAlarms = readAlarms;globalThis.firstAlarm = firstAlarm;globalThis.pushPayload = pushPayload;globalThis.__worker = {");
  assert.notEqual(source,loaded,"Worker ESM export not found");
  const dispatches=[];
@@ -1049,4 +1049,56 @@ test("the Shortcuts' address serves only what they call",async()=>{
 test("every path the Shortcuts call is served on their address",()=>{
  const worker=require("node:fs").readFileSync("worker/index.js","utf8"),listed=JSON.parse(worker.match(/SHORTCUT_PATHS=new Set\((\[.*?\])\)/)[1]);
  for(const file of ["shortcuts/sync.cherri","shortcuts/helper.cherri"])for(const[,route]of require("node:fs").readFileSync(file,"utf8").matchAll(/\{appAddress\}(\/api\/[\w/.-]+)/g))assert.ok(listed.includes(route)||route.startsWith("/api/shortcut/build/"),route);
+});
+
+function relay(){
+ const made=harness();made.env.SHORTCUT_ORIGIN="https://sync.example.com";made.env.GOOGLE_RELAY_ORIGIN="https://sync.example.com";made.env.PUBLIC_ORIGIN="https://app.example.com";
+ const send=(url,init={})=>made.runtime.__worker.fetch(new Request(url,init),made.env,{waitUntil(){}});
+ const start=()=>send("https://app.example.com/api/signin/sign-in/social",{method:"POST",headers:{"Content-Type":"application/json",Origin:"https://app.example.com"},body:JSON.stringify({provider:"google",callbackURL:"https://app.example.com/#data"})});
+ return {...made,send,start};
+}
+const finishURL=value=>"https://app.example.com/api/signin/callback/google/oauth-proxy?profile=x&callbackURL="+encodeURIComponent("https://app.example.com/?google="+value+"#data");
+test("a Google sign-in can only finish in the browser that started it",async()=>{
+ const{send,start,runtime}=relay();
+ const started=await start(),cookie=started.headers.get("set-cookie");
+ assert.match(cookie,/^__Host-health-google=[^;]+; Path=\/; Max-Age=600; HttpOnly; Secure; SameSite=Lax/);
+ const value=cookie.match(/=([^;]+)/)[1];
+ assert.ok(value.length>=32);
+ assert.equal(new URL(JSON.parse(runtime.lastAuth.body).callbackURL).searchParams.get("google"),value);
+ // Someone else's link, opened with no cookie or another browser's.
+ for(const headers of [{},{Cookie:"__Host-health-google=other"}]){
+  const refused=await send(finishURL(value),{headers});
+  assert.equal(refused.status,303);
+  assert.equal(refused.headers.get("location"),"https://app.example.com/?auth=failed#data");
+  assert.doesNotMatch(refused.headers.get("set-cookie"),/session_token/);
+ }
+ const noValue=await send("https://app.example.com/api/signin/callback/google/oauth-proxy?profile=x&callbackURL="+encodeURIComponent("https://app.example.com/#data"),{headers:{Cookie:"__Host-health-google="}});
+ assert.equal(noValue.status,303);
+ // The browser that started it: signed in, the value used up, and gone from the address.
+ const finished=await send(finishURL(value),{headers:{Cookie:"__Host-health-google="+value}});
+ assert.equal(finished.status,302);
+ assert.equal(finished.headers.get("location"),"https://app.example.com/#data");
+ assert.match(finished.headers.get("set-cookie"),/session_token/);
+ assert.match(finished.headers.get("set-cookie"),/__Host-health-google=; Path=\/; Max-Age=0/);
+});
+test("the relay's address serves Google's return and nothing else of sign-in, and a Host can't choose the sign-in address",async()=>{
+ const{send,runtime}=relay();
+ assert.equal((await send("https://sync.example.com/api/signin/callback/google?code=a&state=b")).status,200);
+ assert.equal(runtime.lastAuth.baseURL,"https://sync.example.com");
+ for(const route of ["/api/signin/sign-in/social","/api/signin/callback/google/oauth-proxy","/api/signin/email-otp/send-verification-otp","/api/signin/options","/api/signin/sign-out","/api/signin/oauth-proxy-callback"])assert.equal((await send("https://sync.example.com"+route)).status,404,route);
+ await send("https://elsewhere.example.com/api/signin/callback/google?code=a&state=b");
+ assert.equal(runtime.lastAuth.baseURL,"https://app.example.com");
+ assert.equal((await send("https://app.example.com/api/signin/oauth-proxy-callback?callbackURL=x")).status,404);
+});
+test("with the relay off, nothing about Google sign-in changes",async()=>{
+ const{runtime,env}=harness();env.SHORTCUT_ORIGIN="https://sync.example.com";env.PUBLIC_ORIGIN="https://app.example.com";
+ const send=(url,init={})=>runtime.__worker.fetch(new Request(url,init),env,{waitUntil(){}});
+ assert.equal((await send("https://sync.example.com/api/signin/callback/google")).status,404);
+ assert.equal((await send(finishURL("a"))).status,404);
+ const started=await send("https://app.example.com/api/signin/sign-in/social",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({provider:"google",callbackURL:"https://app.example.com/#data"})});
+ assert.equal(started.headers.get("set-cookie"),null);
+ assert.equal(JSON.parse(runtime.lastAuth.body).callbackURL,"https://app.example.com/#data");
+});
+test("request addresses aren't kept in the host's logs",()=>{
+ assert.match(require("node:fs").readFileSync("wrangler.jsonc","utf8"),/"invocation_logs": false/);
 });
