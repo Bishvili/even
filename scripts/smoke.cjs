@@ -58,6 +58,13 @@ async function run(type,base){
  const checkCache=type===chromium;
  await page.evaluate(async withCache=>{localStorage.setItem("even-setup",JSON.stringify({skipped:{signin:1}}));localStorage.setItem("even-reminder","{}");if(withCache)await(await caches.open("even-brief")).put("/brief",new Response("x"));},checkCache);
  console.log(type.name()+": erasing");
+ const stepProbe=async(name,fn)=>{await page.evaluate(fn).catch(e=>console.log(name+" threw "+e.message));const r=await Promise.race([page.evaluate(()=>1),new Promise(d=>setTimeout(()=>d("HUNG"),6000))]);console.log(type.name()+" step "+name+": "+r);};
+ await stepProbe("signout",()=>fetch("/api/signin/sign-out",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:"{}"}).then(r=>r.status));
+ await stepProbe("reminders",()=>{EvenReminders.forget();});
+ await stepProbe("onboarding",()=>{EvenOnboarding.forget();});
+ await stepProbe("keys",()=>{["even-reminder","even-setup"].forEach(k=>localStorage.removeItem(k));});
+ await stepProbe("cachesdelete",()=>{caches.delete("even-brief");});
+ await stepProbe("render",()=>{EvenApp.navigate("settings");});
  await tab("settings");await page.click("#erase-local");await page.click("#confirm-yes");await page.waitForTimeout(400);
  console.log(type.name()+": erased");
  const probe=async(name,fn)=>{const r=await Promise.race([page.evaluate(fn).then(v=>"ok "+v),new Promise(d=>setTimeout(()=>d("HUNG"),8000))]);console.log(type.name()+" probe "+name+": "+r);};
