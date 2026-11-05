@@ -17,8 +17,8 @@ function harness({verified=false,buildVersion="2.8.0",helperBuild="2.0.0",source
  const dispatches=[];
  const runtime={crypto:webcrypto,TextEncoder,Response,Request,Headers,URL,atob,btoa,Intl,Uint8Array,console,async fetch(url,init){
   if(String(url).includes("/shortcuts/api/records/")){const id=String(url).split("/").pop();return new Response(JSON.stringify({fields:{name:{value:id==="0".repeat(32)?"Other Shortcut":id==="1".repeat(32)?"Even Release":"Even Sync"}}}));}
-  if(String(url).endsWith("Even-Sync-version.txt"))return new Response(buildVersion+"\n");
-  if(String(url).endsWith("Even-Release-version.txt"))return helperBuild?new Response(helperBuild+"\n"):new Response("",{status:404});
+  if(String(url).endsWith("/sync-version.txt"))return new Response(buildVersion+"\n");
+  if(String(url).endsWith("/helper-version.txt"))return helperBuild?new Response(helperBuild+"\n"):new Response("",{status:404});
   if(String(url).endsWith(".shortcut"))return new Response("file");
   dispatches.push({url,init});return new Response(null,{status:204});}};
  vm.runInNewContext(loaded,runtime,{timeout:2500,filename:"worker/index.js"});
@@ -1025,4 +1025,16 @@ test("logs carry only named fields, and a failed request logs without changing i
  const failed=await runtime.__worker.fetch(new Request("https://even.example/"),env,{});
  assert.equal(failed.status,500);
  assert.deepEqual(JSON.parse(lines[1]),{event:"request_failed",route:"/",status:500,error:"TypeError"});
+});
+
+test("each build has one lasting link, named as iOS should install it, with no sign-in",async()=>{
+ const{runtime,env}=harness(),stable=require("../brand/stable.json");
+ const get=route=>runtime.__worker.fetch(new Request("https://even.bishvili.org"+route),env,{waitUntil(){}});
+ for(const[role,name]of[["sync",stable.sync],["helper",stable.helper]]){
+  const build=await get("/api/shortcut/build/"+role);
+  assert.equal(build.status,200);
+  assert.equal(build.headers.get("content-disposition"),'attachment; filename="'+name+'.shortcut"');
+  assert.equal((await get("/api/shortcut/build/"+role+"/version")).status,200);
+ }
+ assert.equal((await get("/api/shortcut/build/other")).status,404);
 });

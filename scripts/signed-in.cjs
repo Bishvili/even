@@ -49,7 +49,7 @@ async function open(browser,base,state,api,check,device={}){
 }
 const stored=page=>page.evaluate(()=>JSON.parse(localStorage.getItem("health:v1")));
 const until=(page,fn,arg)=>page.waitForFunction(fn,arg,{timeout:8000});
-const goTo=(page,tab)=>page.evaluate(name=>globalThis.EvenApp.navigate(name),tab);
+const goTo=(page,tab)=>page.evaluate(name=>globalThis.App.navigate(name),tab);
 const statusIs=(page,text)=>until(page,wanted=>document.getElementById("mood-sync-status").textContent.includes(wanted),text);
 const saveCheckIn=async page=>{await page.click('[data-mood="4"]');await page.click("#save-mood");};
 const confirm=page=>page.click("#confirm-yes");
@@ -275,7 +275,7 @@ const scenarios={
   });
  }
 };
-async function statusIsReady(page){await until(page,()=>globalThis.EvenApp&&document.getElementById("mood-sync-status"));}
+async function statusIsReady(page){await until(page,()=>globalThis.App&&document.getElementById("mood-sync-status"));}
 
 (async()=>{
  const names=process.argv.slice(2),server=await serve(),base="http://localhost:"+server.address().port;

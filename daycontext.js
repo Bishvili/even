@@ -109,5 +109,5 @@
   last={health:inputs.health,events:inputs.events,today:today,context:context};
   return context;
  }
- root.EvenDay={build:build,freshness:freshness,timedEvents:timedEvents,calendarFacts:calendarFacts,RULES:RULES,DAY_MS:DAY_MS,mean:mean,median:median,localDay:localDay,baseline:baseline,PARTS:PARTS,partOf:partOf,shortSleepLine:shortSleepLine,evidence:evidence,eventPairs:eventPairs};
+ root.Day={build:build,freshness:freshness,timedEvents:timedEvents,calendarFacts:calendarFacts,RULES:RULES,DAY_MS:DAY_MS,mean:mean,median:median,localDay:localDay,baseline:baseline,PARTS:PARTS,partOf:partOf,shortSleepLine:shortSleepLine,evidence:evidence,eventPairs:eventPairs};
 })(globalThis);

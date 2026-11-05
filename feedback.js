@@ -8,7 +8,7 @@
   return match?"iOS "+match[1]+"."+match[2]:"Other";
  }
  function summary(){
-  var app=globalThis.EvenApp,status=app.syncStatus()||{};
+  var app=globalThis.App,status=app.syncStatus()||{};
   return{
    "App version":app.version,
    "Software":deviceSoftware(),
@@ -32,5 +32,5 @@
   $("feedback-cancel").addEventListener("click",function(){$("feedback-sheet").close();});
  }
  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init);else init();
- globalThis.EvenFeedback={summary:summary,open:open};
+ globalThis.Feedback={summary:summary,open:open};
 })();

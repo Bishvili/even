@@ -2,7 +2,7 @@
 const test=require("node:test");
 const assert=require("node:assert/strict");
 require("../coach.js");
-const {outlook,findings,brief,hardStretch,steadiness,reflectionDue,smartTimes,repeatTimes,bedtimeReminder,smartPlan,REFLECTION}=globalThis.EvenCoach;
+const {outlook,findings,brief,hardStretch,steadiness,reflectionDue,smartTimes,repeatTimes,bedtimeReminder,smartPlan,REFLECTION}=globalThis.Coach;
 const today=new Date(2026,10,3,12);// a Tuesday
 const at=(daysAgo,hour=12)=>{const d=new Date(today);d.setDate(d.getDate()-daysAgo);d.setHours(hour);return d.toISOString();};
 
@@ -130,7 +130,7 @@ test("a harder-time check-in stays clear of the brief and outside hours are drop
  assert.equal(smartPlan([],[],"13:00","21:00",3,today,{brief:false,windDown:true,hardest:"morning"}).hardAt,null);
 });
 
-const {anticipate,nextActions,bedtimeForAlarm,morningAlarm}=globalThis.EvenCoach;
+const {anticipate,nextActions,bedtimeForAlarm,morningAlarm}=globalThis.Coach;
 const hours=(base,offsetDays,hour)=>{const d=new Date(base);d.setDate(d.getDate()+offsetDays);d.setHours(hour,0,0,0);return d;};
 test("alarms move the brief and bring the wind-down forward only when earlier",()=>{
  const monday=new Date("2026-11-09T12:00:00");
@@ -175,7 +175,7 @@ test("next actions offer a stale sync and tomorrow's alarm in the evening",()=>{
  assert.deepEqual(nextActions({moods:[],events:[],health:[],alarms:[],connected:false},evening,{from:"07:00",to:"22:00"}),[]);
 });
 
-const {whatHelps}=globalThis.EvenCoach;
+const {whatHelps}=globalThis.Coach;
 test("what tends to help needs five check-ins each way and names the better outcome",()=>{
  const now=new Date("2026-11-09T09:00:00");
  const iso=d=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
@@ -228,7 +228,7 @@ test("hard days are counted in calendar days",()=>{
  assert.equal(hardStretch([0,1,4].map(n=>({ts:day(n),stress:4})),noon),false);
 });
 
-const {weekSchedule,validDay}=globalThis.EvenCoach;
+const {weekSchedule,validDay}=globalThis.Coach;
 test("a day can run past midnight, up to 20 hours",()=>{
  assert.equal(validDay("09:00","00:30"),true);
  assert.equal(validDay("22:00","06:00"),true);
@@ -308,7 +308,7 @@ test("no check-in lands during a calendar event, and tomorrow's first event sets
  assert.notEqual((without.slots.find(s=>s.kind==="bedtime")||{}).source,"event");
 });
 test("the plan shown is the plan sent, with spaced check-ins, and an all-day event changes nothing",()=>{
- const now=new Date("2026-11-06T07:00:00"),{smartPlan,weekSchedule}=globalThis.EvenCoach;
+ const now=new Date("2026-11-06T07:00:00"),{smartPlan,weekSchedule}=globalThis.Coach;
  const prefs={mode:"smart",from:"08:00",to:"22:00",count:5,weekends:true,alarms:[],windDown:false};
  const long={start:"2026-11-06T09:30:00",end:"2026-11-06T16:00:00",category:"Work"};
  const shown=smartPlan([],[],"08:00","22:00",5,now,Object.assign({},prefs,{events:[long]}));
@@ -345,7 +345,7 @@ test("the support suggestion covers mood-only, stress-only, mixed and recovery",
  assert.equal(hardStretch([{ts:day(0),score:4},{ts:day(1),score:4},{ts:day(5),score:1},{ts:day(6),score:1},{ts:day(7),score:1}],today),false);
 });
 const {people,TODAY,day,span}=require("./people.cjs");
-const Day=globalThis.EvenDay;
+const Day=globalThis.Day;
 test("a day without exercise is zero for someone who syncs and exercises, and missing for someone with no exercise data",()=>{
  const{health,moods,events,resets}=people.workoutFreeDays();
  const rows=findings(moods,events,health,resets,TODAY);
@@ -365,7 +365,7 @@ test("overlapping events count once, and only a stretch of two hours counts",()=
  assert.equal(Day.calendarFacts([span(1,9,60,"Meeting"),span(1,11,60,"Meeting")]).stretches.length,0);
 });
 test("the brief says how old it is, names categories only, and drops sleep and calendar facts when stale",()=>{
- const{briefFor}=globalThis.EvenCoach;
+ const{briefFor}=globalThis.Coach;
  const person=people.regular();
  person.events.push({...span(0,14,60,"Meeting","Secret title")});
  const today=outlook(person.moods,TODAY)[0],fresh=briefFor(today,null,"",person,TODAY).text;
@@ -385,7 +385,7 @@ test("building the day model stays fast at the largest saved history",()=>{
  Day.build({health,events},TODAY);
  assert.ok(Number(process.hrtime.bigint()-started)/1e6<100);
 });
-const {learnedMoves}=globalThis.EvenCoach;
+const {learnedMoves}=globalThis.Coach;
 const minuteAt=require("./people.cjs").at;
 test("a suggestion marked done feeds what tends to help under the same rules, and outranks a correlation",()=>{
  const moods=[],tries=[],health=[];
@@ -434,7 +434,7 @@ test("paired check-ins appear only after the opt-in, at most one pair a day, and
  assert.equal(plan.slots.length,without.slots.length);
 });
 test("the people with limits get the stated behavior",()=>{
- const{weekSchedule}=globalThis.EvenCoach;
+ const{weekSchedule}=globalThis.Coach;
  const shift=people.shiftWorker(),plan=weekSchedule(shift.moods,shift.health,{...shift.prefs,alarms:[],events:[]},TODAY);
  assert.ok(plan.every(item=>{const h=new Date(item.at).getHours();return h>=17||h<=6;}));
  assert.ok(plan.filter(item=>item.part==="evening").length>0);
@@ -442,7 +442,7 @@ test("the people with limits get the stated behavior",()=>{
  assert.ok(findings(none.moods,[],none.health,[],TODAY).every(r=>!/calendar|event|stretch/i.test(r.label)));
  const noHealth=people.noHealth();
  assert.ok(findings(noHealth.moods,noHealth.events,[],[],TODAY).every(r=>!/sleep|steps|workout/i.test(r.label)));
- assert.equal(globalThis.EvenCoach.nextActions({...noHealth,connected:false},TODAY,noHealth.prefs).some(a=>a.action==="sync"),false);
+ assert.equal(globalThis.Coach.nextActions({...noHealth,connected:false},TODAY,noHealth.prefs).some(a=>a.action==="sync"),false);
 });
 test("fictional records stay out of a person's own day model",()=>{
  const person=people.regular(),demo=[{date:day(1),source:"demo",steps:99999}];

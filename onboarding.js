@@ -59,8 +59,8 @@
   return{id:id,variant:variant,number:index+1,total:list.length,done:!!done,last:index===list.length-1,replay:true};
  }
  var api={gateStep:gateStep,nextStep:nextStep,outstanding:outstanding,replayStep:replayStep,render:function(){},restart:function(){},forget:function(){}};
- root.EvenOnboarding=api;
- if(typeof document==="undefined"||!root.EvenApp)return;
+ root.Onboarding=api;
+ if(typeof document==="undefined"||!root.App)return;
 
  var COPY={
   "install:share":{title:"Add {{name}} to your Home Screen",text:"In Safari, tap Share (or ••• and then Share), then Add to Home Screen."},
@@ -77,7 +77,7 @@
   "notifications:start":{title:"Fit notifications to your day",text:"Five quick questions, then you choose whether to turn them on.",action:"Start"}
  };
  var OFFLINE={signin:"Connect to the internet to sign in.",connect:"Connect to the internet to connect this device.",get:"Connect to the internet to get {{sync}}.",run:"Connect to the internet to run {{sync}}.",again:"Connect to the internet to run {{sync}}."};
- var app=root.EvenApp,installEvent=null,progress=readProgress(),current=null,replay=null;
+ var app=root.App,installEvent=null,progress=readProgress(),current=null,replay=null;
  function $(id){return document.getElementById(id);}
  function readProgress(){
   try{var saved=JSON.parse(localStorage.getItem(STORAGE_KEY)||"{}");return saved&&typeof saved==="object"&&!Array.isArray(saved)?saved:{};}
@@ -90,7 +90,7 @@
    signedIn:s.signedIn,connected:s.connected,connectedBefore:s.connectedBefore,connecting:s.connecting,
    signingIn:s.online&&!s.authKnown,moved:s.moved,safari:s.safari,records:s.records,otherAccount:s.otherAccount,online:s.online,
    synced:s.synced,shortcutConnected:s.shortcutConnected,gotShortcut:!!progress.gotShortcut,checkedIn:s.checkedIn,
-   notify:root.EvenReminders?root.EvenReminders.notificationStep():"unavailable",notifyOpen:!!root.EvenReminders&&root.EvenReminders.notificationsOpen(),skipped:skipped};
+   notify:root.Reminders?root.Reminders.notificationStep():"unavailable",notifyOpen:!!root.Reminders&&root.Reminders.notificationsOpen(),skipped:skipped};
  }
  // Moves focus after a tap that changed the step, so it isn't left on a control that disappeared.
  function renderSetupBadge(c){
@@ -172,7 +172,7 @@
  function skip(){
   if(!current)return;
   if(current.replay){replay=current.last?null:replay+1;render(true);return;}
-  if(current.id==="notifications"){root.EvenReminders.dismissIntake();render(true);return;}
+  if(current.id==="notifications"){root.Reminders.dismissIntake();render(true);return;}
   progress.skipped=Object.assign({},progress.skipped);progress.skipped[current.id]=Date.now();
   saveProgress();render(true);
  }
@@ -192,7 +192,7 @@
   // The Data tab's help line says why the link is missing.
   if(variant==="get"){app.toast($("shortcut-install-help").textContent);return;}
   if(current.id==="shortcut"){app.runShortcut();return;}
-  if(current.id==="notifications")root.EvenReminders.startIntake();
+  if(current.id==="notifications")root.Reminders.startIntake();
  }
  function gotShortcut(){progress.gotShortcut=Date.now();saveProgress();setTimeout(render,0);}
 
@@ -210,7 +210,7 @@
  // These controls live in Settings, which can't be reached from here.
  $("gate-backup").addEventListener("click",function(){$("backup-button").click();});
  $("gate-erase").addEventListener("click",function(){$("erase-local").click();});
- $("gate-feedback").addEventListener("click",function(){root.EvenFeedback.open();});
+ $("gate-feedback").addEventListener("click",function(){root.Feedback.open();});
  root.addEventListener("beforeinstallprompt",function(event){event.preventDefault();installEvent=event;render();});
  root.addEventListener("appinstalled",function(){installEvent=null;render();});
  root.addEventListener("online",function(){render();});
@@ -221,7 +221,7 @@
  // Finishing setup brings back every step that was skipped.
  $("finish-setup-button").addEventListener("click",function(){
   progress.skipped={};saveProgress();
-  if(root.EvenReminders)root.EvenReminders.reopenIntake();
+  if(root.Reminders)root.Reminders.reopenIntake();
   replay=null;app.navigate("checkin");render(true);
  });
  $("setup-again").addEventListener("click",api.restart);

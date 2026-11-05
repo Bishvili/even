@@ -35,8 +35,8 @@ test("a value that could break out of a page, or a token nobody defined, stops t
  assert.throws(()=>fill("{{nope}}",{},"page"),/unknown token/);
 });
 test("the stable names match the Shortcuts they describe",()=>{
- assert.match(fs.readFileSync("shortcuts/even-sync.cherri","utf8"),new RegExp("^#define name "+stable.sync+"$","m"));
- assert.match(fs.readFileSync("shortcuts/even-release.cherri","utf8"),new RegExp("^#define name "+stable.helper+"$","m"));
+ assert.match(fs.readFileSync("shortcuts/sync.cherri","utf8"),new RegExp("^#define name "+stable.sync+"$","m"));
+ assert.match(fs.readFileSync("shortcuts/helper.cherri","utf8"),new RegExp("^#define name "+stable.helper+"$","m"));
 });
 test("every color comes from the palette, with a value for each appearance",()=>{
  const{colorValues}=require("../scripts/build-assets.cjs"),palette=JSON.parse(fs.readFileSync("brand/palette.json","utf8"));
@@ -63,4 +63,13 @@ test("every listed image can be drawn, at its real size, from the logo",()=>{
  assert.ok(launch.svg.includes(palette.app.page.dark));
  for(const file of files)imageSpec(file,logo,palette);
  assert.ok(!fs.existsSync("icon-180.png"),"images are built, not stored");
+});
+test("the deploy's library draws an image at its real size",{skip:!fs.existsSync("node_modules/@resvg/resvg-js")},async()=>{
+ const{build,buildImages}=require("../scripts/build-assets.cjs"),out=fs.mkdtempSync(path.join(os.tmpdir(),"images-"));
+ try{
+  build({out});await buildImages(out);
+  const size=file=>{const png=fs.readFileSync(path.join(out,file));return[png.readUInt32BE(16),png.readUInt32BE(20)];};
+  assert.deepEqual(size("icon-180.png"),[180,180]);
+  assert.deepEqual(size("launch-390x844-3-dark.png"),[1170,2532]);
+ }finally{fs.rmSync(out,{recursive:true});}
 });

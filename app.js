@@ -1,6 +1,6 @@
 (function () {
 "use strict";
-var VERSION = "2.43.3";
+var VERSION = "2.43.4";
 // Brings saved data over from the earlier storage names. Remove once no installed copy has them.
 function moveSavedData(){
  [["even:v1","health:v1"],["even-reminder","health-reminder"],["even-setup","health-setup"]].forEach(function(pair){
@@ -106,7 +106,7 @@ async function saveYourName(ev){
   if(!r.ok)throw Error();
   var data=await r.json();
   $("your-name").blur();applyName(data);$("your-name").value=data.name||"";
-  if(globalThis.EvenReminders)globalThis.EvenReminders.dataChanged();
+  if(globalThis.Reminders)globalThis.Reminders.dataChanged();
   toast(data.name?"Name saved.":"Name removed.");
  }catch(e){toast("Couldn’t save your name. Check your connection and try again.");}
  save.disabled=false;
@@ -119,7 +119,7 @@ function resetPageScroll(top){
  page.scrollTop=top;
  setTimeout(function(){page.style.overflowY="";page.scrollTop=top;},60);
 }
-function refreshCoach(){renderAlarms();if(globalThis.EvenCoach&&globalThis.EvenCoach.render)globalThis.EvenCoach.render({moods:state.moods,events:state.events,health:state.health,demo:state.demo,reflections:state.reflections,alarms:state.alarms,resets:state.resets,tries:state.tries,firstName:state.firstName,connected:!!state.token,lastUpload:shortcutStatus&&shortcutStatus.lastDataUploadAt,notifyPrefs:globalThis.EvenReminders?globalThis.EvenReminders.preferences():{from:"09:00",to:"21:00",weekends:true},scope:insightScope});}
+function refreshCoach(){renderAlarms();if(globalThis.Coach&&globalThis.Coach.render)globalThis.Coach.render({moods:state.moods,events:state.events,health:state.health,demo:state.demo,reflections:state.reflections,alarms:state.alarms,resets:state.resets,tries:state.tries,firstName:state.firstName,connected:!!state.token,lastUpload:shortcutStatus&&shortcutStatus.lastDataUploadAt,notifyPrefs:globalThis.Reminders?globalThis.Reminders.preferences():{from:"09:00",to:"21:00",weekends:true},scope:insightScope});}
 function render(){
  $("date-label").textContent=formatPrettyDate(now());
  $("current-time").textContent=formatTime(now());
@@ -268,7 +268,7 @@ function renderSync(){
  renderMeasures();
  $("calendar-card").hidden=!state.token;
  renderDevices();
- if(globalThis.EvenOnboarding)globalThis.EvenOnboarding.render();
+ if(globalThis.Onboarding)globalThis.Onboarding.render();
 }
 // The verified iCloud link. Empty when there is none or this iPhone can't install.
 function shortcutLink(){
@@ -340,8 +340,8 @@ function drawTrend(moods){
 }
 // Averages need at least 5 check-ins. Bars are SVG, because the security policy blocks inline styles.
 function timeRows(moods){
- return globalThis.EvenDay.PARTS.map(function(part){
-  var scores=moods.filter(function(m){var d=new Date(m.ts);return globalThis.EvenDay.partOf(d.getHours()*60+d.getMinutes())===part;}).map(function(m){return m.score;});
+ return globalThis.Day.PARTS.map(function(part){
+  var scores=moods.filter(function(m){var d=new Date(m.ts);return globalThis.Day.partOf(d.getHours()*60+d.getMinutes())===part;}).map(function(m){return m.score;});
   return {name:part.name,count:scores.length,average:scores.length>=5?average(scores):null};
  });
 }
@@ -351,11 +351,11 @@ function drawTimes(moods){
   return '<div class="bar-row"><div class="bar-name">'+row.name+'<span class="bar-sub">'+plural(row.count,"check-in","check-ins")+'</span></div><div>'+bar+'</div><div class="bar-number">'+(known?row.average.toFixed(1):"—")+'</div></div>';
  }).join("")+'<p class="muted">Each time of day needs at least 5 check-ins.</p>':blank("Log moods at different times to see when you tend to feel better.");
 }
-function calendarPatternSummary(moods,events){return globalThis.EvenDay.eventPairs(moods,events,CATEGORIES);}
+function calendarPatternSummary(moods,events){return globalThis.Day.eventPairs(moods,events,CATEGORIES);}
 function signedScore(delta){return (delta>0?"+":"")+delta.toFixed(1);}
 function drawCalendar(moods,events){
  var patterns=calendarPatternSummary(moods,events),close=insightScope==="demo"?"":patterns.close.map(function(r){
-  var on=globalThis.EvenReminders&&globalThis.EvenReminders.pairs().indexOf(r.category)>=0;
+  var on=globalThis.Reminders&&globalThis.Reminders.pairs().indexOf(r.category)>=0;
   return '<div class="calendar-pair"><div class="calendar-pair-label"><strong>'+esc(r.category)+'</strong><small>'+r.count+' of 5 paired events so far</small></div><button type="button" class="small-action" data-pair="'+esc(r.category)+'" aria-pressed="'+on+'">'+(on?"Stop extra check-ins":"Add check-ins around these events")+'</button></div>';
  }).join("");
  if(!patterns.paired.length){
@@ -498,7 +498,7 @@ function handleMoodSave(){
  var moodId=newId();state.pendingMoods.push(moodId);
  state.moods.push({id:moodId,ts:new Date().toISOString(),score:selectedMood,energy:energyTouched?Number($("energy").value):null,tags:Array.from(selectedTags),note:$("mood-note").value.trim().slice(0,400)});
  if(selectedStress)state.moods[state.moods.length-1].stress=selectedStress;
- if(!persist())return;if(state.moods.length===1)keepStorage();selectMood(0);selectStress(0);selectedTags.clear();document.querySelectorAll("[data-tag]").forEach(function(b){b.classList.remove("selected");b.setAttribute("aria-pressed","false");});$("mood-note").value="";$("energy").value="3";energyTouched=false;setEnergyText();render();toast("Check-in saved. Thanks for checking in.");if(globalThis.EvenReminders)globalThis.EvenReminders.checkedIn();syncMoods();
+ if(!persist())return;if(state.moods.length===1)keepStorage();selectMood(0);selectStress(0);selectedTags.clear();document.querySelectorAll("[data-tag]").forEach(function(b){b.classList.remove("selected");b.setAttribute("aria-pressed","false");});$("mood-note").value="";$("energy").value="3";energyTouched=false;setEnergyText();render();toast("Check-in saved. Thanks for checking in.");if(globalThis.Reminders)globalThis.Reminders.checkedIn();syncMoods();
 }
 function normalizeHealth(h,source){
  if(!h||typeof h!=="object")return null;
@@ -585,7 +585,7 @@ async function saveBackup(passphrase){
  var name="health-backup-"+dateKey(now())+".json";
  var text=JSON.stringify({app:"Health",version:VERSION,account:state.syncOwnerEmail||null,exportedAt:new Date().toISOString(),moods:state.moods,health:state.health,events:state.events,reflections:state.reflections,alarms:state.alarms,resets:state.resets,tries:state.tries,planLog:state.planLog,planMoves:state.planMoves},null,2);
  if(passphrase){
-  try{text=await globalThis.EvenBackup.protect(text,passphrase);}
+  try{text=await globalThis.Backup.protect(text,passphrase);}
   catch(e){toast("Couldn’t save the backup. Nothing was saved.");return;}
  }
  var file=new File([text],name,{type:"application/json"});
@@ -604,13 +604,13 @@ async function restoreBackup(file){
  if(!file||file.size>7e6){toast("Select a backup under 7 MB.");return;}
  try{
   var data=JSON.parse(await file.text());
-  if(globalThis.EvenBackup.isProtected(data)){pendingBackup=data;$("restore-passphrase").value="";$("restore-passphrase-note").hidden=true;$("restore-passphrase-sheet").showModal();return;}
+  if(globalThis.Backup.isProtected(data)){pendingBackup=data;$("restore-passphrase").value="";$("restore-passphrase-note").hidden=true;$("restore-passphrase-sheet").showModal();return;}
   await applyBackup(data);
  }catch(e){toast("This file is not a valid backup.");}
 }
 async function openProtectedBackup(ev){
  ev.preventDefault();
- try{var text=await globalThis.EvenBackup.unprotect(pendingBackup,$("restore-passphrase").value);}
+ try{var text=await globalThis.Backup.unprotect(pendingBackup,$("restore-passphrase").value);}
  catch(e){$("restore-passphrase-note").hidden=false;return;}
  $("restore-passphrase-sheet").close();pendingBackup=null;
  try{await applyBackup(JSON.parse(text));}catch(e){toast("This file is not a valid backup.");}
@@ -619,7 +619,7 @@ async function applyBackup(data){
  if((data.app!=="Health"&&data.app!=="Even")||!Array.isArray(data.moods)||!Array.isArray(data.health)||!Array.isArray(data.events))throw Error("Not a backup");
  if(data.account&&state.syncOwnerEmail&&data.account!==state.syncOwnerEmail){toast("This backup belongs to another account.");return;}
  if(!await askConfirm("Replace the check-ins, health and calendar data on this device with this backup? This can’t be undone. Check-ins saved to your account stay there and come back to this device.","Replace"))return;
- var kept=globalThis.EvenBackup.clean(data);
+ var kept=globalThis.Backup.clean(data);
  state.reflections=kept.reflections;
  state.moods=data.moods.slice(-LIMITS.moods).filter(function(x){return !x.demo&&Number.isInteger(x.score)&&x.score>=1&&x.score<=5&&!isNaN(new Date(x.ts).getTime());}).map(function(x){return {id:String(x.id||newId()),ts:new Date(x.ts).toISOString(),score:x.score,energy:Number.isInteger(x.energy)&&x.energy>=1&&x.energy<=5?x.energy:null,tags:Array.isArray(x.tags)?x.tags.filter(function(y){return ACTIVITY_LABELS.includes(y);}).slice(0,10):[],note:String(x.note||"").slice(0,400),stress:Number.isInteger(x.stress)&&x.stress>=1&&x.stress<=5?x.stress:undefined,demo:!!x.demo};});
  state.health=[];data.health.slice(-LIMITS.healthDays).filter(function(x){return !x.demo;}).forEach(function(x){var h=normalizeHealth(x,x.source);if(h)upsertHealth(h);});
@@ -679,7 +679,7 @@ function clearDemo(){
  persist();render();toast("Demo month removed.");
 }
 function accountPath(route){return "/api/user/"+route;}
-function signIn(){globalThis.EvenSignin.open();}
+function signIn(){globalThis.Signin.open();}
 function syncErrorLabel(code){
  var reasons={
   invalid_body:"{{name}} couldn’t read the last upload.",
@@ -900,21 +900,21 @@ async function pull(silent){
   serverEvents.forEach(function(x){serverIds[x.id]=true;if(!oldest||x.start<oldest)oldest=x.start;});
   state.events=state.events.filter(function(x){return x.source!=="shortcut"||serverIds[x.id]||(!complete.events&&x.start<oldest);});
   state.alarms=Array.isArray(body.alarms)?body.alarms:[];applyName(body);
-  state.lastSync=Date.parse(body.syncAt)||Date.now();persist();render();if(globalThis.EvenReminders)globalThis.EvenReminders.dataChanged();if(!silent)toast("Synced "+h+" health days and "+e+" calendar events for "+state.syncOwnerEmail+".");
+  state.lastSync=Date.parse(body.syncAt)||Date.now();persist();render();if(globalThis.Reminders)globalThis.Reminders.dataChanged();if(!silent)toast("Synced "+h+" health days and "+e+" calendar events for "+state.syncOwnerEmail+".");
   checkShortcutUpload(true);
  }catch(e){if(!silent)toast(e.message||"Sync unavailable. Local data is unchanged.");}
  finally{button.disabled=false;button.textContent="Bring in data";}
 }
 
 async function deleteAccount(){
- if(!authEmail){toast("Sign in first to delete your account.");globalThis.EvenSignin.open();return;}
+ if(!authEmail){toast("Sign in first to delete your account.");globalThis.Signin.open();return;}
  if(!navigator.onLine){toast("Connect to the internet to delete your account.");return;}
  if(!await askConfirm("Permanently delete the account for "+authEmail+": all synced data and every connected device? This can’t be undone. Records on this device remain.","Delete account"))return;
  try{
   var r=await fetch(accountPath("account/delete"),{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:"{}",cache:"no-store"});
-  if(r.status===401||r.status===403){await refreshAuth();toast("Sign in again to delete your account.");globalThis.EvenSignin.open();return;}
+  if(r.status===401||r.status===403){await refreshAuth();toast("Sign in again to delete your account.");globalThis.Signin.open();return;}
   if(!r.ok)throw Error();
-  if(globalThis.EvenReminders)globalThis.EvenReminders.turnOff();
+  if(globalThis.Reminders)globalThis.Reminders.turnOff();
   state.token="";state.deviceId="";state.pairedAt=null;state.pendingMoods=[];state.deletedMoods=[];state.moodCursor="";state.lastMoodSync=null;shortcutStatus=null;shortcutRelease=null;
   persist();await refreshAuth();render();toast("Account deleted.");
  }catch(e){toast("Couldn’t delete your account. Check your connection and try again.");}
@@ -924,8 +924,8 @@ async function deleteAccount(){
 var DEVICE_KEYS=[STORAGE_KEY,"health-reminder","health-setup"],DEVICE_CACHES=["health-brief"];
 async function eraseDeviceData(){
  try{await fetch("/api/signin/sign-out",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:"{}",cache:"no-store"});}catch(e){/* Offline; the session ends by itself. */}
- if(globalThis.EvenReminders)globalThis.EvenReminders.forget();
- if(globalThis.EvenOnboarding)globalThis.EvenOnboarding.forget();
+ if(globalThis.Reminders)globalThis.Reminders.forget();
+ if(globalThis.Onboarding)globalThis.Onboarding.forget();
  DEVICE_KEYS.forEach(function(key){try{localStorage.removeItem(key);}catch(e){/* Nothing to remove if storage is blocked. */}});
  state=emptyState();shortcutRelease=null;shortcutStatus=null;authEmail="";authDevices=[];authCanRelease=false;authHelper="";authService=null;persist();render();
  if("caches" in globalThis)DEVICE_CACHES.forEach(function(name){caches.delete(name).catch(function(){return false;});});
@@ -940,9 +940,9 @@ async function eraseLocal(){
  toast(disconnected?"This device’s records are deleted.":"Records deleted. This device couldn’t be disconnected, so remove it under Devices on another device.");
 }
 async function eraseRemote(){
- if(!authEmail){toast("Sign in first to erase synced data.");globalThis.EvenSignin.open();return;}
+ if(!authEmail){toast("Sign in first to erase synced data.");globalThis.Signin.open();return;}
  if(!await askConfirm("Permanently delete everything synced for "+authEmail+": Health, calendar, alarms, your notification schedule, the name you set, and your check-ins and notes on all your devices? This can’t be undone. Health and calendar records already on this device stay.","Erase"))return;
- try{var r=await fetch(accountPath("erase"),{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:"{}",cache:"no-store"});if(!r.ok)throw Error("Delete failed");state.moods=[];state.pendingMoods=[];state.deletedMoods=[];persist();if(globalThis.EvenReminders)globalThis.EvenReminders.turnOff();render();toast("Synced data erased.");}catch(e){toast("Could not delete cloud data.");}
+ try{var r=await fetch(accountPath("erase"),{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:"{}",cache:"no-store"});if(!r.ok)throw Error("Delete failed");state.moods=[];state.pendingMoods=[];state.deletedMoods=[];persist();if(globalThis.Reminders)globalThis.Reminders.turnOff();render();toast("Synced data erased.");}catch(e){toast("Could not delete cloud data.");}
 }
 var swRegistration=null;
 function checkForUpdate(){if(swRegistration)swRegistration.update().catch(function(){});}
@@ -1013,7 +1013,7 @@ function init(){
   ev.preventDefault();item.click();
  });
  $("sync-light").addEventListener("click",tapSyncLight);
- $("calendar-insights").addEventListener("click",function(ev){var b=ev.target.closest("[data-pair]");if(b&&globalThis.EvenReminders){globalThis.EvenReminders.togglePair(b.dataset.pair);renderInsights();}});
+ $("calendar-insights").addEventListener("click",function(ev){var b=ev.target.closest("[data-pair]");if(b&&globalThis.Reminders){globalThis.Reminders.togglePair(b.dataset.pair);renderInsights();}});
  $("pull-button").addEventListener("click",function(){pull(false);});$("run-shortcut").addEventListener("click",function(event){event.preventDefault();runShortcut();});
  $("unpair-button").addEventListener("click",function(){if(state.deviceId)revokeDevice(state.deviceId);});
  $("sign-out").addEventListener("click",signOut);
@@ -1051,7 +1051,7 @@ function handleNotificationAction(){
  var params=new URLSearchParams(location.search),action=params.get("do");
  if(!action)return;
  history.replaceState(null,"","/#checkin");
- if(action==="reset")globalThis.EvenCoach.openReset();
+ if(action==="reset")globalThis.Coach.openReset();
  if(action==="sync"){
   if(!state.token){navigate("data");toast("Sign in to run {{sync}}.");return;}
   $("run-sync-dialog").showModal();
@@ -1073,6 +1073,6 @@ function logPlan(date,minutes,moves){
  state.planMoves=state.planMoves.concat(moves).slice(-60);
  persist();
 }
-globalThis.EvenApp={logTry:logTry,logPlan:logPlan,planLog:function(){return state.planLog;},planMoves:function(){return state.planMoves;},tries:function(){return state.tries;},version:VERSION,signOut:signOut,syncStatus:function(){return shortcutStatus;},signedIn:function(){return !!authEmail;},askConfirm:askConfirm,accountPath:accountPath,refreshAuth:refreshAuth,firstName:function(){return state.firstName;},navigate:navigate,setup:setup,signIn:signIn,connect:issueDevice,isInstalled:isInstalled,isIOS:isIOS,alarms:function(){return state.alarms;},resets:function(){return state.resets;},logReset:function(){state.resets.push(new Date().toISOString());state.resets=state.resets.slice(-500);persist();},personalEvents:function(){return state.events;},personalHealth:function(){return state.health;},personalMoods:function(){return state.moods;},refresh:refresh,runShortcut:runShortcut,refreshCoach:refreshCoach,addReflection:function(r){state.reflections.push(r);if(persist())render();},toast:toast,formatTime:formatTime,deviceToken:function(){return state.token;}};
+globalThis.App={logTry:logTry,logPlan:logPlan,planLog:function(){return state.planLog;},planMoves:function(){return state.planMoves;},tries:function(){return state.tries;},version:VERSION,signOut:signOut,syncStatus:function(){return shortcutStatus;},signedIn:function(){return !!authEmail;},askConfirm:askConfirm,accountPath:accountPath,refreshAuth:refreshAuth,firstName:function(){return state.firstName;},navigate:navigate,setup:setup,signIn:signIn,connect:issueDevice,isInstalled:isInstalled,isIOS:isIOS,alarms:function(){return state.alarms;},resets:function(){return state.resets;},logReset:function(){state.resets.push(new Date().toISOString());state.resets=state.resets.slice(-500);persist();},personalEvents:function(){return state.events;},personalHealth:function(){return state.health;},personalMoods:function(){return state.moods;},refresh:refresh,runShortcut:runShortcut,refreshCoach:refreshCoach,addReflection:function(r){state.reflections.push(r);if(persist())render();},toast:toast,formatTime:formatTime,deviceToken:function(){return state.token;}};
 init();
 })();

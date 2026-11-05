@@ -2,7 +2,7 @@
 "use strict";
 // Loads the app as it ships: the public file list and the Worker's security headers, signed out.
 // Fails on any uncaught error or security-policy violation. Usage: node scripts/smoke.cjs [chromium] [webkit]
-// Set EVEN_BASE to check a deployed address instead.
+// Set APP_BASE to check a deployed address instead.
 const {serve,SECURITY}=require("./serve-app.cjs");
 const {chromium,webkit}=require("playwright");
 const connect=()=>localStorage.setItem("health:v1",JSON.stringify({moods:[],health:[],events:[],token:"key",deviceId:"device-1",syncOwnerEmail:"owner@example.com",pairedAt:1}));
@@ -32,7 +32,7 @@ async function run(type,base){
  if(!/Home Screen/.test(await phonePage.textContent("#gate-title")))problems.push("A new iPhone doesn't start with the Home Screen step.");
  await phone.close();
  // The deployed site stops here, because the rest needs a connected device.
- if(process.env.EVEN_BASE){await browser.close();return problems;}
+ if(process.env.APP_BASE){await browser.close();return problems;}
  await page.evaluate(connect);
  await page.reload();
  await page.waitForSelector("#checkin-title");
@@ -65,7 +65,7 @@ async function run(type,base){
  await page.reload();
  await page.waitForSelector(".bottom-nav");
  for(const old of ["sync","sources"]){
-  await page.evaluate(name=>EvenApp.navigate(name),old);
+  await page.evaluate(name=>App.navigate(name),old);
   if(!await page.evaluate(()=>document.getElementById("view-data").classList.contains("active")))problems.push("#"+old+" doesn't land on Data.");
  }
  await tab("settings");
@@ -92,7 +92,7 @@ async function run(type,base){
  return problems;
 }
 (async()=>{
- const names=process.argv.slice(2),server=process.env.EVEN_BASE?null:await serve({connected:true}),base=process.env.EVEN_BASE||"http://localhost:"+server.address().port;
+ const names=process.argv.slice(2),server=process.env.APP_BASE?null:await serve({connected:true}),base=process.env.APP_BASE||"http://localhost:"+server.address().port;
  let failed=false;
  for(const name of names.length?names:["chromium"]){
   const problems=await run({chromium,webkit}[name],base);

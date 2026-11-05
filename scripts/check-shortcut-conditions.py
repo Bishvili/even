@@ -266,7 +266,7 @@ def check_helper(document, actions) -> None:
     urls = [json.dumps(a.get("WFWorkflowActionParameters", {}).get("WFURL", "")) for a in actions if a.get("WFWorkflowActionIdentifier") == "is.workflow.actions.downloadurl"]
     if not any("release-state?helper=" in url for url in urls):
         raise AssertionError("Even Release does not report its own version")
-    if not any("Even-Release.shortcut" in url for url in urls):
+    if not any("build/helper" in url for url in urls):
         raise AssertionError("Even Release cannot update itself")
     print("Even Release reports its version and can update itself.")
 

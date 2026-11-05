@@ -34,7 +34,7 @@
  var STEPS=[
   {title:"When does your day usually start?",body:function(box){box.appendChild(timeRow("Start of day","from"));}},
   {title:"When do you usually go to bed?",body:function(box){box.appendChild(timeRow("Bedtime","to"));},check:function(){
-   return globalThis.EvenCoach.validDay(answers.from,answers.to)?"":"Choose a bedtime within 20 hours of the start of your day.";
+   return globalThis.Coach.validDay(answers.from,answers.to)?"":"Choose a bedtime within 20 hours of the start of your day.";
   }},
   {title:"Which part of the day is usually hardest?",body:function(box){box.appendChild(choices(HARDEST,"hardest","intake-choices"));}},
   {title:"What would help?",hint:"Check-in reminders are always included.",body:function(box){box.appendChild(switchRow("Morning brief","brief"));box.appendChild(switchRow("Wind-down before bed","windDown"));box.appendChild(switchRow("A nudge before harder moments","stressNudges"));box.appendChild(switchRow("A reminder to sync","syncReminder"));}},
@@ -68,7 +68,7 @@
  }
  $("intake-next").addEventListener("click",next);
  $("intake-back").addEventListener("click",back);
- globalThis.EvenIntake={open:function(initial,settingsFor){
+ globalThis.Intake={open:function(initial,settingsFor){
   answers=Object.assign({},initial);options=settingsFor;step=0;
   $("intake-dialog").showModal();render();
  }};

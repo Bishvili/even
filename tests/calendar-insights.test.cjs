@@ -24,7 +24,7 @@ function loadAppWithoutStartingUI() {
  };
  require("../daycontext.js");
  const sandbox = {
-  EvenDay:globalThis.EvenDay,
+  Day:globalThis.Day,
   document,
   localStorage:{getItem(){return null;},setItem(){}},
   Date,

@@ -1,8 +1,8 @@
 // Daily brief, weekly outlook, patterns, reset exercise and support.
 (function(root){
 /* global require */
- if(!root.EvenDay&&typeof require==="function")require("./daycontext.js");
- var Day=root.EvenDay,RULES=Day.RULES,mean=Day.mean,median=Day.median,localDay=Day.localDay;
+ if(!root.Day&&typeof require==="function")require("./daycontext.js");
+ var Day=root.Day,RULES=Day.RULES,mean=Day.mean,median=Day.median,localDay=Day.localDay;
  var DAY_MS=Day.DAY_MS,DAYS=["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
  var MIN_SAMPLES=3,MIN_GAP=0.4,HISTORY_DAYS=RULES.evidenceDays,NEAR_EVENT_MS=RULES.nearEventMs,EARLY_ALARM=420,REFLECTION_DAYS=7;
  var BRIEF_CACHE="health-brief",DEFAULT_ACTION="Leave room for a short reset today.";
@@ -539,8 +539,8 @@
   return actions.slice(0,3);
  }
  var api={learnedMoves:learnedMoves,validDay:validDay,weekSchedule:weekSchedule,whatHelps:whatHelps,anticipate:anticipate,nextActions:nextActions,bedtimeForAlarm:bedtimeForAlarm,morningAlarm:morningAlarm,alarmsOn:alarmsOn,smartPlan:smartPlan,bedtimeReminder:bedtimeReminder,smartTimes:smartTimes,repeatTimes:repeatTimes,outlook:outlook,findings:findings,brief:brief,briefFor:briefFor,hardStretch:hardStretch,steadiness:steadiness,reflectionDue:reflectionDue,REFLECTION:REFLECTION};
- root.EvenCoach=api;
- if(typeof document==="undefined"||!root.EvenApp)return;
+ root.Coach=api;
+ if(typeof document==="undefined"||!root.App)return;
 
  var LEVELS={harder:"Tends to be harder",easier:"Tends to be easier",typical:"About average",unknown:"Not enough check-ins"};
  var reflectionSnoozed=false;
@@ -575,8 +575,8 @@
    text.appendChild(element("p","",item.text));
    if(item.why){var more=element("details"),summary=element("summary","","Why this");more.appendChild(summary);more.appendChild(element("p","muted",item.why));text.appendChild(more);}
    row.appendChild(text);
-   if(item.tryId){var done=element("button","text-action next-done","Done");done.type="button";done.setAttribute("aria-label","Mark done: "+item.text);done.addEventListener("click",function(){root.EvenApp.logTry(item.tryId);});row.appendChild(done);}
-   if(item.action){var button=element("button","btn secondary",item.label);button.type="button";button.addEventListener("click",function(){if(item.action==="reset")openReset();else root.EvenApp.runShortcut();});row.appendChild(button);}
+   if(item.tryId){var done=element("button","text-action next-done","Done");done.type="button";done.setAttribute("aria-label","Mark done: "+item.text);done.addEventListener("click",function(){root.App.logTry(item.tryId);});row.appendChild(done);}
+   if(item.action){var button=element("button","btn secondary",item.label);button.type="button";button.addEventListener("click",function(){if(item.action==="reset")openReset();else root.App.runShortcut();});row.appendChild(button);}
    box.appendChild(row);
   });
  }
@@ -643,8 +643,8 @@
   later.addEventListener("click",function(){reflectionSnoozed=true;$("reflection-dialog").close();$("reflection-prompt").hidden=true;});
   form.addEventListener("submit",function(){
    var answers={};REFLECTION.forEach(function(q){answers[q.id]=Number(form.elements[q.id].value);});
-   form.reset();root.EvenApp.addReflection({ts:new Date().toISOString(),answers:answers});
-   root.EvenApp.toast("Reflection saved.");
+   form.reset();root.App.addReflection({ts:new Date().toISOString(),answers:answers});
+   root.App.toast("Reflection saved.");
   });
  }
  function stopBreathing(){clearTimeout(breathDelay);if(breathTimer)clearInterval(breathTimer);breathTimer=null;}
@@ -659,7 +659,7 @@
   function nextStep(){
    step=(step+1)%4;if(step===0)cycles++;
    // Only a finished round counts toward what tends to help.
-   if(step===0&&cycles===1)root.EvenApp.logReset();
+   if(step===0&&cycles===1)root.App.logReset();
    if(cycles>=4){stopBreathing();label.textContent="Nicely done.";circle.dataset.step="3";return;}
    label.textContent=STEPS[step];circle.dataset.step=String(step);
   }
@@ -680,5 +680,5 @@
  $("open-reset").addEventListener("click",openReset);
  $("close-reset").addEventListener("click",function(){$("reset-dialog").close();});
  $("reset-dialog").addEventListener("close",stopBreathing);
- root.EvenApp.refreshCoach();
+ root.App.refreshCoach();
 })(globalThis);

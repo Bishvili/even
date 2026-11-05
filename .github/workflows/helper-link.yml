@@ -37,7 +37,7 @@ jobs:
           link = os.environ["ICLOUD_LINK"].strip()
           if not re.fullmatch(r"https://www\.icloud\.com/shortcuts/[a-fA-F0-9]{32}", link):
               raise SystemExit("A valid Apple iCloud share link is required.")
-          versions = re.findall(r'const helperVersion = "(\d+\.\d+\.\d+)"', Path("shortcuts/even-release.cherri").read_text())
+          versions = re.findall(r'const helperVersion = "(\d+\.\d+\.\d+)"', Path("shortcuts/helper.cherri").read_text())
           if len(versions) != 1:
               raise SystemExit("The helper source must state exactly one version.")
           Path("shortcuts/helper.json").write_text(json.dumps({"version": versions[0], "url": link}, indent=2) + "\n")

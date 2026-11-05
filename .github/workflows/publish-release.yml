@@ -17,7 +17,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: even-sync-release
+  group: sync-release
   cancel-in-progress: false
 
 jobs:
@@ -40,7 +40,7 @@ jobs:
           from pathlib import Path
 
           link = os.environ["ICLOUD_LINK"].strip()
-          source = Path("shortcuts/even-sync.cherri").read_text()
+          source = Path("shortcuts/sync.cherri").read_text()
 
           if not re.fullmatch(r"https://www\.icloud\.com/shortcuts/[a-fA-F0-9]{32}", link):
               raise SystemExit("A valid Apple iCloud share link is required.")

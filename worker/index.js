@@ -40,7 +40,7 @@ async function payload(request){
  if(type.includes("application/x-www-form-urlencoded"))return Object.fromEntries(new URLSearchParams(text));
  try{return JSON.parse(text);}catch(e){return Object.fromEntries(new URLSearchParams(text));}
 }
-const VERSION_NAME="2.43.3";
+const VERSION_NAME="2.43.4";
 function normalEmail(value){return String(value||"").trim().toLowerCase();}
 async function signinAuth(env,ctx){
  const {createAuth}=await import("./signin.mjs");
@@ -602,12 +602,21 @@ async function sendScheduled(env,key,sub,now){
  return sent.ok&&!quiet;
 }
 const BUILDS="https://github.com/Bishvili/health/releases/download/shortcut-latest/";
-const assetName=shortcut=>shortcut.replaceAll(" ","-");
 async function latestBuildVersion(name){
  const file=await fetch(BUILDS+name+"-version.txt");
  if(!file.ok)return null;
  const version=(await file.text()).trim();
  return SEMVER.test(version)?version:null;
+}
+// One lasting link for each build. iOS names an imported Shortcut after its file, and release assets can't hold a space, so the name is set here.
+async function shortcutBuild(path){
+ const[,role,version]=path.match(/^\/api\/shortcut\/build\/(sync|helper)(\/version)?$/)||[];
+ if(!role)return error("Not found",404,"not_found");
+ const file=await fetch(BUILDS+role+(version?"-version.txt":".shortcut"));
+ if(!file.ok)return error("The latest build couldn't be checked",502,"build_unavailable");
+ const headers={...SECURITY,"Cache-Control":"no-cache"};
+ if(version)return new Response(file.body,{headers:{...headers,"Content-Type":"text/plain; charset=utf-8"}});
+ return new Response(file.body,{headers:{...headers,"Content-Type":"application/octet-stream","Content-Disposition":'attachment; filename="'+(role==="sync"?STABLE.sync:STABLE.helper)+'.shortcut"'}});
 }
 // Published versions can't be edited, so a link only passes if it names the expected Shortcut.
 async function shortcutName(link){
@@ -660,14 +669,14 @@ async function syncApi(request,env,path){
  if(request.method==="POST"&&(path==="/api/ingest"||path.startsWith("/api/push/"))&&await overLimit(env.DEVICE_LIMIT,dev.id))return error("Too many requests. Try again in a minute.",429,"rate_limited");
  if(path==="/api/shortcut/release-state"&&request.method==="GET"){
   if(!await canRelease(env,owner))return error("This account can't publish releases",403,"not_release_account");
-  const latest=await latestBuildVersion(assetName(STABLE.sync));
+  const latest=await latestBuildVersion("sync");
   if(!latest)return error("The latest build couldn't be checked",502,"build_unavailable");
   const device=await env.DB.prepare("SELECT shortcut_version FROM health_devices WHERE device_id=? AND owner_email=?").bind(dev.id,owner).first();
   const published=(await loadShortcutRelease(env))?.version||null,installed=device?.shortcut_version||null;
   const helper=new URL(request.url).searchParams.get("helper")||"";
   // The helper 1 knows only these three states.
   if(!SEMVER.test(helper))return reply({ok:true,state:installed!==latest?"install":published!==latest?"publish":"current",latest,installed,published});
-  const [source,latestHelper,shared]=await Promise.all([loadSourceVersions(env),latestBuildVersion(assetName(STABLE.helper)).catch(()=>null),loadHelperLink(env)]);
+  const [source,latestHelper,shared]=await Promise.all([loadSourceVersions(env),latestBuildVersion("helper").catch(()=>null),loadHelperLink(env)]);
   const state=source.sync&&semverNewer(source.sync,latest)?"building":installed&&semverNewer(installed,latest)?"ahead":installed!==latest?"install":published!==latest?"publish":"current";
   const helperState=latestHelper&&semverNewer(latestHelper,helper)?"update":"current";
   const helperLinkState=helperState==="current"&&!(latestHelper&&semverNewer(helper,latestHelper))&&shared?.version!==helper?"share":"current";
@@ -895,12 +904,12 @@ async function syncApi(request,env,path){
 }
 async function api(request,env,ctx,path){
  if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:BRAND.name,version:VERSION_NAME,sync:"email-access"});
+ if(path.startsWith("/api/shortcut/build/")&&request.method==="GET")return shortcutBuild(path);
  if(path.startsWith("/api/signin/"))return signinApi(request,env,ctx,path);
  if(path.startsWith("/api/user/"))return authApi(request,env,ctx,path);
  return syncApi(request,env,path);
 }
 
-// iOS names an imported Shortcut after its file, and release assets can't contain spaces.
 // Files come from the deployed version, so code and pages always match. The Worker runs first to add its headers.
 async function asset(request,env,path){
  const file=await env.STATIC.fetch(new Request(new URL(path==="/"?"/index.html":path,request.url),request));

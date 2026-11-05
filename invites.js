@@ -1,6 +1,6 @@
 // Sharing the app and managing who can sign in. Shown to developer accounts.
 (function(){
- var app=globalThis.EvenApp,SHARE_URL=location.origin+"/";
+ var app=globalThis.App,SHARE_URL=location.origin+"/";
  function $(id){return document.getElementById(id);}
  function send(path,email){return fetch(path,{method:"POST",credentials:"same-origin",cache:"no-store",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:email})});}
 
@@ -83,7 +83,7 @@
  $("tester-form").addEventListener("submit",add);
  $("tester-name-form").addEventListener("submit",saveName);
  $("tester-name-cancel").addEventListener("click",function(){$("tester-name-dialog").close();});
- $("share-even").addEventListener("click",share);
+ $("share-app").addEventListener("click",share);
  // Only release accounts see testers, so the list loads once Developer tools appears.
  var card=$("release-card");
  new MutationObserver(function(){if(!card.hidden)load();}).observe(card,{attributes:true,attributeFilter:["hidden"]});

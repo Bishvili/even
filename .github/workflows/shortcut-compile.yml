@@ -55,8 +55,8 @@ jobs:
           (cd /tmp/cherri-source && go build -trimpath -o /tmp/cherri-compiler .)
       - name: Compile Even Sync and Even Release without remote signing
         run: |
-          /tmp/cherri-compiler shortcuts/even-sync.cherri --debug --skip-sign --output=/tmp/even-compiled.shortcut
-          /tmp/cherri-compiler shortcuts/even-release.cherri --debug --skip-sign --output=/tmp/even-release-compiled.shortcut
+          /tmp/cherri-compiler shortcuts/sync.cherri --debug --skip-sign --output=/tmp/sync-compiled.shortcut
+          /tmp/cherri-compiler shortcuts/helper.cherri --debug --skip-sign --output=/tmp/helper-compiled.shortcut
       - name: Verify the generated Shortcut plists
         run: |
           find . -type f -name '*.plist' -print

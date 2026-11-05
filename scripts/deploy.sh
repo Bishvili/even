@@ -14,6 +14,6 @@ $WRANGLER kv key put "config:shortcut:latest" --path shortcuts/release.json --na
 $WRANGLER kv key put "config:helper:latest" --path shortcuts/helper.json --namespace-id "$NAMESPACE_ID" --remote
 
 # The versions in the source let the release helper tell a build that's still being signed from a current one.
-sync_version="$(grep -oE '"shortcutVersion": "[0-9]+\.[0-9]+\.[0-9]+"' shortcuts/even-sync.cherri | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')"
-helper_version="$(grep -oE 'const helperVersion = "[0-9]+\.[0-9]+\.[0-9]+"' shortcuts/even-release.cherri | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')"
+sync_version="$(grep -oE '"shortcutVersion": "[0-9]+\.[0-9]+\.[0-9]+"' shortcuts/sync.cherri | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')"
+helper_version="$(grep -oE 'const helperVersion = "[0-9]+\.[0-9]+\.[0-9]+"' shortcuts/helper.cherri | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')"
 $WRANGLER kv key put "config:shortcut:source" "{\"sync\":\"$sync_version\",\"release\":\"$helper_version\"}" --namespace-id "$NAMESPACE_ID" --remote

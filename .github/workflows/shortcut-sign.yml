@@ -36,7 +36,7 @@ jobs:
 
       - name: Check the distributed source contains no configured bearer token
         run: |
-          if grep -Eiq 'Bearer [a-f0-9]{64}' shortcuts/even-sync.cherri shortcuts/even-release.cherri; then
+          if grep -Eiq 'Bearer [a-f0-9]{64}' shortcuts/sync.cherri shortcuts/helper.cherri; then
             echo 'Refusing to sign a Shortcut containing a configured device key.' >&2
             exit 1
           fi
@@ -48,8 +48,8 @@ jobs:
 
       - name: Compile both Shortcuts and verify all If comparisons
         run: |
-          /tmp/cherri-compiler shortcuts/even-sync.cherri --debug --derive-uuids --skip-sign --output=/tmp/even-sync-unsigned.shortcut
-          /tmp/cherri-compiler shortcuts/even-release.cherri --debug --derive-uuids --skip-sign --output=/tmp/even-release-unsigned.shortcut
+          /tmp/cherri-compiler shortcuts/sync.cherri --debug --derive-uuids --skip-sign --output=/tmp/sync-unsigned.shortcut
+          /tmp/cherri-compiler shortcuts/helper.cherri --debug --derive-uuids --skip-sign --output=/tmp/helper-unsigned.shortcut
           PLIST="$(find . -type f -name 'Even Sync.plist' -print -quit)"
           HELPER="$(find . -type f -name 'Even Release.plist' -print -quit)"
           test -n "$PLIST"
@@ -63,7 +63,7 @@ jobs:
       - name: Upload compiled plists for structural diagnostics
         uses: actions/upload-artifact@v7
         with:
-          name: Even-Sync-compiled-plists
+          name: sync-compiled-plists
           path: dist/*.plist
           if-no-files-found: error
           retention-days: 3
@@ -82,8 +82,8 @@ jobs:
             done
             return 1
           }
-          sign_one shortcuts/even-sync.cherri "$GITHUB_WORKSPACE/dist/Even Sync.shortcut"
-          sign_one shortcuts/even-release.cherri "$GITHUB_WORKSPACE/dist/Even Release.shortcut"
+          sign_one shortcuts/sync.cherri "$GITHUB_WORKSPACE/dist/Even Sync.shortcut"
+          sign_one shortcuts/helper.cherri "$GITHUB_WORKSPACE/dist/Even Release.shortcut"
 
       - name: Verify the signed files
         run: |
@@ -103,7 +103,7 @@ jobs:
       - name: Upload the iPhone installer
         uses: actions/upload-artifact@v7
         with:
-          name: Even-Sync-iPhone-Installer
+          name: sync-iphone-installer
           path: dist/*.shortcut
           if-no-files-found: error
           retention-days: 7
@@ -114,10 +114,15 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release view shortcut-latest >/dev/null 2>&1 || gh release create shortcut-latest --title "Latest Shortcut builds" --notes "Signed builds from main." --prerelease
+          cp "dist/Even Sync.shortcut" dist/sync.shortcut
+          cp "dist/Even Release.shortcut" dist/helper.shortcut
           cp "dist/Even Sync.shortcut" dist/Even-Sync.shortcut
           cp "dist/Even Release.shortcut" dist/Even-Release.shortcut
-          grep -oE '"shortcutVersion": "[0-9.]+"' shortcuts/even-sync.cherri | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' > dist/Even-Sync-version.txt
-          grep -oE 'const helperVersion = "[0-9.]+"' shortcuts/even-release.cherri | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' > dist/Even-Release-version.txt
-          test -s dist/Even-Sync-version.txt
-          test -s dist/Even-Release-version.txt
-          gh release upload shortcut-latest dist/Even-Sync.shortcut dist/Even-Release.shortcut dist/Even-Sync-version.txt dist/Even-Release-version.txt --clobber
+          grep -oE '"shortcutVersion": "[0-9.]+"' shortcuts/sync.cherri | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' > dist/sync-version.txt
+          grep -oE 'const helperVersion = "[0-9.]+"' shortcuts/helper.cherri | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' > dist/helper-version.txt
+          test -s dist/sync-version.txt
+          test -s dist/helper-version.txt
+          # Helpers older than 2.3.0 still look for these names. Remove once the Shortcuts are renamed.
+          cp dist/sync-version.txt dist/Even-Sync-version.txt
+          cp dist/helper-version.txt dist/Even-Release-version.txt
+          gh release upload shortcut-latest dist/sync.shortcut dist/helper.shortcut dist/sync-version.txt dist/helper-version.txt dist/Even-Sync.shortcut dist/Even-Release.shortcut dist/Even-Sync-version.txt dist/Even-Release-version.txt --clobber

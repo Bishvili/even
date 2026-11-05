@@ -8,7 +8,7 @@ const fs=require("node:fs");
 const path=require("node:path");
 require("../coach.js");
 const {TODAY,people}=require("./people.cjs");
-const {outlook,findings,whatHelps,anticipate,nextActions,weekSchedule,brief,briefFor}=globalThis.EvenCoach;
+const {outlook,findings,whatHelps,anticipate,nextActions,weekSchedule,brief,briefFor}=globalThis.Coach;
 const FILE=path.join(__dirname,"golden","people.json");
 
 function record(person){

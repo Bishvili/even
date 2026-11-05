@@ -4,7 +4,7 @@ const assert=require("node:assert/strict");
 const fs=require("node:fs");
 const path=require("node:path");
 require("../onboarding.js");
-const {nextStep}=globalThis.EvenOnboarding;
+const {nextStep}=globalThis.Onboarding;
 const read=file=>fs.readFileSync(path.join(__dirname,"..",file),"utf8");
 
 const DAY=86400000,now=Date.UTC(2026,10,4,18);
@@ -14,7 +14,7 @@ const fresh={now,ios:true,installed:false,installable:true,signedIn:false,connec
 const at=changes=>nextStep(Object.assign({},fresh,changes));
 const app={installed:true,installable:false};
 
-const {gateStep}=globalThis.EvenOnboarding;
+const {gateStep}=globalThis.Onboarding;
 const gate=changes=>gateStep(Object.assign({online:true},fresh,changes));
 const connected={...app,signedIn:true,connected:true,connectedBefore:true};
 test("a new iPhone must add Even to the Home Screen, and putting it off isn't possible",()=>{
@@ -91,7 +91,7 @@ test("only the security note about the key file mentions a key, and nothing asks
   assert.doesNotMatch(copy.replace(/Your device key is saved as a plain-text file[^<]*/,""),/device key|sync key/i,file);
  }
 });
-const {replayStep}=globalThis.EvenOnboarding;
+const {replayStep}=globalThis.Onboarding;
 const replayDone={ios:true,installed:true,installable:false,connected:true,signedIn:true,synced:true,notify:"later",now:0};
 test("going through setup again shows every step, even when all are done",()=>{
  const order=[0,1,2,3].map(n=>replayStep(replayDone,n));
@@ -109,7 +109,7 @@ test("steps that aren't done keep their usual action",()=>{
 });
 
 test("the Settings badge stays until every step is really done, even when skipped",()=>{
- const {outstanding}=globalThis.EvenOnboarding,left=changes=>outstanding(Object.assign({},fresh,changes));
+ const {outstanding}=globalThis.Onboarding,left=changes=>outstanding(Object.assign({},fresh,changes));
  assert.deepEqual(left({notifyOpen:true}),["install","signin","shortcut","checkin","notifications"]);
  assert.deepEqual(left({skipped:{install:now,signin:now,shortcut:now}}),["install","signin","shortcut","checkin"]);
  assert.deepEqual(left({installed:true,installable:false,connected:true,synced:true,checkedIn:true}),[]);

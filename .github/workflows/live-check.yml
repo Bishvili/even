@@ -29,4 +29,4 @@ jobs:
           npm install --no-save --no-package-lock playwright@1.63.0
           npx playwright install --with-deps chromium webkit
       - name: Load every screen on the live site
-        run: EVEN_BASE=https://health.bishvili.org node scripts/smoke.cjs chromium webkit
+        run: APP_BASE=https://health.bishvili.org node scripts/smoke.cjs chromium webkit

@@ -1,6 +1,6 @@
 // The sign-in sheet: an emailed code, or Google when it's available.
 (function(){
- var app=globalThis.EvenApp,email="";
+ var app=globalThis.App,email="";
  function $(id){return document.getElementById(id);}
  function fail(text){$("signin-error").textContent=text||"";$("signin-error").hidden=!text;}
  function step(codeStep){
@@ -59,5 +59,5 @@
    window.location.assign(body.url);
   });
  });
- globalThis.EvenSignin={open:open};
+ globalThis.Signin={open:open};
 })();

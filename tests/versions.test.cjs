@@ -20,7 +20,7 @@ test("only the files the service worker lists are published, along with the serv
  for(const file of files)assert.ok(!/worker|\.md$|schema|\.cherri$/.test(file),file);
 });
 test("nothing asks a person to paste a device key",()=>{
- assert.doesNotMatch(read("shortcuts/even-sync.cherri"),/prompt\(/);
+ assert.doesNotMatch(read("shortcuts/sync.cherri"),/prompt\(/);
  assert.doesNotMatch(read("index.html"),/paste/i);
 });
 test("the helper installs from the link it last shared, and the paper opens in Safari",()=>{

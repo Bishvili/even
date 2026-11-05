@@ -15,18 +15,18 @@ action 'is.workflow.actions.file.createfolder' createKeyFolder(&variable locatio
 action 'is.workflow.actions.documentpicker.open' readSavedDeviceKey(&variable folder: 'WFFile'): text {"WFGetFilePath":"even-device-key.txt","WFFileErrorIfNotFound":false,"WFShowFilePicker":false}
 
 // Change this with every change to the helper, so it can update itself and share the new link.
-const helperVersion = "2.2.0"
-const evenAddress = "https://even.bishvili.org"
+const helperVersion = "2.3.0"
+const appAddress = "https://even.bishvili.org"
 
 // Updating needs no connection, so the helper can always replace itself first.
-const latestHelperRaw = downloadURL("https://github.com/Bishvili/even/releases/download/shortcut-latest/Even-Release-version.txt")
+const latestHelperRaw = downloadURL("{appAddress}/api/shortcut/build/helper/version")
 const latestHelperText = getText(latestHelperRaw)
 const latestHelper = replaceText('\s+', "", latestHelperText, true, true)
 const latestHelperLength = count(latestHelper, "Characters")
 if latestHelperLength >= 1 {
     if latestHelper != helperVersion {
         showNotification("Tap Replace, then run this helper again.", "Even Release")
-        const newHelperBuild = downloadURL("https://github.com/Bishvili/even/releases/download/shortcut-latest/Even-Release.shortcut")
+        const newHelperBuild = downloadURL("{appAddress}/api/shortcut/build/helper")
         const newHelperName = setName(newHelperBuild, "Even Release.shortcut")
         openFile(newHelperName)
         stop()
@@ -57,7 +57,7 @@ if @hasSync == 1 {
 
     const savedKeyFile = readSavedDeviceKey(keyFolder)
     @credential = getText(savedKeyFile)
-    const stateRaw = downloadURL("{evenAddress}/api/shortcut/release-state?helper={helperVersion}", {"Authorization": "{@credential}"})
+    const stateRaw = downloadURL("{appAddress}/api/shortcut/release-state?helper={helperVersion}", {"Authorization": "{@credential}"})
     const stateInfo = getDictionary(stateRaw)
     const stateValue = getValue(stateInfo, "state")
     @state = getText(stateValue)
@@ -78,7 +78,7 @@ if @helperLinkState == "share" {
             @helperLink = getText(helperLinkResult)
         }
     }
-    const sharedRaw = jsonRequest("{evenAddress}/api/shortcut/helper-link", "POST", {
+    const sharedRaw = jsonRequest("{appAddress}/api/shortcut/helper-link", "POST", {
         "link": "{@helperLink}"
     }, {"Authorization": "{@credential}"})
     const shared = getDictionary(sharedRaw)
@@ -92,7 +92,7 @@ if @helperLinkState == "share" {
 
 if @state == "install" {
     showNotification("Tap Replace, then run this helper again.", "Even Release")
-    const build = downloadURL("https://github.com/Bishvili/even/releases/download/shortcut-latest/Even-Sync.shortcut")
+    const build = downloadURL("{appAddress}/api/shortcut/build/sync")
     const namedBuild = setName(build, "Even Sync.shortcut")
     openFile(namedBuild)
     stop()
@@ -135,7 +135,7 @@ for linkCandidate in allShortcuts {
     }
 }
 
-const publishRaw = jsonRequest("{evenAddress}/api/shortcut/publish", "POST", {
+const publishRaw = jsonRequest("{appAddress}/api/shortcut/publish", "POST", {
     "link": "{@shareLink}"
 }, {"Authorization": "{@credential}"})
 const publish = getDictionary(publishRaw)
@@ -153,7 +153,7 @@ showNotification("Publishing version {@latest}. This takes a few minutes.", "Eve
 repeat attempt for 12 {
     if @live == 0 {
         wait(20)
-        const checkRaw = downloadURL("{evenAddress}/api/shortcut/release-state?helper={helperVersion}", {"Authorization": "{@credential}"})
+        const checkRaw = downloadURL("{appAddress}/api/shortcut/release-state?helper={helperVersion}", {"Authorization": "{@credential}"})
         const checkInfo = getDictionary(checkRaw)
         const checkValue = getValue(checkInfo, "state")
         const checkState = getText(checkValue)

@@ -10,7 +10,7 @@ A new version is public as soon as it is published, so fixes ship as another ver
 
 ## Publish a version
 
-1. Change the version in `shortcuts/even-sync.cherri`, write one plain sentence for people in `shortcuts/release-notes.txt` (180 characters at most), and push to `main`. **Build signed Even Sync** posts the signed files and their versions to the `shortcut-latest` release.
+1. Change the version in `shortcuts/sync.cherri`, write one plain sentence for people in `shortcuts/release-notes.txt` (180 characters at most), and push to `main`. **Build signed Even Sync** posts the signed files and their versions to the `shortcut-latest` release.
 2. Tap **Run Release Helper**. It first updates itself if a newer helper has been built, then runs Even Sync and asks the Worker to compare the installed, latest and published versions.
 3. While the new build is still being signed, the helper says to try again in a few minutes. If **Build signed Even Sync** failed, rerun it.
 4. If the installed version is older, the helper downloads the latest. Tap **Replace** and run the helper again. An iPhone with a newer build than the latest is never offered an older one.
@@ -20,6 +20,6 @@ The workflow reads the version from the source, rejects a configured bearer toke
 
 ## Update the release helper
 
-Change `helperVersion` in `shortcuts/even-release.cherri` with every change to the helper, and push to `main`. On its next run, the helper downloads its new build: tap **Replace** and run it again. The updated helper then shares its own iCloud link once. The Worker checks that the link is named Even Release and starts **Share Even Release link**, which commits `shortcuts/helper.json`, so **Set Up Release Helper** installs the new version for everyone.
+Change `helperVersion` in `shortcuts/helper.cherri` with every change to the helper, and push to `main`. On its next run, the helper downloads its new build: tap **Replace** and run it again. The updated helper then shares its own iCloud link once. The Worker checks that the link is named Even Release and starts **Share Even Release link**, which commits `shortcuts/helper.json`, so **Set Up Release Helper** installs the new version for everyone.
 
-Even Release 1 can't update itself. Install the first Even Release 2 on the publishing iPhone from `Even-Release.shortcut` in the [`shortcut-latest`](https://github.com/Bishvili/health/releases/tag/shortcut-latest) release.
+To install the helper for the first time on a publishing iPhone, open `https://health.bishvili.org/api/shortcut/build/helper` in Safari. Use this link, not a file from GitHub: release assets can't hold a space in their names, and iOS names a Shortcut after its file. Then the app can't find it by name.

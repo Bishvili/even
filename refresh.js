@@ -1,6 +1,6 @@
 // Pull down to refresh, or keep pulling to run the Shortcut.
 (function(){
- var app=globalThis.EvenApp,REFRESH_AT=70,RUN_AT=170,MAX_SHIFT=170,HEADER_GAP=24,LINE_DONE=REFRESH_AT/0.9,SUN_DEPTH=170;
+ var app=globalThis.App,REFRESH_AT=70,RUN_AT=170,MAX_SHIFT=170,HEADER_GAP=24,LINE_DONE=REFRESH_AT/0.9,SUN_DEPTH=170;
  var indicator=document.getElementById("pull-indicator"),label=document.getElementById("pull-label"),line=document.getElementById("pull-line"),sun=document.getElementById("pull-sun");
  var page=[document.querySelector(".topbar"),document.getElementById("main")];
  var startX=0,startY=0,distance=0,tracking=false,pulling=false;
