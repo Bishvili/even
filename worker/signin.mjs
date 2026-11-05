@@ -11,8 +11,7 @@ export function createAuth(env,{isApproved,deliverCode}){
  return betterAuth({
   appName:"Even",
   baseURL:env.PUBLIC_ORIGIN,
-  // The earlier address stays usable until installed apps have moved.
-  trustedOrigins:[env.PUBLIC_ORIGIN,"https://even.bishvili.workers.dev"],
+  trustedOrigins:[env.PUBLIC_ORIGIN],
   basePath:"/api/signin",
   secret:env.BETTER_AUTH_SECRET,
   database:env.DB,
