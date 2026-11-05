@@ -60,6 +60,11 @@ async function run(type,base){
  console.log(type.name()+": erasing");
  await tab("settings");await page.click("#erase-local");await page.click("#confirm-yes");await page.waitForTimeout(400);
  console.log(type.name()+": erased");
+ const probe=async(name,fn)=>{const r=await Promise.race([page.evaluate(fn).then(v=>"ok "+v),new Promise(d=>setTimeout(()=>d("HUNG"),8000))]);console.log(type.name()+" probe "+name+": "+r);};
+ await probe("one",()=>1);
+ await probe("open",()=>[...document.querySelectorAll("dialog")].filter(d=>d.open).map(d=>d.id).join());
+ await probe("keys",()=>Object.keys(localStorage).join());
+ await probe("asyncfn",async()=>2);
  const left=await Promise.race([page.evaluate(async withCache=>({keys:Object.keys(localStorage),caches:withCache?await caches.keys():[]}),checkCache),new Promise((_,fail)=>setTimeout(()=>fail(Error("The page stopped responding after erase.")),20000))]);
  console.log(type.name()+": checked");
  if(left.keys.join()!=="even:v1"||left.caches.includes("even-brief"))problems.push("Erase left something behind: "+JSON.stringify(left));
