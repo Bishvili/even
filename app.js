@@ -1,6 +1,6 @@
 (function () {
 "use strict";
-var VERSION = "2.25.0";
+var VERSION = "2.26.0";
 var STORAGE_KEY = "even:v1";
 var MOOD_NAMES = ["","Rough","Low","Okay","Good","Great"];
 var MOOD_EMOJI = ["","😣","😕","😐","🙂","😄"];
@@ -27,7 +27,7 @@ function withDemoApart(loaded,saved){
 function readState(){
  try { var raw=JSON.parse(localStorage.getItem(STORAGE_KEY)||"null"); if(!raw || typeof raw!=="object")return emptyState();
  var owner=typeof raw.syncOwnerEmail==="string"?raw.syncOwnerEmail.toLowerCase():"",deviceId=typeof raw.deviceId==="string"?raw.deviceId:"";
- var loaded={moods:Array.isArray(raw.moods)?raw.moods.slice(-6000):[],health:Array.isArray(raw.health)?raw.health.slice(-1200):[],events:Array.isArray(raw.events)?raw.events.slice(-2000):[],reflections:Array.isArray(raw.reflections)?raw.reflections.slice(-200):[],alarms:Array.isArray(raw.alarms)?raw.alarms.slice(0,40):[],resets:Array.isArray(raw.resets)?raw.resets.slice(-500):[],moodSync:raw.moodSync===true,deletedMoods:Array.isArray(raw.deletedMoods)?raw.deletedMoods.slice(-500):[],firstName:typeof raw.firstName==="string"?raw.firstName.slice(0,60):"",name:typeof raw.name==="string"?raw.name.slice(0,60):"",token:owner&&deviceId&&typeof raw.token==="string"?raw.token:"",deviceId:deviceId,syncOwnerEmail:owner,pairedAt:raw.pairedAt||null,lastSync:raw.lastSync||null};
+ var loaded={moods:Array.isArray(raw.moods)?raw.moods.slice(-6000):[],health:Array.isArray(raw.health)?raw.health.slice(-1200):[],events:Array.isArray(raw.events)?raw.events.slice(-2000):[],reflections:Array.isArray(raw.reflections)?raw.reflections.slice(-200):[],alarms:Array.isArray(raw.alarms)?raw.alarms.slice(0,40):[],resets:Array.isArray(raw.resets)?raw.resets.slice(-500):[],moodSync:raw.moodSync===true,lastBackup:typeof raw.lastBackup==="string"?raw.lastBackup:null,deletedMoods:Array.isArray(raw.deletedMoods)?raw.deletedMoods.slice(-500):[],firstName:typeof raw.firstName==="string"?raw.firstName.slice(0,60):"",name:typeof raw.name==="string"?raw.name.slice(0,60):"",token:owner&&deviceId&&typeof raw.token==="string"?raw.token:"",deviceId:deviceId,syncOwnerEmail:owner,pairedAt:raw.pairedAt||null,lastSync:raw.lastSync||null};
  return withDemoApart(loaded,raw.demo);
  } catch(e){return emptyState();}
 }
@@ -238,10 +238,20 @@ function renderDevices(){
  el.innerHTML=(active.map(row).join("")||blank("No connected devices."))+'<p class="muted">Devices unused for 90 days disconnect automatically.</p>'+(old.length?'<details class="device-old"><summary>'+old.length+' disconnected</summary>'+old.map(row).join("")+'</details>':"");
 }
 
+// Safari can clear a site's data after 7 days without a visit, unless storage is persistent.
+async function keepStorage(){try{if(navigator.storage&&navigator.storage.persist)await navigator.storage.persist();}catch(e){}renderStorageNote();}
+async function renderStorageNote(){
+ var kept=null;
+ try{if(navigator.storage&&navigator.storage.persisted)kept=await navigator.storage.persisted();}catch(e){}
+ $("storage-note").textContent=kept===true?"This device won’t clear your data on its own.":kept===false?"This browser can clear your data if you don’t use Even for a while. Keep a backup, or add Even to your Home Screen.":"";
+}
 function renderSettings(){
  renderMoodSync();
  $("demo-button").textContent=hasDemoData()?"Refresh the calendar demo":"Load 28-day calendar demo";
  $("storage-summary").textContent=state.moods.length+" mood check-ins · "+state.health.length+" health days · "+state.events.length+" calendar events"+(hasDemoData()?" · Demo month loaded":"");
+ var backedUp=state.lastBackup?Date.parse(state.lastBackup):0,stale=state.moods.length>0&&Date.now()-backedUp>30*86400000;
+ $("backup-note").textContent=backedUp?(stale?"Your last backup is over a month old. Save a new one.":"Last backup "+formatDate(state.lastBackup)+"."):stale?"You haven’t saved a backup yet.":"";
+ renderStorageNote();
  $("version").textContent=VERSION;
 }
 function hasDemoData(){return state.demo.moods.length>0;}
@@ -478,7 +488,7 @@ function handleMoodSave(){
  if(!selectedMood){toast("Choose how you’re feeling first.");return;}
  state.moods.push({id:newId(),ts:new Date().toISOString(),score:selectedMood,energy:energyTouched?Number($("energy").value):null,tags:Array.from(selectedTags),note:$("mood-note").value.trim().slice(0,400)});
  if(selectedStress)state.moods[state.moods.length-1].stress=selectedStress;
- if(!persist())return;selectMood(0);selectStress(0);selectedTags.clear();document.querySelectorAll("[data-tag]").forEach(function(b){b.classList.remove("selected");b.setAttribute("aria-pressed","false");});$("mood-note").value="";$("energy").value="3";energyTouched=false;setEnergyText();render();toast("Check-in saved. Thanks for checking in.");if(globalThis.EvenReminders)globalThis.EvenReminders.checkedIn();syncMoods();
+ if(!persist())return;if(state.moods.length===1)keepStorage();selectMood(0);selectStress(0);selectedTags.clear();document.querySelectorAll("[data-tag]").forEach(function(b){b.classList.remove("selected");b.setAttribute("aria-pressed","false");});$("mood-note").value="";$("energy").value="3";energyTouched=false;setEnergyText();render();toast("Check-in saved. Thanks for checking in.");if(globalThis.EvenReminders)globalThis.EvenReminders.checkedIn();syncMoods();
 }
 function normalizeHealth(h,source){
  if(!h||typeof h!=="object")return null;
@@ -557,23 +567,52 @@ async function importCalendar(file){
  persist();render();toast("Imported "+n+" calendar events. Check time zones.");
  }catch(e){toast("Could not import the calendar file.");}
 }
-function exportBackup(){
- var data={app:"Even",version:VERSION,account:state.syncOwnerEmail||null,exportedAt:new Date().toISOString(),moods:state.moods,health:state.health,events:state.events,reflections:state.reflections,alarms:state.alarms,resets:state.resets};
- var blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"}),url=URL.createObjectURL(blob),a=document.createElement("a");
- a.href=url;a.download="even-backup-"+dateKey(now())+".json";document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(url);},2000);
- toast("Backup downloaded. Store it securely; it is not encrypted.");
+function openBackup(){
+ $("backup-passphrase").value="";$("backup-passphrase-sheet").showModal();
 }
+// Saves through the share sheet where files can be shared, because a download shows a blank page in the installed app.
+async function saveBackup(passphrase){
+ var name="even-backup-"+dateKey(now())+".json";
+ var text=JSON.stringify({app:"Even",version:VERSION,account:state.syncOwnerEmail||null,exportedAt:new Date().toISOString(),moods:state.moods,health:state.health,events:state.events,reflections:state.reflections,alarms:state.alarms,resets:state.resets},null,2);
+ if(passphrase)text=await globalThis.EvenBackup.protect(text,passphrase);
+ var file=new File([text],name,{type:"application/json"});
+ var done=passphrase?"Backup saved, protected by your passphrase.":"Backup saved. It isn’t encrypted, so keep it somewhere safe.";
+ if(navigator.canShare&&navigator.canShare({files:[file]})){
+  try{await navigator.share({files:[file]});}
+  catch(e){if(e.name==="AbortError"){toast("Backup not saved.");return;}toast("Couldn’t save the backup. Try again.");return;}
+ }else{
+  var url=URL.createObjectURL(file),a=document.createElement("a");
+  a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(url);},2000);
+ }
+ state.lastBackup=new Date().toISOString();persist();renderSettings();toast(done);
+}
+var pendingBackup=null;
 async function restoreBackup(file){
  if(!file||file.size>7e6){toast("Select a backup under 7 MB.");return;}
- try{var data=JSON.parse(await file.text());if(data.app!=="Even"||!Array.isArray(data.moods)||!Array.isArray(data.health)||!Array.isArray(data.events))throw Error("Not a backup");
- if(data.account&&state.syncOwnerEmail&&data.account!==state.syncOwnerEmail)throw Error("This backup belongs to another account");
+ try{
+  var data=JSON.parse(await file.text());
+  if(globalThis.EvenBackup.isProtected(data)){pendingBackup=data;$("restore-passphrase").value="";$("restore-passphrase-note").hidden=true;$("restore-passphrase-sheet").showModal();return;}
+  await applyBackup(data);
+ }catch(e){toast("This file is not a valid backup.");}
+}
+async function openProtectedBackup(ev){
+ ev.preventDefault();
+ try{var text=await globalThis.EvenBackup.unprotect(pendingBackup,$("restore-passphrase").value);}
+ catch(e){$("restore-passphrase-note").hidden=false;return;}
+ $("restore-passphrase-sheet").close();pendingBackup=null;
+ try{await applyBackup(JSON.parse(text));}catch(e){toast("This file is not a valid backup.");}
+}
+async function applyBackup(data){
+ if(data.app!=="Even"||!Array.isArray(data.moods)||!Array.isArray(data.health)||!Array.isArray(data.events))throw Error("Not a backup");
+ if(data.account&&state.syncOwnerEmail&&data.account!==state.syncOwnerEmail){toast("This backup belongs to another account.");return;}
  if(!await askConfirm("Replace the check-ins, health and calendar data on this device with this backup? This can’t be undone. This iPhone stays connected.","Replace"))return;
  state.reflections=Array.isArray(data.reflections)?data.reflections.slice(-200):[];
  state.moods=data.moods.slice(-6000).filter(function(x){return !x.demo&&Number.isInteger(x.score)&&x.score>=1&&x.score<=5&&!isNaN(new Date(x.ts).getTime());}).map(function(x){return {id:String(x.id||newId()),ts:new Date(x.ts).toISOString(),score:x.score,energy:Number(x.energy)||null,tags:Array.isArray(x.tags)?x.tags.filter(function(y){return ACTIVITY_LABELS.includes(y);}).slice(0,10):[],note:String(x.note||"").slice(0,400),stress:Number.isInteger(x.stress)&&x.stress>=1&&x.stress<=5?x.stress:undefined,demo:!!x.demo};});
  state.health=[];data.health.slice(-1200).filter(function(x){return !x.demo;}).forEach(function(x){var h=normalizeHealth(x,x.source);if(h)upsertHealth(h);});
  state.events=[];data.events.slice(-2000).filter(function(x){return !x.demo;}).forEach(function(x){var e=normalizeEvent(x,x.source);if(e)upsertEvent(e);});
+ state.alarms=Array.isArray(data.alarms)?data.alarms.filter(function(a){return a&&Number.isInteger(a.timeMin)&&Array.isArray(a.days);}).slice(0,100):[];
+ state.resets=Array.isArray(data.resets)?data.resets.filter(function(at){return !isNaN(new Date(at).getTime());}).slice(-500):[];
  persist();render();toast("Backup restored.");
- }catch(e){toast("This file is not a valid backup.");}
 }
 function buildDemoCalendarScenario(base){
  var result={moods:[],events:[],health:[]};
@@ -909,7 +948,12 @@ function init(){
  $("unpair-button").addEventListener("click",function(){if(state.deviceId)revokeDevice(state.deviceId);});
  $("sign-out").addEventListener("click",signOut);
  $("erase-remote").addEventListener("click",eraseRemote);
- $("backup-button").addEventListener("click",exportBackup);$("restore-input").addEventListener("change",function(ev){restoreBackup(ev.target.files[0]);ev.target.value="";});
+ $("backup-button").addEventListener("click",openBackup);
+ $("backup-form").addEventListener("submit",function(ev){ev.preventDefault();var passphrase=$("backup-passphrase").value;$("backup-passphrase-sheet").close();saveBackup(passphrase);});
+ $("backup-cancel").addEventListener("click",function(){$("backup-passphrase-sheet").close();});
+ $("restore-form").addEventListener("submit",openProtectedBackup);
+ $("restore-cancel").addEventListener("click",function(){pendingBackup=null;$("restore-passphrase-sheet").close();});
+ $("restore-input").addEventListener("change",function(ev){restoreBackup(ev.target.files[0]);ev.target.value="";});
  $("erase-local").addEventListener("click",eraseLocal);$("delete-account").addEventListener("click",deleteAccount);
  $("demo-button").addEventListener("click",demo);$("clear-demo-button").addEventListener("click",clearDemo);
  setEnergyText();navigate(location.hash.slice(1)||"checkin");

@@ -226,7 +226,7 @@ What Even holds and where it goes. Write every privacy statement from this table
 | Account and devices | Sign-in and Even Sync | Account email, first name, device ID and credential | Email; the name from sign-in, if any, shown to developer accounts; each device's label, dates (devices unused for 90 days disconnect), last error, Shortcut version and how many records its last upload held; only a hash of each credential; sign-in sessions with the browser's description, and whether the account uses Google | Sync status and access |
 | Testers and release accounts | Developer tools and the owner | No | Email, who added them, display name, any name a person or developer set and who set it (erasing synced data removes it) | Who can sign in and publish. The first name also goes in some notifications, the Today brief, the hard-days note and invitations. |
 
-Backups are unencrypted JSON files that people save themselves. Outside services: Cloudflare hosts the app, Apple's push service carries encrypted notifications, Resend sends invitation emails and sign-in codes, Google signs in people who choose it, and releases send the public Shortcut link to GitHub.
+Backups are JSON files that people save themselves, unencrypted unless they add a passphrase (`backup.js`), which is never stored or sent. Outside services: Cloudflare hosts the app, Apple's push service carries encrypted notifications, Resend sends invitation emails and sign-in codes, Google signs in people who choose it, and releases send the public Shortcut link to GitHub.
 
 ## Schema evolution and cleanup
 

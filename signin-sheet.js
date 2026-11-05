@@ -5,7 +5,7 @@
  function fail(text){$("signin-error").textContent=text||"";$("signin-error").hidden=!text;}
  function step(codeStep){
   $("signin-email-form").hidden=codeStep;$("signin-code-form").hidden=!codeStep;
-  $("signin-google").hidden=codeStep||!googleOn;
+  $("signin-google").hidden=$("signin-or").hidden=codeStep||!googleOn;
   $(codeStep?"signin-code":"signin-email").focus();
  }
  var googleOn=false;
@@ -24,7 +24,7 @@
   fail("");$("signin-code").value="";
   $("signin-sheet").showModal();
   step(false);
-  fetch("/api/signin/options",{cache:"no-store"}).then(function(r){return r.json();}).then(function(o){googleOn=o.google===true;$("signin-google").hidden=!googleOn||!$("signin-code-form").hidden;}).catch(function(){});
+  fetch("/api/signin/options",{cache:"no-store"}).then(function(r){return r.json();}).then(function(o){googleOn=o.google===true;$("signin-google").hidden=$("signin-or").hidden=!googleOn||!$("signin-code-form").hidden;}).catch(function(){});
  }
  $("signin-email-form").addEventListener("submit",function(ev){
   ev.preventDefault();
