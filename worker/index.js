@@ -829,7 +829,7 @@ async function syncApi(request,env,path){
  return error("Not found",404,"not_found");
 }
 async function api(request,env,ctx,path){
- if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:"Even",version:"2.19.1",sync:"email-access"});
+ if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:"Even",version:"2.19.2",sync:"email-access"});
  if(path.startsWith("/api/auth/"))return authApi(request,env,ctx,path);
  return syncApi(request,env,path);
 }
