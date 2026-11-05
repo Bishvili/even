@@ -194,3 +194,4 @@ html{touch-action:manipulation}
 #tester-name-input{width:100%;margin:8px 0}#tester-name-form .btn+.btn{margin-top:8px}#setup-again{margin-top:10px}
 .tester-actions{gap:0}
 #your-name-form{display:flex;gap:8px;margin-top:12px}#your-name-form input{flex:1;min-width:0}#your-name-form .btn{flex:none}
+.reflection legend small{display:block;margin-top:3px;color:var(--muted);font-size:.8667rem;font-weight:500}

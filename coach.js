@@ -64,11 +64,13 @@
   return Object.keys(hard).length>=3;
  }
 
+ // Each answer is stored by its position, so a rewording must keep every question's id, order and direction.
+ var OFTEN=["Never","Rarely","Sometimes","Often","Very often"];
  var REFLECTION=[
-  {id:"snapped",text:"How often did you snap or lose your temper?",options:["Never","Rarely","Sometimes","Often","Very often"],reverse:true},
-  {id:"setOff",text:"How often did small things set you off?",options:["Never","Rarely","Sometimes","Often","Very often"],reverse:true},
-  {id:"recovered",text:"How easily did you settle after a hard moment?",options:["Not at all","A little","Somewhat","Mostly","Very easily"]},
-  {id:"rested",text:"How rested did you feel on most days?",options:["Not at all","A little","Somewhat","Mostly","Very rested"]}
+  {id:"snapped",text:"How often did you snap or lose your temper?",options:OFTEN,reverse:true},
+  {id:"setOff",text:"How often did small things set you off?",options:OFTEN,reverse:true},
+  {id:"recovered",text:"When something upset you, how easily did you calm down?",hint:"If nothing upset you, choose Very easily.",options:["Not easily","With some effort","Fairly easily","Easily","Very easily"]},
+  {id:"rested",text:"How often did you wake up feeling rested?",options:OFTEN}
  ];
  function steadiness(answers){
   var total=0;
@@ -407,20 +409,22 @@
  }
  function renderReflections(reflections){
   var list=$("reflection-history"),rows=reflections.slice(-6).reverse();list.textContent="";
-  if(!rows.length){list.appendChild(element("p","muted","A week after your first check-in, Check in offers a short reflection. Your answers make a weekly trend here."));return;}
+  if(!rows.length){list.appendChild(element("p","muted","A week after your first check-in, a short reflection appears on Check in. Your weekly scores will show here."));return;}
   rows.forEach(function(r){
-   var row=element("div","outlook-row"),text=element("div");
-   text.appendChild(element("strong","",new Date(r.ts).toLocaleDateString(undefined,{month:"short",day:"numeric"})));
-   text.appendChild(element("small","","Higher means a steadier week"));
-   row.appendChild(text);row.appendChild(element("span","outlook-level",steadiness(r.answers)+" / 100"));
+   var row=element("div","outlook-row");
+   row.appendChild(element("strong","","Week ending "+new Date(r.ts).toLocaleDateString(undefined,{month:"short",day:"numeric"})));
+   row.appendChild(element("span","outlook-level",steadiness(r.answers)+" / 100"));
    list.appendChild(row);
   });
+  list.appendChild(element("p","muted","Each score combines your four answers. Higher means a steadier week."));
  }
  function buildReflectionForm(){
   var form=$("reflection-form");
   REFLECTION.forEach(function(q){
    var set=element("fieldset"),options=element("div","reflection-options");
-   set.appendChild(element("legend","",q.text));
+   var legend=element("legend","",q.text);
+   if(q.hint)legend.appendChild(element("small","",q.hint));
+   set.appendChild(legend);
    q.options.forEach(function(option,index){
     var label=element("label"),input=element("input");
     input.type="radio";input.name=q.id;input.value=String(index);input.required=true;

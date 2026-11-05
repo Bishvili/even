@@ -2,7 +2,7 @@
 const test=require("node:test");
 const assert=require("node:assert/strict");
 require("../coach.js");
-const {outlook,patterns,brief,hardStretch,steadiness,reflectionDue,smartTimes,repeatTimes,bedtimeReminder,smartPlan}=globalThis.EvenCoach;
+const {outlook,patterns,brief,hardStretch,steadiness,reflectionDue,smartTimes,repeatTimes,bedtimeReminder,smartPlan,REFLECTION}=globalThis.EvenCoach;
 const today=new Date(2026,10,3,12);// a Tuesday
 const at=(daysAgo,hour=12)=>{const d=new Date(today);d.setDate(d.getDate()-daysAgo);d.setHours(hour);return d.toISOString();};
 
@@ -48,6 +48,10 @@ test("the weekly reflection scores a steadier week higher and rejects incomplete
  assert.equal(steadiness({snapped:0,setOff:0,recovered:4,rested:4}),100);
  assert.equal(steadiness({snapped:4,setOff:4,recovered:0,rested:0}),0);
  assert.equal(steadiness({snapped:2,setOff:2,recovered:2}),null);
+});
+test("rewording the reflection keeps what each stored answer means, so earlier scores still compare",()=>{
+ assert.deepEqual(REFLECTION.map(q=>[q.id,!!q.reverse,q.options.length]),[["snapped",true,5],["setOff",true,5],["recovered",false,5],["rested",false,5]]);
+ for(const q of REFLECTION)assert.equal(new Set(q.options).size,5,q.id+" needs five distinct answers");
 });
 test("the reflection waits for a week of check-ins, then comes every seven days",()=>{
  assert.equal(reflectionDue([],[],today),false);
