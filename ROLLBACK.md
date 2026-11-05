@@ -4,7 +4,7 @@ A deploy is one version of the Worker and its files, so going back restores both
 
 1. Find the version: `npx wrangler versions list`, or Workers & Pages > even > Deployments in the dashboard.
 2. Go back: `npx wrangler rollback <version-id>`, or **Rollback** beside that version in the dashboard.
-3. Confirm: `https://even.bishvili.org/api/status` reports the old version.
+3. Confirm: `https://health.bishvili.org/api/status` reports the old version.
 4. Fix forward with a new commit to `main`. The next push deploys over the rollback.
 
 What a rollback does not undo:

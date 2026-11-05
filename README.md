@@ -1,6 +1,6 @@
 # Even — mood patterns PWA
 
-Live app: https://even.bishvili.org
+Live app: https://health.bishvili.org
 
 ## Developing
 

@@ -1,6 +1,6 @@
 (function () {
 "use strict";
-var VERSION = "2.40.2";
+var VERSION = "2.41.0";
 var STORAGE_KEY = "even:v1";
 var MOOD_NAMES = ["","Rough","Low","Okay","Good","Great"];
 var MOOD_EMOJI = ["","😣","😕","😐","🙂","😄"];
@@ -959,7 +959,19 @@ function watchForUpdates(){
  });
  $("apply-update").addEventListener("click",function(){window.location.reload();});
 }
+// A copy at the earlier address with nothing on it goes straight to the current one. One holding someone's records stays, with the steps to move them.
+var HOME_ORIGIN="https://health.bishvili.org";
+function atEarlierAddress(){return location.hostname==="even.bishvili.org";}
+function checkAddress(){
+ if(!atEarlierAddress())return false;
+ if(!state.moods.length&&!state.health.length&&!state.events.length&&!state.token){location.replace(HOME_ORIGIN+location.pathname+location.search+location.hash);return true;}
+ $("moved-card").hidden=false;
+ $("moved-open").href="x-safari-"+HOME_ORIGIN;
+ $("moved-backup").addEventListener("click",openBackup);
+ return false;
+}
 function init(){
+ if(checkAddress())return;
  $("health-date").value=dateKey(now());var start=new Date();start.setMinutes(0,0,0);start.setHours(start.getHours()+1);var end=new Date(start);end.setHours(end.getHours()+1);$("cal-start").value=localDateTime(start);$("cal-end").value=localDateTime(end);
  document.querySelectorAll("[data-go]").forEach(function(b){b.addEventListener("click",function(ev){ev.preventDefault();navigate(b.dataset.go);$(b.dataset.go+"-title").focus({preventScroll:true});if(b.dataset.go==="data"){refreshAuth();loadSession();}});});
  document.querySelectorAll("[data-mood]").forEach(function(b){b.addEventListener("click",function(){selectMood(Number(b.dataset.mood));});});
@@ -1043,7 +1055,7 @@ function handleNotificationAction(){
 function setup(){
  var paired=!!state.token&&!!state.syncOwnerEmail&&!!state.deviceId;
  var synced=!!(shortcutStatus&&shortcutStatus.lastDataUploadAt)||state.alarms.length>0||state.health.some(function(h){return h.source==="shortcut";})||state.events.some(function(e){return e.source==="shortcut";});
- return {ios:isIOS(),installed:isInstalled(),deviceName:thisDeviceName(),online:navigator.onLine,signedIn:!!authEmail,authKnown:authKnown,email:authEmail,connected:paired,connectedBefore:!!state.pairedAt,connecting:connecting,safari:/Safari/.test(navigator.userAgent)&&!/FBAN|FBAV|Instagram|GSA|Line\//.test(navigator.userAgent),records:state.moods.length>0||state.health.length>0||state.events.length>0,otherAccount:!!(authEmail&&state.syncOwnerEmail&&authEmail!==state.syncOwnerEmail),
+ return {ios:isIOS(),installed:isInstalled(),deviceName:thisDeviceName(),online:navigator.onLine,signedIn:!!authEmail,authKnown:authKnown,email:authEmail,connected:paired,connectedBefore:!!state.pairedAt,connecting:connecting,moved:atEarlierAddress(),safari:/Safari/.test(navigator.userAgent)&&!/FBAN|FBAV|Instagram|GSA|Line\//.test(navigator.userAgent),records:state.moods.length>0||state.health.length>0||state.events.length>0,otherAccount:!!(authEmail&&state.syncOwnerEmail&&authEmail!==state.syncOwnerEmail),
   shortcutUrl:shortcutLink(),shortcutConnected:!!(shortcutStatus&&shortcutStatus.installedShortcutVersion),synced:synced,checkedIn:state.moods.length>0};
 }
 function logTry(id){state.tries.push({id:id,at:new Date().toISOString()});state.tries=state.tries.slice(-500);if(persist())render();toast("Marked done.");}

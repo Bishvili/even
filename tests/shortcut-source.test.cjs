@@ -178,8 +178,9 @@ test("the developer tools card starts onboarding on this repository",()=>{
  assert.match(link.searchParams.get("q"),/onboarding section of AGENTS\.md/);
 });
 
-test("both Shortcuts use one address, the one the Worker is configured with",()=>{
- const origin=read("wrangler.jsonc").match(/"PUBLIC_ORIGIN": "([^"]+)"/)[1];
+test("both Shortcuts use one address, one the Worker serves",()=>{
+ const origin=read("shortcuts/even-sync.cherri").match(/const evenAddress = "([^"]+)"/)[1];
+ assert.ok(read("wrangler.jsonc").includes('"pattern": "'+new URL(origin).hostname+'"'));
  for(const file of ["shortcuts/even-sync.cherri","shortcuts/even-release.cherri"]){
   const source=read(file);
   assert.equal(source.match(/const evenAddress = "([^"]+)"/)[1],origin);

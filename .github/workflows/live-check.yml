@@ -18,7 +18,7 @@ jobs:
         run: |
           version=$(sed -n 's/^var VERSION = "\(.*\)";.*/\1/p' app.js)
           for attempt in $(seq 1 40); do
-            live=$(curl -fsS https://even.bishvili.org/api/status | sed -n 's/.*"version":"\([^"]*\)".*/\1/p' || true)
+            live=$(curl -fsS https://health.bishvili.org/api/status | sed -n 's/.*"version":"\([^"]*\)".*/\1/p' || true)
             if [ "$live" = "$version" ]; then echo "Live on $version"; exit 0; fi
             sleep 15
           done
@@ -29,4 +29,4 @@ jobs:
           npm install --no-save --no-package-lock playwright@1.63.0
           npx playwright install --with-deps chromium webkit
       - name: Load every screen on the live site
-        run: EVEN_BASE=https://even.bishvili.org node scripts/smoke.cjs chromium webkit
+        run: EVEN_BASE=https://health.bishvili.org node scripts/smoke.cjs chromium webkit

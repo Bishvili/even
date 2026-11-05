@@ -970,7 +970,7 @@ test("over the limit, invitations and uploads are refused with a code, and every
 test("the public address is configured once, and owner emails match in any case",async()=>{
  assert.doesNotMatch(require("node:fs").readFileSync("worker/index.js","utf8"),/bishvili\.workers\.dev/);
  assert.doesNotMatch(require("node:fs").readFileSync("invites.js","utf8"),/bishvili\.workers\.dev/);
- assert.match(require("node:fs").readFileSync("wrangler.jsonc","utf8"),/"PUBLIC_ORIGIN": "https:\/\/even\.bishvili\.org"/);
+ assert.match(require("node:fs").readFileSync("wrangler.jsonc","utf8"),/"PUBLIC_ORIGIN": "https:\/\/health\.bishvili\.org"/);
  const{call,ctx,env}=harness();
  env.APPROVED_SYNC_EMAILS=JSON.stringify(["Mixed.Case@Example.com"]);
  assert.equal((await call("/api/user/me",{context:ctx("mixed.case@example.com")})).status,200);
