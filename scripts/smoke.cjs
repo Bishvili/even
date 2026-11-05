@@ -57,8 +57,11 @@ async function run(type,base){
  // Playwright's WebKit can hang on the cache API, so the cache check runs in Chromium.
  const checkCache=type===chromium;
  await page.evaluate(async withCache=>{localStorage.setItem("even-setup",JSON.stringify({skipped:{signin:1}}));localStorage.setItem("even-reminder","{}");if(withCache)await(await caches.open("even-brief")).put("/brief",new Response("x"));},checkCache);
+ console.log(type.name()+": erasing");
  await tab("settings");await page.click("#erase-local");await page.click("#confirm-yes");await page.waitForTimeout(400);
- const left=await page.evaluate(async withCache=>({keys:Object.keys(localStorage),caches:withCache?await caches.keys():[]}),checkCache);
+ console.log(type.name()+": erased");
+ const left=await Promise.race([page.evaluate(async withCache=>({keys:Object.keys(localStorage),caches:withCache?await caches.keys():[]}),checkCache),new Promise((_,fail)=>setTimeout(()=>fail(Error("The page stopped responding after erase.")),20000))]);
+ console.log(type.name()+": checked");
  if(left.keys.join()!=="even:v1"||left.caches.includes("even-brief"))problems.push("Erase left something behind: "+JSON.stringify(left));
  await tab("settings");
  await tab("data");
