@@ -1,6 +1,6 @@
 (function () {
 "use strict";
-var VERSION = "2.18.0";
+var VERSION = "2.19.0";
 var SHORTCUT_PAGE = "https://routinehub.co/shortcut/26978/";
 var STORAGE_KEY = "even:v1";
 var MOOD_NAMES = ["","Rough","Low","Okay","Good","Great"];
@@ -11,6 +11,7 @@ var ACTIVITY_LABELS = ["Work","Meeting","Exercise","Social","Family","Rest","Out
 var selectedMood = 0, selectedStress = 0, selectedTags = new Set(), insightDays = 30, insightScope = "personal", toastTimer = null;
 var state = readState();
 var authEmail = "", authDevices = [], authChecking = false, authKnown = false, authCanRelease = false, authHelper = "", connecting = false;
+var currentView = "", scrollTops = {};
 var shortcutRelease = null, shortcutStatus = null, shortcutStatusLoading = false, sessionLoading = false;
 function $(id){ return document.getElementById(id); }
 function emptyState(){ return {demo:{moods:[],health:[],events:[]},moods:[],health:[],events:[],reflections:[],alarms:[],resets:[],moodSync:false,deletedMoods:[],firstName:"",name:"",token:"",deviceId:"",syncOwnerEmail:"",pairedAt:null,lastSync:null}; }
@@ -53,10 +54,13 @@ function navigate(view){
  var target=view==="sources"?"data-context":"";
  if(view==="sources"||view==="sync")view="data";
  if(!["checkin","insights","data","settings"].includes(view))view="checkin";
+ var top=view===currentView?0:scrollTops[view]||0;
+ if(currentView)scrollTops[currentView]=$("page").scrollTop;
+ currentView=view;
  document.querySelectorAll(".view").forEach(function(v){v.classList.toggle("active",v.id==="view-"+view);});
- document.querySelectorAll(".nav-item").forEach(function(n){n.classList.toggle("active",n.dataset.go===view);});
+ document.querySelectorAll(".nav-item").forEach(function(n){var on=n.dataset.go===view;n.classList.toggle("active",on);if(on)n.setAttribute("aria-current","page");else n.removeAttribute("aria-current");});
  if(location.hash!=="#"+view)history.replaceState(null,"","#"+view);
- resetPageScroll();render();
+ resetPageScroll(top);render();
  if(target)$(target).scrollIntoView();
 }
 function alarmRow(a){
@@ -99,11 +103,12 @@ async function saveYourName(ev){
  save.disabled=false;
 }
 // Hiding overflow for a moment stops any momentum, which would otherwise carry into the new tab.
-function resetPageScroll(){
+function resetPageScroll(top){
  var page=$("page");
+ top=top||0;
  page.style.overflowY="hidden";
- page.scrollTop=0;
- setTimeout(function(){page.style.overflowY="";page.scrollTop=0;},60);
+ page.scrollTop=top;
+ setTimeout(function(){page.style.overflowY="";page.scrollTop=top;},60);
 }
 function refreshCoach(){renderAlarms();if(globalThis.EvenCoach&&globalThis.EvenCoach.render)globalThis.EvenCoach.render({moods:state.moods,events:state.events,health:state.health,demo:state.demo,reflections:state.reflections,alarms:state.alarms,resets:state.resets,firstName:state.firstName,connected:!!state.token,lastUpload:shortcutStatus&&shortcutStatus.lastDataUploadAt,notifyPrefs:globalThis.EvenReminders?globalThis.EvenReminders.preferences():{from:"09:00",to:"21:00",weekends:true},scope:insightScope});}
 function render(){
@@ -177,7 +182,7 @@ function renderSync(){
  $("need-device").hidden=!authEmail||paired||mismatch;
  $("pair-connected").hidden=!paired;
  $("pair-status").textContent=paired?"Connected · "+state.syncOwnerEmail:authEmail?"Signed in":"Not signed in";
- $("pair-badge").textContent=paired?"ON":"OFF";
+ $("pair-badge").textContent=paired?"On":"Off";
  $("pair-badge").classList.toggle("on",paired);
  $("sync-light").classList.toggle("connected",paired);
  $("sync-light-text").textContent=paired?"Sync ready":"Local only";
@@ -197,7 +202,7 @@ function renderSync(){
   :mismatch?"Sign in with this iPhone’s account to continue."
   :paired?"Connect to the internet to get Even Sync."
   :"Sign in to get Even Sync.";
- $("check-shortcut-upload").disabled=!paired||mismatch||shortcutStatusLoading;
+ $("check-shortcut-upload").disabled=shortcutStatusLoading;
  var installed=shortcutStatus&&shortcutStatus.installedShortcutVersion||"";
  $("shortcut-update-badge").hidden=!(canInstall&&publishedRelease&&installed&&compareVersions(publishedRelease.version,installed)>0);
  var last=shortcutStatus&&shortcutStatus.lastDataUploadAt;
@@ -264,8 +269,11 @@ function drawTrend(moods){
  var start=Date.now()-(insightDays-1)*86400000, end=Date.now(), W=600,H=153;
  var line=points.map(function(p){var x=20+(new Date(p.date+"T12:00:00").getTime()-start)/(end-start)*560,y=13+(5-p.v)/4*118;return [Math.max(20,Math.min(580,x)),y];});
  var path=line.map(function(x){return x[0].toFixed(1)+","+x[1].toFixed(1);}).join(" ");
- var dots=line.map(function(p){return '<circle cx="'+p[0].toFixed(1)+'" cy="'+p[1].toFixed(1)+'" r="4.1" fill="#e9d29b" stroke="#163e3b" stroke-width="1.5"/>';}).join("");
- $("trend-chart").innerHTML='<svg viewBox="0 0 600 153" role="img" aria-label="Mood average by day from 1 to 5"><line x1="20" y1="13" x2="580" y2="13" stroke="#57756b" stroke-dasharray="3 5"/><line x1="20" y1="72" x2="580" y2="72" stroke="#57756b" stroke-dasharray="3 5"/><line x1="20" y1="131" x2="580" y2="131" stroke="#57756b" stroke-dasharray="3 5"/><polyline points="'+path+'" fill="none" stroke="#a1d9c1" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>'+dots+'<text x="0" y="149" font-size="12" fill="#a3c0b5">1</text><text x="0" y="17" font-size="12" fill="#a3c0b5">5</text></svg>';
+ var dots=line.map(function(p){return '<circle class="chart-dot" cx="'+p[0].toFixed(1)+'" cy="'+p[1].toFixed(1)+'" r="4.1"/>';}).join("");
+ var best=points.reduce(function(a,b){return b.v>a.v?b:a;}),overall=average(moods.map(function(m){return m.score;}));
+ var summary="Mood averaged "+score(overall)+" out of 5 across "+points.length+" days, highest on "+formatDate(best.date+"T12:00:00")+".";
+ var grid=[13,72,131].map(function(y){return '<line class="chart-grid" x1="20" y1="'+y+'" x2="580" y2="'+y+'"/>';}).join("");
+ $("trend-chart").innerHTML='<svg viewBox="0 0 600 153" role="img" aria-label="'+esc(summary)+'">'+grid+'<polyline class="chart-line" points="'+path+'"/>'+dots+'<text class="chart-value" x="0" y="153">1</text><text class="chart-value" x="0" y="20">5</text></svg><div class="chart-axis" aria-hidden="true"><span>'+esc(formatDate(new Date(start)))+'</span><span>'+esc(formatDate(new Date(end)))+'</span></div>';
  $("trend-note").textContent=points.length+" days with check-ins · Daily averages (1–5)";
 }
 function timeGroup(ts){var h=new Date(ts).getHours();return h>=5&&h<11?0:h>=11&&h<15?1:h>=15&&h<20?2:3;}
@@ -855,7 +863,7 @@ function watchForUpdates(){
 }
 function init(){
  $("health-date").value=dateKey(now());var start=new Date();start.setMinutes(0,0,0);start.setHours(start.getHours()+1);var end=new Date(start);end.setHours(end.getHours()+1);$("cal-start").value=localDateTime(start);$("cal-end").value=localDateTime(end);
- document.querySelectorAll("[data-go]").forEach(function(b){b.addEventListener("click",function(ev){ev.preventDefault();navigate(b.dataset.go);if(b.dataset.go==="data"){refreshAuth();loadSession();}});});
+ document.querySelectorAll("[data-go]").forEach(function(b){b.addEventListener("click",function(ev){ev.preventDefault();navigate(b.dataset.go);$(b.dataset.go+"-title").focus({preventScroll:true});if(b.dataset.go==="data"){refreshAuth();loadSession();}});});
  document.querySelectorAll("[data-mood]").forEach(function(b){b.addEventListener("click",function(){selectMood(Number(b.dataset.mood));});});
  document.querySelectorAll("[data-tag]").forEach(function(b){b.setAttribute("aria-pressed","false");b.addEventListener("click",function(){var s=b.dataset.tag;selectedTags.has(s)?selectedTags.delete(s):selectedTags.add(s);b.classList.toggle("selected",selectedTags.has(s));b.setAttribute("aria-pressed",String(selectedTags.has(s)));});});
  document.querySelectorAll("[data-stress]").forEach(function(b){b.addEventListener("click",function(){var n=Number(b.dataset.stress);selectStress(selectedStress===n?0:n);});});

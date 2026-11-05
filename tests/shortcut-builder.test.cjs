@@ -82,3 +82,13 @@ test("the interface reads as a finished product",()=>{
   assert.doesNotMatch(copy,/\bconfirm\(/);
  }
 });
+
+test("colors live in the tokens, and text scales with the iPhone's text size",()=>{
+ const fs=require("node:fs"),css=fs.readFileSync("styles.css","utf8");
+ assert.doesNotMatch(css.replace(/:root\{[^}]*\}/g,""),/#[0-9a-f]{3,8}\b|rgba?\(/i);
+ assert.match(css,/font:-apple-system-body/);
+ assert.doesNotMatch(html.replace(/<meta[^>]*>/g,""),/(fill|stroke)="#/);
+ assert.doesNotMatch(app,/(fill|stroke)="#/);
+ assert.doesNotMatch(html,/>(RIGHT NOW|TODAY|ACCOUNT|LAST UPLOAD|SIGNED IN AS|OFF)</);
+ assert.match(app,/setAttribute\("aria-current","page"\)/);
+});

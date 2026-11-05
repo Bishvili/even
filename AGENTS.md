@@ -68,6 +68,7 @@ Only an iPhone proves iOS behavior, and each round trip costs the owner time. Be
 - An installed app shows same-site downloads as a blank page. Open them in Safari with an `x-safari-https://` link.
 - Trace a feature from a fresh install, from an upgraded install with old saved state, signed out, and offline.
 - Each page is cached under its own path (`pageKey` in `sw.js`). After adding or linking a page, confirm `scripts/smoke.cjs` still opens the app offline.
+- Text sizes are in `rem`, on a root that follows the iPhone's text size. Colors live in the `:root` tokens only. `tests/shortcut-builder.test.cjs` checks both.
 - Check the first launch on a 375×667 screen with the Home Screen step showing. All five mood buttons must be fully visible above the tab bar.
 - First-run setup is one card on Check in, in `onboarding.js`: Home Screen, sign in, Even Sync, then notifications after the first check-in. Each step works out whether it's done from the app's real state, so an upgraded install skips what it already has. Keep the card, the invitation email and the Sync steps in the same words; `tests/onboarding.test.cjs` checks this.
 
