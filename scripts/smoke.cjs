@@ -54,9 +54,11 @@ async function run(type,base){
  if(!/^0 personal entries$/.test(await page.textContent("#entries-count")))problems.push("The entry count reads wrong.");
  await page.click("[data-mood='3']");await page.click("#save-mood");await page.waitForTimeout(100);
  if(!/^1 personal entry$/.test(await page.textContent("#entries-count")))problems.push("The entry count reads wrong after one check-in.");
- await page.evaluate(async()=>{localStorage.setItem("even-setup",JSON.stringify({skipped:{signin:1}}));localStorage.setItem("even-reminder","{}");await(await caches.open("even-brief")).put("/brief",new Response("x"));});
+ // Playwright's WebKit can hang on the cache API, so the cache check runs in Chromium.
+ const checkCache=type===chromium;
+ await page.evaluate(async withCache=>{localStorage.setItem("even-setup",JSON.stringify({skipped:{signin:1}}));localStorage.setItem("even-reminder","{}");if(withCache)await(await caches.open("even-brief")).put("/brief",new Response("x"));},checkCache);
  await tab("settings");await page.click("#erase-local");await page.click("#confirm-yes");await page.waitForTimeout(400);
- const left=await page.evaluate(async()=>({keys:Object.keys(localStorage),caches:await caches.keys()}));
+ const left=await page.evaluate(async withCache=>({keys:Object.keys(localStorage),caches:withCache?await caches.keys():[]}),checkCache);
  if(left.keys.join()!=="even:v1"||left.caches.includes("even-brief"))problems.push("Erase left something behind: "+JSON.stringify(left));
  await tab("settings");
  await tab("data");

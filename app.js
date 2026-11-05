@@ -1,6 +1,6 @@
 (function () {
 "use strict";
-var VERSION = "2.29.0";
+var VERSION = "2.29.1";
 var STORAGE_KEY = "even:v1";
 var MOOD_NAMES = ["","Rough","Low","Okay","Good","Great"];
 var MOOD_EMOJI = ["","😣","😕","😐","🙂","😄"];
@@ -839,8 +839,8 @@ async function eraseDeviceData(){
  if(globalThis.EvenReminders)globalThis.EvenReminders.forget();
  if(globalThis.EvenOnboarding)globalThis.EvenOnboarding.forget();
  DEVICE_KEYS.forEach(function(key){try{localStorage.removeItem(key);}catch(e){/* Nothing to remove if storage is blocked. */}});
- if("caches" in globalThis)await Promise.all(DEVICE_CACHES.map(function(name){return caches.delete(name).catch(function(){return false;});}));
  state=emptyState();shortcutRelease=null;shortcutStatus=null;authEmail="";authDevices=[];authCanRelease=false;authHelper="";authService=null;persist();render();
+ if("caches" in globalThis)DEVICE_CACHES.forEach(function(name){caches.delete(name).catch(function(){return false;});});
 }
 async function eraseLocal(){
  if(!await askConfirm("Delete everything on this device: check-ins, notes, health and calendar data, notification settings and setup progress. It also signs out and disconnects this device. Synced data in your account stays until you erase it. This can’t be undone.","Delete"))return;
