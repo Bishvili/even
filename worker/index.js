@@ -40,7 +40,7 @@ async function payload(request){
  if(type.includes("application/x-www-form-urlencoded"))return Object.fromEntries(new URLSearchParams(text));
  try{return JSON.parse(text);}catch(e){return Object.fromEntries(new URLSearchParams(text));}
 }
-const VERSION_NAME="2.44.7";
+const VERSION_NAME="2.44.8";
 function normalEmail(value){return String(value||"").trim().toLowerCase();}
 async function signinAuth(env,ctx,request){
  const {createAuth}=await import("./signin.mjs");
@@ -260,6 +260,11 @@ async function displayName(env,email){
 }
 function firstName(name){return String(name||"").trim().split(/\s+/)[0]||null;}
 function escapeHtml(text){return String(text).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+async function saveTesterName(env,tester,value,by){
+ const name=String(value||"").trim().replace(/[\x00-\x1f]/g,"").slice(0,60);
+ if(name)await env.DB.prepare("INSERT INTO health_names(email,name,set_by,updated_at) VALUES(?,?,?,?) ON CONFLICT(email) DO UPDATE SET name=excluded.name,set_by=excluded.set_by,updated_at=excluded.updated_at").bind(tester,name,by,new Date().toISOString()).run();
+ else await env.DB.prepare("DELETE FROM health_names WHERE email=?").bind(tester).run();
+}
 async function sendInvite(env,to,from){
  if(!env.RESEND_API_KEY)return false;
  const url=env.PUBLIC_ORIGIN+"/";
@@ -410,6 +415,8 @@ async function authApi(request,env,ctx,path){
   if((path==="/api/user/testers"||path==="/api/user/testers/invite")&&await overLimit(env.INVITE_LIMIT,email))return error("That's a lot of invitations at once. Try again in a minute.",429,"rate_limited");
   if(path==="/api/user/testers"){
    await env.DB.prepare("INSERT OR IGNORE INTO health_approved_emails(email,added_by,created_at) VALUES(?,?,?)").bind(tester,email,new Date().toISOString()).run();
+   // Saved first, so the invitation greets them by name. Leaving it blank keeps any name already set.
+   if(String(input?.name||"").trim())await saveTesterName(env,tester,input.name,email);
    return reply({ok:true,emailed:await sendInvite(env,tester,email)});
   }
   if(path==="/api/user/testers/invite"){
@@ -418,9 +425,7 @@ async function authApi(request,env,ctx,path){
   }
   if(path==="/api/user/testers/name"){
    if(!await approved(env,tester)&&!await canRelease(env,tester))return error("Add this email first.",404,"not_a_tester");
-   const name=String(input?.name||"").trim().replace(/[\x00-\x1f]/g,"").slice(0,60);
-   if(name)await env.DB.prepare("INSERT INTO health_names(email,name,set_by,updated_at) VALUES(?,?,?,?) ON CONFLICT(email) DO UPDATE SET name=excluded.name,set_by=excluded.set_by,updated_at=excluded.updated_at").bind(tester,name,email,new Date().toISOString()).run();
-   else await env.DB.prepare("DELETE FROM health_names WHERE email=?").bind(tester).run();
+   await saveTesterName(env,tester,input?.name,email);
    return reply({ok:true,name:await displayName(env,tester)});
   }
   if(path==="/api/user/testers/remove"){

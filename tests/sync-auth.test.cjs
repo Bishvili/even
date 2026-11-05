@@ -9,10 +9,10 @@ const {webcrypto}=require("node:crypto");
 const {TextEncoder}=require("node:util");
 
 const days=(date,records)=>({kind:"calendar_days",date,utcOffset:"+00:00",events:records.map(r=>r.join("\u241f")).join("\u241e")});
-function harness({verified=false,buildVersion="2.8.0",helperBuild="2.0.0",sourceVersions=null,helperLink=null}={}){
+function harness({brand={},verified=false,buildVersion="2.8.0",helperBuild="2.0.0",sourceVersions=null,helperLink=null}={}){
  const source=fs.readFileSync(path.join(__dirname,"..","worker","index.js"),"utf8");
  const session='{createAuth:(authEnv,options)=>({handler:async request=>{const url=new URL(request.url);globalThis.lastAuth={baseURL:options.baseURL,url:request.url,body:request.method==="POST"?await request.text():""};return url.pathname.endsWith("/oauth-proxy")?new Response(null,{status:302,headers:{Location:url.searchParams.get("callbackURL"),"Set-Cookie":"health.session_token=abc; Path=/"}}):new Response("{}",{status:200,headers:{"Content-Type":"application/json"}});},api:{getSession:async({headers})=>{const m=/health\\.session_token=([^;]+)/.exec(headers.get("cookie")||"");if(!m)return null;const user=JSON.parse(decodeURIComponent(m[1]));return{user,session:{createdAt:new Date(user.name==="Old session"?0:Date.now())}};}}})}';
- const loaded=source.replace(/^import (\w+) from "\.\.\/brand\/(\w+)\.json";$/gm,(line,name,file)=>"const "+name+"="+fs.readFileSync(path.join(__dirname,"..","brand",file+".json"),"utf8")+";").replace('await import("./signin.mjs")',session).replace("export default {","globalThis.logEvent = logEvent;globalThis.runCron = runCron;globalThis.sendReminders = sendReminders;globalThis.readBedtimes = readBedtimes;globalThis.readSleep = readSleep;globalThis.reminderMessage = reminderMessage;globalThis.dueScheduled = dueScheduled;globalThis.readAlarms = readAlarms;globalThis.firstAlarm = firstAlarm;globalThis.pushPayload = pushPayload;globalThis.__worker = {");
+ const loaded=source.replace(/^import (\w+) from "\.\.\/brand\/(\w+)\.json";$/gm,(line,name,file)=>"const "+name+"="+JSON.stringify({...JSON.parse(fs.readFileSync(path.join(__dirname,"..","brand",file+".json"),"utf8")),...(file==="brand"?brand:{})})+";").replace('await import("./signin.mjs")',session).replace("export default {","globalThis.logEvent = logEvent;globalThis.runCron = runCron;globalThis.sendReminders = sendReminders;globalThis.readBedtimes = readBedtimes;globalThis.readSleep = readSleep;globalThis.reminderMessage = reminderMessage;globalThis.dueScheduled = dueScheduled;globalThis.readAlarms = readAlarms;globalThis.firstAlarm = firstAlarm;globalThis.pushPayload = pushPayload;globalThis.__worker = {");
  assert.notEqual(source,loaded,"Worker ESM export not found");
  const dispatches=[];
  const runtime={crypto:webcrypto,TextEncoder,Response,Request,Headers,URL,atob,btoa,Intl,Uint8Array,console,async fetch(url,init){
@@ -1101,4 +1101,34 @@ test("with the relay off, nothing about Google sign-in changes",async()=>{
 });
 test("request addresses aren't kept in the host's logs",()=>{
  assert.match(require("node:fs").readFileSync("wrangler.jsonc","utf8"),/"invocation_logs": false/);
+});
+
+test("a name given when adding a tester greets them in the invitation, and a blank one keeps what's set",async()=>{
+ const{call,ctx,dispatches,env}=harness(),owner=ctx("owner-a@example.com");
+ env.RESEND_API_KEY="server-only";
+ const add=body=>call("/api/user/testers",{method:"POST",context:owner,body});
+ const mail=()=>JSON.parse(dispatches.at(-1).init.body);
+ assert.equal((await add({email:"sam@example.com",name:" Sam Lee "})).status,200);
+ assert.match(mail().text,/^Hi Sam,/);
+ assert.equal((await call("/api/user/testers",{context:owner})).data.testers.find(t=>t.email==="sam@example.com").name,"Sam Lee");
+ await add({email:"sam@example.com"});
+ assert.match(mail().text,/^Hi Sam,/);
+ await add({email:"nameless@example.com"});
+ assert.doesNotMatch(mail().text,/^Hi /);
+ await add({email:"tag@example.com",name:"<b>Tag</b>"});
+ assert.doesNotMatch(mail().html,/<b>Tag/);
+});
+test("the invitation takes every name from the brand file",async()=>{
+ const brand={name:"Zzyzx Labs",pitch:"a made-up pitch",inviteFrom:"hi@example.com"};
+ const{call,ctx,dispatches,env}=harness({brand});
+ env.RESEND_API_KEY="server-only";
+ await call("/api/user/testers",{method:"POST",context:ctx("owner-a@example.com"),body:{email:"sam@example.com"}});
+ const mail=JSON.parse(dispatches.at(-1).init.body);
+ assert.equal(mail.from,"Zzyzx Labs <hi@example.com>");
+ assert.match(mail.subject,/Zzyzx Labs$/);
+ for(const part of[mail.text,mail.html]){
+  assert.match(part,/Zzyzx Labs/);
+  assert.match(part,/a made-up pitch/);
+  assert.doesNotMatch(part,new RegExp("\\b"+require("../brand/brand.json").name+"\\b"));
+ }
 });

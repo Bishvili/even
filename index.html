@@ -356,7 +356,7 @@
      <h2 id="release-title">Developer tools</h2>
           <h3 class="dev-heading">Testers</h3>
      <p class="muted">Add someone’s email to invite them.</p>
-     <form id="tester-form"><input id="tester-email" type="email" autocomplete="off" autocapitalize="none" placeholder="name@example.com" aria-label="Tester email" required><button type="submit" class="btn secondary" id="add-tester">Add</button></form>
+     <form id="tester-form"><input id="tester-new-name" type="text" maxlength="60" autocomplete="off" autocapitalize="words" placeholder="Name (optional)" aria-label="Tester name"><input id="tester-email" type="email" autocomplete="off" autocapitalize="none" placeholder="name@example.com" aria-label="Tester email" required><button type="submit" class="btn secondary" id="add-tester">Add</button></form>
      <div id="tester-list" class="calendar-list"></div>
      <button type="button" class="btn secondary full" id="share-app">Share {{name}}</button>
      <h3 class="dev-heading">Shortcuts</h3>
@@ -377,7 +377,7 @@
      <p class="muted">Tell us what went wrong or what you’d change.</p>
      <button type="button" class="btn secondary full" id="feedback-open">Send feedback</button>
     </section>
-    <div class="card"><h2>About the insights</h2><p class="muted">Comparisons need at least 5 check-ins in each group. Mood data is subjective and gaps can skew results. Nothing here is a diagnosis or proves a cause.</p><button type="button" class="btn subtle full" id="setup-again">Go through setup again</button><a class="btn subtle full" id="whitepaper-link" href="/whitepaper.html" target="_blank" rel="noopener">How {{name}} works <span aria-hidden="true">↗</span></a><p class="muted">Version <span id="version">2.44.7</span> · No ads or analytics</p></div>
+    <div class="card"><h2>About the insights</h2><p class="muted">Comparisons need at least 5 check-ins in each group. Mood data is subjective and gaps can skew results. Nothing here is a diagnosis or proves a cause.</p><button type="button" class="btn subtle full" id="setup-again">Go through setup again</button><a class="btn subtle full" id="whitepaper-link" href="/whitepaper.html" target="_blank" rel="noopener">How {{name}} works <span aria-hidden="true">↗</span></a><p class="muted">Version <span id="version">2.44.8</span> · No ads or analytics</p></div>
     <div class="card"><h2>Explore a sample month</h2><p class="muted">See 28 days of fictional check-ins and events. They stay separate from your own data and are never uploaded.</p><button class="btn secondary full" id="demo-button">Load 28-day calendar demo</button><button class="btn subtle full" id="clear-demo-button">Remove demo data</button></div>
    </section>
   </main>

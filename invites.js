@@ -63,13 +63,13 @@
  }
  async function add(event){
   event.preventDefault();
-  var input=$("tester-email"),button=$("add-tester"),email=input.value.trim().toLowerCase();
+  var input=$("tester-email"),nameInput=$("tester-new-name"),button=$("add-tester"),email=input.value.trim().toLowerCase();
   button.disabled=true;
   try{
-   var r=await send(app.accountPath("testers"),email);
+   var r=await fetch(app.accountPath("testers"),{method:"POST",credentials:"same-origin",cache:"no-store",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:email,name:nameInput.value})});
    var result=await r.json();
    if(!r.ok)throw Error(result.error||"Couldn’t add that email.");
-   input.value="";app.toast(result.emailed?"Invitation sent to "+email+".":email+" can sign in, but the email didn’t send. Share the link instead.");await load();
+   input.value="";nameInput.value="";app.toast(result.emailed?"Invitation sent to "+email+".":email+" can sign in, but the email didn’t send. Share the link instead.");await load();
   }catch(e){app.toast(e.message);}
   button.disabled=false;
  }
