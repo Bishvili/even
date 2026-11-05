@@ -33,6 +33,16 @@ async function run(type,base){
  const tab=async name=>{await page.click(`.nav-item[data-go=${name}]`);await page.waitForTimeout(150);};
  await page.goto(base);
  await page.waitForSelector("#checkin-title");
+ // The check-in is the first thing in reach on a small iPhone.
+ await page.setViewportSize({width:375,height:667});
+ await page.waitForTimeout(100);
+ const reachable=await page.evaluate(()=>{const bar=document.querySelector(".bottom-nav").getBoundingClientRect().top;return [...document.querySelectorAll("[data-mood]")].every(b=>{const r=b.getBoundingClientRect();return r.top>=0&&r.bottom<=bar;});});
+ if(!reachable)problems.push("Mood buttons aren't fully visible at 375x667 on first launch.");
+ await page.setViewportSize({width:390,height:844});
+ await page.click("[data-mood='3']");
+ await page.waitForTimeout(100);
+ const saveInView=await page.evaluate(()=>{const bar=document.querySelector(".bottom-nav").getBoundingClientRect().top,r=document.getElementById("save-mood").getBoundingClientRect();return r.top>=0&&r.bottom<=bar;});
+ if(!saveInView)problems.push("Save isn't in view after choosing a mood.");
  for(const name of ["insights","sources","sync","settings","checkin"])await tab(name);
  await tab("settings");
  await page.click("#demo-button");

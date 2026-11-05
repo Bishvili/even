@@ -27,6 +27,7 @@ function harness({verified=false,buildVersion="2.8.0",helperBuild="2.0.0",source
   prepare(sql){return{bind(...args){return {
    async first(){
     if(sql.startsWith("SELECT (SELECT name FROM even_names")){const email=args[0];return{chosen:rows.names?.get(email)||null,given:email==="owner-a@example.com"?"Ada Lovelace":null,signin:(rows.userFields?.get(email)||{}).name||null};}
+    if(sql.startsWith("SELECT COUNT(*) AS count FROM even_calendar_events WHERE owner_email=? AND calendar=?"))return{count:[...rows.events.values()].filter(d=>d.owner===args[0]&&d.calendar===args[1]).length};
     if(sql.startsWith("SELECT sync_off FROM even_users"))return (rows.userFields?.get(args[0]))||null;
     if(sql.startsWith("SELECT mood_sync FROM even_users"))return (rows.userFields?.get(args[0]))||null;
     if(sql.includes("FROM even_approved_emails WHERE email"))return rows.approved.has(args[0])?{allowed:1}:null;
@@ -104,6 +105,7 @@ function harness({verified=false,buildVersion="2.8.0",helperBuild="2.0.0",source
     if(sql.startsWith("INSERT INTO even_calendar_events")){rows.events.set(args[0]+"|"+args[1],{owner:args[0],id:args[1],start_time:args[2],end_time:args[3],title:args[4],category:args[5],calendar:args[6],start:args[2],updated:args[7]});return{meta:{changes:1}};}
     if(sql.startsWith("DELETE FROM even_health_metrics")){for(const [k,d] of rows.health)if(d.owner===args[0])rows.health.delete(k);return{meta:{changes:1}};}
     if(sql.includes("updated_at<?")){let changes=0;for(const [k,d] of rows.events)if(d.owner===args[0]&&d.start>=args[1]&&d.start<args[2]&&d.updated<args[3]){rows.events.delete(k);changes++;}return{meta:{changes}};}
+    if(sql==="DELETE FROM even_calendar_events WHERE owner_email=? AND calendar=?"){let changes=0;for(const [k,d] of rows.events)if(d.owner===args[0]&&d.calendar===args[1]){rows.events.delete(k);changes++;}return{meta:{changes}};}
     if(sql.startsWith("DELETE FROM even_calendar_events")){for(const [k,d] of rows.events)if(d.owner===args[0])rows.events.delete(k);return{meta:{changes:1}};}
     throw new Error("Unexpected run: "+sql);
    }
@@ -869,4 +871,21 @@ test("a device can disconnect itself, and long-unused devices stop working",asyn
  device.last_seen_at=new Date(Date.now()-91*86400000).toISOString();
  assert.equal((await call("/api/sync/status",{headers:Two})).status,401);
  assert.ok(device.revoked_at);
+});
+
+test("one calendar's saved events can be removed, for that owner and calendar only",async()=>{
+ const{call,ctx,rows}=harness();
+ const a=await call("/api/auth/device",{method:"POST",body:{label:"A"},context:ctx("owner-a@example.com")});
+ const b=await call("/api/auth/device",{method:"POST",body:{label:"B"},context:ctx("owner-b@example.com")});
+ const A={Authorization:"Bearer "+a.data.token},B={Authorization:"Bearer "+b.data.token};
+ const event=(calendar,hour)=>({start:`2026-11-04T${hour}:00:00-08:00`,end:`2026-11-04T${hour}:30:00-08:00`,title:calendar+" event",calendar});
+ const send=headers=>call("/api/ingest",{method:"POST",headers,body:{kind:"batch",events:[event("Work","09"),event("Home","10")]}});
+ await send(A);await send(B);
+ const off=await call("/api/calendars",{method:"POST",headers:A,body:{name:"Work",enabled:false}});
+ assert.equal(off.data.savedEvents,1);
+ assert.equal((await call("/api/calendars/events/delete",{method:"POST",body:{name:"Work"}})).status,401);
+ assert.equal((await call("/api/calendars/events/delete",{method:"POST",headers:A,body:{name:"Work"}})).data.removed,1);
+ const left=[...rows.events.values()];
+ assert.equal(left.filter(e=>e.owner==="owner-a@example.com").length,1);
+ assert.equal(left.filter(e=>e.owner==="owner-b@example.com").length,2);
 });

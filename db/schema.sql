@@ -107,3 +107,5 @@ CREATE TABLE IF NOT EXISTS even_names (
   set_by TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
+CREATE INDEX IF NOT EXISTS even_push_owner ON even_push_subscriptions(owner_email);
+CREATE INDEX IF NOT EXISTS even_push_device ON even_push_subscriptions(device_id);

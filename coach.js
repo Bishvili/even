@@ -59,7 +59,9 @@
   return "Keep checking in. A few more "+day.name+"s will show your pattern.";
  }
  function hardStretch(moods,today){
-  var cutoff=new Date(today).getTime()-4*DAY_MS,hard={};
+  // Today and the three calendar days before it.
+  var start=new Date(today);start.setHours(0,0,0,0);start.setDate(start.getDate()-3);
+  var cutoff=start.getTime(),hard={};
   rated(moods).forEach(function(m){if(m.stress>=4&&new Date(m.ts).getTime()>=cutoff)hard[localDay(m.ts)]=true;});
   return Object.keys(hard).length>=3;
  }
@@ -356,7 +358,7 @@
  function renderToday(data){
   var personal=data.moods,now=new Date(),days=outlook(personal,now);
   var helper=whatHelps(personal,data.events,data.health,data.resets,now).filter(function(row){return row.id!=="sleep";})[0];
-  $("today-brief-text").textContent=brief(days[0],helper,data.firstName);
+  $("today-brief-text").textContent=personal.length?brief(days[0],helper,data.firstName):"Your first check-in starts your pattern.";
   $("hard-stretch").hidden=!hardStretch(personal,now);
   $("hard-stretch-text").textContent="It’s been a hard few days"+(data.firstName?", "+data.firstName:"")+". Talking to someone can help.";
   saveBriefs(days,helper,data.firstName);
@@ -405,7 +407,7 @@
    row.appendChild(text);row.appendChild(element("span","outlook-level",effect.gap.toFixed(1)+" points "+effect.name));
    list.appendChild(row);
   });
-  list.appendChild(element("p","muted","A pattern in your check-ins, not proof of cause."));
+  list.appendChild(element("p","muted","Each needs at least 5 check-ins each way. A pattern in your check-ins, not proof of cause."));
  }
  function renderReflections(reflections){
   var list=$("reflection-history"),rows=reflections.slice(-6).reverse();list.textContent="";

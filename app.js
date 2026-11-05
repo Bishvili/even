@@ -1,6 +1,6 @@
 (function () {
 "use strict";
-var VERSION = "2.15.5";
+var VERSION = "2.16.0";
 var SHORTCUT_PAGE = "https://routinehub.co/shortcut/26978/";
 var STORAGE_KEY = "even:v1";
 var MOOD_NAMES = ["","Rough","Low","Okay","Good","Great"];
@@ -344,7 +344,7 @@ function drawHealth(moods,health){
  var yes=hrv.filter(function(x){return number(x.h.hrv)>=med;}).map(function(x){return x.mood;}),no=hrv.filter(function(x){return number(x.h.hrv)<med;}).map(function(x){return x.mood;});if(yes.length>=3&&no.length>=3)rows.push({name:"Higher-than-median HRV",yes:yes,no:no});}
  $("health-insights").innerHTML=rows.length?rows.map(function(r){return diffHtml(r.name,r.yes,r.no);}).join("")+'<p class="muted">One daily mood average per date · '+joined.length+' matched days</p>':blank("To compare sleep or activity, log mood on at least 6 days with health records in both groups.");
 }
-function selectMood(n){selectedMood=n;document.querySelectorAll("[data-mood]").forEach(function(b){b.setAttribute("aria-pressed",String(Number(b.dataset.mood)===n));});}
+function selectMood(n){selectedMood=n;document.querySelectorAll("[data-mood]").forEach(function(b){b.setAttribute("aria-pressed",String(Number(b.dataset.mood)===n));});$("save-mood").classList.toggle("save-ready",!!n);}
 function setEnergyText(){$("energy-label").textContent=$("energy").value+" · "+ENERGY_NAMES[Number($("energy").value)];}
 function selectStress(n){selectedStress=n;document.querySelectorAll("[data-stress]").forEach(function(b){var on=Number(b.dataset.stress)===n;b.classList.toggle("selected",on);b.setAttribute("aria-pressed",String(on));});}
 // Check-ins sync only when the account has turned it on. Each device uploads what the account lacks and removes what another device deleted.
@@ -621,7 +621,12 @@ async function setCalendar(name,box){
  try{
   var r=await fetch("/api/calendars",{method:"POST",headers:{"Authorization":"Bearer "+state.token,"Content-Type":"application/json"},body:JSON.stringify({name:name,enabled:enabled}),cache:"no-store"});
   if(!r.ok)throw Error("Calendar not updated");
-  toast(name+(enabled?" is on.":" is off."));pull(true);
+  var saved=enabled?0:(await r.json()).savedEvents||0;
+  if(saved&&confirm("Also remove "+plural(saved,"saved event")+" from "+name+" in your account? This can’t be undone.")){
+   var removed=await fetch("/api/calendars/events/delete",{method:"POST",headers:{"Authorization":"Bearer "+state.token,"Content-Type":"application/json"},body:JSON.stringify({name:name}),cache:"no-store"});
+   toast(removed.ok?"Removed "+plural(saved,"saved event")+" from "+name+".":"Couldn’t remove the saved events from "+name+".");
+  }else toast(name+(enabled?" is on.":" is off."));
+  pull(true);
  }catch(e){box.checked=!enabled;toast("Couldn’t update that calendar.");}
  finally{box.disabled=false;}
 }

@@ -92,7 +92,7 @@ Only an iPhone proves iOS behavior, and each round trip costs the owner time. Be
 
 **Cloud and naming**
 - Worker, repository and address renames need dashboard steps. Push only after they're done, because a mismatch can deploy to the wrong place.
-- Change a live D1 schema before pushing code that needs it, with additive changes only, and record the change in `db/schema.sql` in the same commit. Numbered migrations arrive with #30.
+- Change a live D1 schema before pushing code that needs it, with additive changes only. Add a numbered file in `db/migrations`, update `db/schema.sql` in the same commit, and apply it with `wrangler d1 migrations apply even-private --remote`. `tests/migrations.test.cjs` checks that the migrations rebuild the schema.
 - After someone adds a Worker secret, list the secret names and compare them with what the code reads. A misspelled name fails silently.
 - Every page and asset is served with a strict content security policy, so inline styles and scripts are blocked, including `style="…"` attributes that JavaScript writes into `innerHTML`. Set dynamic values with `element.style` or a class, keep styles and scripts in separate files, and add each file to `scripts/deploy.sh` and the Worker's type list.
 - Check the Workers Builds result for the exact commit, then the deployed code. When you can't test something on a device, say so plainly.
@@ -215,7 +215,7 @@ What Even holds and where it goes. Write every privacy statement from this table
 | Bedtimes | Worked out from the sleep intervals | Yes | Yes | Bedtime estimate and wind-down |
 | Resting heart rate | Even Sync, from Apple Health | Yes | Yes | Shown in Sources only (#37) |
 | Average heart rate | Even Sync 2.9.0 only | No | No: discarded on arrival | Nothing |
-| Today's and tomorrow's calendar events: title, start, end, calendar name | Even Sync reads calendars left on (2.9.0 reads today only, 3.0.0 reads all); the Worker adds a category | Yes, without the calendar name | Yes, except events from turned-off calendars, which are discarded on arrival | Insights, coaching and nudges before events |
+| Today's and tomorrow's calendar events: title, start, end, calendar name | Even Sync reads calendars left on (2.9.0 reads today only, 3.0.0 reads all). Saved events from a turned-off calendar can be removed in the app; the Worker adds a category | Yes, without the calendar name | Yes, except events from turned-off calendars, which are discarded on arrival | Insights, coaching and nudges before events |
 | Calendar names and on/off state | Even Sync and the app | No | Yes | Calendar settings |
 | What Even Sync sends, and whether check-ins sync | The app | Yes | Yes | Followed by Even Sync and the Worker |
 | Alarms: time, repeat days, on/off, name | Even Sync, from Clock | Yes | Yes, plus each synced day's first morning alarm | Brief, wind-down, next steps and the early-alarm pattern |

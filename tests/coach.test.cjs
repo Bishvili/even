@@ -218,3 +218,9 @@ test("a name opens a hard day's brief and a nudge, and is left out without one",
  const found=anticipate(moods,[],[],now,{from:"07:00",to:"22:00",firstName:"Sam"});
  assert.match(found[0].message,/^Sam, Monday afternoons/);
 });
+
+test("hard days are counted in calendar days",()=>{
+ const noon=new Date("2026-11-09T12:00:00"),day=n=>{const d=new Date(noon);d.setDate(d.getDate()-n);return d.toISOString();};
+ assert.equal(hardStretch([0,1,3].map(n=>({ts:day(n),stress:4})),noon),true);
+ assert.equal(hardStretch([0,1,4].map(n=>({ts:day(n),stress:4})),noon),false);
+});

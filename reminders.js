@@ -48,7 +48,7 @@
  function renderReminder(){
   var toggle=$("reminder-toggle"),note=$("reminder-note");
   blockedReason=blocked();toggle.disabled=false;toggle.checked=!blockedReason&&settings.on;
-  note.textContent=blockedReason||syncError||"Your notification times, time zone and check-in times are saved to your account. What you write stays here unless you sync check-ins.";
+  note.textContent=blockedReason||syncError||"Your notification times and what each is for, your time zone and your latest check-in time are saved to your account. What you write stays here unless you sync check-ins.";
   renderSchedule();
   if(globalThis.EvenOnboarding)globalThis.EvenOnboarding.render();
  }

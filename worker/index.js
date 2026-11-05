@@ -596,7 +596,15 @@ async function syncApi(request,env,path){
   if(!name||name.length>100||typeof input.enabled!=="boolean")return error("Invalid calendar request",400,"invalid_calendar");
   const updated=await env.DB.prepare("UPDATE even_calendars SET enabled=? WHERE owner_email=? AND name=?").bind(input.enabled?1:0,owner,name).run();
   if(!updated.meta?.changes)return error("Calendar not found",404,"calendar_not_found");
-  return reply({ok:true});
+  const saved=input.enabled?null:await env.DB.prepare("SELECT COUNT(*) AS count FROM even_calendar_events WHERE owner_email=? AND calendar=?").bind(owner,name).first();
+  return reply({ok:true,savedEvents:Number(saved?.count||0)});
+ }
+ if(path==="/api/calendars/events/delete"&&request.method==="POST"){
+  let input;try{input=await payload(request);}catch(e){return error("Invalid calendar request",400,"invalid_calendar");}
+  const name=String(input?.name||"");
+  if(!name||name.length>100)return error("Invalid calendar request",400,"invalid_calendar");
+  const removed=await env.DB.prepare("DELETE FROM even_calendar_events WHERE owner_email=? AND calendar=?").bind(owner,name).run();
+  return reply({ok:true,removed:removed.meta?.changes||0});
  }
  if(path==="/api/profile/name"&&request.method==="POST"){
   let input;try{input=await payload(request);}catch(e){return error("Even couldn't read that request.",400,"invalid_body");}
@@ -776,7 +784,7 @@ async function syncApi(request,env,path){
  return error("Not found",404,"not_found");
 }
 async function api(request,env,ctx,path){
- if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:"Even",version:"2.15.5",sync:"email-access"});
+ if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:"Even",version:"2.16.0",sync:"email-access"});
  if(path.startsWith("/api/auth/"))return authApi(request,env,ctx,path);
  return syncApi(request,env,path);
 }

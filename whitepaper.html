@@ -50,10 +50,11 @@
   <tr><td>Mood</td><td>Five levels, Rough to Great</td><td>Self-report</td><td>This iPhone, plus the account if check-in sync is on</td></tr>
   <tr><td>Stress</td><td>Optional, 1 to 5</td><td>Self-report</td><td>This iPhone, plus the account if check-in sync is on</td></tr>
   <tr><td>Notes and tags</td><td>Free text and labels</td><td>Self-report</td><td>This iPhone, plus the account if check-in sync is on</td></tr>
-  <tr><td>Sleep</td><td>Hours asleep and bedtime</td><td>Apple Health</td><td>Account and iPhone</td></tr>
+  <tr><td>Sleep</td><td>Hours asleep and bedtime, from recent nights, or up to a month on the first sync</td><td>Apple Health</td><td>Account and iPhone</td></tr>
   <tr><td>Heart and activity</td><td>Resting heart rate, heart rate variability, steps, exercise minutes</td><td>Apple Health</td><td>Account and iPhone</td></tr>
-  <tr><td>Calendar</td><td>Today’s and tomorrow’s events: title, time, calendar name and a category. Events from calendars the person turns off are discarded when they arrive.</td><td>iPhone Calendar</td><td>Account and iPhone</td></tr>
+  <tr><td>Calendar</td><td>Today’s and tomorrow’s events: title, time, calendar name and a category. Titles are stored. The Shortcut skips calendars the person turns off, anything that still arrives is discarded, and saved events can be removed.</td><td>iPhone Calendar</td><td>Account and iPhone</td></tr>
   <tr><td>Alarms</td><td>Name, time and repeat days</td><td>iPhone Clock</td><td>Account and iPhone</td></tr>
+  <tr><td>Notification plan</td><td>Times and what each is for, including when a harder moment is expected or the hardest part of the day, plus time zone and latest check-in time. These come from ratings and answers that otherwise stay on the device.</td><td>The app</td><td>Account and iPhone</td></tr>
   <tr><td>Breathing exercises</td><td>When each one was started</td><td>The app</td><td>This iPhone only</td></tr>
   <tr><td>Weekly reflection</td><td>Four questions about the past 7 days: how often the person snapped or lost their temper, how often small things set them off, how easily they calmed down when upset, and how often they woke up feeling rested. Combined into a 0 to 100 score. Offered 7 days after the first check-in, then weekly. Written for the app and not a validated scale.</td><td>Self-report</td><td>This iPhone only</td></tr>
  </tbody>
@@ -69,7 +70,7 @@
   <rect class="box" x="210" y="50" width="130" height="86" rx="10"/><text class="strong" x="224" y="76">Even Sync</text><text class="small" x="224" y="98">Runs when the</text><text class="small" x="224" y="116">person allows it</text>
   <rect class="soft" x="550" y="50" width="140" height="86" rx="10"/><text class="strong" x="564" y="76">Synced records</text><text class="small" x="564" y="98">Tied to one</text><text class="small" x="564" y="116">verified owner</text>
   <rect class="sun" x="210" y="200" width="250" height="110" rx="10"/><text class="strong ontext" x="226" y="228">Even app</text><text class="small ontext" x="226" y="250">Mood, stress and notes start here.</text><text class="small ontext" x="226" y="268">All comparisons and wording</text><text class="small ontext" x="226" y="286">are worked out here.</text>
-  <rect class="soft" x="550" y="200" width="140" height="110" rx="10"/><text class="strong" x="564" y="228">Notification</text><text class="strong" x="564" y="248">schedule</text><text class="small" x="564" y="270">Times only, plus the</text><text class="small" x="564" y="288">last check-in time</text>
+  <rect class="soft" x="550" y="200" width="140" height="110" rx="10"/><text class="strong" x="564" y="228">Notification</text><text class="strong" x="564" y="248">schedule</text><text class="small" x="564" y="270">Times and purpose, plus</text><text class="small" x="564" y="288">last check-in time</text>
   <path class="wire" marker-end="url(#a2)" d="M160 93H208"/><path class="wire" marker-end="url(#a2)" d="M340 93H548"/>
   <path class="wire" marker-end="url(#a2)" d="M620 136V168H400V198"/><text class="small" x="440" y="162">synced records come back</text>
   <path class="wire" marker-end="url(#a2)" d="M460 240H548"/><text class="small" x="470" y="232">times</text>
@@ -88,6 +89,7 @@
   <tr><td>Does short sleep go with stress?</td><td>Compares days after under 6.5 hours of sleep with other days. At least 3 in each group.</td></tr>
   <tr><td>Do early alarms go with stress?</td><td>Compares days with a first alarm before 7 AM with days with a later one. At least 3 in each group.</td></tr>
   <tr><td>What goes with feeling better?</td><td>Compares lower stress, better mood and more energy for sleep of 7 hours or more, 6,000 or more steps, a workout, the 2 hours after a breathing exercise, and activities such as rest, exercise or time outdoors. Needs at least 5 check-ins each way and a 0.4 point difference.</td></tr>
+  <tr><td>How does mood vary?</td><td>Insights also compares average mood by time of day, by activity tag, for sleep of 7 hours or more, 6,000 or more steps, any workout and heart rate variability above the person’s median, and before and after calendar events. At least 3 in each group, or a time of day with at least 3 check-ins.</td></tr>
   <tr><td>When is it shown?</td><td>Patterns appear at a difference of 0.3 points. A prompt needs at least 0.4.</td></tr>
  </tbody>
 </table></div>
@@ -160,7 +162,7 @@
 
 <h2>Safety</h2>
 <ul>
- <li>If a person rates stress 4 or 5 on at least 3 of the last 4 days, the app suggests talking to someone and links to support.</li>
+ <li>If a person rates stress 4 or 5 on at least 3 of the last 4 calendar days, counting today, the app suggests talking to someone and links to support.</li>
  <li>Settings lists crisis contacts, including 911 and the 988 Lifeline, and says plainly that the app can’t respond in a crisis.</li>
  <li><strong>Nobody reviews entries.</strong> There is no clinician view and no escalation. High scores alert no one. Even should not be relied on for monitoring risk.</li>
  <li>The app does not screen for depression, anxiety or any other condition, and does not advise on medication.</li>
