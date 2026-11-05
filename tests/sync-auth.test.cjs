@@ -13,7 +13,7 @@ function harness({verified=false,buildVersion="2.8.0",helperBuild="2.0.0",source
  const loaded=source.replace("export default {","globalThis.sendReminders = sendReminders;globalThis.readBedtimes = readBedtimes;globalThis.readSleep = readSleep;globalThis.reminderMessage = reminderMessage;globalThis.dueScheduled = dueScheduled;globalThis.readAlarms = readAlarms;globalThis.firstAlarm = firstAlarm;globalThis.pushPayload = pushPayload;globalThis.__worker = {");
  assert.notEqual(source,loaded,"Worker ESM export not found");
  const dispatches=[];
- const runtime={crypto:webcrypto,TextEncoder,Response,Request,Headers,URL,atob,btoa,Intl,Uint8Array,console,async fetch(url,init){
+ const runtime={crypto:webcrypto,TextEncoder,Response,URL,atob,btoa,Intl,Uint8Array,console,async fetch(url,init){
   if(String(url).includes("/shortcuts/api/records/")){const id=String(url).split("/").pop();return new Response(JSON.stringify({fields:{name:{value:id==="0".repeat(32)?"Other Shortcut":id==="1".repeat(32)?"Even Release":"Even Sync"}}}));}
   if(String(url).endsWith("Even-Sync-version.txt"))return new Response(buildVersion+"\n");
   if(String(url).endsWith("Even-Release-version.txt"))return helperBuild?new Response(helperBuild+"\n"):new Response("",{status:404});
@@ -928,18 +928,4 @@ test("one session request carries the status, release, calendars and choices, an
  assert.equal(session.data.status.lastUpload,null);
  await call("/api/auth/revoke",{method:"POST",context:owner,body:{deviceId:device.data.deviceId}});
  assert.equal((await call("/api/session",{headers:A})).status,401);
-});
-
-test("files come with the security headers, and the root serves the app",async()=>{
- const{env,runtime}=harness();
- const open=path=>runtime.__worker.fetch(new Request("https://even.example"+path),env,{});
- env.STATIC={async fetch(request){const path=new URL(request.url).pathname;return path==="/index.html"||path==="/sw.js"?new Response("ok",{headers:{"Content-Type":"text/html"}}):new Response("missing",{status:404});}};
- const root=await open("/"),page=await root.text();
- assert.equal(page,"ok");
- assert.match(root.headers.get("Content-Security-Policy"),/default-src/);
- assert.match(root.headers.get("Cache-Control"),/no-cache/);
- assert.equal((await open("/sw.js")).headers.get("Service-Worker-Allowed"),"/");
- const missing=await open("/AGENTS.md");
- assert.equal(missing.status,404);
- assert.match(missing.headers.get("Content-Security-Policy"),/default-src/);
 });

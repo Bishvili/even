@@ -64,7 +64,7 @@ Only an iPhone proves iOS behavior, and each round trip costs the owner time. Be
 - `env(safe-area-inset-top)` doesn't clear the Dynamic Island's blur. Leave extra room above the header.
 - Coming back to the app makes one `/api/session` request, plus one more only when there is new data to bring in. Add what a screen needs to that response, not a new request.
 - Ask with `askConfirm` (the in-app sheet), never the native `confirm()`, which shows the site address as its title.
-- Installed apps resume without reloading. Bump the version in `app.js`, `sw.js`, `worker/index.js` and `index.html`, and a new script must be added to `index.html` and to `SHELL` in `sw.js`, which is the one list of public files (`scripts/build-assets.cjs`). `tests/versions.test.cjs` checks this.
+- Installed apps resume without reloading. Bump the version in `app.js`, `sw.js`, `worker/index.js` and `index.html`, and a new script must be added to all of `index.html`, `sw.js`, `scripts/deploy.sh` and the Worker's type list. `tests/versions.test.cjs` checks this.
 - An installed app shows same-site downloads as a blank page. Open them in Safari with an `x-safari-https://` link.
 - Trace a feature from a fresh install, from an upgraded install with old saved state, signed out, and offline.
 - Each page is cached under its own path (`pageKey` in `sw.js`). After adding or linking a page, confirm `scripts/smoke.cjs` still opens the app offline.
@@ -94,13 +94,14 @@ Only an iPhone proves iOS behavior, and each round trip costs the owner time. Be
 - Sleep arrives as asleep intervals that the Worker merges per night, so two wearables count once. A batch that reached its sample limit leaves its oldest night alone, because that night may be cut off. Even Sync 2.9.0 still adds up the last 24 hours.
 
 **Cloud and naming**
+- Adding Workers Static Assets to this Worker broke sign-in in production: every sign-in was refused, though the Access application was unchanged. Sign-in reads `ctx.access`, so prove it works on a preview before trying static assets again (#30).
 - Worker, repository and address renames need dashboard steps. Push only after they're done, because a mismatch can deploy to the wrong place.
 - Change a live D1 schema before pushing code that needs it, with additive changes only. Add a numbered file in `db/migrations`, update `db/schema.sql` in the same commit, and apply it with `wrangler d1 migrations apply even-private --remote`. `tests/migrations.test.cjs` checks that the migrations rebuild the schema.
 - After someone adds a Worker secret, list the secret names and compare them with what the code reads. A misspelled name fails silently.
-- Every page and asset is served with a strict content security policy, so inline styles and scripts are blocked, including `style="…"` attributes that JavaScript writes into `innerHTML`. Set dynamic values with `element.style` or a class, keep styles and scripts in separate files, and add each file to `SHELL` in `sw.js`.
+- Every page and asset is served with a strict content security policy, so inline styles and scripts are blocked, including `style="…"` attributes that JavaScript writes into `innerHTML`. Set dynamic values with `element.style` or a class, keep styles and scripts in separate files, and add each file to `scripts/deploy.sh` and the Worker's type list.
 - Check the Workers Builds result for the exact commit, then the deployed code. When you can't test something on a device, say so plainly.
 - Workers Builds runs `node --test tests/*.test.cjs` before each deploy, so a failing test stops it. Run the tests before pushing anyway, and check **Validate application and Shortcut** afterward, which also compiles and checks both Shortcuts.
-- `scripts/deploy.sh` deploys the Worker and the files as one version with Workers Static Assets, so a failed deploy changes nothing. Release records stay in KV and are written after the deploy. To roll back, redeploy the previous version.
+- `scripts/deploy.sh` copies the files to KV before deploying the Worker, so a failed deploy leaves new pages running against the old Worker. Fix or revert at once (#30).
 
 **Data and privacy**
 - Fictional records live only in `state.demo`, and `state.moods`, `state.health` and `state.events` hold only personal ones. Never pass demo records through `upsertHealth` or `upsertEvent`, and only the demo view reads `state.demo`.
@@ -168,7 +169,7 @@ Read the relevant files before changing behavior:
 | Explainer | whitepaper.html, whitepaper.css | How Even works, written for clinicians. Keep it true when behavior changes. |
 | Edge API | worker/index.js | Authentication boundaries, device credentials, ingestion and retrieval |
 | Data model | db/schema.sql | D1 owner-scoped health, calendar, user, and device records |
-| Cloud configuration | wrangler.jsonc | Worker, static assets, KV release records, and D1 bindings |
+| Cloud configuration | wrangler.jsonc | Worker, KV assets, and D1 bindings |
 | Tests | tests/*.test.cjs | Domain logic and isolation/security regression tests |
 
 A cloud device credential is an owner-scoped bearer token; do not mistake it for a signed-in browser session. Sign-in itself is described under **Owner steps**.

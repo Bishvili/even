@@ -14,10 +14,12 @@ test("the service worker caches every script the page loads",()=>{
  const sw=read("sw.js");
  for(const [,file] of read("index.html").matchAll(/<script src="\/([\w.-]+)"/g))assert.ok(sw.includes(`"/${file}"`),file);
 });
-test("only the files the service worker lists are published, along with the service worker",()=>{
- const{publicFiles}=require("../scripts/build-assets.cjs"),files=publicFiles(read("sw.js"));
- assert.ok(files.includes("index.html")&&files.includes("sw.js")&&files.includes("icon-512.png"));
- for(const file of files)assert.ok(!/worker|\.md$|schema|\.cherri$/.test(file),file);
+test("the deploy script publishes and the Worker serves every script the page loads",()=>{
+ const deploy=read("scripts/deploy.sh"),worker=read("worker/index.js");
+ for(const [,file] of read("index.html").matchAll(/<script src="\/([\w.-]+)"/g)){
+  assert.ok(deploy.includes(file),file);
+  assert.ok(worker.includes(`"${file}":`),file);
+ }
 });
 test("nothing asks a person to paste a device key",()=>{
  assert.doesNotMatch(read("shortcuts/even-sync.cherri"),/prompt\(/);
