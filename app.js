@@ -1,6 +1,6 @@
 (function () {
 "use strict";
-var VERSION = "2.23.0";
+var VERSION = "2.23.1";
 var STORAGE_KEY = "even:v1";
 var MOOD_NAMES = ["","Rough","Low","Okay","Good","Great"];
 var MOOD_EMOJI = ["","😣","😕","😐","🙂","😄"];
@@ -175,6 +175,7 @@ function renderSync(){
  var helper=$("setup-helper");helper.hidden=!authHelper;if(authHelper)helper.href=authHelper;else helper.removeAttribute("href");
  var paired=!!state.token&&!!state.syncOwnerEmail&&!!state.deviceId;
  var mismatch=!!authEmail&&!!state.syncOwnerEmail&&authEmail!==state.syncOwnerEmail;
+ $("sign-out").hidden=!ownSignIn||!authEmail;
  $("login-panel").hidden=!!authEmail;$("login-ready").hidden=!authEmail;
  $("login-text").textContent=paired?"Sign in again to manage your devices. This iPhone keeps syncing.":"Sign in with your email. We’ll send you a one-time code.";
  $("auth-email").textContent=authEmail||"—";
@@ -788,6 +789,14 @@ async function issueDevice(){
  }catch(e){toast(e.message||"Couldn’t connect this "+thisDeviceName()+". Try again.");}
  finally{connecting=false;button.disabled=false;button.textContent="Connect this iPhone";renderSync();}
 }
+// Signing out ends this browser's session. A connected iPhone keeps syncing.
+async function signOut(){
+ try{
+  var r=await fetch("/api/signin/sign-out",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:"{}",cache:"no-store"});
+  if(!r.ok)throw Error();
+  await refreshAuth();toast("You’re signed out.");
+ }catch(e){toast("Couldn’t sign out. Check your connection and try again.");}
+}
 async function revokeDevice(id){
  if(!authEmail){toast("Sign in to disconnect a device.");return;}
  var own=id===state.deviceId;
@@ -907,6 +916,7 @@ function init(){
  });
  $("pull-button").addEventListener("click",function(){pull(false);});$("run-shortcut").addEventListener("click",function(event){event.preventDefault();runShortcut();});
  $("unpair-button").addEventListener("click",function(){if(state.deviceId)revokeDevice(state.deviceId);});
+ $("sign-out").addEventListener("click",signOut);
  $("erase-remote").addEventListener("click",eraseRemote);
  $("backup-button").addEventListener("click",exportBackup);$("restore-input").addEventListener("change",function(ev){restoreBackup(ev.target.files[0]);ev.target.value="";});
  $("erase-local").addEventListener("click",eraseLocal);$("delete-account").addEventListener("click",deleteAccount);

@@ -59,4 +59,5 @@ test("Google sign-in opens Google and returns to the Data tab",{skip:!ready},asy
  assert.equal(r.status,200,JSON.stringify(body));
  assert.match(body.url,/^https:\/\/accounts\.google\.com\//);
  assert.ok(body.url.includes(encodeURIComponent("https://even.example/api/signin/callback/google")));
+ assert.match(body.url,/prompt=select_account/);
 });
