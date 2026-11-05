@@ -1,6 +1,6 @@
 (function () {
 "use strict";
-var VERSION = "2.15.1";
+var VERSION = "2.15.2";
 var SHORTCUT_PAGE = "https://routinehub.co/shortcut/26978/";
 var STORAGE_KEY = "even:v1";
 var MOOD_NAMES = ["","Rough","Low","Okay","Good","Great"];
@@ -41,7 +41,7 @@ function navigate(view){if(!["checkin","insights","sources","sync","settings"].i
  document.querySelectorAll(".view").forEach(function(v){v.classList.toggle("active",v.id==="view-"+view);});
  document.querySelectorAll(".nav-item").forEach(function(n){n.classList.toggle("active",n.dataset.go===view);});
  if(location.hash!=="#"+view)history.replaceState(null,"","#"+view);
- $("page").scrollTop=0;render();
+ resetPageScroll();render();
 }
 function alarmRow(a){
  var names=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"],row=document.createElement("div"),time=document.createElement("span"),who=document.createElement("div"),title=document.createElement("strong"),when=document.createElement("small"),clock=new Date(2024,0,1);
@@ -80,6 +80,13 @@ async function saveYourName(ev){
   toast(data.name?"Name saved.":"Name removed.");
  }catch(e){toast("Couldn’t save your name. Check your connection and try again.");}
  save.disabled=false;
+}
+// Hiding overflow for a moment stops any momentum, which would otherwise carry into the new tab.
+function resetPageScroll(){
+ var page=$("page");
+ page.style.overflowY="hidden";
+ page.scrollTop=0;
+ setTimeout(function(){page.style.overflowY="";page.scrollTop=0;},60);
 }
 function refreshCoach(){renderAlarms();if(globalThis.EvenCoach&&globalThis.EvenCoach.render)globalThis.EvenCoach.render({moods:state.moods,events:state.events,health:state.health,reflections:state.reflections,alarms:state.alarms,resets:state.resets,firstName:state.firstName,connected:!!state.token,lastUpload:shortcutStatus&&shortcutStatus.lastDataUploadAt,notifyPrefs:globalThis.EvenReminders?globalThis.EvenReminders.preferences():{from:"09:00",to:"21:00",weekends:true},scope:insightScope});}
 function render(){
