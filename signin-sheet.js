@@ -51,7 +51,7 @@
  $("signin-cancel").addEventListener("click",function(){$("signin-sheet").close();});
  $("signin-google").addEventListener("click",function(){
   busy($("signin-google"),async function(){
-   var r=await post("sign-in/social",{provider:"google",callbackURL:"/#data",errorCallbackURL:"/?auth=denied#data"});
+   var r=await post("sign-in/social",{provider:"google",callbackURL:location.origin+"/#data",errorCallbackURL:location.origin+"/?auth=denied#data"});
    var body=await r.json();
    if(!r.ok||!body.url)throw Error("Couldn’t open Google. Try your email instead.");
    window.location.assign(body.url);

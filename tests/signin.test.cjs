@@ -23,7 +23,7 @@ function d1(){
 async function setup(){
  const {createAuth}=await import("../worker/signin.mjs");
  const DB=d1(),codes={};
- const env={DB,PUBLIC_ORIGIN:"https://even.example",BETTER_AUTH_SECRET:"x".repeat(40)};
+ const env={DB,PUBLIC_ORIGIN:"https://even.example",BETTER_AUTH_SECRET:"x".repeat(40),GOOGLE_CLIENT_ID:"id",GOOGLE_CLIENT_SECRET:"secret"};
  const auth=createAuth(env,{isApproved:async email=>email==="in@example.com",deliverCode:(email,code)=>{codes[email]=code;}});
  const call=(route,body,cookie)=>auth.handler(new Request("https://even.example/api/signin/"+route,{method:"POST",headers:{"Content-Type":"application/json",Origin:"https://even.example",...(cookie?{Cookie:cookie}:{})},body:JSON.stringify(body)}));
  return {auth,call,codes,DB};
@@ -51,4 +51,12 @@ test("an email that isn't approved can't create an account",{skip:!ready},async(
   assert.notEqual(r.status,200);
  }
  assert.equal(DB.raw.prepare("SELECT COUNT(*) AS n FROM even_signin_users").get().n,0);
+});
+test("Google sign-in opens Google and returns to the Data tab",{skip:!ready},async()=>{
+ const {call}=await setup();
+ const r=await call("sign-in/social",{provider:"google",callbackURL:"https://even.example/#data",errorCallbackURL:"https://even.example/?auth=denied#data"});
+ const body=await r.json();
+ assert.equal(r.status,200,JSON.stringify(body));
+ assert.match(body.url,/^https:\/\/accounts\.google\.com\//);
+ assert.ok(body.url.includes(encodeURIComponent("https://even.example/api/signin/callback/google")));
 });
