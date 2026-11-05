@@ -29,7 +29,7 @@ test("the device key is read from its file, checked by the server, and saved onl
  assert.match(sync,/"WFGetFilePath":"even-device-key.txt","WFFileErrorIfNotFound":false,"WFShowFilePicker":false/);
  assert.equal((sync.match(/even-device-key\.txt/g)||[]).length,2);
  assert.doesNotMatch(sync,/\b(getFolderContents|getFileFromFolder|deleteFiles)\s*\(/);
- const saved=position(sync,"@credential = getText(savedKeyFile)"),handshake=position(sync,'jsonRequest("https://even.bishvili.workers.dev/api/shortcut/hello"');
+ const saved=position(sync,"@credential = getText(savedKeyFile)"),handshake=position(sync,'jsonRequest("{evenAddress}/api/shortcut/hello"');
  const refused=position(sync,'if connectionStatus != "connected"'),save=position(sync,"saveDeviceKey(@credential, keyFolder)"),events=position(sync,"const todayEvents = findEvents(todayEventsFilter)");
  assert.ok(saved<handshake&&handshake<refused&&refused<save&&save<events);
  assert.equal((sync.match(/^saveDeviceKey\(/gm)||[]).length,1);
@@ -177,4 +177,13 @@ test("the developer tools card starts onboarding on this repository",()=>{
  assert.equal(link.origin+link.pathname,"https://claude.ai/code/new");
  assert.equal(link.searchParams.get("repo"),"Bishvili/even");
  assert.match(link.searchParams.get("q"),/onboarding section of AGENTS\.md/);
+});
+
+test("both Shortcuts use one address, the one the Worker is configured with",()=>{
+ const origin=read("wrangler.jsonc").match(/"PUBLIC_ORIGIN": "([^"]+)"/)[1];
+ for(const file of ["shortcuts/even-sync.cherri","shortcuts/even-release.cherri"]){
+  const source=read(file);
+  assert.equal(source.match(/const evenAddress = "([^"]+)"/)[1],origin);
+  assert.equal(source.split(origin).length,2,file);
+ }
 });

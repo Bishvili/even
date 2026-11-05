@@ -1,7 +1,8 @@
 (function () {
 "use strict";
-var VERSION = "2.29.1";
+var VERSION = "2.30.0";
 var STORAGE_KEY = "even:v1";
+var HOME_ORIGIN = "https://even.bishvili.org";
 var MOOD_NAMES = ["","Rough","Low","Okay","Good","Great"];
 var MOOD_EMOJI = ["","😣","😕","😐","🙂","😄"];
 var ENERGY_NAMES = ["","Very low","Low","Medium","High","Very high"];
@@ -878,7 +879,17 @@ function watchForUpdates(){
  });
  $("apply-update").addEventListener("click",function(){window.location.reload();});
 }
+// A copy with nothing on it goes straight to the permanent address. One holding someone's records stays, with the steps to move them.
+function checkAddress(){
+ if(location.hostname!=="even.bishvili.workers.dev")return false;
+ if(!state.moods.length&&!state.health.length&&!state.events.length&&!state.token){location.replace(HOME_ORIGIN+location.pathname+location.search+location.hash);return true;}
+ $("moved-card").hidden=false;
+ $("moved-open").href="x-safari-"+HOME_ORIGIN;
+ $("moved-backup").addEventListener("click",openBackup);
+ return false;
+}
 function init(){
+ if(checkAddress())return;
  $("health-date").value=dateKey(now());var start=new Date();start.setMinutes(0,0,0);start.setHours(start.getHours()+1);var end=new Date(start);end.setHours(end.getHours()+1);$("cal-start").value=localDateTime(start);$("cal-end").value=localDateTime(end);
  document.querySelectorAll("[data-go]").forEach(function(b){b.addEventListener("click",function(ev){ev.preventDefault();navigate(b.dataset.go);$(b.dataset.go+"-title").focus({preventScroll:true});if(b.dataset.go==="data"){refreshAuth();loadSession();}});});
  document.querySelectorAll("[data-mood]").forEach(function(b){b.addEventListener("click",function(){selectMood(Number(b.dataset.mood));});});

@@ -26,7 +26,7 @@ function harness({verified=false,buildVersion="2.8.0",helperBuild="2.0.0",source
  const rows={approved:new Map(),subs:new Map(),calendars:new Map(),users:new Map(),devices:new Map(),health:new Map(),events:new Map()};
  const release=JSON.stringify({version:"1.0.0",url:"https://www.icloud.com/shortcuts/82109f53491f4d95a0a8b8437c4090f2",publishedAt:"2026-11-01",notes:"First shared release",verified});
  const allow={async limit(){return{success:true};}};
- const env={PUBLIC_ORIGIN:"https://even.bishvili.workers.dev",INVITE_LIMIT:allow,DEVICE_LIMIT:allow,SIGNIN_LIMIT:allow,GITHUB_API_KEY:"server-only",APPROVED_SYNC_EMAILS:JSON.stringify(allowed),ASSETS:{async get(key){return {"config:shortcut:latest":release,"config:helper:latest":helperLink&&JSON.stringify(helperLink),"config:shortcut:source":sourceVersions&&JSON.stringify(sourceVersions)}[key]||null;}},DB:{
+ const env={PUBLIC_ORIGIN:"https://even.bishvili.org",INVITE_LIMIT:allow,DEVICE_LIMIT:allow,SIGNIN_LIMIT:allow,GITHUB_API_KEY:"server-only",APPROVED_SYNC_EMAILS:JSON.stringify(allowed),ASSETS:{async get(key){return {"config:shortcut:latest":release,"config:helper:latest":helperLink&&JSON.stringify(helperLink),"config:shortcut:source":sourceVersions&&JSON.stringify(sourceVersions)}[key]||null;}},DB:{
   prepare(sql){return{bind(...args){return {
    async first(){
     if(sql.startsWith("SELECT updated_at,(SELECT COUNT(*) FROM even_push_subscriptions"))return null;
@@ -121,7 +121,7 @@ function harness({verified=false,buildVersion="2.8.0",helperBuild="2.0.0",source
   async batch(items){return Promise.all(items.map(s=>s.run()));}
  }};
  const aud="b15746656eee885f25c4f4b0605491289c01776b8710cc8339fb507f4574f745";
- const base="https://even.bishvili.workers.dev";
+ const base="https://even.bishvili.org";
  function ctx(email,audience=aud,name){return{access:{aud:audience,async getIdentity(){return{email,name};}}};}
  async function call(route,{method="GET",body,headers={},context}={}){
   const h=new Headers(headers);
@@ -909,7 +909,7 @@ test("one session request carries the status, release, calendars and choices, an
 
 test("over the limit, invitations and uploads are refused with a code, and every error has one",async()=>{
  const{call,ctx,env}=harness(),owner=ctx("owner-a@example.com"),refuse={async limit(){return{success:false};}};
- const origin={Origin:"https://even.bishvili.workers.dev"};
+ const origin={Origin:"https://even.bishvili.org"};
  const device=await call("/api/user/device",{method:"POST",context:owner,headers:origin,body:{label:"iPhone"}});
  env.INVITE_LIMIT=refuse;env.DEVICE_LIMIT=refuse;
  const invite=await call("/api/user/testers",{method:"POST",context:owner,headers:origin,body:{email:"new@example.com"}});
@@ -923,7 +923,7 @@ test("over the limit, invitations and uploads are refused with a code, and every
 test("the public address is configured once, and owner emails match in any case",async()=>{
  assert.doesNotMatch(require("node:fs").readFileSync("worker/index.js","utf8"),/bishvili\.workers\.dev/);
  assert.doesNotMatch(require("node:fs").readFileSync("invites.js","utf8"),/bishvili\.workers\.dev/);
- assert.match(require("node:fs").readFileSync("wrangler.jsonc","utf8"),/"PUBLIC_ORIGIN": "https:\/\/even\.bishvili\.workers\.dev"/);
+ assert.match(require("node:fs").readFileSync("wrangler.jsonc","utf8"),/"PUBLIC_ORIGIN": "https:\/\/even\.bishvili\.org"/);
  const{call,ctx,env}=harness();
  env.APPROVED_SYNC_EMAILS=JSON.stringify(["Mixed.Case@Example.com"]);
  assert.equal((await call("/api/user/me",{context:ctx("mixed.case@example.com")})).status,200);

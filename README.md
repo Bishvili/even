@@ -1,6 +1,6 @@
 # Even — mood patterns PWA
 
-Live app: https://even.bishvili.workers.dev
+Live app: https://even.bishvili.org
 
 ## Developing
 

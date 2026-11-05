@@ -15,7 +15,8 @@ action 'is.workflow.actions.file.createfolder' createKeyFolder(&variable locatio
 action 'is.workflow.actions.documentpicker.open' readSavedDeviceKey(&variable folder: 'WFFile'): text {"WFGetFilePath":"even-device-key.txt","WFFileErrorIfNotFound":false,"WFShowFilePicker":false}
 
 // Change this with every change to the helper, so it can update itself and share the new link.
-const helperVersion = "2.0.1"
+const helperVersion = "2.1.0"
+const evenAddress = "https://even.bishvili.org"
 
 const keyFolder = createKeyFolder(onMyIPhone)
 
@@ -42,7 +43,7 @@ if @hasSync == 1 {
 
     const savedKeyFile = readSavedDeviceKey(keyFolder)
     @credential = getText(savedKeyFile)
-    const stateRaw = downloadURL("https://even.bishvili.workers.dev/api/shortcut/release-state?helper={helperVersion}", {"Authorization": "{@credential}"})
+    const stateRaw = downloadURL("{evenAddress}/api/shortcut/release-state?helper={helperVersion}", {"Authorization": "{@credential}"})
     const stateInfo = getDictionary(stateRaw)
     const stateValue = getValue(stateInfo, "state")
     @state = getText(stateValue)
@@ -74,7 +75,7 @@ if @helperLinkState == "share" {
             @helperLink = getText(helperLinkResult)
         }
     }
-    const sharedRaw = jsonRequest("https://even.bishvili.workers.dev/api/shortcut/helper-link", "POST", {
+    const sharedRaw = jsonRequest("{evenAddress}/api/shortcut/helper-link", "POST", {
         "link": "{@helperLink}"
     }, {"Authorization": "{@credential}"})
     const shared = getDictionary(sharedRaw)
@@ -131,7 +132,7 @@ for linkCandidate in allShortcuts {
     }
 }
 
-const publishRaw = jsonRequest("https://even.bishvili.workers.dev/api/shortcut/publish", "POST", {
+const publishRaw = jsonRequest("{evenAddress}/api/shortcut/publish", "POST", {
     "link": "{@shareLink}"
 }, {"Authorization": "{@credential}"})
 const publish = getDictionary(publishRaw)
@@ -149,7 +150,7 @@ showNotification("Publishing version {@latest}. This takes a few minutes.", "Eve
 repeat attempt for 12 {
     if @live == 0 {
         wait(20)
-        const checkRaw = downloadURL("https://even.bishvili.workers.dev/api/shortcut/release-state?helper={helperVersion}", {"Authorization": "{@credential}"})
+        const checkRaw = downloadURL("{evenAddress}/api/shortcut/release-state?helper={helperVersion}", {"Authorization": "{@credential}"})
         const checkInfo = getDictionary(checkRaw)
         const checkValue = getValue(checkInfo, "state")
         const checkState = getText(checkValue)

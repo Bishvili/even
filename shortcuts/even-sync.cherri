@@ -26,6 +26,8 @@ action 'is.workflow.actions.documentpicker.open' readSavedDeviceKey(&variable fo
 
 action 'is.workflow.actions.documentpicker.save' saveDeviceKey(variable key: 'WFInput', &variable folder: 'WFFolder') {"WFFileDestinationPath":"even-device-key.txt","WFSaveFileOverwrite":true,"WFAskWhereToSave":false}
 
+const evenAddress = "https://even.bishvili.org"
+
 const keyFolder = createKeyFolder(onMyIPhone)
 // Running from the app passes the key as input, so nothing needs pasting.
 @credential = getText(ShortcutInput)
@@ -44,8 +46,8 @@ if providedKeyCount == 0 {
 
 // Verify the connection and record the Shortcut's version, even if no health samples are available.
 // The reply also says whether a newer version is ready.
-const handshakeRaw = jsonRequest("https://even.bishvili.workers.dev/api/shortcut/hello", "POST", {
-    "shortcutVersion": "3.1.1"
+const handshakeRaw = jsonRequest("{evenAddress}/api/shortcut/hello", "POST", {
+    "shortcutVersion": "3.2.0"
 }, {"Authorization": "{@credential}"})
 const handshake = getDictionary(handshakeRaw)
 const connectionStatusValue = getValue(handshake, "state")
@@ -119,9 +121,9 @@ for upcomingEvent in upcomingEvents {
     }
 }
 
-const calendarBody = formRequest("https://even.bishvili.workers.dev/api/ingest", "POST", {
+const calendarBody = formRequest("{evenAddress}/api/ingest", "POST", {
     "kind": "calendar_days",
-    "shortcutVersion": "3.1.1",
+    "shortcutVersion": "3.2.0",
     "date": "{day}",
     "utcOffset": "{utcOffset}",
     "events": "{@eventRecords}"
@@ -290,9 +292,9 @@ if sleepAvailable >= 1 {
 }
 
 if @healthFields >= 1 {
-    const healthBody = formRequest("https://even.bishvili.workers.dev/api/ingest", "POST", {
+    const healthBody = formRequest("{evenAddress}/api/ingest", "POST", {
         "kind": "health",
-        "shortcutVersion": "3.1.1",
+        "shortcutVersion": "3.2.0",
         "date": "{day}",
         "steps": "{@stepsField}",
         "stepsDate": "{@stepsDay}",
@@ -335,16 +337,16 @@ for alarm in alarms {
     const alarmClock = formatDate(@alarm['Time'], "Custom", "HH:mm")
     @alarmRecords = "{@alarmRecords}␞{alarmClock}␟{@alarm['Repeat']}␟{@alarm['Is Enabled']}␟{@alarm['Name']}"
 }
-formRequest("https://even.bishvili.workers.dev/api/ingest", "POST", {
+formRequest("{evenAddress}/api/ingest", "POST", {
     "kind": "alarms",
-    "shortcutVersion": "3.1.1",
+    "shortcutVersion": "3.2.0",
     "date": "{day}",
     "alarms": "{@alarmRecords}"
 }, {"Authorization": "{@credential}"})
 }
 
 // A push opens the app and brings the data in. Without notifications on, fall back to a plain notification.
-const syncedRaw = jsonRequest("https://even.bishvili.workers.dev/api/push/synced", "POST", {
+const syncedRaw = jsonRequest("{evenAddress}/api/push/synced", "POST", {
     "items": "{@acceptedCount}"
 }, {"Authorization": "{@credential}"})
 const synced = getDictionary(syncedRaw)
