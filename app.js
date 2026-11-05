@@ -1,13 +1,6 @@
 (function () {
 "use strict";
-var VERSION = "2.44.6";
-// Brings saved data over from the earlier storage names. Remove once no installed copy has them.
-function moveSavedData(){
- [["even:v1","health:v1"],["even-reminder","health-reminder"],["even-setup","health-setup"]].forEach(function(pair){
-  try{var old=localStorage.getItem(pair[0]);if(old!==null&&localStorage.getItem(pair[1])===null)localStorage.setItem(pair[1],old);if(old!==null)localStorage.removeItem(pair[0]);}catch(e){/* Storage is blocked, so there's nothing to move. */}
- });
-}
-moveSavedData();
+var VERSION = "2.44.7";
 var STORAGE_KEY = "health:v1";
 var MOOD_NAMES = ["","Rough","Low","Okay","Good","Great"];
 var MOOD_EMOJI = ["","😣","😕","😐","🙂","😄"];
@@ -616,7 +609,7 @@ async function openProtectedBackup(ev){
  try{await applyBackup(JSON.parse(text));}catch(e){toast("This file is not a valid backup.");}
 }
 async function applyBackup(data){
- if((data.app!=="Health"&&data.app!=="Even")||!Array.isArray(data.moods)||!Array.isArray(data.health)||!Array.isArray(data.events))throw Error("Not a backup");
+ if(data.app!=="Health"||!Array.isArray(data.moods)||!Array.isArray(data.health)||!Array.isArray(data.events))throw Error("Not a backup");
  if(data.account&&state.syncOwnerEmail&&data.account!==state.syncOwnerEmail){toast("This backup belongs to another account.");return;}
  if(!await askConfirm("Replace the check-ins, health and calendar data on this device with this backup? This can’t be undone. Check-ins saved to your account stay there and come back to this device.","Replace"))return;
  var kept=globalThis.Backup.clean(data);
@@ -966,19 +959,7 @@ function watchForUpdates(){
  });
  $("apply-update").addEventListener("click",function(){window.location.reload();});
 }
-// A copy at the earlier address with nothing on it goes straight to the current one. One holding someone's records stays, with the steps to move them.
-var HOME_ORIGIN="https://health.bishvili.org";
-function atEarlierAddress(){return location.hostname==="even.bishvili.org";}
-function checkAddress(){
- if(!atEarlierAddress())return false;
- if(!state.moods.length&&!state.health.length&&!state.events.length&&!state.token){location.replace(HOME_ORIGIN+location.pathname+location.search+location.hash);return true;}
- $("moved-card").hidden=false;
- $("moved-open").href="x-safari-"+HOME_ORIGIN;
- $("moved-backup").addEventListener("click",openBackup);
- return false;
-}
 function init(){
- if(checkAddress())return;
  $("health-date").value=dateKey(now());var start=new Date();start.setMinutes(0,0,0);start.setHours(start.getHours()+1);var end=new Date(start);end.setHours(end.getHours()+1);$("cal-start").value=localDateTime(start);$("cal-end").value=localDateTime(end);
  document.querySelectorAll("[data-go]").forEach(function(b){b.addEventListener("click",function(ev){ev.preventDefault();navigate(b.dataset.go);$(b.dataset.go+"-title").focus({preventScroll:true});if(b.dataset.go==="data"){refreshAuth();loadSession();}});});
  document.querySelectorAll("[data-mood]").forEach(function(b){b.addEventListener("click",function(){selectMood(Number(b.dataset.mood));});});
@@ -1063,7 +1044,7 @@ function handleNotificationAction(){
 function setup(){
  var paired=!!state.token&&!!state.syncOwnerEmail&&!!state.deviceId;
  var synced=!!(shortcutStatus&&shortcutStatus.lastDataUploadAt)||state.alarms.length>0||state.health.some(function(h){return h.source==="shortcut";})||state.events.some(function(e){return e.source==="shortcut";});
- return {ios:isIOS(),installed:isInstalled(),deviceName:thisDeviceName(),online:navigator.onLine,signedIn:!!authEmail,authKnown:authKnown,email:authEmail,connected:paired,connectedBefore:!!state.pairedAt,connecting:connecting,moved:atEarlierAddress(),safari:/Safari/.test(navigator.userAgent)&&!/FBAN|FBAV|Instagram|GSA|Line\//.test(navigator.userAgent),records:state.moods.length>0||state.health.length>0||state.events.length>0,otherAccount:!!(authEmail&&state.syncOwnerEmail&&authEmail!==state.syncOwnerEmail),
+ return {ios:isIOS(),installed:isInstalled(),deviceName:thisDeviceName(),online:navigator.onLine,signedIn:!!authEmail,authKnown:authKnown,email:authEmail,connected:paired,connectedBefore:!!state.pairedAt,connecting:connecting,safari:/Safari/.test(navigator.userAgent)&&!/FBAN|FBAV|Instagram|GSA|Line\//.test(navigator.userAgent),records:state.moods.length>0||state.health.length>0||state.events.length>0,otherAccount:!!(authEmail&&state.syncOwnerEmail&&authEmail!==state.syncOwnerEmail),
   shortcutUrl:shortcutLink(),shortcutConnected:!!(shortcutStatus&&shortcutStatus.installedShortcutVersion),synced:synced,checkedIn:state.moods.length>0};
 }
 function logTry(id){state.tries.push({id:id,at:new Date().toISOString()});state.tries=state.tries.slice(-500);if(persist())render();toast("Marked done.");}

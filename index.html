@@ -82,12 +82,6 @@
 
   <main id="main">
    <section id="view-checkin" class="view active" aria-labelledby="checkin-title">
-    <section class="card" id="moved-card" aria-labelledby="moved-title" hidden>
-     <h2 id="moved-title">{{name}} has a new address</h2>
-     <ol class="muted"><li>Save a backup and keep it in Files.</li><li>Open the new address in Safari, then tap Share and Add to Home Screen.</li><li>Sign in there, restore your backup and run {{sync}} once.</li><li>Delete this copy from your Home Screen.</li></ol>
-     <button type="button" class="btn secondary full" id="moved-backup">Save a backup</button>
-     <a class="btn primary full" id="moved-open" target="_blank" rel="noopener noreferrer">Open the new address</a>
-    </section>
     <p class="date-label" id="date-label"></p>
     <div class="intro">
      <h1 id="checkin-title" tabindex="-1">How are you feeling?</h1>
@@ -383,7 +377,7 @@
      <p class="muted">Tell us what went wrong or what you’d change.</p>
      <button type="button" class="btn secondary full" id="feedback-open">Send feedback</button>
     </section>
-    <div class="card"><h2>About the insights</h2><p class="muted">Comparisons need at least 5 check-ins in each group. Mood data is subjective and gaps can skew results. Nothing here is a diagnosis or proves a cause.</p><button type="button" class="btn subtle full" id="setup-again">Go through setup again</button><a class="btn subtle full" id="whitepaper-link" href="/whitepaper.html" target="_blank" rel="noopener">How {{name}} works <span aria-hidden="true">↗</span></a><p class="muted">Version <span id="version">2.44.6</span> · No ads or analytics</p></div>
+    <div class="card"><h2>About the insights</h2><p class="muted">Comparisons need at least 5 check-ins in each group. Mood data is subjective and gaps can skew results. Nothing here is a diagnosis or proves a cause.</p><button type="button" class="btn subtle full" id="setup-again">Go through setup again</button><a class="btn subtle full" id="whitepaper-link" href="/whitepaper.html" target="_blank" rel="noopener">How {{name}} works <span aria-hidden="true">↗</span></a><p class="muted">Version <span id="version">2.44.7</span> · No ads or analytics</p></div>
     <div class="card"><h2>Explore a sample month</h2><p class="muted">See 28 days of fictional check-ins and events. They stay separate from your own data and are never uploaded.</p><button class="btn secondary full" id="demo-button">Load 28-day calendar demo</button><button class="btn subtle full" id="clear-demo-button">Remove demo data</button></div>
    </section>
   </main>

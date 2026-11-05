@@ -32,7 +32,7 @@ function harness(){
   "globalThis.__test={renderSync,compareVersions,chooseRelease:x=>shortcutRelease=x,setAuth:x=>authEmail=x,setStatus:x=>shortcutStatus=x};})();");
  assert.notEqual(code,app);
  const env={localStorage:{getItem(){return JSON.stringify(store);},setItem(){}},document:doc,
-  location:{origin:"https://even.bishvili.org",hostname:"even.bishvili.org"},
+  location:{origin:"https://health.bishvili.org",hostname:"health.bishvili.org"},
   navigator:{onLine:true},URL,Date,console,setTimeout,clearTimeout};
  vm.runInNewContext(code,env,{timeout:3000});
  return {api:env.__test,elements,store};

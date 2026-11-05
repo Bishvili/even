@@ -17,7 +17,7 @@
   var sealed=await crypto.subtle.encrypt({name:"AES-GCM",iv:iv},await keyFor(passphrase,salt,ROUNDS),new TextEncoder().encode(text));
   return JSON.stringify({app:"Health",protected:true,rounds:ROUNDS,salt:toBase64(salt),iv:toBase64(iv),data:toBase64(sealed)});
  }
- function isProtected(backup){return !!backup&&(backup.app==="Health"||backup.app==="Even")&&backup.protected===true;}
+ function isProtected(backup){return !!backup&&backup.app==="Health"&&backup.protected===true;}
  // Throws when the passphrase is wrong or the file was changed.
  async function unprotect(backup,passphrase){
   if(!Number.isInteger(backup.rounds)||backup.rounds<MIN_ROUNDS||backup.rounds>MAX_ROUNDS)throw Error("Unreadable backup");

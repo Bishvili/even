@@ -26,7 +26,7 @@ function harness({verified=false,buildVersion="2.8.0",helperBuild="2.0.0",source
  const rows={approved:new Map(),subs:new Map(),calendars:new Map(),users:new Map(),devices:new Map(),health:new Map(),events:new Map()};
  const release=JSON.stringify({version:"1.0.0",url:"https://www.icloud.com/shortcuts/82109f53491f4d95a0a8b8437c4090f2",publishedAt:"2026-11-01",notes:"First shared release",verified});
  const allow={async limit(){return{success:true};}};
- const env={PUBLIC_ORIGIN:"https://even.bishvili.org",INVITE_LIMIT:allow,DEVICE_LIMIT:allow,SIGNIN_LIMIT:allow,SEND_LIMIT:allow,NETWORK_LIMIT:allow,GITHUB_API_KEY:"server-only",APPROVED_SYNC_EMAILS:JSON.stringify(allowed),ASSETS:{async get(key){return {"config:shortcut:latest":release,"config:helper:latest":helperLink&&JSON.stringify(helperLink),"config:shortcut:source":sourceVersions&&JSON.stringify(sourceVersions)}[key]||null;}},DB:{
+ const env={PUBLIC_ORIGIN:"https://health.bishvili.org",INVITE_LIMIT:allow,DEVICE_LIMIT:allow,SIGNIN_LIMIT:allow,SEND_LIMIT:allow,NETWORK_LIMIT:allow,GITHUB_API_KEY:"server-only",APPROVED_SYNC_EMAILS:JSON.stringify(allowed),ASSETS:{async get(key){return {"config:shortcut:latest":release,"config:helper:latest":helperLink&&JSON.stringify(helperLink),"config:shortcut:source":sourceVersions&&JSON.stringify(sourceVersions)}[key]||null;}},DB:{
   prepare(sql){return{bind(...args){return {
    async first(){
     if(sql.startsWith("SELECT updated_at,(SELECT COUNT(*) FROM health_push_subscriptions"))return null;
@@ -124,7 +124,7 @@ function harness({verified=false,buildVersion="2.8.0",helperBuild="2.0.0",source
   async batch(items){return Promise.all(items.map(s=>s.run()));}
  }};
  const aud="b15746656eee885f25c4f4b0605491289c01776b8710cc8339fb507f4574f745";
- const base="https://even.bishvili.org";
+ const base="https://health.bishvili.org";
  function ctx(email,audience=aud,name){return{access:{aud:audience,async getIdentity(){return{email,name};}}};}
  async function call(route,{method="GET",body,headers={},context}={}){
   const h=new Headers(headers);
@@ -969,7 +969,7 @@ test("one session request carries the status, release, calendars and choices, an
 
 test("over the limit, invitations and uploads are refused with a code, and every error has one",async()=>{
  const{call,ctx,env}=harness(),owner=ctx("owner-a@example.com"),refuse={async limit(){return{success:false};}};
- const origin={Origin:"https://even.bishvili.org"};
+ const origin={Origin:"https://health.bishvili.org"};
  const device=await call("/api/user/device",{method:"POST",context:owner,headers:origin,body:{label:"iPhone"}});
  env.INVITE_LIMIT=refuse;env.DEVICE_LIMIT=refuse;
  const invite=await call("/api/user/testers",{method:"POST",context:owner,headers:origin,body:{email:"new@example.com"}});
@@ -1029,7 +1029,7 @@ test("logs carry only named fields, and a failed request logs without changing i
 
 test("each build has one lasting link, named as iOS should install it, with no sign-in",async()=>{
  const{runtime,env}=harness(),stable=require("../brand/stable.json");
- const get=route=>runtime.__worker.fetch(new Request("https://even.bishvili.org"+route),env,{waitUntil(){}});
+ const get=route=>runtime.__worker.fetch(new Request("https://health.bishvili.org"+route),env,{waitUntil(){}});
  for(const[role,name]of[["sync",stable.sync],["helper",stable.helper]]){
   const build=await get("/api/shortcut/build/"+role);
   assert.equal(build.status,200);

@@ -10,10 +10,9 @@
   "vars": {
     "PUBLIC_ORIGIN": "https://health.bishvili.org",
     "SHORTCUT_ORIGIN": "https://sync.bishvili.org",
-    "APP_ORIGINS": "https://even.bishvili.org,https://health.bishvili.org"
+    "APP_ORIGINS": "https://health.bishvili.org"
   },
-  "routes": [{ "pattern": "even.bishvili.org", "custom_domain": true },
-    { "pattern": "health.bishvili.org", "custom_domain": true },
+  "routes": [{ "pattern": "health.bishvili.org", "custom_domain": true },
     { "pattern": "sync.bishvili.org", "custom_domain": true }],
   "workers_dev": false,
   "preview_urls": false,

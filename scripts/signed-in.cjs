@@ -165,7 +165,7 @@ const scenarios={
   const api=fakeApi();
   await open(browser,base,saved({moods:[mood("before")],moodCursor:shared.cursor}),api,async({page})=>{
    await statusIsReady(page);
-   const file=data=>({name:"backup.json",mimeType:"application/json",buffer:Buffer.from(JSON.stringify({app:"Even",moods:[],health:[],events:[],...data}))});
+   const file=data=>({name:"backup.json",mimeType:"application/json",buffer:Buffer.from(JSON.stringify({app:"Health",moods:[],health:[],events:[],...data}))});
    await page.setInputFiles("#restore-input",file({account:"other@example.com",moods:[mood("theirs")]}));
    await until(page,()=>document.body.textContent.includes("belongs to another account"));
    assert.equal((await stored(page)).moods[0].id,"before");
@@ -210,14 +210,6 @@ const scenarios={
    await page.click("#sync-light");
    await until(page,()=>document.body.textContent.includes("You’re offline"));
   });
- },
- "data saved under the earlier storage name comes across":async(browser,base)=>{
-  const context=await browser.newContext({serviceWorkers:"block"}),page=await context.newPage(),api=fakeApi();
-  await page.addInitScript(value=>{if(!sessionStorage.getItem("seeded")){sessionStorage.setItem("seeded","1");localStorage.setItem("even:v1",value);}},JSON.stringify(saved({moods:[mood("old")],moodCursor:shared.cursor})));
-  await context.route("**/api/**",api.handle);
-  await page.goto(base+"/");
-  await until(page,()=>JSON.parse(localStorage.getItem("health:v1")||"{}").moods?.[0]?.id==="old"&&localStorage.getItem("even:v1")===null);
-  await context.close();
  },
  "damaged storage opens at sign-in":async(browser,base)=>{
   const api=fakeApi({me:""});

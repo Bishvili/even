@@ -16,8 +16,6 @@
  // The full-screen step that stands before the app, if any. Only the Shortcut can be put off, because the app still works without it.
  // Offline never locks anyone out of what's already on the device.
  function gateStep(c){
-  // Sign-in lives at the current address, so a copy left at the earlier one only shows how to move.
-  if(c.moved)return null;
   var list=[];
   if(c.ios)list.push("install");
   list.push("signin");
@@ -88,7 +86,7 @@
   var now=Date.now(),skipped=progress.skipped&&typeof progress.skipped==="object"?progress.skipped:{};
   return{now:now,ios:s.ios,installed:s.installed,installable:(s.ios&&!s.installed)||!!installEvent,
    signedIn:s.signedIn,connected:s.connected,connectedBefore:s.connectedBefore,connecting:s.connecting,
-   signingIn:s.online&&!s.authKnown,moved:s.moved,safari:s.safari,records:s.records,otherAccount:s.otherAccount,online:s.online,
+   signingIn:s.online&&!s.authKnown,safari:s.safari,records:s.records,otherAccount:s.otherAccount,online:s.online,
    synced:s.synced,shortcutConnected:s.shortcutConnected,gotShortcut:!!progress.gotShortcut,checkedIn:s.checkedIn,
    notify:root.Reminders?root.Reminders.notificationStep():"unavailable",notifyOpen:!!root.Reminders&&root.Reminders.notificationsOpen(),skipped:skipped};
  }

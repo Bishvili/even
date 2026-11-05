@@ -11,7 +11,7 @@ const source=fs.readFileSync(path.join(root,"app.js"),"utf8");
 const html=fs.readFileSync(path.join(root,"index.html"),"utf8");
 const version="1.0.0";
 const icloudUrl="https://www.icloud.com/shortcuts/82109f53491f4d95a0a8b8437c4090f2";
-const base="https://even.bishvili.org";
+const base="https://health.bishvili.org";
 
 function setup({verified=true,reportedVersion=null}={}){
  const elementIds=new Set([...html.matchAll(/\bid="([^"]+)"/g)].map(x=>x[1]));
