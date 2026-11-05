@@ -4,19 +4,19 @@ const test=require("node:test");
 const assert=require("node:assert/strict");
 const fs=require("node:fs");
 const read=file=>fs.readFileSync(require("node:path").join(__dirname,"..",file),"utf8");
-const paper=read("whitepaper.html"),coach=read("coach.js"),worker=read("worker/index.js");
+const paper=read("whitepaper.html"),coach=read("coach.js"),day=read("daycontext.js"),worker=read("worker/index.js");
 
 const RULES=[
  [coach,/MIN_SAMPLES=3\b/,/At least 3 rated check-ins/],
  [coach,/MIN_GAP=0\.4\b/,/at least 0\.4 points above/],
- [coach,/HISTORY_DAYS=56\b/,/Last 8 weeks/],
- [coach,/NEAR_EVENT_MS=5400000\b/,/up to 90 minutes after/],
- [coach,/SHORT_SLEEP=6\.5\b/,/under 6\.5 hours/],
+ [day,/evidenceDays:56\b/,/Last 8 weeks/],
+ [day,/nearEventMs:5400000\b/,/up to 90 minutes after/],
+ [day,/shortSleepFallback:6\.5\b/,/under 6\.5 hours/],
  [coach,/EARLY_ALARM=420\b/,/before 7 AM/],
  [coach,/REFLECTION_DAYS=7\b/,/Offered 7 days after the first check-in/],
  [coach,/ANTICIPATE_GAP=0\.4\b/,/A prompt needs at least 0\.4/],
- [coach,/HELP_SAMPLES=5\b/,/at least 5 check-ins each way/],
- [coach,/HELP_GAP=0\.4\b/,/each way and a 0\.4 point difference/],
+ [day,/helpSamples:5\b/,/at least 5 check-ins each way/],
+ [day,/helpGap:0\.4\b/,/each way and a 0\.4 point difference/],
  [coach,/RESET_WINDOW_MS=7200000\b/,/the 2 hours after a breathing exercise/],
  [coach,/MAX_ANTICIPATED_A_DAY=2\b/,/At most 2 a day/],
  [coach,/<7200000/,/2 hours apart/],

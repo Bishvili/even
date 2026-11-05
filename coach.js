@@ -1,11 +1,12 @@
 // Daily brief, weekly outlook, patterns, reset exercise and support.
 (function(root){
- var DAY_MS=86400000,DAYS=["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
- var MIN_SAMPLES=3,MIN_GAP=0.4,HISTORY_DAYS=56,NEAR_EVENT_MS=5400000,SHORT_SLEEP=6.5,EARLY_ALARM=420,REFLECTION_DAYS=7;
+/* global require */
+ if(!root.EvenDay&&typeof require==="function")require("./daycontext.js");
+ var Day=root.EvenDay,RULES=Day.RULES,mean=Day.mean,median=Day.median,localDay=Day.localDay;
+ var DAY_MS=Day.DAY_MS,DAYS=["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+ var MIN_SAMPLES=3,MIN_GAP=0.4,HISTORY_DAYS=RULES.evidenceDays,NEAR_EVENT_MS=RULES.nearEventMs,SHORT_SLEEP=RULES.shortSleepFallback,EARLY_ALARM=420,REFLECTION_DAYS=7;
  var BRIEF_CACHE="even-brief",DEFAULT_ACTION="Leave room for a short reset today.";
 
- function mean(values){return values.reduce(function(a,b){return a+b;},0)/values.length;}
- function localDay(date){var d=new Date(date);return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");}
  function rated(moods){return moods.filter(function(m){return Number.isInteger(m.stress)&&m.stress>=1&&m.stress<=5;});}
 
  function outlook(moods,today){
@@ -87,7 +88,6 @@
   return slots.filter(function(slot,n){return slots.findIndex(function(o){return o.time===slot.time;})===n;});
  }
  function smartTimes(moods,from,to,count,today){return smartSlots(moods,from,to,count,today).map(function(slot){return slot.time;});}
- function median(values){var sorted=values.slice().sort(function(a,b){return a-b;});return sorted[Math.floor(sorted.length/2)];}
  // Times after midnight count as late evening, so 00:30 sorts after 23:30.
  function nightMinutes(minutes){return minutes<720?minutes+1440:minutes;}
  // Prefers recorded sleep, then the last check-in of each day, then the end of the window.
@@ -230,7 +230,7 @@
  }
 
  // What has tended to go with feeling better. Many things are compared, so this asks for more check-ins than a stress pattern.
- var SAME_CHECK_INS=0.8,AFTER_EVENT_MS=300000,MOVED_SPACING=45,USUAL_DAYS=28,USUAL_MINIMUM=7,SHORT_OF_USUAL=0.5,HELP_SAMPLES=5,HELP_GAP=0.4,RESET_WINDOW_MS=7200000;
+ var SAME_CHECK_INS=0.8,AFTER_EVENT_MS=300000,MOVED_SPACING=45,USUAL_DAYS=RULES.usualDays,USUAL_MINIMUM=RULES.usualMinimum,SHORT_OF_USUAL=RULES.shortOfUsual,HELP_SAMPLES=RULES.helpSamples,HELP_GAP=RULES.helpGap,RESET_WINDOW_MS=7200000;
  var HELP_METRICS=[{key:"stress",direction:-1,name:"lower stress",worse:"higher stress"},{key:"score",direction:1,name:"better mood",worse:"lower mood"},{key:"energy",direction:1,name:"more energy",worse:"less energy"}];
  var HELP_ACTIVITIES=[["Exercise","moving","Fit in some movement."],["Outdoors","being outdoors","Get outside for a few minutes."],["Rest","rest","Take a real break."],["Social","time with people","Reach out to someone."],["Family","time with family","Make time for family."]];
  function helpFactors(moods,events,health,resets,now){
@@ -441,7 +441,7 @@
   }
   var help=helpAction(data,now);
   if(help)actions.push(help);
-  if(data.connected&&(!data.lastUpload||now.getTime()-new Date(data.lastUpload).getTime()>20*3600000))actions.push({text:"Run Even Sync to bring in last night’s sleep and your calendar.",action:"sync",label:"Run Even Sync"});
+  if(data.connected&&(!data.lastUpload||now.getTime()-new Date(data.lastUpload).getTime()>RULES.staleHours*3600000))actions.push({text:"Run Even Sync to bring in last night’s sleep and your calendar.",action:"sync",label:"Run Even Sync"});
   return actions.slice(0,3);
  }
  var api={validDay:validDay,weekSchedule:weekSchedule,whatHelps:whatHelps,anticipate:anticipate,nextActions:nextActions,bedtimeForAlarm:bedtimeForAlarm,morningAlarm:morningAlarm,alarmsOn:alarmsOn,smartPlan:smartPlan,bedtimeReminder:bedtimeReminder,smartTimes:smartTimes,repeatTimes:repeatTimes,outlook:outlook,findings:findings,brief:brief,hardStretch:hardStretch,steadiness:steadiness,reflectionDue:reflectionDue,REFLECTION:REFLECTION};
