@@ -5,6 +5,7 @@
 // Set EVEN_BASE to check a deployed address instead.
 const {serve,SECURITY}=require("./serve-app.cjs");
 const {chromium,webkit}=require("playwright");
+const connect=()=>localStorage.setItem("even:v1",JSON.stringify({moods:[],health:[],events:[],token:"key",deviceId:"device-1",syncOwnerEmail:"owner@example.com",pairedAt:1}));
 async function run(type,base){
  const browser=await type.launch(),problems=[];
  const context=await browser.newContext({viewport:{width:390,height:844},serviceWorkers:"allow"});
@@ -15,13 +16,31 @@ async function run(type,base){
  page.on("pageerror",error=>problems.push("Error: "+error.message));
  page.on("console",message=>{if(message.type()==="error"&&/content security|refused to|security policy/i.test(message.text()))problems.push("Policy: "+message.text());});
  const tab=async name=>{await page.click(`.nav-item[data-go=${name}]`);await page.waitForTimeout(150);};
+ // A new device starts with the first-run steps, with the main action in view on a small iPhone.
+ await page.setViewportSize({width:375,height:667});
  await page.goto(base);
+ await page.waitForSelector("#gate-action:not([hidden])");
+ const actionInView=await page.evaluate(()=>{const r=document.getElementById("gate-action").getBoundingClientRect();return r.top>=0&&r.bottom<=innerHeight;});
+ if(!actionInView)problems.push("Sign in isn't in view at 375x667 on first launch.");
+ await page.click("#gate-action");
+ if(!await page.evaluate(()=>document.getElementById("signin-sheet").open))problems.push("The sign-in sheet didn't open.");
+ await page.click("#signin-cancel");
+ const phone=await browser.newContext({viewport:{width:375,height:667},userAgent:"Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1",serviceWorkers:"block"});
+ const phonePage=await phone.newPage();
+ phonePage.on("pageerror",error=>problems.push("Error: "+error.message));
+ await phonePage.goto(base);
+ if(!/Home Screen/.test(await phonePage.textContent("#gate-title")))problems.push("A new iPhone doesn't start with the Home Screen step.");
+ await phone.close();
+ // The deployed site stops here, because the rest needs a connected device.
+ if(process.env.EVEN_BASE){await browser.close();return problems;}
+ await page.evaluate(connect);
+ await page.reload();
  await page.waitForSelector("#checkin-title");
- // The check-in is the first thing in reach on a small iPhone.
+ if(!await page.evaluate(()=>document.getElementById("gate").hidden))problems.push("A connected device is still held at the first-run steps.");
  await page.setViewportSize({width:375,height:667});
  await page.waitForTimeout(100);
  const reachable=await page.evaluate(()=>{const bar=document.querySelector(".bottom-nav").getBoundingClientRect().top;return [...document.querySelectorAll("[data-mood]")].every(b=>{const r=b.getBoundingClientRect();return r.top>=0&&r.bottom<=bar;});});
- if(!reachable)problems.push("Mood buttons aren't fully visible at 375x667 on first launch.");
+ if(!reachable)problems.push("Mood buttons aren't fully visible at 375x667.");
  await page.setViewportSize({width:390,height:844});
  await page.click("[data-mood='3']");
  await page.waitForTimeout(100);
@@ -41,11 +60,10 @@ async function run(type,base){
  await tab("settings");await page.click("#erase-local");await page.click("#confirm-yes");await page.waitForTimeout(400);
  const left=await Promise.race([page.evaluate(async withCache=>({keys:Object.keys(localStorage),caches:withCache?await caches.keys():[]}),checkCache),new Promise((_,fail)=>setTimeout(()=>fail(Error("The page stopped responding after erase.")),20000))]);
  if(left.keys.join()!=="even:v1"||left.caches.includes("even-brief"))problems.push("Erase left something behind: "+JSON.stringify(left));
- await tab("settings");
- await tab("data");
- await page.click("#login-button");
- if(!await page.evaluate(()=>document.getElementById("signin-sheet").open))problems.push("The sign-in sheet didn't open.");
- await page.click("#signin-cancel");
+ if(!await page.evaluate(()=>!document.getElementById("gate").hidden))problems.push("Erasing didn't return to the first-run steps.");
+ await page.evaluate(connect);
+ await page.reload();
+ await page.waitForSelector(".bottom-nav");
  for(const old of ["sync","sources"]){
   await page.evaluate(name=>EvenApp.navigate(name),old);
   if(!await page.evaluate(()=>document.getElementById("view-data").classList.contains("active")))problems.push("#"+old+" doesn't land on Data.");
@@ -74,7 +92,7 @@ async function run(type,base){
  return problems;
 }
 (async()=>{
- const names=process.argv.slice(2),server=process.env.EVEN_BASE?null:await serve(),base=process.env.EVEN_BASE||"http://localhost:"+server.address().port;
+ const names=process.argv.slice(2),server=process.env.EVEN_BASE?null:await serve({connected:true}),base=process.env.EVEN_BASE||"http://localhost:"+server.address().port;
  let failed=false;
  for(const name of names.length?names:["chromium"]){
   const problems=await run({chromium,webkit}[name],base);

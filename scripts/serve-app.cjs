@@ -8,9 +8,14 @@ const{publicFiles}=require("./build-assets.cjs");
 const TYPES={".html":"text/html; charset=utf-8",".css":"text/css; charset=utf-8",".js":"text/javascript; charset=utf-8",".webmanifest":"application/manifest+json",".svg":"image/svg+xml",".png":"image/png"};
 const FILES=publicFiles(fs.readFileSync(path.join(root,"sw.js"),"utf8"));
 
-function serve(){
+function serve({connected=false}={}){
  const server=http.createServer((request,response)=>{
   const url=new URL(request.url,"http://localhost");
+  // A connected device's session, so the app opens past the first-run steps.
+  if(connected&&url.pathname==="/api/session"){
+   response.writeHead(200,{...SECURITY,"Content-Type":"application/json"});
+   return response.end(JSON.stringify({ok:true,status:{deviceId:"device-1",credentialValid:true},release:{},calendars:[],settings:{},moods:{email:"owner@example.com",moods:[],deleted:[]}}));
+  }
   if(url.pathname.startsWith("/api/")){
    response.writeHead(401,{...SECURITY,"Content-Type":"application/json"});
    return response.end(JSON.stringify({ok:false,error:"Sign in",code:"signed_out"}));

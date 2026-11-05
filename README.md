@@ -8,7 +8,7 @@ New to the project? Point Claude at this repository and it will guide you throug
 
 ## What works
 
-Install from Safari > Share > Add to Home Screen. Mood check-ins, energy, tags and notes are kept on your device and, when you’re signed in, in your account. Explore time-of-day, activities, sleep and calendar context correlations. This is observational, not medical advice.
+Install from Safari > Share > Add to Home Screen, then sign in with an invited account. Mood check-ins, energy, tags and notes are kept on your device and, when you’re signed in, in your account. Explore time-of-day, activities, sleep and calendar context correlations. This is observational, not medical advice.
 
 ## Calendar-linked mood insights
 

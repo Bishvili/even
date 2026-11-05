@@ -1,8 +1,8 @@
-// First-run setup on Check in: one step at a time, from the Home Screen to notifications.
+// First-run setup: full-screen steps before the app (Home Screen, sign in, Even Sync), then a card on Check in for what remains.
 // Skipped steps and progress stay on this device.
 (function(root){
  "use strict";
- var DAY_MS=86400000,INSTALL_AGAIN_MS=3*DAY_MS,SIGN_IN_MS=10*60000,STORAGE_KEY="even-setup";
+ var DAY_MS=86400000,ASK_AGAIN_MS=3*DAY_MS,STORAGE_KEY="even-setup";
 
  // The steps that apply on this device, in order.
  function steps(c){
@@ -13,14 +13,28 @@
   if(c.notify!=="unavailable")list.push("notifications");
   return list;
  }
- // The step to show now. "checkin" waits for the first check-in and shows no card. Null means setup is finished.
+ // The full-screen step that stands before the app, if any. Only Even Sync can be put off, because the app still works without it.
+ // Offline never locks anyone out of what's already on the device.
+ function gateStep(c){
+  var list=[];
+  if(c.ios)list.push("install");
+  list.push("signin");
+  if(c.ios)list.push("shortcut");
+  function step(id,variant){return{id:id,variant:variant,gate:true,number:list.indexOf(id)+1,total:list.length,records:!!c.records&&id!=="shortcut"};}
+  if(c.ios&&!c.installed)return step("install",c.safari===false?"safari":"share");
+  if(c.otherAccount)return step("signin","other");
+  if(!c.connected){
+   if(!c.online&&(c.records||c.connectedBefore))return null;
+   return step("signin",c.connecting?"connecting":c.signedIn?"connect":c.signingIn?"pending":"signin");
+  }
+  if(c.ios&&c.online&&!c.synced&&!(c.now-((c.skipped||{}).shortcut||0)<ASK_AGAIN_MS))return step("shortcut",c.shortcutConnected?"again":c.gotShortcut?"run":"get");
+  return null;
+ }
+ // The card on Check in. "checkin" waits for the first check-in and shows no card. Null means setup is finished.
  function nextStep(c){
   var list=steps(c),skipped=c.skipped||{};
   function step(id,variant){return{id:id,variant:variant,number:list.indexOf(id)+1,total:list.length};}
-  if(c.installable&&!c.installed&&!(c.now-(skipped.install||0)<INSTALL_AGAIN_MS))return step("install",c.ios?"share":"prompt");
-  // An iPhone that has been connected before is managed from Data, so a deliberate disconnect isn't undone here.
-  if(!c.connected&&!c.connectedBefore&&!skipped.signin)return step("signin",c.connecting?"connecting":c.signedIn?"connect":c.signingIn?"pending":"signin");
-  if(c.connected&&c.ios&&!c.synced&&!skipped.shortcut)return step("shortcut",c.shortcutConnected?"again":c.gotShortcut?"run":"get");
+  if(!c.ios&&c.installable&&!c.installed&&!(c.now-(skipped.install||0)<ASK_AGAIN_MS))return step("install","prompt");
   if(!c.checkedIn)return{id:"checkin",number:0,total:list.length};
   return c.notify==="ready"?step("notifications","start"):null;
  }
@@ -42,14 +56,16 @@
   var done=id==="install"?c.installed:id==="signin"?c.connected:id==="shortcut"?c.synced:false;
   return{id:id,variant:variant,number:index+1,total:list.length,done:!!done,last:index===list.length-1,replay:true};
  }
- var api={nextStep:nextStep,outstanding:outstanding,replayStep:replayStep,render:function(){},restart:function(){},forget:function(){}};
+ var api={gateStep:gateStep,nextStep:nextStep,outstanding:outstanding,replayStep:replayStep,render:function(){},restart:function(){},forget:function(){}};
  root.EvenOnboarding=api;
  if(typeof document==="undefined"||!root.EvenApp)return;
 
  var COPY={
   "install:share":{title:"Add Even to your Home Screen",text:"In Safari, tap Share (or ••• and then Share), then Add to Home Screen."},
   "install:prompt":{title:"Install Even",text:"Open Even in its own window, with notifications for check-ins.",action:"Install"},
-  "signin:signin":{title:"Sign in",text:"Use your invited email for a one-time code, or use Google.",action:"Sign in"},
+  "install:safari":{title:"Open Even in Safari",text:"To add Even to your Home Screen, open this page in Safari.",safari:true},
+  "signin:other":{title:"This {device} has another account’s records",text:"Back them up and erase them to use this account, or sign out and use the account they belong to.",action:"Sign out"},
+  "signin:signin":{title:"Sign in",text:"Use your invited email for a one-time code, or use Google.",action:"Sign in",privacy:true},
   "signin:pending":{title:"Finishing sign-in…",text:"One moment.",busy:true},
   "signin:connecting":{title:"Connecting this {device}…",text:"",busy:true},
   "signin:connect":{title:"Connect this {device}",text:"Connecting lets Even Sync send your Health and calendar data to your account.",otherText:"Connecting brings in what Even Sync sends from your iPhone.",action:"Connect this {device}"},
@@ -70,7 +86,7 @@
   var now=Date.now(),skipped=progress.skipped&&typeof progress.skipped==="object"?progress.skipped:{};
   return{now:now,ios:s.ios,installed:s.installed,installable:(s.ios&&!s.installed)||!!installEvent,
    signedIn:s.signedIn,connected:s.connected,connectedBefore:s.connectedBefore,connecting:s.connecting,
-   signingIn:s.online&&!s.authKnown&&now-(Number(progress.signInAt)||0)<SIGN_IN_MS,
+   signingIn:s.online&&!s.authKnown,safari:s.safari,records:s.records,otherAccount:s.otherAccount,online:s.online,
    synced:s.synced,shortcutConnected:s.shortcutConnected,gotShortcut:!!progress.gotShortcut,checkedIn:s.checkedIn,
    notify:root.EvenReminders?root.EvenReminders.notificationStep():"unavailable",notifyOpen:!!root.EvenReminders&&root.EvenReminders.notificationsOpen(),skipped:skipped};
  }
@@ -83,8 +99,44 @@
   var tab=document.querySelector('.nav-item[data-go="settings"]');
   if(left)tab.setAttribute("aria-label","Settings, "+words);else tab.removeAttribute("aria-label");
  }
+ var gateShown="";
  function render(moveFocus){
-  renderSetupBadge(context(app.setup()));
+  var c=context(app.setup());
+  renderSetupBadge(c);
+  var gate=replay===null?gateStep(c):null,key=gate?gate.id+":"+gate.variant:"";
+  document.body.classList.toggle("gated",!!gate);
+  $("gate").hidden=!gate;
+  var changed=key!==gateShown;gateShown=key;
+  if(gate){current=gate;renderGate(gate);if(moveFocus||changed)$("gate-title").focus();return;}
+  renderCard(moveFocus||changed);
+ }
+ function renderGate(step){
+  var s=app.setup(),copy=COPY[step.id+":"+step.variant];
+  function named(words){return words.replace("{device}",s.deviceName);}
+  var text=!s.ios&&copy.otherText||copy.text;
+  if(step.id==="signin"&&s.email&&(step.variant==="connect"||step.variant==="connecting"))text=("Signed in as "+s.email+". "+text).trim();
+  $("gate-step").textContent=step.total>1?"Step "+step.number+" of "+step.total:"";
+  $("gate-step").hidden=step.total<2;
+  $("gate-title").textContent=named(copy.title);
+  $("gate-text").textContent=text;
+  $("gate-privacy").hidden=!copy.privacy;
+  var url=copy.link?s.shortcutUrl:copy.safari?"x-safari-"+location.href:"";
+  $("gate-link").hidden=!url;
+  $("gate-link-text").textContent=copy.safari?"Open in Safari":"Get Even Sync";
+  if(url)$("gate-link").href=url;else $("gate-link").removeAttribute("href");
+  var label=copy.action?named(copy.action):copy.link&&!url?"Get Even Sync":"";
+  $("gate-action").hidden=!label;$("gate-action").textContent=label;
+  $("gate-skip").hidden=step.id!=="shortcut";
+  var altRun=copy.alt==="run",altGet=copy.alt==="get"&&!!s.shortcutUrl;
+  $("gate-alt").hidden=!altRun&&!altGet;
+  $("gate-alt-text").textContent=altRun?"Already have it?":"Not added yet?";
+  $("gate-alt-run").hidden=!altRun;
+  $("gate-alt-link").hidden=!altGet;
+  if(altGet)$("gate-alt-link").href=s.shortcutUrl;else $("gate-alt-link").removeAttribute("href");
+  $("gate-records").hidden=!step.records;
+  $("gate").setAttribute("aria-busy",String(!!copy.busy));
+ }
+ function renderCard(moveFocus){
   var s=app.setup(),step=replay===null?nextStep(context(s)):replayStep(context(s),replay),card=$("setup-card");
   current=step&&step.id!=="checkin"?step:null;
   $("view-checkin").classList.toggle("setup-active",!!step);
@@ -132,7 +184,8 @@
    prompt.prompt();prompt.userChoice.finally(function(){progress.skipped=Object.assign({},progress.skipped,{install:Date.now()});saveProgress();render();});
    return;
   }
-  if(variant==="signin"){progress.signInAt=Date.now();saveProgress();app.signIn("checkin");return;}
+  if(variant==="signin"){app.signIn("checkin");return;}
+  if(variant==="other"){app.signOut();return;}
   if(variant==="connect"){app.connect();return;}
   // The Data tab's help line says why the link is missing.
   if(variant==="get"){app.toast($("shortcut-install-help").textContent);return;}
@@ -141,14 +194,21 @@
  }
  function gotShortcut(){progress.gotShortcut=Date.now();saveProgress();setTimeout(render,0);}
 
- $("setup-action").addEventListener("click",act);
- $("setup-skip").addEventListener("click",skip);
- $("setup-link").addEventListener("click",gotShortcut);
- $("setup-alt-link").addEventListener("click",gotShortcut);
- $("setup-alt-run").addEventListener("click",function(){
+ function altRun(){
   if(!app.setup().online){app.toast(OFFLINE.run);return;}
   progress.gotShortcut=Date.now();saveProgress();app.runShortcut();render();
+ }
+ ["setup","gate"].forEach(function(prefix){
+  $(prefix+"-action").addEventListener("click",act);
+  $(prefix+"-skip").addEventListener("click",skip);
+  $(prefix+"-link").addEventListener("click",function(){if(current&&current.id==="shortcut")gotShortcut();});
+  $(prefix+"-alt-link").addEventListener("click",gotShortcut);
+  $(prefix+"-alt-run").addEventListener("click",altRun);
  });
+ // These controls live in Settings, which can't be reached from here.
+ $("gate-backup").addEventListener("click",function(){$("backup-button").click();});
+ $("gate-erase").addEventListener("click",function(){$("erase-local").click();});
+ $("gate-feedback").addEventListener("click",function(){root.EvenFeedback.open();});
  root.addEventListener("beforeinstallprompt",function(event){event.preventDefault();installEvent=event;render();});
  root.addEventListener("appinstalled",function(){installEvent=null;render();});
  root.addEventListener("online",function(){render();});

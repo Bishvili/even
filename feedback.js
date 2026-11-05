@@ -32,5 +32,5 @@
   $("feedback-cancel").addEventListener("click",function(){$("feedback-sheet").close();});
  }
  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init);else init();
- globalThis.EvenFeedback={summary:summary};
+ globalThis.EvenFeedback={summary:summary,open:open};
 })();

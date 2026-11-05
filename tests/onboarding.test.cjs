@@ -14,48 +14,55 @@ const fresh={now,ios:true,installed:false,installable:true,signedIn:false,connec
 const at=changes=>nextStep(Object.assign({},fresh,changes));
 const app={installed:true,installable:false};
 
-test("a new iPhone starts by adding Even to the Home Screen",()=>{
- assert.deepEqual(at({}),{id:"install",variant:"share",number:1,total:4});
+const {gateStep}=globalThis.EvenOnboarding;
+const gate=changes=>gateStep(Object.assign({online:true},fresh,changes));
+const connected={...app,signedIn:true,connected:true,connectedBefore:true};
+test("a new iPhone must add Even to the Home Screen, and putting it off isn't possible",()=>{
+ assert.equal(gate({}).id,"install");
+ assert.equal(gate({}).variant,"share");
+ assert.equal(gate({}).number,1);
+ assert.equal(gate({skipped:{install:now}}).id,"install");
+ assert.equal(gate({safari:false}).variant,"safari");
 });
-test("putting off the Home Screen step brings it back after three days",()=>{
- assert.equal(at({skipped:{install:now-DAY}}).id,"signin");
- assert.equal(at({skipped:{install:now-3*DAY}}).id,"install");
+test("once installed, signing in is required, and the variants follow the state",()=>{
+ assert.equal(gate(app).variant,"signin");
+ assert.equal(gate({...app,skipped:{signin:now}}).variant,"signin");
+ assert.equal(gate({...app,signingIn:true}).variant,"pending");
+ assert.equal(gate({...app,signedIn:true}).variant,"connect");
+ assert.equal(gate({...app,signedIn:true,connecting:true}).variant,"connecting");
+ assert.equal(gate({...app,connectedBefore:true}).variant,"signin");
 });
-test("the installed app counts the Home Screen step as done and asks to sign in",()=>{
- assert.deepEqual(at(app),{id:"signin",variant:"signin",number:2,total:4});
- assert.equal(at({...app,signingIn:true}).variant,"pending");
- assert.equal(at({...app,signedIn:true}).variant,"connect");
- assert.equal(at({...app,signedIn:true,connecting:true}).variant,"connecting");
+test("records from another account are held until they're dealt with",()=>{
+ assert.equal(gate({...connected,otherAccount:true,records:true}).variant,"other");
+ assert.equal(gate({...connected,otherAccount:true,records:true}).records,true);
 });
-test("an iPhone that was connected before is left to Sync, so a disconnect isn't undone",()=>{
- assert.deepEqual(at({...app,connectedBefore:true}),{id:"checkin",number:0,total:4});
+test("records on the device are offered from sign-in, and offline opens them",()=>{
+ assert.equal(gate({...app,records:true}).records,true);
+ assert.equal(gate({...app,records:true,online:false}),null);
+ assert.equal(gate({...app,connectedBefore:true,online:false}),null);
+ assert.equal(gate({...app,online:false}).id,"signin");
 });
-test("Even Sync is offered once connected: get it, run it, then run it again if nothing arrived",()=>{
- const connected={...app,signedIn:true,connected:true,connectedBefore:true};
- assert.deepEqual(at(connected),{id:"shortcut",variant:"get",number:3,total:4});
- assert.equal(at({...connected,gotShortcut:true}).variant,"run");
- assert.equal(at({...connected,shortcutConnected:true}).variant,"again");
- assert.equal(at({...connected,skipped:{shortcut:now}}).id,"checkin");
- assert.equal(at({...connected,synced:true}).id,"checkin");
+test("Even Sync asks until it has run, and Not now brings it back after three days",()=>{
+ assert.equal(gate(connected).variant,"get");
+ assert.equal(gate({...connected,gotShortcut:true}).variant,"run");
+ assert.equal(gate({...connected,shortcutConnected:true}).variant,"again");
+ assert.equal(gate({...connected,skipped:{shortcut:now-DAY}}),null);
+ assert.equal(gate({...connected,skipped:{shortcut:now-3*DAY}}).id,"shortcut");
+ assert.equal(gate({...connected,synced:true}),null);
+ assert.equal(gate({...connected,online:false}),null);
 });
-test("notifications come after the first check-in, and setup then ends",()=>{
- const synced={...app,signedIn:true,connected:true,connectedBefore:true,synced:true};
+test("other browsers need only sign-in, and a connected one opens",()=>{
+ const desktop={ios:false,installed:false,installable:false,notify:"unavailable"};
+ const step=gate(desktop);
+ assert.equal(step.id,"signin");assert.equal(step.total,1);
+ assert.equal(gate({...desktop,connected:true,signedIn:true}),null);
+ assert.deepEqual(at({...desktop,installable:true,notify:"later"}),{id:"install",variant:"prompt",number:1,total:3});
+});
+test("Check in's card waits for the first check-in, then offers notifications, and setup ends",()=>{
+ const synced={...connected,synced:true};
  assert.equal(at({...synced,notify:"ready"}).id,"checkin");
  assert.deepEqual(at({...synced,checkedIn:true,notify:"ready"}),{id:"notifications",variant:"start",number:4,total:4});
  assert.equal(at({...synced,checkedIn:true,notify:"later"}),null);
-});
-test("skipping sign-in leaves only the first check-in",()=>{
- assert.equal(at({...app,skipped:{signin:now}}).id,"checkin");
- assert.equal(at({...app,skipped:{signin:now},checkedIn:true}),null);
-});
-test("a check-in made before setup doesn't skip the setup steps",()=>{
- assert.equal(at({...app,checkedIn:true}).id,"signin");
-});
-test("other browsers skip the iPhone-only steps and count only what applies",()=>{
- const desktop={ios:false,installed:false,installable:false,notify:"unavailable"};
- assert.deepEqual(at(desktop),{id:"signin",variant:"signin",number:1,total:1});
- assert.deepEqual(at({...desktop,installable:true,notify:"later"}),{id:"install",variant:"prompt",number:1,total:3});
- assert.equal(at({...desktop,connected:true,connectedBefore:true}).id,"checkin");
 });
 
 test("the invitation, the setup card and Sync name the same steps",()=>{

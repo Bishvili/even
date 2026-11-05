@@ -32,11 +32,13 @@ function fakeApi(overrides={}){
  };
  return api;
 }
-async function open(browser,base,state,api,check){
- const context=await browser.newContext({viewport:{width:390,height:844},serviceWorkers:"block"});
+const IPHONE="Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1";
+async function open(browser,base,state,api,check,device={}){
+ const context=await browser.newContext({viewport:{width:390,height:844},serviceWorkers:"block",...(device.iphone?{userAgent:IPHONE}:{})});
  const page=await context.newPage(),errors=[];
  page.on("pageerror",error=>errors.push(error.message));
  await page.addInitScript(([value])=>{if(sessionStorage.getItem("seeded"))return;sessionStorage.setItem("seeded","1");localStorage.setItem("even:v1",value);},[typeof state==="string"?state:JSON.stringify(state)]);
+ if(device.installed)await page.addInitScript(()=>Object.defineProperty(navigator,"standalone",{value:true}));
  await context.route("**/api/**",api.handle);
  await page.goto(base+"/");
  try{
@@ -188,13 +190,7 @@ const scenarios={
    assert.equal(await page.locator("#calendar-list .calendar-row").count(),2);
   });
  },
- "the sync label says what a tap does, and signed out it opens sign-in":async(browser,base)=>{
-  const signedOut=fakeApi({me:"",session:401});
-  await open(browser,base,saved({token:"",deviceId:"",syncOwnerEmail:"",pairedAt:null}),signedOut,async({page})=>{
-   await until(page,()=>document.getElementById("sync-light").getAttribute("aria-label")==="Sign in");
-   await page.click("#sync-light");
-   await until(page,()=>document.querySelector("dialog[open]"));
-  });
+ "the sync label says what a tap does":async(browser,base)=>{
   const api=fakeApi();api.status={lastDataUploadAt:new Date(Date.now()-3*3600000).toISOString()};
   await open(browser,base,saved({moodCursor:shared.cursor}),api,async({page,context})=>{
    await until(page,()=>document.getElementById("sync-light").getAttribute("aria-label")==="Synced 3h ago. Run Even Sync.");
@@ -204,12 +200,49 @@ const scenarios={
    await until(page,()=>document.body.textContent.includes("You’re offline"));
   });
  },
- "damaged storage opens as a new install":async(browser,base)=>{
+ "damaged storage opens at sign-in":async(browser,base)=>{
   const api=fakeApi({me:""});
   await open(browser,base,"{not json",api,async({page})=>{
-   await until(page,()=>document.querySelectorAll("[data-mood]").length===5);
-   await saveCheckIn(page);
-   await until(page,()=>JSON.parse(localStorage.getItem("even:v1")).moods.length===1);
+   await until(page,()=>document.getElementById("gate-title").textContent==="Sign in");
+   assert.equal(await page.isVisible("#gate-privacy"),true);
+   assert.equal(await page.isVisible("#main"),false);
+   assert.equal(await page.isVisible("#gate-skip"),false);
+  });
+ },
+ "a new iPhone can't pass the Home Screen step, and has no way to put it off":async(browser,base)=>{
+  await open(browser,base,"{}",fakeApi({me:""}),async({page})=>{
+   await until(page,()=>/Home Screen/.test(document.getElementById("gate-title").textContent));
+   assert.equal(await page.isVisible("#gate-skip"),false);
+   assert.equal(await page.isVisible(".bottom-nav"),false);
+  },{iphone:true});
+ },
+ "Even Sync can be put off, and the app opens":async(browser,base)=>{
+  await open(browser,base,saved({moodCursor:shared.cursor}),fakeApi(),async({page})=>{
+   await until(page,()=>document.getElementById("gate-title").textContent==="Add Even Sync");
+   await page.click("#gate-skip");
+   await until(page,()=>document.getElementById("gate").hidden&&!document.body.classList.contains("gated"));
+   assert.equal(await page.isVisible("[data-mood='3']"),true);
+   assert.equal(await page.isVisible('.nav-item[data-go="settings"] .nav-badge'),true);
+  },{iphone:true,installed:true});
+ },
+ "signed out with records, a person can back up or erase them":async(browser,base)=>{
+  const api=fakeApi({me:""});
+  await open(browser,base,saved({token:"",deviceId:"",syncOwnerEmail:"",pairedAt:null,moods:[mood("m")]}),api,async({page})=>{
+   await until(page,()=>!document.getElementById("gate-records").hidden);
+   await page.click("#gate-erase");
+   await confirm(page);
+   await until(page,()=>document.getElementById("gate-records").hidden);
+  });
+ },
+ "an expired sign-in or no connection never locks out a connected device":async(browser,base)=>{
+  await open(browser,base,saved({moods:[mood("m")],moodCursor:shared.cursor}),fakeApi({me:""}),async({page})=>{
+   await until(page,()=>document.getElementById("gate").hidden);
+   assert.equal(await page.isVisible("[data-mood='3']"),true);
+  });
+  await open(browser,base,saved({token:"",deviceId:"",moods:[mood("m")]}),fakeApi({me:""}),async({page,context})=>{
+   await until(page,()=>!document.getElementById("gate").hidden);
+   await context.setOffline(true);
+   await until(page,()=>document.getElementById("gate").hidden);
   });
  },
  "an update waits while a check-in draft is open":async(browser,base)=>{

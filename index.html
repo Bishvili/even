@@ -50,6 +50,26 @@
 </head>
 <body>
  <div class="app">
+  <section class="gate" id="gate" aria-labelledby="gate-title" hidden>
+   <div class="gate-body">
+    <img class="gate-mark" src="/icon.svg" alt="" width="64" height="64">
+    <p class="setup-step" id="gate-step"></p>
+    <h1 id="gate-title" tabindex="-1"></h1>
+    <p class="gate-text" id="gate-text"></p>
+    <div class="gate-actions">
+     <a class="btn primary full" id="gate-link" target="_blank" rel="noopener noreferrer" hidden><span id="gate-link-text"></span> <span aria-hidden="true">↗</span></a>
+     <button type="button" class="btn primary full" id="gate-action" hidden></button>
+     <button type="button" class="btn subtle full" id="gate-skip" hidden>Not now</button>
+    </div>
+    <p class="setup-alt" id="gate-alt" hidden><span id="gate-alt-text"></span> <button type="button" class="text-action" id="gate-alt-run" hidden>Run Even Sync</button><a class="text-action" id="gate-alt-link" target="_blank" rel="noopener noreferrer" hidden>Get Even Sync</a></p>
+    <p class="muted" id="gate-privacy" hidden>Even needs an account. Your check-ins and notes, and the Health and calendar data you sync, are saved to it as readable text, not end-to-end encrypted, so they reach your devices.</p>
+    <div id="gate-records" hidden>
+     <p class="muted">Your records are still on this device.</p>
+     <div class="button-row"><button type="button" class="btn secondary" id="gate-backup">Save a backup</button><button type="button" class="btn subtle" id="gate-erase">Erase</button></div>
+    </div>
+    <p class="gate-links"><a class="text-action" href="/whitepaper.html">How Even works</a><button type="button" class="text-action" id="gate-feedback">Send feedback</button></p>
+   </div>
+  </section>
   <div class="page" id="page">
   <header class="topbar">
    <a href="#checkin" class="brand" data-go="checkin" aria-label="Even home">
@@ -104,7 +124,7 @@
      <label class="note-label" for="mood-note">Add a note <span class="hint">optional</span></label>
      <textarea id="mood-note" rows="2" maxlength="400" placeholder="What’s on your mind?"></textarea>
      <button type="button" class="btn primary full" id="save-mood">Save check-in</button>
-     <p class="privacy-micro">🔒 Check-ins and notes sync to your account when you’re signed in.</p>
+     <p class="privacy-micro">🔒 Check-ins and notes sync to your private account.</p>
     </div>
     <div class="hard-stretch" id="hard-stretch" role="note" hidden><span id="hard-stretch-text">It’s been a hard few days. Talking to someone can help.</span> <a href="#settings" data-go="settings">Find support</a></div>
     <section class="today-brief" id="today-brief" aria-labelledby="today-title">
@@ -361,7 +381,7 @@
      <p class="muted">Tell us what went wrong or what you’d change.</p>
      <button type="button" class="btn secondary full" id="feedback-open">Send feedback</button>
     </section>
-    <div class="card"><h2>About the insights</h2><p class="muted">Comparisons need at least 5 check-ins in each group. Mood data is subjective and gaps can skew results. Nothing here is a diagnosis or proves a cause.</p><button type="button" class="btn subtle full" id="setup-again">Go through setup again</button><a class="btn subtle full" id="whitepaper-link" href="/whitepaper.html" target="_blank" rel="noopener">How Even works <span aria-hidden="true">↗</span></a><p class="muted">Version <span id="version">2.35.0</span> · No ads or analytics</p></div>
+    <div class="card"><h2>About the insights</h2><p class="muted">Comparisons need at least 5 check-ins in each group. Mood data is subjective and gaps can skew results. Nothing here is a diagnosis or proves a cause.</p><button type="button" class="btn subtle full" id="setup-again">Go through setup again</button><a class="btn subtle full" id="whitepaper-link" href="/whitepaper.html" target="_blank" rel="noopener">How Even works <span aria-hidden="true">↗</span></a><p class="muted">Version <span id="version">2.36.0</span> · No ads or analytics</p></div>
     <div class="card"><h2>Explore a sample month</h2><p class="muted">See 28 days of fictional check-ins and events. They stay separate from your own data and are never uploaded.</p><button class="btn secondary full" id="demo-button">Load 28-day calendar demo</button><button class="btn subtle full" id="clear-demo-button">Remove demo data</button></div>
    </section>
   </main>
