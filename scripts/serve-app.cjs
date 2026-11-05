@@ -9,7 +9,7 @@ const dist=build(),images=buildImages(dist);
 const TYPES={".html":"text/html; charset=utf-8",".css":"text/css; charset=utf-8",".js":"text/javascript; charset=utf-8",".webmanifest":"application/manifest+json",".svg":"image/svg+xml",".png":"image/png"};
 const FILES=publicFiles(fs.readFileSync(path.join(root,"sw.js"),"utf8"));
 
-async function serve({connected=false}={}){
+async function serve({connected=false,dir=dist}={}){
  await images;
  const server=http.createServer((request,response)=>{
   const url=new URL(request.url,"http://localhost");
@@ -25,7 +25,7 @@ async function serve({connected=false}={}){
   const file=url.pathname==="/"?"index.html":url.pathname.slice(1);
   if(!FILES.includes(file)){response.writeHead(404,SECURITY);return response.end();}
   response.writeHead(200,{...SECURITY,"Content-Type":TYPES[path.extname(file)],"Cache-Control":"no-cache"});
-  response.end(fs.readFileSync(path.join(dist,file)));
+  response.end(fs.readFileSync(path.join(dir,file)));
  });
  return new Promise(resolve=>server.listen(0,()=>resolve(server)));
 }

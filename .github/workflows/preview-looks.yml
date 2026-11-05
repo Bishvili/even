@@ -1,0 +1,29 @@
+name: Preview looks
+on:
+  workflow_dispatch:
+    inputs:
+      looks:
+        description: "Names from brand/looks.json, separated by commas. Leave blank for all."
+        required: false
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+      - name: Install what draws the looks
+        run: |
+          npm install --no-audit --no-fund
+          npm install --no-save --no-package-lock playwright@1.63.0
+          npx playwright install --with-deps chromium
+      - name: Draw each look
+        env:
+          LOOKS: ${{ inputs.looks }}
+        run: node scripts/preview-looks.cjs previews "$LOOKS"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: looks
+          path: previews

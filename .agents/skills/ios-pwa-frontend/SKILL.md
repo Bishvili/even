@@ -35,7 +35,7 @@ When a design needs a distinctive moment, spend the visual emphasis once: an exc
 
 ## Current visual direction and tokens
 
-The product is called Even: a calm, private health coach. Use serif headlines from the system stack (ui-serif, New York), system sans for everything else, pill buttons, deep green hero surfaces, and warm yellow as the single accent. Colors live in the CSS custom properties in styles.css, with a complete dark palette; never add literal colors outside them, including in SVG markup in `index.html` and in JavaScript. Consolidate values into CSS custom properties or typed theme tokens rather than continuing to sprinkle magic hex literals.
+The product is a calm, private health coach. Use serif headlines from the system stack (ui-serif, New York), system sans for everything else, pill buttons, deep green hero surfaces, and warm yellow as the single accent. Colors live in `brand/palette.json`, with a complete dark palette; never add literal colors outside it, including in SVG markup in `index.html` and in JavaScript. Consolidate values into CSS custom properties or typed theme tokens rather than continuing to sprinkle magic hex literals.
 
 The values in `brand/palette.json` are the source of truth, with a light and a dark value for each role: text for text, page for the background, primary for interactive elements, tint for soft surfaces, highlight for sparse meaningful emphasis, and text-muted for secondary copy.
 

@@ -1,0 +1,5 @@
+[
+  {"name":"Today","colors":{"primary":"#28685B","highlight":"#F4D798","ground":"#10262A"}},
+  {"name":"Harbor","colors":{"primary":"#2B4FA8","highlight":"#F2C879","ground":"#1B1F3A"}},
+  {"name":"Orchard","colors":{"primary":"#8A3B4E","highlight":"#F3D6A4","ground":"#2B1A20"}}
+]

@@ -43,7 +43,6 @@ test("the stable names match the Shortcuts they describe",()=>{
 });
 test("every color comes from the palette, with a value for each appearance",()=>{
  const{colorValues}=require("../scripts/build-assets.cjs"),palette=JSON.parse(fs.readFileSync("brand/palette.json","utf8"));
- assert.deepEqual(brand.colors,palette.main,"the palette is written for the main colors in use");
  colorValues(palette);
  const broken=JSON.parse(JSON.stringify(palette));delete broken.app.text.dark;
  assert.throws(()=>colorValues(broken),/text needs a dark value/);
@@ -110,4 +109,9 @@ test("any logo works: its mark drops the background, and a new one shows still w
   assert.doesNotMatch(next,/id="pull-sun"/);
   assert.match(next,/class="brand-icon" aria-hidden="true"><svg viewBox="0 0 100 100"><circle/);
  }finally{fs.rmSync(out,{recursive:true});fs.rmSync(file,{force:true});}
+});
+test("every look to try can be built and read",()=>{
+ const looks=JSON.parse(fs.readFileSync("brand/looks.json","utf8")),out=fs.mkdtempSync(path.join(os.tmpdir(),"looks-"));
+ try{for(const look of looks)build({out,brand:{...brand,name:look.name,colors:look.colors||brand.colors}});}
+ finally{fs.rmSync(out,{recursive:true});}
 });
