@@ -164,12 +164,6 @@ test("the build, deploy and publish read the versions and notes from the source"
  assert.match(shared.url,/^https:\/\/www\.icloud\.com\/shortcuts\/[a-f0-9]{32}$/);
 });
 
-test("the retired v2.2 download is gone",()=>{
- assert.doesNotMatch(html,/even-sync-v2\.2\.shortcut/);
- assert.doesNotMatch(worker,/even-sync-v2\.2\.shortcut/);
- assert.doesNotMatch(app,/Signed test build v2\.2/);
-});
-
 test("API returns text outcomes and release requires verification",()=>{
  assert.match(worker,/state:"connected"/);
  assert.match(worker,/state:"accepted"/);

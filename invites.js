@@ -1,6 +1,6 @@
 // Sharing Even and managing who can sign in. Shown to developer accounts.
 (function(){
- var app=globalThis.EvenApp,SHARE_URL="https://even.bishvili.workers.dev/";
+ var app=globalThis.EvenApp,SHARE_URL=location.origin+"/";
  function $(id){return document.getElementById(id);}
  function send(path,email){return fetch(path,{method:"POST",credentials:"same-origin",cache:"no-store",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:email})});}
 
@@ -15,7 +15,7 @@
  function resend(email,button){
   button.disabled=true;
   send("/api/auth/testers/invite",email).then(function(r){return r.json().then(function(data){
-   app.toast(r.ok&&data.emailed?"Invitation sent to "+email+".":"The email didn’t send. Share the link instead.");
+   app.toast(r.status===429?data.error:r.ok&&data.emailed?"Invitation sent to "+email+".":"The email didn’t send. Share the link instead.");
   });}).catch(function(){app.toast("The email didn’t send. Share the link instead.");}).finally(function(){button.disabled=false;});
  }
  function remove(email){

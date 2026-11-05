@@ -1,4 +1,4 @@
-const BRIEF="even-brief";const CACHE="even-shell-v2.19.3";const SHELL=["/","/index.html","/styles.css","/app.js","/reminders.js","/onboarding.js","/intake.js","/coach.js","/refresh.js","/invites.js","/whitepaper.html","/whitepaper.css","/manifest.webmanifest","/icon.svg","/icon-192.png","/icon-512.png"];
+const BRIEF="even-brief";const CACHE="even-shell-v2.20.0";const SHELL=["/","/index.html","/styles.css","/app.js","/reminders.js","/onboarding.js","/intake.js","/coach.js","/refresh.js","/invites.js","/whitepaper.html","/whitepaper.css","/manifest.webmanifest","/icon.svg","/icon-192.png","/icon-512.png"];
 // Each page keeps its own copy, so opening another page never replaces the offline app.
 function pageKey(pathname){return pathname==="/"||pathname==="/index.html"?"/":pathname;}
 self.addEventListener("install",event=>{event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(SHELL)).then(()=>self.skipWaiting()));});

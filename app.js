@@ -1,6 +1,6 @@
 (function () {
 "use strict";
-var VERSION = "2.19.3";
+var VERSION = "2.20.0";
 var SHORTCUT_PAGE = "https://routinehub.co/shortcut/26978/";
 var STORAGE_KEY = "even:v1";
 var MOOD_NAMES = ["","Rough","Low","Okay","Good","Great"];
@@ -177,6 +177,7 @@ function renderSync(){
  var paired=!!state.token&&!!state.syncOwnerEmail&&!!state.deviceId;
  var mismatch=!!authEmail&&!!state.syncOwnerEmail&&authEmail!==state.syncOwnerEmail;
  $("login-panel").hidden=!!authEmail;$("login-ready").hidden=!authEmail;
+ $("login-text").textContent=paired?"Sign in again to manage your devices. This iPhone keeps syncing.":"Sign in with your email. We’ll send you a one-time code.";
  $("auth-email").textContent=authEmail||"—";
  $("owner-mismatch").hidden=!mismatch;
  $("need-device").hidden=!authEmail||paired||mismatch;

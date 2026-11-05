@@ -23,7 +23,8 @@ function harness({verified=false,buildVersion="2.8.0",helperBuild="2.0.0",source
  const allowed=["owner-a@example.com","owner-b@example.com"];
  const rows={approved:new Map(),subs:new Map(),calendars:new Map(),users:new Map(),devices:new Map(),health:new Map(),events:new Map()};
  const release=JSON.stringify({version:"1.0.0",url:"https://www.icloud.com/shortcuts/82109f53491f4d95a0a8b8437c4090f2",publishedAt:"2026-11-01",notes:"First shared release",verified});
- const env={GITHUB_API_KEY:"server-only",APPROVED_SYNC_EMAILS:JSON.stringify(allowed),ASSETS:{async get(key){return {"config:shortcut:latest":release,"config:helper:latest":helperLink&&JSON.stringify(helperLink),"config:shortcut:source":sourceVersions&&JSON.stringify(sourceVersions)}[key]||null;}},DB:{
+ const allow={async limit(){return{success:true};}};
+ const env={PUBLIC_ORIGIN:"https://even.bishvili.workers.dev",INVITE_LIMIT:allow,DEVICE_LIMIT:allow,GITHUB_API_KEY:"server-only",APPROVED_SYNC_EMAILS:JSON.stringify(allowed),ASSETS:{async get(key){return {"config:shortcut:latest":release,"config:helper:latest":helperLink&&JSON.stringify(helperLink),"config:shortcut:source":sourceVersions&&JSON.stringify(sourceVersions)}[key]||null;}},DB:{
   prepare(sql){return{bind(...args){return {
    async first(){
     if(sql.startsWith("SELECT (SELECT name FROM even_names")){const email=args[0];return{chosen:rows.names?.get(email)||null,given:email==="owner-a@example.com"?"Ada Lovelace":null,signin:(rows.userFields?.get(email)||{}).name||null};}
@@ -301,7 +302,7 @@ test("smart messages match the time of day, and a sync notification opens the ap
  assert.equal((await call("/api/push/synced",{method:"POST",body:{items:"2"}})).status,401);
  assert.equal((await call("/api/push/synced",{method:"POST",body:{items:"2"},headers:A})).data.state,"sent");
  assert.equal(dispatches.length,1);
- assert.equal(JSON.parse(JSON.stringify(runtime.pushPayload("x","/?sync=1"))).includes("/?sync=1"),true);
+ assert.equal(JSON.parse(JSON.stringify(runtime.pushPayload(env,"x","/?sync=1"))).includes("/?sync=1"),true);
 });
 test("each night's bedtime is its earliest sleep, ignoring naps and bad values",()=>{
  const{runtime}=harness();
@@ -928,4 +929,26 @@ test("one session request carries the status, release, calendars and choices, an
  assert.equal(session.data.status.lastUpload,null);
  await call("/api/auth/revoke",{method:"POST",context:owner,body:{deviceId:device.data.deviceId}});
  assert.equal((await call("/api/session",{headers:A})).status,401);
+});
+
+test("over the limit, invitations and uploads are refused with a code, and every error has one",async()=>{
+ const{call,ctx,env}=harness(),owner=ctx("owner-a@example.com"),refuse={async limit(){return{success:false};}};
+ const origin={Origin:"https://even.bishvili.workers.dev"};
+ const device=await call("/api/auth/device",{method:"POST",context:owner,headers:origin,body:{label:"iPhone"}});
+ env.INVITE_LIMIT=refuse;env.DEVICE_LIMIT=refuse;
+ const invite=await call("/api/auth/testers",{method:"POST",context:owner,headers:origin,body:{email:"new@example.com"}});
+ assert.equal(invite.status,429);
+ assert.equal(invite.data.code,"rate_limited");
+ const upload=await call("/api/ingest",{method:"POST",headers:{Authorization:"Bearer "+device.data.token},body:{kind:"batch",health:[],events:[]}});
+ assert.equal(upload.status,429);
+ assert.equal(upload.data.code,"rate_limited");
+ assert.doesNotMatch(require("node:fs").readFileSync("worker/index.js","utf8"),/\berror\("[^"]*",\d+\)/);
+});
+test("the public address is configured once, and owner emails match in any case",async()=>{
+ assert.doesNotMatch(require("node:fs").readFileSync("worker/index.js","utf8"),/bishvili\.workers\.dev/);
+ assert.doesNotMatch(require("node:fs").readFileSync("invites.js","utf8"),/bishvili\.workers\.dev/);
+ assert.match(require("node:fs").readFileSync("wrangler.jsonc","utf8"),/"PUBLIC_ORIGIN": "https:\/\/even\.bishvili\.workers\.dev"/);
+ const{call,ctx,env}=harness();
+ env.APPROVED_SYNC_EMAILS=JSON.stringify(["Mixed.Case@Example.com"]);
+ assert.equal((await call("/api/auth/me",{context:ctx("mixed.case@example.com")})).status,200);
 });

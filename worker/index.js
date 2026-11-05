@@ -4,8 +4,9 @@
 // unauthenticated sync operations unless a valid, unrevoked device token is supplied.
 const ACCESS_AUD="b15746656eee885f25c4f4b0605491289c01776b8710cc8339fb507f4574f745";
 const ICLOUD_SHORTCUT=/^https:\/\/www\.icloud\.com\/shortcuts\/[a-f0-9]{32}$/i;
+async function overLimit(limiter,key){return !!limiter&&!(await limiter.limit({key})).success;}
 async function canRelease(env,email){return !!await env.DB.prepare("SELECT 1 AS allowed FROM even_release_emails WHERE email=?").bind(email).first();}
-function ownerEmails(env){try{return JSON.parse(env.APPROVED_SYNC_EMAILS||"[]");}catch(e){return [];}}
+function ownerEmails(env){try{return JSON.parse(env.APPROVED_SYNC_EMAILS||"[]").map(email=>String(email).trim().toLowerCase());}catch(e){return [];}}
 async function approved(env,email){
  if(ownerEmails(env).includes(email))return true;
  return !!await env.DB.prepare("SELECT 1 AS allowed FROM even_approved_emails WHERE email=?").bind(email).first();
@@ -22,7 +23,11 @@ function secureRandomHex(){return Array.from(crypto.getRandomValues(new Uint8Arr
 async function payload(request){
  const size=Number(request.headers.get("content-length")||"0");if(size>100000)throw Error("Request too large");
  const type=request.headers.get("content-type")||"";
- if(type.includes("multipart/form-data")){const form=await request.formData();return Object.fromEntries(Array.from(form.entries()).map(([key,value])=>[key,typeof value==="string"?value:""]));}
+ if(type.includes("multipart/form-data")){
+  // The header can understate the size, so measure what actually arrived.
+  const bytes=await request.arrayBuffer();if(bytes.byteLength>100000)throw Error("Request too large");
+  const form=await new Response(bytes,{headers:{"Content-Type":type}}).formData();return Object.fromEntries(Array.from(form.entries()).map(([key,value])=>[key,typeof value==="string"?value:""]));
+ }
  const text=await request.text();if(text.length>100000)throw Error("Request too large");
  if(type.includes("application/json"))return JSON.parse(text);
  if(type.includes("application/x-www-form-urlencoded"))return Object.fromEntries(new URLSearchParams(text));
@@ -230,7 +235,7 @@ function firstName(name){return String(name||"").trim().split(/\s+/)[0]||null;}
 function escapeHtml(text){return String(text).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
 async function sendInvite(env,to,from){
  if(!env.RESEND_API_KEY)return false;
- const url="https://even.bishvili.workers.dev/";
+ const url=env.PUBLIC_ORIGIN+"/";
  // The same steps, in the same words, as the setup card in the app.
  const steps=["Open the link in Safari on your iPhone. Tap Share (or ••• and then Share), then Add to Home Screen.","Open Even from your Home Screen and sign in with this email. We'll send you a one-time code.","Tap Get Even Sync, then Run Even Sync, to bring in your sleep, activity, calendar and alarms."];
  try{
@@ -295,6 +300,7 @@ async function authApi(request,env,ctx,path){
   let input;try{input=await payload(request);}catch(e){return error("Even couldn't read that request.",400,"invalid_body");}
   const tester=String(input?.email||"").trim().toLowerCase();
   if(tester.length>254||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(tester))return error("Enter a valid email address.",400,"invalid_email");
+  if((path==="/api/auth/testers"||path==="/api/auth/testers/invite")&&await overLimit(env.INVITE_LIMIT,email))return error("That's a lot of invitations at once. Try again in a minute.",429,"rate_limited");
   if(path==="/api/auth/testers"){
    await env.DB.prepare("INSERT OR IGNORE INTO even_approved_emails(email,added_by,created_at) VALUES(?,?,?)").bind(tester,email,new Date().toISOString()).run();
    return reply({ok:true,emailed:await sendInvite(env,tester,email)});
@@ -420,8 +426,8 @@ async function encryptPush(text,p256dh,auth){
  const cipher=new Uint8Array(await crypto.subtle.encrypt({name:"AES-GCM",iv:nonce},aes,concat(encoder.encode(text),new Uint8Array([2]))));
  return concat(salt,new Uint8Array([0,0,16,0,sender.length]),sender,cipher);
 }
-function pushPayload(body,path,extra={}){
- return JSON.stringify({web_push:8030,mutable:true,...extra,notification:{title:"Even",body,navigate:"https://even.bishvili.workers.dev"+path}});
+function pushPayload(env,body,path,extra={}){
+ return JSON.stringify({web_push:8030,mutable:true,...extra,notification:{title:"Even",body,navigate:env.PUBLIC_ORIGIN+path}});
 }
 // A first name goes only on the messages that start or close the day, or come at a hard moment.
 function reminderMessage(minutes,atBedtime,atHardTime,name){
@@ -432,15 +438,15 @@ function reminderMessage(minutes,atBedtime,atHardTime,name){
  if(minutes<1020)return "Afternoon check-in. How is your energy?";
  return "How did today go?";
 }
-async function sendPush(key,sub,now,payload){
+async function sendPush(env,key,sub,now,payload){
  const encoder=new TextEncoder(),text=value=>base64url(encoder.encode(JSON.stringify(value)));
- const unsigned=text({typ:"JWT",alg:"ES256"})+"."+text({aud:new URL(sub.endpoint).origin,exp:Math.floor(now.getTime()/1000)+43200,sub:"https://even.bishvili.workers.dev"});
+ const unsigned=text({typ:"JWT",alg:"ES256"})+"."+text({aud:new URL(sub.endpoint).origin,exp:Math.floor(now.getTime()/1000)+43200,sub:env.PUBLIC_ORIGIN});
  const signingKey=await crypto.subtle.importKey("jwk",{kty:"EC",crv:"P-256",d:key.d,x:key.x,y:key.y},{name:"ECDSA",namedCurve:"P-256"},false,["sign"]);
  const signature=new Uint8Array(await crypto.subtle.sign({name:"ECDSA",hash:"SHA-256"},signingKey,encoder.encode(unsigned)));
  return fetch(sub.endpoint,{method:"POST",body:await encryptPush(payload,sub.p256dh,sub.auth),headers:{"Authorization":`vapid t=${unsigned}.${base64url(signature)}, k=${pushPublicKey(key)}`,"Content-Encoding":"aes128gcm","Content-Type":"application/octet-stream","TTL":"3600","Urgency":"high"}});
 }
 async function deliverPush(env,key,sub,now,payload){
- const sent=await sendPush(key,sub,now,payload);const endpoint=sub.endpoint;
+ const sent=await sendPush(env,key,sub,now,payload);const endpoint=sub.endpoint;
  if(sent.status===404||sent.status===410)await env.DB.prepare("DELETE FROM even_push_subscriptions WHERE endpoint=?").bind(endpoint).run();
  else await env.DB.prepare("UPDATE even_push_subscriptions SET last_push_status=? WHERE endpoint=?").bind(sent.status,endpoint).run();
  return sent;
@@ -457,7 +463,7 @@ async function sendAnticipation(env,key,sub,now){
  const due=JSON.parse(sub.stress_times||"[]").filter(at=>{const t=Date.parse(at);return t<=now.getTime()&&now.getTime()-t<DUE_WINDOW_MS&&t>last;}).sort();
  if(!due.length)return false;
  const at=due[due.length-1];
- const sent=await deliverPush(env,key,sub,now,pushPayload(firstName(sub.person)?firstName(sub.person)+", a harder stretch may be coming. Take a minute?":"A harder stretch may be coming. Take a minute?","/?do=reset",{stressAt:at}));
+ const sent=await deliverPush(env,key,sub,now,pushPayload(env,firstName(sub.person)?firstName(sub.person)+", a harder stretch may be coming. Take a minute?":"A harder stretch may be coming. Take a minute?","/?do=reset",{stressAt:at}));
  if(sent.ok)await env.DB.prepare("UPDATE even_push_subscriptions SET last_stress_at=? WHERE endpoint=?").bind(at,sub.endpoint).run();
  return sent.ok;
 }
@@ -467,7 +473,7 @@ async function sendSyncReminder(env,key,sub,now,local){
  if(now.getTime()-Date.parse(sub.last_used_at)<SYNC_STALE_MS)return;
  const [hour,minute]=sub.sync_at.split(":").map(Number),at=hour*60+minute;
  if(local.minutes<at||local.minutes-at>=60)return;
- const sent=await deliverPush(env,key,sub,now,pushPayload("Time to sync. Tap to run Even Sync.","/?do=sync"));
+ const sent=await deliverPush(env,key,sub,now,pushPayload(env,"Time to sync. Tap to run Even Sync.","/?do=sync"));
  if(sent.ok)await env.DB.prepare("UPDATE even_push_subscriptions SET last_sync_prompt_day=? WHERE endpoint=?").bind(local.day,sub.endpoint).run();
 }
 async function sendReminders(env,now=new Date()){
@@ -505,7 +511,7 @@ async function sendScheduled(env,key,sub,now){
  const quiet=sub.mode==="smart"&&sub.last_check_in_at&&now.getTime()-new Date(sub.last_check_in_at).getTime()<SMART_QUIET_MS;
  const minutes=localTime(sub.time_zone,new Date(due.at)).minutes,custom=sub.mode!=="smart";
  const body=custom?"How are you feeling?":reminderMessage(minutes,due.kind==="bedtime",due.kind==="hard",firstName(sub.person));
- const sent=quiet?{ok:true}:await deliverPush(env,key,sub,now,pushPayload(body,"/#checkin",{brief:due.kind==="brief"}));
+ const sent=quiet?{ok:true}:await deliverPush(env,key,sub,now,pushPayload(env,body,"/#checkin",{brief:due.kind==="brief"}));
  if(sent.ok)await env.DB.prepare("UPDATE even_push_subscriptions SET last_schedule_at=? WHERE endpoint=?").bind(new Date(due.at).toISOString(),sub.endpoint).run();
  return sent.ok&&!quiet;
 }
@@ -518,7 +524,7 @@ async function sendCheckIn(env,key,sub,now,local){
  const quiet=sub.mode==="smart"&&sub.last_check_in_at&&now.getTime()-new Date(sub.last_check_in_at).getTime()<SMART_QUIET_MS;
  const isTarget=time=>{if(!time)return false;const[hour,minute]=time.split(":").map(Number);return hour*60+minute===target;};
  const smart=sub.mode==="smart",body=smart?reminderMessage(target,isTarget(sub.bedtime_at),isTarget(sub.hard_at),firstName(sub.person)):"How are you feeling?";
- const sent=quiet?{ok:true}:await deliverPush(env,key,sub,now,pushPayload(body,"/#checkin",{brief:smart&&isTarget(sub.brief_at)}));
+ const sent=quiet?{ok:true}:await deliverPush(env,key,sub,now,pushPayload(env,body,"/#checkin",{brief:smart&&isTarget(sub.brief_at)}));
  if(sent.ok)await env.DB.prepare("UPDATE even_push_subscriptions SET last_sent_day=?,last_sent_target=? WHERE endpoint=?").bind(local.day,target,sub.endpoint).run();
  return sent.ok&&!quiet;
 }
@@ -575,6 +581,7 @@ async function syncApi(request,env,path){
  const dev=await validDevice(request,env);
  if(!dev)return error("This iPhone isn't connected. Open Even, go to Data, and tap Run Even Sync.",401,"device_required");
  const owner=dev.owner;
+ if(request.method==="POST"&&(path==="/api/ingest"||path.startsWith("/api/push/"))&&await overLimit(env.DEVICE_LIMIT,dev.id))return error("Too many requests. Try again in a minute.",429,"rate_limited");
  if(path==="/api/shortcut/release-state"&&request.method==="GET"){
   if(!await canRelease(env,owner))return error("This account can't publish releases",403,"not_release_account");
   const latest=await latestBuildVersion("Even-Sync");
@@ -629,7 +636,7 @@ async function syncApi(request,env,path){
   const items=Number(input?.items),key=pushKey(env);
   const sub=key&&await env.DB.prepare("SELECT endpoint,p256dh,auth FROM even_push_subscriptions WHERE device_id=? AND owner_email=? AND p256dh IS NOT NULL").bind(dev.id,owner).first();
   if(!sub||!Number.isInteger(items)||items<0)return reply({ok:true,state:"none"});
-  const sent=await deliverPush(env,key,sub,new Date(),pushPayload("Sync finished. Tap to open Even.","/?sync=1"));
+  const sent=await deliverPush(env,key,sub,new Date(),pushPayload(env,"Sync finished. Tap to open Even.","/?sync=1"));
   return reply({ok:true,state:sent.ok?"sent":"none"});
  }
  if(path==="/api/push/check-in"&&request.method==="POST"){
@@ -830,7 +837,7 @@ async function syncApi(request,env,path){
  return error("Not found",404,"not_found");
 }
 async function api(request,env,ctx,path){
- if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:"Even",version:"2.19.3",sync:"email-access"});
+ if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:"Even",version:"2.20.0",sync:"email-access"});
  if(path.startsWith("/api/auth/"))return authApi(request,env,ctx,path);
  return syncApi(request,env,path);
 }
