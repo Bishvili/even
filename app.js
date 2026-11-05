@@ -1,6 +1,6 @@
 (function () {
 "use strict";
-var VERSION = "2.23.1";
+var VERSION = "2.24.0";
 var STORAGE_KEY = "even:v1";
 var MOOD_NAMES = ["","Rough","Low","Okay","Good","Great"];
 var MOOD_EMOJI = ["","😣","😕","😐","🙂","😄"];
@@ -175,9 +175,9 @@ function renderSync(){
  var helper=$("setup-helper");helper.hidden=!authHelper;if(authHelper)helper.href=authHelper;else helper.removeAttribute("href");
  var paired=!!state.token&&!!state.syncOwnerEmail&&!!state.deviceId;
  var mismatch=!!authEmail&&!!state.syncOwnerEmail&&authEmail!==state.syncOwnerEmail;
- $("sign-out").hidden=!ownSignIn||!authEmail;
+ $("sign-out").hidden=!authEmail;
  $("login-panel").hidden=!!authEmail;$("login-ready").hidden=!authEmail;
- $("login-text").textContent=paired?"Sign in again to manage your devices. This iPhone keeps syncing.":"Sign in with your email. We’ll send you a one-time code.";
+ $("login-text").textContent=paired?"Sign in again to manage your devices. This iPhone keeps syncing.":"Sign in with your email or Google.";
  $("auth-email").textContent=authEmail||"—";
  $("owner-mismatch").hidden=!mismatch;
  $("need-device").hidden=!authEmail||paired||mismatch;
@@ -623,17 +623,8 @@ function clearDemo(){
  state.demo={moods:[],health:[],events:[]};
  persist();render();toast("Demo month removed.");
 }
-// Even's own sign-in, turned on for this browser while it replaces the older sign-in.
-var ownSignIn=false;
-try{
- if(new URLSearchParams(location.search).get("signin")==="own")localStorage.setItem("even:own-signin","1");
- ownSignIn=localStorage.getItem("even:own-signin")==="1";
-}catch(e){}
-function accountPath(route){return (ownSignIn?"/api/user/":"/api/auth/")+route;}
-function signIn(view){
- if(ownSignIn){globalThis.EvenSignin.open();return;}
- window.location.assign("/api/auth/start"+(view==="checkin"?"?to=checkin":""));
-}
+function accountPath(route){return "/api/user/"+route;}
+function signIn(){globalThis.EvenSignin.open();}
 function syncErrorLabel(code){
  var reasons={
   invalid_body:"Even couldn’t read the last upload.",
@@ -897,7 +888,7 @@ function init(){
  b=ev.target.closest("[data-delete-event]");if(b)askConfirm("Delete this event from this device?","Delete").then(function(yes){if(!yes)return;state.events=state.events.filter(function(x){return x.id!==b.dataset.deleteEvent;});persist();render();});});
  document.querySelectorAll("[data-days]").forEach(function(b){b.addEventListener("click",function(){insightDays=Number(b.dataset.days);document.querySelectorAll("[data-days]").forEach(function(x){x.classList.toggle("selected",x===b);});renderInsights();});});
  document.querySelectorAll("[data-scope]").forEach(function(b){b.addEventListener("click",function(){insightScope=b.dataset.scope;renderInsights();});});
- $("login-button").addEventListener("click",function(){signIn("data");});
+ $("login-button").addEventListener("click",function(){signIn();});
  $("issue-device").addEventListener("click",issueDevice);
  $("refresh-devices").addEventListener("click",refreshAuth);
  $("install-shortcut").addEventListener("click",function(e){if(!this.href){e.preventDefault();toast($("shortcut-install-help").textContent);}});

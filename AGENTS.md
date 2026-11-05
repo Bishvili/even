@@ -23,7 +23,7 @@ The repository owner grants these, using the new developer's own accounts:
 
 1. **GitHub:** add them as a collaborator on `Bishvili/even` with write access.
 2. **Cloudflare:** invite them to the Bishvili account with access to Workers, KV, and D1. Pushes deploy through Workers Builds, so this is not needed just to deploy.
-3. **App sign-in:** add testers in Even → **Settings** → **Developer tools**, which stores them in the `even_approved_emails` D1 table. Accounts in `even_release_emails` can do this. Access verifies who someone is and allows any email, and the Worker decides who is approved using that table and the `APPROVED_SYNC_EMAILS` secret. Invitations are sent through Resend from `bishvili.org` with the `RESEND_API_KEY` Worker secret.
+3. **App sign-in:** add testers in Even → **Settings** → **Developer tools**, which stores them in the `even_approved_emails` D1 table. Accounts in `even_release_emails` can do this. Even's own sign-in (`worker/signin.mjs`, using Better Auth) sends email codes or uses Google, and only emails in that table or the `APPROVED_SYNC_EMAILS` secret can get in. Invitations and codes are sent through Resend from `bishvili.org` with the `RESEND_API_KEY` Worker secret. Better Auth also needs `BETTER_AUTH_SECRET`, `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`, all stored as secrets, because a deploy removes plain text variables that aren't in `wrangler.jsonc`.
 4. **Releases:** add their email to the `even_release_emails` D1 table. Set `display_name` to welcome them on first sign-in with a guide to improving the site.
 
 ### Developer steps
@@ -197,7 +197,7 @@ Current UI is plain JavaScript and CSS. Do not rewrite it merely to adopt a fram
 
 ## Privacy and security invariants
 
-1. Authenticate via Cloudflare Access's validated runtime identity for browser account operations. Never trust a user-supplied email, arbitrary request header, or device ID as proof of identity.
+1. Authenticate browser account operations with a session from Even's sign-in, checked on the server against the approved list on every request. Store codes only as hashes and don't keep Google's tokens. Never trust a user-supplied email, arbitrary request header, or device ID as proof of identity.
 2. Restrict issuance and revocation of device credentials to the verified owner. Use cryptographically random device tokens, store only hashes server-side, support revocation, and do not log or embed tokens.
 3. Every read, write, export, and delete of cloud data must be scoped to the derived account owner on the server. Test cross-user isolation and revocation.
 4. Keep the email allowlist in Cloudflare secrets or private D1 tables and all credentials in Cloudflare secrets, never checked into the public repository or served in production assets.
@@ -223,10 +223,10 @@ What Even holds and where it goes. Write every privacy statement from this table
 | What Even Sync sends, and whether check-ins sync | The app | Yes | Yes | Followed by Even Sync and the Worker |
 | Alarms: time, repeat days, on/off, name | Even Sync, from Clock | Yes | Yes, plus each synced day's first morning alarm | Brief, wind-down, next steps and the early-alarm pattern |
 | Notification settings and answers | The app | Yes, including each message's text | Dated times for the next 7 days and their kinds, time zone, weekends, sync reminder time, times of expected harder moments, latest check-in time, push subscription and delivery status | Sending notifications |
-| Account and devices | Sign-in and Even Sync | Account email, first name, device ID and credential | Email; the name from sign-in, if any, shown to developer accounts; each device's label, dates (devices unused for 90 days disconnect), last error, Shortcut version and how many records its last upload held; only a hash of each credential | Sync status and access |
+| Account and devices | Sign-in and Even Sync | Account email, first name, device ID and credential | Email; the name from sign-in, if any, shown to developer accounts; each device's label, dates (devices unused for 90 days disconnect), last error, Shortcut version and how many records its last upload held; only a hash of each credential; sign-in sessions with the browser's description, and whether the account uses Google | Sync status and access |
 | Testers and release accounts | Developer tools and the owner | No | Email, who added them, display name, any name a person or developer set and who set it (erasing synced data removes it) | Who can sign in and publish. The first name also goes in some notifications, the Today brief, the hard-days note and invitations. |
 
-Backups are unencrypted JSON files that people save themselves. Outside services: Cloudflare hosts the app and sends sign-in codes, Apple's push service carries encrypted notifications, Resend sends invitation emails, and releases send the public Shortcut link to GitHub.
+Backups are unencrypted JSON files that people save themselves. Outside services: Cloudflare hosts the app, Apple's push service carries encrypted notifications, Resend sends invitation emails and sign-in codes, Google signs in people who choose it, and releases send the public Shortcut link to GitHub.
 
 ## Schema evolution and cleanup
 

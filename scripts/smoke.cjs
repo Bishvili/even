@@ -48,6 +48,10 @@ async function run(type,base){
  await page.click("#erase-local");
  if(!await page.evaluate(()=>document.getElementById("confirm-sheet").open))problems.push("The confirmation sheet didn't open.");
  await page.click("#confirm-sheet button[value='no']");
+ await tab("data");
+ await page.click("#login-button");
+ if(!await page.evaluate(()=>document.getElementById("signin-sheet").open))problems.push("The sign-in sheet didn't open.");
+ await page.click("#signin-cancel");
  for(const old of ["sync","sources"]){
   await page.evaluate(name=>EvenApp.navigate(name),old);
   if(!await page.evaluate(()=>document.getElementById("view-data").classList.contains("active")))problems.push("#"+old+" doesn't land on Data.");

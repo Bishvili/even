@@ -25,12 +25,12 @@ These are exploratory **associations, not causal effects**. Overlapping events m
 
 ## Passwordless login and owner-scoped sync (v1.3.0)
 
-Cloudflare Zero Trust Access protects **even.bishvili.workers.dev/api/auth/** (including child paths), using Email One-time PIN login. An exact-address Cloudflare Access policy controls eligibility. In the Worker, identities are accepted only from validated Access runtime context and the matching Access audience, then checked against a server-side **APPROVED_SYNC_EMAILS** secret (JSON array). Do not commit this allowlist to the public GitHub repository.
+Even has its own sign-in, using Better Auth: an emailed one-time code, or Google. Only approved emails can get in, checked on every request. Codes are stored only as hashes, and Google's tokens aren't kept.
 
 The PWA itself remains public and keeps anonymous/offline mood tracking. To sync, an approved email signs in, and the iPhone connects automatically with a revocable device key. This issues a random 256-bit bearer token, stored only as its SHA-256 hash in D1, associated with the verified email, and returned once to the device. Running Even Sync from the app passes it to the Shortcut, and the user can revoke it in the Data tab.
 
 - Health and calendar data is owned by an email identity. Read/write/erase endpoints derive the owner from the authenticated device token, never from request body fields.
-- Device management requires an Access-authenticated session. Revocation is restricted to the authenticated owner.
+- Device management requires a signed-in session. Revocation is restricted to the authenticated owner.
 - The shared pairing route and unscoped tables have been removed after confirming the legacy tables were empty. Cloud endpoints now require an authenticated, unrevoked, owner-specific device token.
 - Existing local mood entries are not uploaded. The PWA requires explicit consent before assigning existing local records to a verified account, and rejects a different account using the same local profile.
 - Even is not a clinical records system. HTTPS is used, but D1 records and downloaded JSON backups are not end-to-end encrypted. Device bearer tokens are sensitive.
@@ -47,7 +47,6 @@ The file `even-device-key.txt` in a `Even` folder in On My iPhone holds the priv
 
 ## Deployment configuration
 
-- Access application name: Even – Authorized Sync, with email One-time PIN provider and exact-address Allow policy.
 - Cloudflare Worker secret APPROVED_SYNC_EMAILS: JSON array of the two allowed email addresses; manage in Cloudflare, not in GitHub.
 - Worker bindings: ASSETS (Workers KV), DB (D1).
 - Database migration: db/schema.sql.
