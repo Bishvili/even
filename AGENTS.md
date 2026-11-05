@@ -73,9 +73,9 @@ Only an iPhone proves iOS behavior, and each round trip costs the owner time. Be
 - A notification can open the app, but only a tap inside the app is sure to launch a Shortcut. Anything opened from a notification needs a visible button as a fallback.
 - `201` means Apple accepted a push, not that it appeared. Check `last_push_status` and `last_sent_day`, then the phone's Focus and notification settings.
 - Send encrypted payloads with a declarative notification. iOS removes subscriptions after repeated pushes that show nothing, so every push must show one.
-- A notification arrives up to one cron interval after its planned time, which is 15 minutes in `wrangler.jsonc` today. Plan around the interval, and never describe timing more precisely than it is delivered.
+- A notification arrives up to one cron interval after its planned time, which is 5 minutes in `wrangler.jsonc` today. Plan around the interval, and never describe timing more precisely than it is delivered.
 - The scheduled job must handle each subscription on its own, so one failure can't stop the rest, and a run sends each person at most one notification (#21).
-- The account repeats the stored plan every day until the app is next opened. A time meant for one day only, such as a wind-down for tomorrow's alarm or a nudge before an event, repeats too until #25 sends dated schedules.
+- The app sends a dated plan for the next 7 days when it opens, after a sync and after a check-in (`weekSchedule` in `coach.js`). If it stays closed, the last week repeats, and nudges before events stop. A day can run past midnight, up to 20 hours. The Worker still reads `times` for subscriptions with no saved schedule; remove that path and the column once every subscription has one.
 
 **Shortcuts**
 - Find Health Samples ends the run when a type has no samples, and Shortcuts can't catch errors. Check `recentTypes` first and never query a type it doesn't list.
@@ -219,7 +219,7 @@ What Even holds and where it goes. Write every privacy statement from this table
 | Calendar names and on/off state | Even Sync and the app | No | Yes | Calendar settings |
 | What Even Sync sends, and whether check-ins sync | The app | Yes | Yes | Followed by Even Sync and the Worker |
 | Alarms: time, repeat days, on/off, name | Even Sync, from Clock | Yes | Yes, plus each synced day's first morning alarm | Brief, wind-down, next steps and the early-alarm pattern |
-| Notification settings and answers | The app | Yes, including each message's text | Times and their kinds, time zone, weekends, sync reminder time, times of expected harder moments, latest check-in time, push subscription and delivery status | Sending notifications |
+| Notification settings and answers | The app | Yes, including each message's text | Dated times for the next 7 days and their kinds, time zone, weekends, sync reminder time, times of expected harder moments, latest check-in time, push subscription and delivery status | Sending notifications |
 | Account and devices | Sign-in and Even Sync | Account email, first name, device ID and credential | Email; the name from sign-in, if any, shown to developer accounts; each device's label, dates (devices unused for 90 days disconnect), last error and Shortcut version; only a hash of each credential | Sync status and access |
 | Testers and release accounts | Developer tools and the owner | No | Email, who added them, display name, any name a person or developer set and who set it (erasing synced data removes it) | Who can sign in and publish. The first name also goes in some notifications, the Today brief, the hard-days note and invitations. |
 

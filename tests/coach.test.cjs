@@ -159,7 +159,7 @@ test("a harder moment is anticipated only with evidence, and capped each day",()
  const soon=[{start:hours(now,0,17).toISOString(),end:hours(now,0,18).toISOString(),category:"Work"}];
  const eventNudge=anticipate(stressed.concat(calm),events.concat(soon),[],now,prefs)[0];
  assert.equal(new Date(eventNudge.at).getHours(),16);
- assert.equal(new Date(eventNudge.at).getMinutes(),45);
+ assert.equal(new Date(eventNudge.at).getMinutes(),40);
  assert.match(eventNudge.why,/points higher/);
  assert.ok(Object.values(found.reduce((c,i)=>{const k=i.at.slice(0,10);c[k]=(c[k]||0)+1;return c;},{})).every(n=>n<=2));
 });
@@ -223,4 +223,45 @@ test("hard days are counted in calendar days",()=>{
  const noon=new Date("2026-11-09T12:00:00"),day=n=>{const d=new Date(noon);d.setDate(d.getDate()-n);return d.toISOString();};
  assert.equal(hardStretch([0,1,3].map(n=>({ts:day(n),stress:4})),noon),true);
  assert.equal(hardStretch([0,1,4].map(n=>({ts:day(n),stress:4})),noon),false);
+});
+
+const {weekSchedule,validDay}=globalThis.EvenCoach;
+test("a day can run past midnight, up to 20 hours",()=>{
+ assert.equal(validDay("09:00","00:30"),true);
+ assert.equal(validDay("22:00","06:00"),true);
+ assert.equal(validDay("09:00","08:00"),false);
+ const plan=smartPlan([],[],"09:00","00:30",3,new Date("2026-11-09T12:00:00"),{windDown:true});
+ assert.equal(plan.bedtimeAt,"00:10");
+ assert.equal(plan.times[plan.times.length-1],"00:10");
+ assert.deepEqual(repeatTimes("22:00","01:00",1),["22:00","23:00","00:00","01:00"]);
+});
+test("the week's plan keeps a wind-down on the nights before its alarm",()=>{
+ const monday=new Date("2026-11-09T08:00:00");
+ const alarms=[{timeMin:360,days:[2],enabled:true,label:"Gym"}];
+ const prefs={mode:"smart",from:"07:00",to:"23:30",count:2,windDown:true,brief:false,hardest:"varies",alarms};
+ const items=weekSchedule([],[],prefs,monday),beds=items.filter(i=>i.kind==="bedtime").map(i=>new Date(i.at));
+ const clock=d=>d.getHours()*60+d.getMinutes();
+ const mondayNight=beds.find(d=>d.getDay()===1),wednesdayNight=beds.find(d=>d.getDay()===3);
+ assert.equal(clock(mondayNight),21*60+40);
+ assert.equal(clock(wednesdayNight),23*60+10);
+ assert.ok(items.every(i=>new Date(i.at)>monday));
+ assert.equal(new Set(items.map(i=>new Date(i.at).getDate())).size,7);
+});
+test("the week's plan skips weekends when asked, and places a time after midnight on the next date",()=>{
+ const monday=new Date("2026-11-09T08:00:00");
+ const off=weekSchedule([],[],{mode:"times",customTimes:["09:00"],weekends:false,from:"09:00",to:"21:00"},monday);
+ assert.ok(off.every(i=>![0,6].includes(new Date(i.at).getDay())));
+ const late=weekSchedule([],[],{mode:"smart",from:"09:00",to:"00:30",count:1,windDown:true},monday);
+ const first=new Date(late[0].at);
+ assert.equal(first.getDate(),10);
+ assert.equal(first.getHours(),0);
+ assert.equal(late[0].kind,"bedtime");
+});
+test("a nudge before an event is planned 20 minutes ahead",()=>{
+ const now=new Date("2026-11-09T08:00:00");
+ const events=[1,2,3].map(n=>({start:hours(now,-n*7-2,11).toISOString(),end:hours(now,-n*7-2,12).toISOString(),category:"Work"}));
+ const moods=events.map(e=>({ts:e.start,stress:5})).concat([1,2,3].map(n=>({ts:hours(now,-n*7-3,20).toISOString(),stress:1})));
+ const soon=[{start:hours(now,0,17).toISOString(),end:hours(now,0,18).toISOString(),category:"Work"}];
+ const nudge=new Date(anticipate(moods,events.concat(soon),[],now,{from:"07:00",to:"22:00",weekends:true})[0].at);
+ assert.equal(nudge.getHours(),16);assert.equal(nudge.getMinutes(),40);
 });

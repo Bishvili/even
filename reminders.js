@@ -79,9 +79,9 @@
  }
  function isWeekend(){var day=new Date().getDay();return day===0||day===6;}
  function renderPlan(){
-  var box=$("reminder-plan"),notes=[],valid=settings.mode==="times"||settings.to>settings.from;
+  var box=$("reminder-plan"),notes=[],valid=settings.mode==="times"||globalThis.EvenCoach.validDay(settings.from,settings.to);
   box.textContent="";
-  if(valid)renderSlots(box,currentSlots());else notes.push("Choose an end time after the start time.");
+  if(valid)renderSlots(box,currentSlots());else notes.push("Keep your day to 20 hours or less.");
   if(valid&&settings.mode==="smart"){var left=leftOutNote(smartPlan());if(left)notes.push(left);notes.push("A check-in is skipped if you’ve checked in during the last 90 minutes.");}
   if(!settings.weekends&&isWeekend())notes.unshift("Nothing today, because weekends are off.");
   $("reminder-plan-note").textContent=notes.join(" ");
@@ -124,7 +124,7 @@
  function scheduleChanged(){
   saveSettings();renderPlan();
   if(!settings.on)return;
-  if(settings.mode!=="times"&&settings.to<=settings.from){toast("Choose an end time after the start time.");return;}
+  if(settings.mode!=="times"&&!globalThis.EvenCoach.validDay(settings.from,settings.to)){toast("Keep your day to 20 hours or less.");return;}
   updateReminder(true);
  }
  function openIntake(skipLabel,onSkip){
@@ -158,7 +158,7 @@
   var registration=await navigator.serviceWorker.ready;
   var subscription=await registration.pushManager.getSubscription()||await registration.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:keyBytes(key)});
   var stressItems=anticipated(settings);saveAnticipated(stressItems);
-  var saved=await fetch("/api/push/subscribe",{method:"POST",headers:deviceHeaders(),cache:"no-store",body:JSON.stringify({endpoint:subscription.endpoint,keys:subscription.toJSON().keys,mode:settings.mode==="smart"?"smart":"custom",times:schedule(),...fixedTimes(),weekends:settings.weekends,syncAt:settings.syncReminder?syncTime(settings):null,stressTimes:stressItems.map(function(item){return item.at;}),timeZone:Intl.DateTimeFormat().resolvedOptions().timeZone})});
+  var saved=await fetch("/api/push/subscribe",{method:"POST",headers:deviceHeaders(),cache:"no-store",body:JSON.stringify({endpoint:subscription.endpoint,keys:subscription.toJSON().keys,mode:settings.mode==="smart"?"smart":"custom",times:schedule(),...fixedTimes(),schedule:globalThis.EvenCoach.weekSchedule(app.personalMoods(),app.personalHealth(),Object.assign({alarms:app.alarms(),customTimes:schedule()},settings),new Date()),weekends:settings.weekends,syncAt:settings.syncReminder?syncTime(settings):null,stressTimes:stressItems.map(function(item){return item.at;}),timeZone:Intl.DateTimeFormat().resolvedOptions().timeZone})});
   if(!saved.ok)throw Error("Couldn’t save your notifications.");
  }
  async function unsubscribe(){

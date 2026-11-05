@@ -63,6 +63,8 @@ CREATE TABLE IF NOT EXISTS even_push_subscriptions (
   last_sync_prompt_day TEXT,
   stress_times TEXT,
   last_stress_at TEXT,
+  schedule TEXT,
+  last_schedule_at TEXT,
   times TEXT,
   last_sent_target INTEGER,
   last_check_in_at TEXT,

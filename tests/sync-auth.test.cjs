@@ -10,7 +10,7 @@ const {TextEncoder}=require("node:util");
 
 function harness({verified=false,buildVersion="2.8.0",helperBuild="2.0.0",sourceVersions=null,helperLink=null}={}){
  const source=fs.readFileSync(path.join(__dirname,"..","worker","index.js"),"utf8");
- const loaded=source.replace("export default {","globalThis.sendReminders = sendReminders;globalThis.readBedtimes = readBedtimes;globalThis.readSleep = readSleep;globalThis.reminderMessage = reminderMessage;globalThis.readAlarms = readAlarms;globalThis.firstAlarm = firstAlarm;globalThis.pushPayload = pushPayload;globalThis.__worker = {");
+ const loaded=source.replace("export default {","globalThis.sendReminders = sendReminders;globalThis.readBedtimes = readBedtimes;globalThis.readSleep = readSleep;globalThis.reminderMessage = reminderMessage;globalThis.dueScheduled = dueScheduled;globalThis.readAlarms = readAlarms;globalThis.firstAlarm = firstAlarm;globalThis.pushPayload = pushPayload;globalThis.__worker = {");
  assert.notEqual(source,loaded,"Worker ESM export not found");
  const dispatches=[];
  const runtime={crypto:webcrypto,TextEncoder,Response,URL,atob,btoa,Intl,Uint8Array,console,async fetch(url,init){
@@ -83,11 +83,12 @@ function harness({verified=false,buildVersion="2.8.0",helperBuild="2.0.0",source
     }
     if(sql.startsWith("UPDATE even_devices SET label")){let changes=0;for(const d of rows.devices.values())if(d.device_id===args[1]&&d.owner_email===args[2]&&!d.revoked_at){d.label=args[0];changes++;}return{meta:{changes}};}
     if(sql.startsWith("INSERT INTO even_health_metrics")){rows.health.set(args[0]+"|"+args[1]+"|"+args[2],{owner:args[0],day:args[1],metric:args[2],value:args[3]});return{meta:{changes:1}};}
-    if(sql.startsWith("INSERT INTO even_push_subscriptions")){rows.subs.set(args[0],{endpoint:args[0],owner:args[1],device_id:args[2],mode:args[3],times:args[4],time_zone:args[5],p256dh:args[7],auth:args[8],bedtime_at:args[9],brief_at:args[10],hard_at:args[11],weekends:args[12],sync_at:args[13],stress_times:args[14],last_sent_day:null,last_sent_target:null,last_check_in_at:null});return{meta:{changes:1}};}
+    if(sql.startsWith("INSERT INTO even_push_subscriptions")){rows.subs.set(args[0],{endpoint:args[0],owner:args[1],device_id:args[2],mode:args[3],times:args[4],time_zone:args[5],p256dh:args[7],auth:args[8],bedtime_at:args[9],brief_at:args[10],hard_at:args[11],weekends:args[12],sync_at:args[13],stress_times:args[14],schedule:args[15],last_sent_day:null,last_sent_target:null,last_check_in_at:null});return{meta:{changes:1}};}
     if(sql.startsWith("INSERT OR IGNORE INTO even_approved_emails")){rows.approved.set(args[0],args[1]);return{meta:{changes:1}};}
     if(sql.startsWith("DELETE FROM even_approved_emails")){rows.approved.delete(args[0]);return{meta:{changes:1}};}
     if(sql.includes("SET last_check_in_at")){for(const x of rows.subs.values())if(x.owner===args[1])x.last_check_in_at=args[0];return{meta:{changes:1}};}
     if(sql.includes("SET last_push_status"))return{meta:{changes:1}};
+    if(sql.includes("SET last_schedule_at")){rows.subs.get(args[1]).last_schedule_at=args[0];return{meta:{changes:1}};}
     if(sql.includes("SET last_stress_at")){rows.subs.get(args[1]).last_stress_at=args[0];return{meta:{changes:1}};}
     if(sql.includes("SET last_sync_prompt_day")){rows.subs.get(args[1]).last_sync_prompt_day=args[0];return{meta:{changes:1}};}
     if(sql.startsWith("UPDATE even_push_subscriptions")){const s=rows.subs.get(args[2]);s.last_sent_day=args[0];s.last_sent_target=args[1];return{meta:{changes:1}};}
@@ -888,4 +889,21 @@ test("one calendar's saved events can be removed, for that owner and calendar on
  const left=[...rows.events.values()];
  assert.equal(left.filter(e=>e.owner==="owner-a@example.com").length,1);
  assert.equal(left.filter(e=>e.owner==="owner-b@example.com").length,2);
+});
+
+test("a dated plan sends each time once, keeps its kind, and repeats weekly once it runs out",async()=>{
+ const{call,ctx,env,rows,runtime,dispatches,keys}=await pushHarness();
+ const d=await call("/api/auth/device",{method:"POST",body:{label:"A"},context:ctx("owner-a@example.com")});
+ const endpoint="https://web.push.apple.com/dated",headers={Authorization:"Bearer "+d.data.token};
+ const schedule=[{at:"2026-11-09T09:47:00Z",kind:"custom"},{at:"2026-11-09T22:10:00Z",kind:"bedtime"},{at:"nonsense",kind:"custom"},{at:"2026-11-09T23:00:00Z",kind:"banana"}];
+ await call("/api/push/subscribe",{method:"POST",headers,body:{endpoint,keys,mode:"smart",times:["09:00"],schedule,timeZone:"UTC"}});
+ assert.equal(JSON.parse(rows.subs.get(endpoint).schedule).length,2);
+ const send=at=>runtime.sendReminders(env,new Date(at));
+ await send("2026-11-09T09:45:00Z");assert.equal(dispatches.length,0);
+ await send("2026-11-09T09:50:00Z");assert.equal(dispatches.length,1);
+ await send("2026-11-09T09:55:00Z");assert.equal(dispatches.length,1);
+ await send("2026-11-10T22:10:00Z");assert.equal(dispatches.length,1);
+ await send("2026-11-16T09:50:00Z");assert.equal(dispatches.length,2);
+ const{dueScheduled}=runtime;
+ assert.equal(dueScheduled(schedule.slice(0,2),Date.parse("2026-11-09T22:12:00Z"),0).kind,"bedtime");
 });

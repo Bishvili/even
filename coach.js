@@ -158,20 +158,42 @@
   return gaps.reduce(function(slots,g){return slots.concat(smartSlots(moods,timeOf(g.from),timeOf(g.to),g.count,today));},[]);
  }
  // Fixed notifications count toward the daily total, most useful first.
+ // A day can run past midnight, so an end at or before the start belongs to the next morning.
+ var LONGEST_DAY=1200;
+ function dayEnd(from,to){var start=minutesOf(from),end=minutesOf(to);return end>start?end:end+1440;}
+ function validDay(from,to){return dayEnd(from,to)-minutesOf(from)<=LONGEST_DAY;}
  function smartPlan(moods,health,from,to,count,today,preferences){
-  var prefs=Object.assign({windDown:true,brief:false,hardest:"varies"},preferences);
+  var prefs=Object.assign({windDown:true,brief:false,hardest:"varies"},preferences),start=minutesOf(from),end=timeOf(dayEnd(from,to));
+  function within(time){var minutes=minutesOf(time);return timeOf(minutes<start?minutes+1440:minutes);}
   var estimate=bedtimeEstimate(health,moods,to,today),alarmBed=bedtimeForAlarm(prefs.alarms,health,today);
-  if(alarmBed){var earlier=timeOf(minutesOf(alarmBed.bed)-20);if(earlier<estimate.time)estimate={time:earlier,source:"alarm",alarmMin:alarmBed.alarm.timeMin};}
-  var bedtime=prefs.windDown&&estimate.time>=from&&estimate.time<=to?estimate.time:null;
-  var wake=morningAlarm(prefs.alarms,today),morning=timeOf(wake?wake.timeMin+15:minutesOf(from)+30),briefAt=prefs.brief&&morning<=to&&morning!==bedtime?morning:null;
-  var hardAt=hardTime(prefs.hardest,from,to,bedtime,briefAt),wanted=[];
+  if(alarmBed){var earlier=timeOf(minutesOf(alarmBed.bed)-20);if(nightMinutes(minutesOf(earlier))<nightMinutes(minutesOf(estimate.time)))estimate={time:earlier,source:"alarm",alarmMin:alarmBed.alarm.timeMin};}
+  var bedTime=within(estimate.time),bedtime=prefs.windDown&&bedTime<=end?bedTime:null;
+  var wake=morningAlarm(prefs.alarms,today),morning=timeOf(wake?wake.timeMin+15:start+30),briefAt=prefs.brief&&morning<=end&&morning!==bedtime?morning:null;
+  var hardAt=hardTime(prefs.hardest,from,end,bedtime,briefAt),wanted=[];
   if(bedtime)wanted.push({time:bedtime,kind:"bedtime",source:estimate.source,alarmMin:estimate.alarmMin});
   if(briefAt)wanted.push({time:briefAt,kind:"brief",alarmMin:wake?wake.timeMin:undefined});
   if(hardAt)wanted.push({time:hardAt,kind:"hard",part:prefs.hardest});
   var kept=wanted.slice(0,count),fixed=kept.map(function(slot){return slot.time;});
-  function at(kind){var slot=kept.find(function(s){return s.kind===kind;});return slot?slot.time:null;}
-  var slots=kept.concat(fillGaps(moods,fixed,from,to,count-kept.length,today)).sort(function(a,b){return a.time<b.time?-1:1;});
+  function clock(time){return timeOf(minutesOf(time)%1440);}
+  function at(kind){var slot=kept.find(function(s){return s.kind===kind;});return slot?clock(slot.time):null;}
+  // Inside the plan, times after midnight run past 24:00 so they sort last; each slot keeps that as its minute.
+  var slots=kept.concat(fillGaps(moods,fixed,from,end,count-kept.length,today)).sort(function(a,b){return a.time<b.time?-1:1;}).map(function(slot){return Object.assign({},slot,{minute:minutesOf(slot.time),time:clock(slot.time)});});
   return{slots:slots,times:slots.map(function(slot){return slot.time;}),bedtimeAt:at("bedtime"),briefAt:at("brief"),hardAt:at("hard"),left:wanted.slice(count).map(function(slot){return slot.kind;})};
+ }
+ // The next 7 days of notifications, each with its date, so a time tied to one day's alarm stays on that day.
+ function weekSchedule(moods,health,prefs,today){
+  var now=new Date(today),first=new Date(now),items=[],repeating=(prefs.alarms||[]).filter(function(a){return a.days.length;});
+  first.setHours(12,0,0,0);
+  for(var i=0;i<7;i++){
+   var noon=new Date(first);noon.setDate(first.getDate()+i);
+   if(prefs.weekends===false&&(noon.getDay()===0||noon.getDay()===6))continue;
+   var slots=prefs.mode==="smart"?smartPlan(moods,health,prefs.from,prefs.to,prefs.count,noon,Object.assign({},prefs,{alarms:i===0?prefs.alarms:repeating})).slots:prefs.customTimes.map(function(time){var minutes=minutesOf(time);return{minute:prefs.mode==="repeat"&&minutes<minutesOf(prefs.from)?minutes+1440:minutes,kind:"custom"};});
+   slots.forEach(function(slot){
+    var at=new Date(noon);at.setHours(0,slot.minute,0,0);
+    if(at>now)items.push({at:at.toISOString(),kind:slot.kind==="usual"||slot.kind==="spaced"?"custom":slot.kind});
+   });
+  }
+  return items;
  }
  // Alarms that ring on this date. Non-repeating alarms count on any date, since they carry no date.
  function alarmsOn(alarms,date){
@@ -191,8 +213,8 @@
   return bed<1440&&bed>=1080?{bed:timeOf(bed),alarm:alarm}:null;
  }
  function repeatTimes(from,to,everyHours){
-  var times=[],end=minutesOf(to);
-  for(var at=minutesOf(from);at<=end;at+=everyHours*60)times.push(timeOf(at));
+  var times=[],end=dayEnd(from,to);
+  for(var at=minutesOf(from);at<=end;at+=everyHours*60)times.push(timeOf(at%1440));
   return times;
  }
 
@@ -289,10 +311,11 @@
   return name+", "+(DAYS.indexOf(message.split(" ")[0])>=0?message:message[0].toLowerCase()+message.slice(1));
  }
  function anticipate(moods,events,health,today,prefs){
-  var now=new Date(today),found=[],from=minutesOf(prefs.from),to=minutesOf(prefs.to);
+  var now=new Date(today),found=[],from=minutesOf(prefs.from),to=dayEnd(prefs.from,prefs.to);
   function add(at,message,why){
    var minutes=at.getHours()*60+at.getMinutes(),weekend=at.getDay()===0||at.getDay()===6;
-   if(at<=now||minutes<from||minutes>to||(prefs.weekends===false&&weekend))return;
+   if(minutes<from)minutes+=1440;
+   if(at<=now||minutes>to||(prefs.weekends===false&&weekend))return;
    found.push({at:at.toISOString(),message:addressed(message,prefs.firstName),why:why});
   }
   var seen={},soon=now.getTime()+DAY_MS;
@@ -300,7 +323,7 @@
    var start=new Date(e.start).getTime();
    if(!(start>now.getTime()&&start<=soon)||e.category==="Other"||!e.category)return;
    var row=seen[e.category]===undefined?(seen[e.category]=eventGap(moods,events,e.category)):seen[e.category];
-   if(row&&row.gap>=ANTICIPATE_GAP)add(new Date(start-15*60000),"Your "+e.category.toLowerCase()+" event at "+clockLabel(start)+" is coming up, and these have tended to be harder. Take a minute first?",evidence(row));
+   if(row&&row.gap>=ANTICIPATE_GAP)add(new Date(start-20*60000),"Your "+e.category.toLowerCase()+" event at "+clockLabel(start)+" is coming up, and these have tended to be harder. Take a minute first?",evidence(row));
   });
   outlook(moods,now).slice(0,ANTICIPATE_DAYS).forEach(function(day){
    if(day.level!=="harder")return;
@@ -339,7 +362,7 @@
   if(data.connected&&(!data.lastUpload||now.getTime()-new Date(data.lastUpload).getTime()>20*3600000))actions.push({text:"Sync now to bring in last night’s sleep and today’s calendar.",action:"sync",label:"Run Even Sync"});
   return actions.slice(0,3);
  }
- var api={whatHelps:whatHelps,anticipate:anticipate,nextActions:nextActions,bedtimeForAlarm:bedtimeForAlarm,morningAlarm:morningAlarm,alarmsOn:alarmsOn,smartPlan:smartPlan,bedtimeReminder:bedtimeReminder,smartTimes:smartTimes,repeatTimes:repeatTimes,outlook:outlook,patterns:patterns,brief:brief,hardStretch:hardStretch,steadiness:steadiness,reflectionDue:reflectionDue,REFLECTION:REFLECTION};
+ var api={validDay:validDay,weekSchedule:weekSchedule,whatHelps:whatHelps,anticipate:anticipate,nextActions:nextActions,bedtimeForAlarm:bedtimeForAlarm,morningAlarm:morningAlarm,alarmsOn:alarmsOn,smartPlan:smartPlan,bedtimeReminder:bedtimeReminder,smartTimes:smartTimes,repeatTimes:repeatTimes,outlook:outlook,patterns:patterns,brief:brief,hardStretch:hardStretch,steadiness:steadiness,reflectionDue:reflectionDue,REFLECTION:REFLECTION};
  root.EvenCoach=api;
  if(typeof document==="undefined"||!root.EvenApp)return;
 
