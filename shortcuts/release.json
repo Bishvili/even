@@ -1,7 +1,7 @@
 {
-  "version": "3.3.0",
-  "url": "https://www.icloud.com/shortcuts/0d08b23103cf43e8a707c19e41a338d9",
+  "version": "4.0.0",
+  "url": "https://www.icloud.com/shortcuts/9994c4ece24d44a18f4fec5c806bbd7a",
   "publishedAt": "2026-11-05",
-  "notes": "Fills in up to a week of days you missed.",
+  "notes": "Renamed. Install it from the app, run it once, set up your automation again, then delete the old one.",
   "verified": true
 }
