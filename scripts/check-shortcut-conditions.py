@@ -27,7 +27,7 @@ HELPER_TEXT = collections.Counter({
 HELPER_NUMBERS = [0, 1, 1, 1, 1, 1]
 
 TIMESTAMP_PATTERN = "yyyy-MM-dd'T'HH:mm:ssZZZZZ"
-KEY_FILE = "even-device-key.txt"
+KEY_FILE = "device-key.txt"
 STEP_GROUPING_PATTERN = r"(?<=\d)[,\s](?=\d{3}(?:\D|$))"
 
 
