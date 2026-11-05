@@ -4,7 +4,7 @@
  if(!root.EvenDay&&typeof require==="function")require("./daycontext.js");
  var Day=root.EvenDay,RULES=Day.RULES,mean=Day.mean,median=Day.median,localDay=Day.localDay;
  var DAY_MS=Day.DAY_MS,DAYS=["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
- var MIN_SAMPLES=3,MIN_GAP=0.4,HISTORY_DAYS=RULES.evidenceDays,NEAR_EVENT_MS=RULES.nearEventMs,SHORT_SLEEP=RULES.shortSleepFallback,EARLY_ALARM=420,REFLECTION_DAYS=7;
+ var MIN_SAMPLES=3,MIN_GAP=0.4,HISTORY_DAYS=RULES.evidenceDays,NEAR_EVENT_MS=RULES.nearEventMs,EARLY_ALARM=420,REFLECTION_DAYS=7;
  var BRIEF_CACHE="even-brief",DEFAULT_ACTION="Leave room for a short reset today.";
 
  function rated(moods){return moods.filter(function(m){return Number.isInteger(m.stress)&&m.stress>=1&&m.stress<=5;});}
@@ -201,7 +201,7 @@
    var slots=prefs.mode==="smart"?smartPlan(moods,health,prefs.from,prefs.to,prefs.count,noon,Object.assign({},prefs,{alarms:i===0?prefs.alarms:repeating})).slots:prefs.customTimes.map(function(time){var minutes=minutesOf(time);return{minute:prefs.mode==="repeat"&&minutes<minutesOf(prefs.from)?minutes+1440:minutes,kind:"custom"};});
    slots.forEach(function(slot){
     var at=new Date(noon);at.setHours(0,slot.minute,0,0);
-    if(at>now)items.push({at:at.toISOString(),kind:slot.kind==="usual"||slot.kind==="spaced"?"custom":slot.kind});
+    if(at>now)items.push({at:at.toISOString(),kind:slot.kind==="usual"||slot.kind==="spaced"?"custom":slot.kind,part:Day.partOf(slot.minute).id});
    });
   }
   return items;
@@ -213,8 +213,8 @@
  }
  function morningAlarm(alarms,date){return alarmsOn(alarms,date).filter(function(a){return a.timeMin<720;})[0]||null;}
  function usualSleep(health,today){
-  var cutoff=new Date(today).getTime()-14*DAY_MS,hours=health.filter(function(h){return Number.isFinite(h.sleepHours)&&h.sleepHours>=3&&new Date(h.date+"T12:00:00").getTime()>=cutoff;}).map(function(h){return h.sleepHours;});
-  return hours.length>=3?median(hours):8;
+  var usual=Day.baseline(health.filter(function(h){return h.sleepHours>=3;}).map(function(h){return{date:h.date,value:h.sleepHours};}),today);
+  return usual===null?RULES.sleepFallback:usual;
  }
  // When to be in bed for a usual night's sleep before tomorrow's alarm, if that's before midnight.
  function bedtimeForAlarm(alarms,health,today){
@@ -230,7 +230,7 @@
  }
 
  // What has tended to go with feeling better. Many things are compared, so this asks for more check-ins than a stress pattern.
- var SAME_CHECK_INS=0.8,AFTER_EVENT_MS=300000,MOVED_SPACING=45,USUAL_DAYS=RULES.usualDays,USUAL_MINIMUM=RULES.usualMinimum,SHORT_OF_USUAL=RULES.shortOfUsual,HELP_SAMPLES=RULES.helpSamples,HELP_GAP=RULES.helpGap,RESET_WINDOW_MS=7200000;
+ var SAME_CHECK_INS=0.8,AFTER_EVENT_MS=300000,MOVED_SPACING=45,HELP_SAMPLES=RULES.helpSamples,HELP_GAP=RULES.helpGap,RESET_WINDOW_MS=7200000;
  var HELP_METRICS=[{key:"stress",direction:-1,name:"lower stress",worse:"higher stress"},{key:"score",direction:1,name:"better mood",worse:"lower mood"},{key:"energy",direction:1,name:"more energy",worse:"less energy"}];
  var HELP_ACTIVITIES=[["Exercise","moving","Fit in some movement."],["Outdoors","being outdoors","Get outside for a few minutes."],["Rest","rest","Take a real break."],["Social","time with people","Reach out to someone."],["Family","time with family","Make time for family."]];
  function helpFactors(moods,events,health,resets,now){
@@ -241,8 +241,7 @@
   }
   // The person's own usual level once there's enough history, and a fixed starting point until then.
   function usual(key){
-   var cutoff=now.getTime()-USUAL_DAYS*DAY_MS,values=health.filter(function(h){return Number.isFinite(h[key])&&new Date(h.date+"T12:00:00").getTime()>=cutoff;}).map(function(h){return h[key];});
-   return values.length>=USUAL_MINIMUM?median(values):null;
+   return Day.baseline(health.map(function(h){return{date:h.date,value:h[key]==null?NaN:Number(h[key])};}),now);
   }
   var usualSleepHours=usual("sleepHours"),usualSteps=usual("steps"),sleepLine=usualSleepHours===null?7:usualSleepHours,stepLine=usualSteps===null?6000:usualSteps;
   var factors=[
@@ -262,15 +261,14 @@
   });
   // Subjects that describe a day or a moment rather than something to suggest.
   var alarms={};health.forEach(function(h){if(Number.isFinite(h.firstAlarmMin))alarms[h.date]=h.firstAlarmMin;});
-  var hrv=health.map(function(h){return Number(h.hrv);}).filter(function(v,i){return health[i].hrv!=null&&Number.isFinite(v);}).sort(function(a,b){return a-b;});
-  var usualHrv=hrv.length?hrv[Math.floor(hrv.length/2)]:null;
-  factors.push(dayFactor("short-sleep",usualSleepHours===null?"After under 6.5 hours of sleep":"After less sleep than your usual","","sleepHours",function(v){return v<(usualSleepHours===null?SHORT_SLEEP:usualSleepHours-SHORT_OF_USUAL);}));
+  var usualHrv=usual("hrv");
+  factors.push(dayFactor("short-sleep",usualSleepHours===null?"After under 6.5 hours of sleep":"After less sleep than your usual","","sleepHours",function(v){return v<Day.shortSleepLine(usualSleepHours);}));
   var usualResting=usual("restingHR");
   // Personal context only, compared with the person's own level.
   if(usualResting!==null)factors.push(dayFactor("resting","On days with resting heart rate above your usual","","restingHR",function(v){return v>usualResting;}));
   var busy={};events.forEach(function(e){var length=(Date.parse(e.end)-Date.parse(e.start))/60000;if(length>0&&length<1440){var day=localDay(e.start);busy[day]=(busy[day]||0)+length;}});
-  var busyDays=Object.keys(busy).map(function(day){return busy[day];});
-  if(busyDays.length>=USUAL_MINIMUM){var usualBusy=median(busyDays);factors.push({id:"busy",label:"On days with more on your calendar than usual",test:function(m){var minutes=busy[localDay(m.ts)];return minutes===undefined?null:minutes>usualBusy;}});}
+  var usualBusy=Day.baseline(Object.keys(busy).map(function(day){return{date:day,value:busy[day]};}),now);
+  if(usualBusy!==null){factors.push({id:"busy",label:"On days with more on your calendar than usual",test:function(m){var minutes=busy[localDay(m.ts)];return minutes===undefined?null:minutes>usualBusy;}});}
   factors.push({id:"early-alarm",label:"On days with an alarm before 7 AM",test:function(m){var at=alarms[localDay(m.ts)];return at===undefined?null:at<EARLY_ALARM;}});
   if(usualHrv!==null)factors.push(dayFactor("hrv","On days with heart rate variability above your usual","","hrv",function(v){return v>=usualHrv;}));
   var named={},categories={};HELP_ACTIVITIES.forEach(function(item){named[item[0]]=true;});
@@ -337,11 +335,11 @@
   return kept;
  }
  function whatHelps(moods,events,health,resets,today){
-  var now=new Date(today),rows=[];
+  var now=new Date(today),rows=[],window=Day.evidence(moods,now);
   helpFactors(moods,events,health,resets,now).forEach(function(factor){
    if(!factor.tip)return;
    if(factor.tag)factor.done=moods.some(function(m){return localDay(m.ts)===localDay(now)&&(m.tags||[]).indexOf(factor.tag)>=0;});
-   var effects=effectsOf(factor,moods).filter(function(e){return e.gap>0;});
+   var effects=effectsOf(factor,window).filter(function(e){return e.gap>0;});
    if(effects.length)rows.push({id:factor.id,label:factor.label,tip:factor.tip,action:factor.action,done:factor.done,effects:effects});
   });
   return rows.sort(function(a,b){return b.effects[0].gap-a.effects[0].gap;}).slice(0,5);
@@ -362,28 +360,27 @@
   return{text:(wanted?lead[wanted]+" ":"")+pick.tip+" "+helpSentence(pick,effect),why:helpEvidence(effect),action:pick.action,label:pick.action?"Take a minute":undefined};
  }
  var ANTICIPATE_GAP=0.4,MAX_ANTICIPATED_A_DAY=2,ANTICIPATE_DAYS=7;
- var PART_STARTS=[["morning",480,"morning"],["midday",690,"midday"],["afternoon",840,"afternoon"],["evening",1020,"evening"]];
  function clockLabel(date){return new Date(date).toLocaleTimeString([],{hour:"numeric",minute:"2-digit"});}
  function minuteLabel(minutes){var d=new Date(2024,0,1);d.setHours(0,minutes,0,0);return clockLabel(d);}
- function partOf(minutes){var part=PART_STARTS[0];PART_STARTS.forEach(function(p){if(minutes>=p[1])part=p;});return part;}
  function eventGap(moods,events,category){
   var spans=events.filter(function(e){return e.category===category;}).map(function(e){return[new Date(e.start).getTime(),new Date(e.end).getTime()+NEAR_EVENT_MS];}),yes=[],no=[];
   rated(moods).forEach(function(m){var t=new Date(m.ts).getTime();(spans.some(function(s){return t>=s[0]&&t<=s[1];})?yes:no).push(m.stress);});
   return comparison(category,yes,no);
  }
- function sleepGap(moods,health){
-  var sleep={},short=[],rested=[];
+ function usualSleepHours(health,now){return Day.baseline(health.map(function(h){return{date:h.date,value:h.sleepHours};}),now);}
+ function sleepGap(moods,health,now){
+  var sleep={},short=[],rested=[],line=Day.shortSleepLine(usualSleepHours(health,now));
   health.forEach(function(h){if(Number.isFinite(h.sleepHours))sleep[h.date]=h.sleepHours;});
-  rated(moods).forEach(function(m){var hours=sleep[localDay(m.ts)];if(hours!==undefined)(hours<SHORT_SLEEP?short:rested).push(m.stress);});
+  rated(moods).forEach(function(m){var hours=sleep[localDay(m.ts)];if(hours!==undefined)(hours<line?short:rested).push(m.stress);});
   return comparison("sleep",short,rested);
  }
  function evidence(row){return"Stress averaged "+row.gap.toFixed(1)+" points higher, from "+row.withCount+" check-ins compared with "+row.withoutCount+".";}
  // The part of a weekday with the highest stress, given at least two check-ins there.
  function hardestPart(moods,weekday){
   var groups={};
-  rated(moods).forEach(function(m){var d=new Date(m.ts);if(d.getDay()!==weekday)return;var key=partOf(d.getHours()*60+d.getMinutes())[0];(groups[key]=groups[key]||[]).push(m.stress);});
+  rated(moods).forEach(function(m){var d=new Date(m.ts);if(d.getDay()!==weekday)return;var key=Day.partOf(d.getHours()*60+d.getMinutes()).id;(groups[key]=groups[key]||[]).push(m.stress);});
   var best=null;
-  PART_STARTS.forEach(function(p){var values=groups[p[0]];if(values&&values.length>=2&&(!best||mean(values)>best.score))best={part:p,score:mean(values)};});
+  Day.PARTS.forEach(function(p){var values=groups[p.id];if(values&&values.length>=2&&(!best||mean(values)>best.score))best={part:p,score:mean(values)};});
   return best&&best.part;
  }
  // Moments ahead that past check-ins suggest may be harder. Each needs evidence and leads to an action.
@@ -393,7 +390,8 @@
   return name+", "+(DAYS.indexOf(message.split(" ")[0])>=0?message:message[0].toLowerCase()+message.slice(1));
  }
  function anticipate(moods,events,health,today,prefs){
-  var now=new Date(today),found=[],from=minutesOf(prefs.from),to=dayEnd(prefs.from,prefs.to);
+  var now=new Date(today),found=[],from=minutesOf(prefs.from),to=dayEnd(prefs.from,prefs.to),allMoods=moods;
+  moods=Day.evidence(allMoods,now);
   function add(at,message,why){
    var minutes=at.getHours()*60+at.getMinutes(),weekend=at.getDay()===0||at.getDay()===6;
    if(minutes<from)minutes+=1440;
@@ -411,11 +409,11 @@
    if(day.level!=="harder")return;
    var date=new Date(day.date+"T12:00:00"),part=hardestPart(moods,date.getDay());
    if(!part)return;
-   var at=new Date(date);at.setHours(0,part[1]-30,0,0);
-   add(at,day.name+" "+part[2]+"s have tended to be harder for you. Take a minute before it starts?",day.samples+" "+day.name+" check-ins in the last 8 weeks.");
+   var at=new Date(date);at.setHours(0,part.nudge,0,0);
+   add(at,day.name+" "+part.id+"s have tended to be harder for you. Take a minute before it starts?",day.samples+" "+day.name+" check-ins in the last 8 weeks.");
   });
-  var lastNight=health.find(function(h){return h.date===localDay(now);}),sleepRow=sleepGap(moods,health);
-  if(lastNight&&Number.isFinite(lastNight.sleepHours)&&lastNight.sleepHours<SHORT_SLEEP&&sleepRow&&sleepRow.gap>=ANTICIPATE_GAP){
+  var lastNight=health.find(function(h){return h.date===localDay(now);}),sleepRow=sleepGap(moods,health,now);
+  if(lastNight&&Number.isFinite(lastNight.sleepHours)&&lastNight.sleepHours<Day.shortSleepLine(usualSleepHours(health,now))&&sleepRow&&sleepRow.gap>=ANTICIPATE_GAP){
    var midMorning=new Date(now);midMorning.setHours(0,from+180,0,0);
    add(midMorning,"A short night. Those days have tended to be harder for you, so protect a break today.",evidence(sleepRow));
   }

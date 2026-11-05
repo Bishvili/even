@@ -38,7 +38,7 @@ async function payload(request){
  if(type.includes("application/x-www-form-urlencoded"))return Object.fromEntries(new URLSearchParams(text));
  try{return JSON.parse(text);}catch(e){return Object.fromEntries(new URLSearchParams(text));}
 }
-const VERSION_NAME="2.37.0";
+const VERSION_NAME="2.38.0";
 function normalEmail(value){return String(value||"").trim().toLowerCase();}
 async function signinAuth(env,ctx){
  const {createAuth}=await import("./signin.mjs");
@@ -498,12 +498,15 @@ function pushPayload(env,body,path,extra={}){
  return JSON.stringify({web_push:8030,mutable:true,...extra,notification:{title:"Even",body,navigate:env.PUBLIC_ORIGIN+path}});
 }
 // A first name goes only on the messages that start or close the day, or come at a hard moment.
-function reminderMessage(minutes,atBedtime,atHardTime,name){
+// Each planned item says which part of the day it's in. An app that hasn't updated yet leaves it out, so the clock decides.
+function partFromClock(minutes){return minutes<300?"evening":minutes<660?"morning":minutes<840?"midday":minutes<1020?"afternoon":"evening";}
+function reminderMessage(minutes,atBedtime,atHardTime,name,part){
  if(atBedtime)return name?"Bedtime soon, "+name+". Take a moment to check in, then rest.":"Bedtime soon. Take a moment to check in, then rest.";
  if(atHardTime)return name?name+", this is often a harder part of your day. How are you doing?":"This is often a harder part of your day. How are you doing?";
- if(minutes<660)return name?"Good morning, "+name+". How are you starting the day?":"Good morning. How are you starting the day?";
- if(minutes<840)return "How is your day going so far?";
- if(minutes<1020)return "Afternoon check-in. How is your energy?";
+ const at=part||partFromClock(minutes);
+ if(at==="morning")return name?"Good morning, "+name+". How are you starting the day?":"Good morning. How are you starting the day?";
+ if(at==="midday")return "How is your day going so far?";
+ if(at==="afternoon")return "Afternoon check-in. How is your energy?";
  return "How did today go?";
 }
 async function sendPush(env,key,sub,now,payload){
@@ -522,7 +525,7 @@ async function deliverPush(env,key,sub,now,payload){
 const SMART_QUIET_MS=5400000;
 // The phone keeps the same limits (LIMITS in app.js).
 const LIMITS={moods:6000,healthDays:1200,events:2000},HEALTH_MEASURES=8;
-const SCHEDULE_KINDS=["custom","brief","bedtime","hard"],WEEK_MS=604800000,REMINDER_BATCH=5,SYNC_STALE_MS=72000000,DUE_WINDOW_MS=3600000;
+const SCHEDULE_KINDS=["custom","brief","bedtime","hard"],SCHEDULE_PARTS=["morning","midday","afternoon","evening"],WEEK_MS=604800000,REMINDER_BATCH=5,SYNC_STALE_MS=72000000,DUE_WINDOW_MS=3600000;
 // Sent ahead of an anticipated hard moment. The device fills in the specific message.
 async function sendAnticipation(env,key,sub,now){
  const last=sub.last_stress_at?Date.parse(sub.last_stress_at):0;
@@ -580,7 +583,7 @@ function dueScheduled(schedule,now,after,timeZone){
    const weeks=Math.max(1,Math.floor((now-DUE_WINDOW_MS-at)/WEEK_MS)),next=sameLocalTime(at,weeks,timeZone);
    at=next<now-DUE_WINDOW_MS?sameLocalTime(at,weeks+1,timeZone):next;
   }
-  if(at<=now&&at>after&&(!due||at>due.at))due={at,kind:item.kind};
+  if(at<=now&&at>after&&(!due||at>due.at))due={at,kind:item.kind,part:item.part};
  }
  return due;
 }
@@ -589,7 +592,7 @@ async function sendScheduled(env,key,sub,now){
  if(!due)return false;
  const quiet=sub.mode==="smart"&&sub.last_check_in_at&&now.getTime()-new Date(sub.last_check_in_at).getTime()<SMART_QUIET_MS;
  const minutes=localTime(sub.time_zone,new Date(due.at)).minutes,custom=sub.mode!=="smart";
- const body=custom?"How are you feeling?":reminderMessage(minutes,due.kind==="bedtime",due.kind==="hard",firstName(sub.person));
+ const body=custom?"How are you feeling?":reminderMessage(minutes,due.kind==="bedtime",due.kind==="hard",firstName(sub.person),due.part);
  const sent=quiet?{ok:true}:await deliverPush(env,key,sub,now,pushPayload(env,body,"/#checkin",{brief:due.kind==="brief"}));
  if(sent.ok)await env.DB.prepare("UPDATE even_push_subscriptions SET last_schedule_at=? WHERE endpoint=?").bind(new Date(due.at).toISOString(),sub.endpoint).run();
  return sent.ok&&!quiet;
@@ -690,7 +693,7 @@ async function syncApi(request,env,path){
   try{if(fromBase64url(p256dh).length!==65||fromBase64url(auth).length!==16)return error("Invalid reminder request",400,"invalid_reminder");}catch(e){return error("Invalid reminder request",400,"invalid_reminder");}
   if(!endpoint||!["smart","custom"].includes(mode))return error("Invalid reminder request",400,"invalid_reminder");
   const syncAt=REMIND_AT.test(String(input?.syncAt||""))?String(input.syncAt):null;
-  const scheduled=Array.isArray(input?.schedule)?input.schedule.slice(0,100).filter(x=>SCHEDULE_KINDS.includes(x?.kind)&&Number.isFinite(Date.parse(x?.at))).map(x=>({at:new Date(x.at).toISOString(),kind:x.kind})):null;
+  const scheduled=Array.isArray(input?.schedule)?input.schedule.slice(0,100).filter(x=>SCHEDULE_KINDS.includes(x?.kind)&&Number.isFinite(Date.parse(x?.at))&&(x.part===undefined||SCHEDULE_PARTS.includes(x.part))).map(x=>({at:new Date(x.at).toISOString(),kind:x.kind,...(x.part?{part:x.part}:{})})):null;
   if(!scheduled?.length)return error("Invalid reminder request",400,"invalid_reminder");
   const stressTimes=Array.isArray(input?.stressTimes)?input.stressTimes.slice(0,14).map(String).filter(at=>Number.isFinite(Date.parse(at))):[];
   try{localTime(timeZone,new Date());}catch(e){return error("Invalid reminder request",400,"invalid_reminder");}

@@ -22,6 +22,12 @@ const RULES=[
  [coach,/<7200000/,/2 hours apart/],
  [coach,/wake\.timeMin\+15/,/15 minutes after the morning alarm/],
  [worker,/SMART_QUIET_MS=5400000\b/,/in the last 90 minutes/],
+ [day,/usualDays:28,usualMinimum:7/,/median over the last 28 days, once there are 7/],
+ [day,/shortOfUsual:0\.5/,/half an hour under their usual/],
+ [day,/from:300,nudge:450/,/Morning runs from 5 AM to 11 AM/],
+ [day,/from:660,nudge:630/,/midday from 11 AM to 2 PM/],
+ [day,/from:840,nudge:810/,/afternoon from 2 PM to 5 PM/],
+ [day,/from:1020,nudge:990/,/evening from 5 PM to 5 AM/],
  [worker,/SYNC_STALE_MS=72000000\b/,/nothing has synced in 20 hours/]
 ];
 test("the paper states the rules the app applies",()=>{
@@ -54,4 +60,13 @@ test("the paper and the guide name everything Even Sync uploads",()=>{
   for(const text of [paper,guide,readme])assert.match(text,words,name);
  }
  assert.match(paper,/Titles are stored/);
+});
+test("the day model holds the one definition of each shared term",()=>{
+ for(const file of ["coach.js","app.js","reminders.js"]){
+  const source=read(file);
+  assert.doesNotMatch(source,/function median\(/,file+" defines its own median");
+  assert.doesNotMatch(source,/20\*3600000/,file+" types its own stale limit");
+  assert.doesNotMatch(source,/\["Morning","Midday"/,file+" has its own day parts");
+ }
+ assert.equal(Number(day.match(/staleHours:(\d+)/)[1])*3600000,Number(worker.match(/SYNC_STALE_MS=(\d+)/)[1]));
 });

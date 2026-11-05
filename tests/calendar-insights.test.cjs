@@ -22,7 +22,9 @@ function loadAppWithoutStartingUI() {
   },
   querySelectorAll(){return [];}
  };
+ require("../daycontext.js");
  const sandbox = {
+  EvenDay:globalThis.EvenDay,
   document,
   localStorage:{getItem(){return null;},setItem(){}},
   Date,

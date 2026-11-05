@@ -1,6 +1,6 @@
 (function () {
 "use strict";
-var VERSION = "2.37.0";
+var VERSION = "2.38.0";
 var STORAGE_KEY = "even:v1";
 var MOOD_NAMES = ["","Rough","Low","Okay","Good","Great"];
 var MOOD_EMOJI = ["","😣","😕","😐","🙂","😄"];
@@ -331,12 +331,11 @@ function drawTrend(moods){
  $("trend-chart").innerHTML='<svg viewBox="0 0 600 153" role="img" aria-label="'+esc(summary)+'">'+grid+'<polyline class="chart-line" points="'+path+'"/>'+dots+'<text class="chart-value" x="0" y="153">1</text><text class="chart-value" x="0" y="20">5</text></svg><div class="chart-axis" aria-hidden="true"><span>'+esc(formatDate(new Date(start)))+'</span><span>'+esc(formatDate(new Date(end)))+'</span></div>';
  $("trend-note").textContent=points.length+" days with check-ins · Daily averages (1–5)";
 }
-function timeGroup(ts){var h=new Date(ts).getHours();return h>=5&&h<11?0:h>=11&&h<15?1:h>=15&&h<20?2:3;}
 // Averages need at least 5 check-ins. Bars are SVG, because the security policy blocks inline styles.
 function timeRows(moods){
- return ["Morning","Midday","Afternoon","Evening"].map(function(name,i){
-  var scores=moods.filter(function(m){return timeGroup(m.ts)===i;}).map(function(m){return m.score;});
-  return {name:name,count:scores.length,average:scores.length>=5?average(scores):null};
+ return globalThis.EvenDay.PARTS.map(function(part){
+  var scores=moods.filter(function(m){var d=new Date(m.ts);return globalThis.EvenDay.partOf(d.getHours()*60+d.getMinutes())===part;}).map(function(m){return m.score;});
+  return {name:part.name,count:scores.length,average:scores.length>=5?average(scores):null};
  });
 }
 function drawTimes(moods){
@@ -345,32 +344,7 @@ function drawTimes(moods){
   return '<div class="bar-row"><div class="bar-name">'+row.name+'<span class="bar-sub">'+plural(row.count,"check-in","check-ins")+'</span></div><div>'+bar+'</div><div class="bar-number">'+(known?row.average.toFixed(1):"—")+'</div></div>';
  }).join("")+'<p class="muted">Each time of day needs at least 5 check-ins.</p>':blank("Log moods at different times to see when you tend to feel better.");
 }
-// Each event's closest check-in before and after, with the same minimum and smallest difference as every other comparison.
-function calendarPatternSummary(moods,events){
- var windowMs=90*60000;
- var samples=moods.map(function(m){return {time:new Date(m.ts).getTime(),score:m.score};})
-  .filter(function(m){return Number.isFinite(m.time)&&m.score>=1&&m.score<=5;});
- var valid=events.map(function(e){
-  return {category:e.category,start:new Date(e.start).getTime(),end:new Date(e.end).getTime()};
- }).filter(function(e){return CATEGORIES.includes(e.category)&&Number.isFinite(e.start)&&Number.isFinite(e.end)&&e.end>e.start;});
- var paired=[];
- CATEGORIES.filter(function(c){return c!=="Other";}).forEach(function(category){
-  var before=[],after=[];
-  valid.filter(function(e){return e.category===category;}).forEach(function(e){
-   var pre=null,post=null;
-   samples.forEach(function(m){
-    if(m.time>=e.start-windowMs&&m.time<e.start&&(!pre||m.time>pre.time))pre=m;
-    if(m.time>=e.end&&m.time<=e.end+windowMs&&(!post||m.time<post.time))post=m;
-   });
-   if(pre&&post){before.push(pre.score);after.push(post.score);}
-  });
-  if(before.length<5)return;
-  var delta=average(after)-average(before);
-  if(Math.abs(delta)>=0.4)paired.push({category:category,count:before.length,before:average(before),after:average(after),delta:delta});
- });
- paired.sort(function(a,b){return Math.abs(b.delta)-Math.abs(a.delta);});
- return {paired:paired,eventCount:valid.length};
-}
+function calendarPatternSummary(moods,events){return globalThis.EvenDay.eventPairs(moods,events,CATEGORIES);}
 function signedScore(delta){return (delta>0?"+":"")+delta.toFixed(1);}
 function drawCalendar(moods,events){
  var patterns=calendarPatternSummary(moods,events);
