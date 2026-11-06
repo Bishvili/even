@@ -41,7 +41,7 @@ async function payload(request){
  if(type.includes("application/x-www-form-urlencoded"))return Object.fromEntries(new URLSearchParams(text));
  try{return JSON.parse(text);}catch(e){return Object.fromEntries(new URLSearchParams(text));}
 }
-const VERSION_NAME="2.56.2";
+const VERSION_NAME="2.57.0";
 function normalEmail(value){return String(value||"").trim().toLowerCase();}
 async function signinAuth(env,ctx,request){
  const {createAuth}=await import("./signin.mjs");
@@ -793,7 +793,7 @@ async function syncedShared(env,owner,since){
 // Reading a Health type with no samples ends a Health Sync run with an error it can't catch. So each run is told what to read:
 // the types that have worked, plus at most one untried type. A run that names an untried type and then goes quiet points at that type.
 const HEALTH_TYPES=[["Steps","steps"],["Resting","restingHR"],["Hrv","hrv"],["Exercise","workout"],["Sleep","sleep"]];
-const FIRST_PLANNED_VERSION="4.6.0",TRIAL_QUIET_MS=10*60000;
+const FIRST_PLANNED_VERSION="4.6.0",TRIAL_QUIET_MS=3*60000,STOP_NOTE_MS=30*60000;
 function healthState(raw){let state=null;try{state=JSON.parse(raw||"null");}catch(e){/* Starts over. */}state=state&&typeof state==="object"?state:{};return {worked:{},stopped:{},...state};}
 async function loadHealthState(env,owner){const row=await env.DB.prepare("SELECT health_types FROM health_users WHERE email=?").bind(owner).first();return healthState(row?.health_types);}
 function saveHealthState(env,owner,state){return env.DB.prepare("UPDATE health_users SET health_types=? WHERE email=?").bind(JSON.stringify(state),owner).run();}
@@ -808,16 +808,17 @@ function planHealth(state,off,now){
  return read.join(",")||"none";
 }
 // The untried type stopped the run: turn it off in the app and say so.
-async function stopTrial(env,owner,state,now){
+// A run that follows straight on fixes it without a word. Only a run nothing follows, like an automation, gets a notification.
+async function stopTrial(env,owner,state,now,notify=false){
  const type=state.trial?.type,kind=HEALTH_TYPES.find(item=>item[0]===type)?.[1];
  state.trial=null;
  if(!kind)return;
  const off=await syncOff(env,owner);off.add(kind);state.stopped[type]=now.toISOString();
  await env.DB.prepare("UPDATE health_users SET sync_off=? WHERE email=?").bind(JSON.stringify([...off]),owner).run();
- const key=pushKey(env);if(!key)return;
+ const key=notify&&pushKey(env);if(!key)return;
  const subs=await env.DB.prepare("SELECT endpoint,p256dh,auth FROM health_push_subscriptions WHERE owner_email=?").bind(owner).all();
- const body=STABLE.sync+" stopped because Apple Health has no "+HEALTH_LABELS[kind]+". It’s turned off now, so the next sync can finish.";
- for(const sub of subs.results||[])await deliverPush(env,key,sub,now,pushPayload(env,body,"/#data")).catch(()=>{});
+ const body=STABLE.sync+" stopped because Apple Health has no "+HEALTH_LABELS[kind]+". It’s turned off now. Tap to finish syncing.";
+ for(const sub of subs.results||[])await deliverPush(env,key,sub,now,pushPayload(env,body,"/?do=sync")).catch(()=>{});
 }
 const HEALTH_LABELS={steps:"steps",restingHR:"resting heart rate",hrv:"heart rate variability",workout:"exercise minutes",sleep:"sleep"};
 async function stopQuietTrials(env,now){
@@ -825,7 +826,7 @@ async function stopQuietTrials(env,now){
  for(const row of rows.results||[]){
   const state=healthState(row.health_types);
   if(!state.trial||now-Date.parse(state.trial.at)<TRIAL_QUIET_MS)continue;
-  await stopTrial(env,row.email,state,now);await saveHealthState(env,row.email,state);
+  await stopTrial(env,row.email,state,now,true);await saveHealthState(env,row.email,state);
  }
 }
 const REFLECTION_IDS=["snapped","setOff","recovered","rested"],REFLECTION_LIMIT=520;
@@ -920,7 +921,10 @@ async function syncApi(request,env,path){
   const items=Number(input?.items),key=pushKey(env);
   const sub=key&&await env.DB.prepare("SELECT endpoint,p256dh,auth FROM health_push_subscriptions WHERE device_id=? AND owner_email=? AND p256dh IS NOT NULL").bind(dev.id,owner).first();
   if(!sub||!Number.isInteger(items)||items<0)return reply({ok:true,state:"none"});
-  const sent=await deliverPush(env,key,sub,new Date(),pushPayload(env,"Sync finished. Tap to open "+BRAND.name+".","/?sync=1"));
+  // Name anything this sync had to turn off, so the person knows why it's missing.
+  const recent=Object.entries((await loadHealthState(env,owner)).stopped).filter(([,at])=>Date.now()-Date.parse(at)<STOP_NOTE_MS).map(([type])=>HEALTH_LABELS[HEALTH_TYPES.find(item=>item[0]===type)?.[1]]).filter(Boolean);
+  const note=recent.length?" Apple Health has no "+recent.join(" or ")+", so "+(recent.length===1?"it’s":"they’re")+" turned off.":"";
+  const sent=await deliverPush(env,key,sub,new Date(),pushPayload(env,"Sync finished."+note+" Tap to open "+BRAND.name+".","/?sync=1"));
   return reply({ok:true,state:sent.ok?"sent":"none"});
  }
  if(path==="/api/push/check-in"&&request.method==="POST"){

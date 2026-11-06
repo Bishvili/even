@@ -1384,3 +1384,12 @@ test("each run reads the types that worked plus one untried type, and a run that
  assert.equal(await hello(),"Steps,Resting,Hrv,Exercise,Sleep");
  assert.deepEqual([...(await settings()).healthStopped],[]);
 });
+
+test("the app reruns Health Sync once for each Health type if a run stops",()=>{
+ const app=require("fs").readFileSync(require("path").join(__dirname,"..","app.js"),"utf8");
+ const start=app.indexOf("var SYNC_RETRIES"),code=app.slice(start,app.indexOf("function runShortcut",start));
+ const make=new Function("state",code.replace("{{syncUrl}}","Health%20Sync")+";return shortcutAddress;")({token:"k"});
+ let address=make(5),depth=0;
+ while(address.includes("&x-error=")){address=decodeURIComponent(address.slice(address.indexOf("&x-error=")+9));depth++;}
+ assert.equal(depth,5);assert.ok(address.startsWith("shortcuts://x-callback-url/run-shortcut?name=Health%20Sync&input=text&text=Bearer%20k"));
+});
