@@ -1,7 +1,7 @@
 {
-  "version": "4.0.0",
-  "url": "https://www.icloud.com/shortcuts/9994c4ece24d44a18f4fec5c806bbd7a",
-  "publishedAt": "2026-11-05",
-  "notes": "Renamed. Install it from the app, run it once, set up your automation again, then delete the old one.",
+  "version": "4.1.0",
+  "url": "https://www.icloud.com/shortcuts/6f97da85fa514c26a4d0011006b013eb",
+  "publishedAt": "2026-11-06",
+  "notes": "Now brings in your alarms' repeat days and names, resting heart rate, heart rate variability and exercise.",
   "verified": true
 }
