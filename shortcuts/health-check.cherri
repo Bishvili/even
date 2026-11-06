@@ -14,6 +14,11 @@
 
 #ref notStepsFilter eyJWYWx1ZSI6eyJXRkFjdGlvblBhcmFtZXRlckZpbHRlclByZWZpeCI6MSwiV0ZDb250ZW50UHJlZGljYXRlQm91bmRlZERhdGUiOmZhbHNlLCJXRkFjdGlvblBhcmFtZXRlckZpbHRlclRlbXBsYXRlcyI6W3siQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjUsIlByb3BlcnR5IjoiVHlwZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IlN0ZXBzIiwiV0ZTZXJpYWxpemF0aW9uVHlwZSI6IldGU3RyaW5nU3Vic3RpdHV0YWJsZVN0YXRlIn19fV19LCJXRlNlcmlhbGl6YXRpb25UeXBlIjoiV0ZDb250ZW50UHJlZGljYXRlVGFibGVUZW1wbGF0ZSJ9
 
+#ref anyRemovable eyJWYWx1ZSI6eyJXRkFjdGlvblBhcmFtZXRlckZpbHRlclByZWZpeCI6MCwiV0ZDb250ZW50UHJlZGljYXRlQm91bmRlZERhdGUiOmZhbHNlLCJXRkFjdGlvblBhcmFtZXRlckZpbHRlclRlbXBsYXRlcyI6W3siQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjQsIlByb3BlcnR5IjoiVHlwZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IlN0ZXBzIiwiV0ZTZXJpYWxpemF0aW9uVHlwZSI6IldGU3RyaW5nU3Vic3RpdHV0YWJsZVN0YXRlIn19fSx7IkJvdW5kZWQiOnRydWUsIk9wZXJhdG9yIjo0LCJQcm9wZXJ0eSI6IlR5cGUiLCJSZW1vdmFibGUiOnRydWUsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IlJlc3RpbmcgSGVhcnQgUmF0ZSIsIldGU2VyaWFsaXphdGlvblR5cGUiOiJXRlN0cmluZ1N1YnN0aXR1dGFibGVTdGF0ZSJ9fX0seyJCb3VuZGVkIjp0cnVlLCJPcGVyYXRvciI6NCwiUHJvcGVydHkiOiJUeXBlIiwiUmVtb3ZhYmxlIjp0cnVlLCJWYWx1ZXMiOnsiRW51bWVyYXRpb24iOnsiVmFsdWUiOiJTbGVlcCIsIldGU2VyaWFsaXphdGlvblR5cGUiOiJXRlN0cmluZ1N1YnN0aXR1dGFibGVTdGF0ZSJ9fX0seyJCb3VuZGVkIjp0cnVlLCJPcGVyYXRvciI6NCwiUHJvcGVydHkiOiJUeXBlIiwiUmVtb3ZhYmxlIjp0cnVlLCJWYWx1ZXMiOnsiRW51bWVyYXRpb24iOnsiVmFsdWUiOiJIZWFydCBSYXRlIFZhcmlhYmlsaXR5IiwiV0ZTZXJpYWxpemF0aW9uVHlwZSI6IldGU3RyaW5nU3Vic3RpdHV0YWJsZVN0YXRlIn19fSx7IkJvdW5kZWQiOnRydWUsIk9wZXJhdG9yIjo0LCJQcm9wZXJ0eSI6IlR5cGUiLCJSZW1vdmFibGUiOnRydWUsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IkV4ZXJjaXNlIE1pbnV0ZXMiLCJXRlNlcmlhbGl6YXRpb25UeXBlIjoiV0ZTdHJpbmdTdWJzdGl0dXRhYmxlU3RhdGUifX19XX0sIldGU2VyaWFsaXphdGlvblR5cGUiOiJXRkNvbnRlbnRQcmVkaWNhdGVUYWJsZVRlbXBsYXRlIn0=
+#ref anyUnbounded eyJWYWx1ZSI6eyJXRkFjdGlvblBhcmFtZXRlckZpbHRlclByZWZpeCI6MCwiV0ZDb250ZW50UHJlZGljYXRlQm91bmRlZERhdGUiOmZhbHNlLCJXRkFjdGlvblBhcmFtZXRlckZpbHRlclRlbXBsYXRlcyI6W3siQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjQsIlByb3BlcnR5IjoiVHlwZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IlN0ZXBzIiwiV0ZTZXJpYWxpemF0aW9uVHlwZSI6IldGU3RyaW5nU3Vic3RpdHV0YWJsZVN0YXRlIn19fSx7IkJvdW5kZWQiOmZhbHNlLCJPcGVyYXRvciI6NCwiUHJvcGVydHkiOiJUeXBlIiwiUmVtb3ZhYmxlIjp0cnVlLCJWYWx1ZXMiOnsiRW51bWVyYXRpb24iOnsiVmFsdWUiOiJSZXN0aW5nIEhlYXJ0IFJhdGUiLCJXRlNlcmlhbGl6YXRpb25UeXBlIjoiV0ZTdHJpbmdTdWJzdGl0dXRhYmxlU3RhdGUifX19LHsiQm91bmRlZCI6ZmFsc2UsIk9wZXJhdG9yIjo0LCJQcm9wZXJ0eSI6IlR5cGUiLCJSZW1vdmFibGUiOnRydWUsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IlNsZWVwIiwiV0ZTZXJpYWxpemF0aW9uVHlwZSI6IldGU3RyaW5nU3Vic3RpdHV0YWJsZVN0YXRlIn19fSx7IkJvdW5kZWQiOmZhbHNlLCJPcGVyYXRvciI6NCwiUHJvcGVydHkiOiJUeXBlIiwiUmVtb3ZhYmxlIjp0cnVlLCJWYWx1ZXMiOnsiRW51bWVyYXRpb24iOnsiVmFsdWUiOiJIZWFydCBSYXRlIFZhcmlhYmlsaXR5IiwiV0ZTZXJpYWxpemF0aW9uVHlwZSI6IldGU3RyaW5nU3Vic3RpdHV0YWJsZVN0YXRlIn19fSx7IkJvdW5kZWQiOmZhbHNlLCJPcGVyYXRvciI6NCwiUHJvcGVydHkiOiJUeXBlIiwiUmVtb3ZhYmxlIjp0cnVlLCJWYWx1ZXMiOnsiRW51bWVyYXRpb24iOnsiVmFsdWUiOiJFeGVyY2lzZSBNaW51dGVzIiwiV0ZTZXJpYWxpemF0aW9uVHlwZSI6IldGU3RyaW5nU3Vic3RpdHV0YWJsZVN0YXRlIn19fV19LCJXRlNlcmlhbGl6YXRpb25UeXBlIjoiV0ZDb250ZW50UHJlZGljYXRlVGFibGVUZW1wbGF0ZSJ9
+#ref anyWithDate eyJWYWx1ZSI6eyJXRkFjdGlvblBhcmFtZXRlckZpbHRlclByZWZpeCI6MCwiV0ZDb250ZW50UHJlZGljYXRlQm91bmRlZERhdGUiOmZhbHNlLCJXRkFjdGlvblBhcmFtZXRlckZpbHRlclRlbXBsYXRlcyI6W3siQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjQsIlByb3BlcnR5IjoiVHlwZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IlN0ZXBzIiwiV0ZTZXJpYWxpemF0aW9uVHlwZSI6IldGU3RyaW5nU3Vic3RpdHV0YWJsZVN0YXRlIn19fSx7IkJvdW5kZWQiOnRydWUsIk9wZXJhdG9yIjo0LCJQcm9wZXJ0eSI6IlR5cGUiLCJSZW1vdmFibGUiOnRydWUsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IlJlc3RpbmcgSGVhcnQgUmF0ZSIsIldGU2VyaWFsaXphdGlvblR5cGUiOiJXRlN0cmluZ1N1YnN0aXR1dGFibGVTdGF0ZSJ9fX0seyJCb3VuZGVkIjp0cnVlLCJPcGVyYXRvciI6NCwiUHJvcGVydHkiOiJUeXBlIiwiUmVtb3ZhYmxlIjp0cnVlLCJWYWx1ZXMiOnsiRW51bWVyYXRpb24iOnsiVmFsdWUiOiJTbGVlcCIsIldGU2VyaWFsaXphdGlvblR5cGUiOiJXRlN0cmluZ1N1YnN0aXR1dGFibGVTdGF0ZSJ9fX0seyJCb3VuZGVkIjp0cnVlLCJPcGVyYXRvciI6NCwiUHJvcGVydHkiOiJUeXBlIiwiUmVtb3ZhYmxlIjp0cnVlLCJWYWx1ZXMiOnsiRW51bWVyYXRpb24iOnsiVmFsdWUiOiJIZWFydCBSYXRlIFZhcmlhYmlsaXR5IiwiV0ZTZXJpYWxpemF0aW9uVHlwZSI6IldGU3RyaW5nU3Vic3RpdHV0YWJsZVN0YXRlIn19fSx7IkJvdW5kZWQiOnRydWUsIk9wZXJhdG9yIjo0LCJQcm9wZXJ0eSI6IlR5cGUiLCJSZW1vdmFibGUiOnRydWUsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IkV4ZXJjaXNlIE1pbnV0ZXMiLCJXRlNlcmlhbGl6YXRpb25UeXBlIjoiV0ZTdHJpbmdTdWJzdGl0dXRhYmxlU3RhdGUifX19LHsiQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjEwMDEsIlByb3BlcnR5IjoiU3RhcnQgRGF0ZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJOdW1iZXIiOiIzMCIsIlVuaXQiOjE2fX1dfSwiV0ZTZXJpYWxpemF0aW9uVHlwZSI6IldGQ29udGVudFByZWRpY2F0ZVRhYmxlVGVtcGxhdGUifQ==
+#ref anyDateOnly eyJWYWx1ZSI6eyJXRkFjdGlvblBhcmFtZXRlckZpbHRlclByZWZpeCI6MCwiV0ZDb250ZW50UHJlZGljYXRlQm91bmRlZERhdGUiOmZhbHNlLCJXRkFjdGlvblBhcmFtZXRlckZpbHRlclRlbXBsYXRlcyI6W3siQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjQsIlByb3BlcnR5IjoiVHlwZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IlN0ZXBzIiwiV0ZTZXJpYWxpemF0aW9uVHlwZSI6IldGU3RyaW5nU3Vic3RpdHV0YWJsZVN0YXRlIn19fSx7IkJvdW5kZWQiOnRydWUsIk9wZXJhdG9yIjoxMDAxLCJQcm9wZXJ0eSI6IlN0YXJ0IERhdGUiLCJSZW1vdmFibGUiOmZhbHNlLCJWYWx1ZXMiOnsiTnVtYmVyIjoiMzAiLCJVbml0IjoxNn19XX0sIldGU2VyaWFsaXphdGlvblR5cGUiOiJXRkNvbnRlbnRQcmVkaWNhdGVUYWJsZVRlbXBsYXRlIn0=
+
 action 'is.workflow.actions.filter.health.quantity' findNewest(&variable filter: 'WFContentItemFilter'): array {"WFContentItemLimitEnabled":true,"WFContentItemLimitNumber":5,"WFContentItemSortProperty":"Start Date","WFContentItemSortOrder":"Latest First"}
 
 action 'is.workflow.actions.filter.health.quantity' findManyNewest(&variable filter: 'WFContentItemFilter'): array {"WFContentItemLimitEnabled":true,"WFContentItemLimitNumber":1000,"WFContentItemSortProperty":"Start Date","WFContentItemSortOrder":"Latest First"}
@@ -25,7 +30,7 @@ action 'is.workflow.actions.properties.health.quantity' sampleValues(variable sa
 action 'is.workflow.actions.properties.health.quantity' sampleStarts(variable samples: 'WFInput'): array {"WFContentItemPropertyName":"Start Date"}
 
 // Nothing leaves the iPhone: every result is shown here and only here.
-const options = list("Resting Heart Rate", "Sleep", "Heart Rate Variability", "Exercise Minutes", "Steps", "All five together", "Test 1: empty type, plain", "Test 2: empty type, by day", "Test 3: everything but Steps")
+const options = list("Resting Heart Rate", "Sleep", "Heart Rate Variability", "Exercise Minutes", "Steps", "All five together", "Test 1: empty type, plain", "Test 2: empty type, by day", "Test 3: everything but Steps", "Test 4: any, extra rows removable", "Test 5: any, extra rows free", "Test 6: any, five types and a date", "Test 7: any, Steps or a date")
 const chosen = chooseFromList(options, "Check which Health data? Run this once for each.")
 const choice = getText(chosen)
 const notice = "If no result appears after this, iOS returned nothing for this type: either no samples, or no access."
@@ -127,4 +132,60 @@ if choice == "Test 3: everything but Steps" {
     const otherSteps = matchText('(?i)steps', otherText)
     const otherStepsCount = count(otherSteps)
     alert("Found {otherCount}.\n\nSteps: {otherStepsCount}\nResting: {otherRestingCount}\nSleep: {otherSleepCount}", "Test 3 result")
+}
+
+if choice == "Test 4: any, extra rows removable" {
+    const t4Samples = findManyNewest(anyRemovable)
+    const t4Count = count(t4Samples)
+    const t4Types = sampleTypes(t4Samples)
+    const t4Text = getText(t4Types)
+    const t4Resting = matchText('(?i)resting', t4Text)
+    const t4RestingCount = count(t4Resting)
+    const t4Sleep = matchText('(?i)sleep', t4Text)
+    const t4SleepCount = count(t4Sleep)
+    const t4Steps = matchText('(?i)steps', t4Text)
+    const t4StepsCount = count(t4Steps)
+    alert("Found {t4Count}.\n\nSteps: {t4StepsCount}\nResting: {t4RestingCount}\nSleep: {t4SleepCount}", "Test 4 result")
+}
+
+if choice == "Test 5: any, extra rows free" {
+    const t5Samples = findManyNewest(anyUnbounded)
+    const t5Count = count(t5Samples)
+    const t5Types = sampleTypes(t5Samples)
+    const t5Text = getText(t5Types)
+    const t5Resting = matchText('(?i)resting', t5Text)
+    const t5RestingCount = count(t5Resting)
+    const t5Sleep = matchText('(?i)sleep', t5Text)
+    const t5SleepCount = count(t5Sleep)
+    const t5Steps = matchText('(?i)steps', t5Text)
+    const t5StepsCount = count(t5Steps)
+    alert("Found {t5Count}.\n\nSteps: {t5StepsCount}\nResting: {t5RestingCount}\nSleep: {t5SleepCount}", "Test 5 result")
+}
+
+if choice == "Test 6: any, five types and a date" {
+    const t6Samples = findManyNewest(anyWithDate)
+    const t6Count = count(t6Samples)
+    const t6Types = sampleTypes(t6Samples)
+    const t6Text = getText(t6Types)
+    const t6Resting = matchText('(?i)resting', t6Text)
+    const t6RestingCount = count(t6Resting)
+    const t6Sleep = matchText('(?i)sleep', t6Text)
+    const t6SleepCount = count(t6Sleep)
+    const t6Steps = matchText('(?i)steps', t6Text)
+    const t6StepsCount = count(t6Steps)
+    alert("Found {t6Count}.\n\nSteps: {t6StepsCount}\nResting: {t6RestingCount}\nSleep: {t6SleepCount}", "Test 6 result")
+}
+
+if choice == "Test 7: any, Steps or a date" {
+    const t7Samples = findManyNewest(anyDateOnly)
+    const t7Count = count(t7Samples)
+    const t7Types = sampleTypes(t7Samples)
+    const t7Text = getText(t7Types)
+    const t7Resting = matchText('(?i)resting', t7Text)
+    const t7RestingCount = count(t7Resting)
+    const t7Sleep = matchText('(?i)sleep', t7Text)
+    const t7SleepCount = count(t7Sleep)
+    const t7Steps = matchText('(?i)steps', t7Text)
+    const t7StepsCount = count(t7Steps)
+    alert("Found {t7Count}.\n\nSteps: {t7StepsCount}\nResting: {t7RestingCount}\nSleep: {t7SleepCount}", "Test 7 result")
 }
