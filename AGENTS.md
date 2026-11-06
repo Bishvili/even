@@ -220,7 +220,8 @@ What the app holds and where it goes. Write every privacy statement from this ta
 | Data | Comes from | On the iPhone | In the account | Used for |
 | --- | --- | --- | --- | --- |
 | Mood, optional stress and energy, tags, notes | Check-ins | Yes | Yes when signed in, as readable text. A deleted check-in leaves only its ID, so other devices can remove it. | Insights, coaching and notification times. Notes are only displayed. |
-| Weekly reflections, breathing sessions, suggestions marked done, and which planned check-ins were answered | The app | Yes | No | Insights. Breathing and suggestions marked done also feed what tends to help. Unanswered times move check-ins. |
+| Weekly reflections: four answers and a time | The app | Yes | Yes when signed in, as readable text. A deleted one leaves only its ID and time. | Insights, the week in review and the reminder. Never in notification text. |
+| Breathing sessions, suggestions marked done, and which planned check-ins were answered | The app | Yes | No | Insights. Breathing and suggestions marked done also feed what tends to help. Unanswered times move check-ins. |
 | Health days and events added by hand or imported, and numbers typed on a synced day | The Data tab | Yes | No | Insights and coaching. A typed number wins on that iPhone and a sync never replaces it. |
 | Steps, exercise minutes, sleep hours, HRV | Health Sync, from Apple Health, up to the last 7 days each run. Sleep arrives as intervals from recent nights, with time in bed used for a night with nothing else, up to a month on the first sync | Yes | Yes | Insights and coaching. HRV: Insights only. |
 | Bedtimes | Worked out from the sleep intervals | Yes | Yes | Bedtime estimate and wind-down |

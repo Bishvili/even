@@ -40,7 +40,7 @@ async function payload(request){
  if(type.includes("application/x-www-form-urlencoded"))return Object.fromEntries(new URLSearchParams(text));
  try{return JSON.parse(text);}catch(e){return Object.fromEntries(new URLSearchParams(text));}
 }
-const VERSION_NAME="2.46.0";
+const VERSION_NAME="2.47.0";
 function normalEmail(value){return String(value||"").trim().toLowerCase();}
 async function signinAuth(env,ctx,request){
  const {createAuth}=await import("./signin.mjs");
@@ -80,7 +80,7 @@ async function validDevice(request,env){
 }
 // Everything synced for one person, apart from their account and devices.
 function syncedDataStatements(env,owner,keepMoods){
- return [...(keepMoods?[]:[env.DB.prepare("DELETE FROM health_moods WHERE owner_email=?").bind(owner)]),
+ return [...(keepMoods?[]:[env.DB.prepare("DELETE FROM health_moods WHERE owner_email=?").bind(owner),env.DB.prepare("DELETE FROM health_reflections WHERE owner_email=?").bind(owner)]),
   env.DB.prepare("UPDATE health_devices SET last_upload_counts=NULL WHERE owner_email=?").bind(owner),
   env.DB.prepare("DELETE FROM health_metrics WHERE owner_email=?").bind(owner),
   env.DB.prepare("DELETE FROM health_hidden_days WHERE owner_email=?").bind(owner),
@@ -379,7 +379,7 @@ async function authApi(request,env,ctx,path){
   if(path==="/api/user/erase"){
    // Each check-in keeps only its ID, so every device removes its copy instead of sending it back.
    const at=new Date().toISOString();
-   await env.DB.batch([env.DB.prepare("UPDATE health_moods SET ts=?,score=NULL,energy=NULL,stress=NULL,tags=NULL,note=NULL,updated_at=?,deleted_at=? WHERE owner_email=? AND deleted_at IS NULL").bind(at,at,at,email),...syncedDataStatements(env,email,true)]);
+   await env.DB.batch([env.DB.prepare("UPDATE health_moods SET ts=?,score=NULL,energy=NULL,stress=NULL,tags=NULL,note=NULL,updated_at=?,deleted_at=? WHERE owner_email=? AND deleted_at IS NULL").bind(at,at,at,email),env.DB.prepare("UPDATE health_reflections SET ts=?,answers=NULL,updated_at=?,deleted_at=? WHERE owner_email=? AND deleted_at IS NULL").bind(at,at,at,email),...syncedDataStatements(env,email,true)]);
    return reply({ok:true,erased:true,email});
   }
   if(Date.now()-Date.parse(identity.signedInAt)>FRESH_SIGN_IN_MS)return error("Sign in again to delete your account.",403,"fresh_sign_in_required");
@@ -652,7 +652,7 @@ async function deliverPush(env,key,sub,now,payload){
 const SMART_QUIET_MS=5400000;
 // The phone keeps the same limits (LIMITS in app.js).
 const LIMITS={moods:6000,healthDays:1200,events:2000},HEALTH_MEASURES=8;
-const SCHEDULE_KINDS=["custom","brief","bedtime","hard"],SCHEDULE_PARTS=["morning","midday","afternoon","evening"],WEEK_MS=604800000,REMINDER_BATCH=5,SYNC_STALE_MS=72000000,DUE_WINDOW_MS=3600000;
+const SCHEDULE_KINDS=["custom","brief","bedtime","hard","reflection"],SCHEDULE_PARTS=["morning","midday","afternoon","evening"],WEEK_MS=604800000,REMINDER_BATCH=5,SYNC_STALE_MS=72000000,DUE_WINDOW_MS=3600000;
 // Sent ahead of an anticipated hard moment. The device fills in the specific message.
 async function sendAnticipation(env,key,sub,now){
  const last=sub.last_stress_at?Date.parse(sub.last_stress_at):0;
@@ -719,8 +719,8 @@ async function sendScheduled(env,key,sub,now){
  if(!due)return false;
  const quiet=sub.mode==="smart"&&sub.last_check_in_at&&now.getTime()-new Date(sub.last_check_in_at).getTime()<SMART_QUIET_MS;
  const minutes=localTime(sub.time_zone,new Date(due.at)).minutes,custom=sub.mode!=="smart";
- const body=custom?"How are you feeling?":reminderMessage(minutes,due.kind==="bedtime",due.kind==="hard",firstName(sub.person),due.part);
- const sent=quiet?{ok:true}:await deliverPush(env,key,sub,now,pushPayload(env,body,"/#checkin",{brief:due.kind==="brief"}));
+ const reflection=due.kind==="reflection",body=reflection?"Your weekly reflection is ready.":custom?"How are you feeling?":reminderMessage(minutes,due.kind==="bedtime",due.kind==="hard",firstName(sub.person),due.part);
+ const sent=quiet&&!reflection?{ok:true}:await deliverPush(env,key,sub,now,pushPayload(env,body,reflection?"/?do=reflect":"/#checkin",{brief:due.kind==="brief"}));
  if(sent.ok)await env.DB.prepare("UPDATE health_push_subscriptions SET last_schedule_at=? WHERE endpoint=?").bind(new Date(due.at).toISOString(),sub.endpoint).run();
  return sent.ok&&!quiet;
 }
@@ -768,6 +768,22 @@ async function syncedMoods(env,owner,since){
  return{email:owner,cursor,
   moods:live.map(m=>{let tags=[];try{tags=JSON.parse(m.tags||"[]");}catch(e){/* Unreadable tags read as none. */}return{id:m.id,ts:m.ts,score:m.score,energy:m.energy,stress:m.stress,tags,note:m.note||""};}),
   deleted:(rows.results||[]).filter(m=>m.deleted_at).map(m=>m.id)};
+}
+const REFLECTION_IDS=["snapped","setOff","recovered","rested"],REFLECTION_LIMIT=520;
+function readReflection(x){
+ const id=String(x?.id||""),ts=new Date(x?.ts),answers=x?.answers;
+ if(!id||id.length>80||!Number.isFinite(ts.getTime())||ts.getTime()>Date.now()+86400000)return null;
+ if(!answers||typeof answers!=="object"||Object.keys(answers).length!==REFLECTION_IDS.length)return null;
+ if(!REFLECTION_IDS.every(key=>Number.isInteger(answers[key])&&answers[key]>=0&&answers[key]<=4))return null;
+ return {id,ts:ts.toISOString(),answers:JSON.stringify(Object.fromEntries(REFLECTION_IDS.map(key=>[key,answers[key]])))};
+}
+async function syncedReflections(env,owner,since){
+ const cursor=new Date().toISOString(),from=Number.isFinite(Date.parse(since))?new Date(since).toISOString():"";
+ const rows=await env.DB.prepare("SELECT id,ts,answers,deleted_at FROM health_reflections WHERE owner_email=? AND updated_at>=? ORDER BY ts DESC LIMIT ?").bind(owner,from,REFLECTION_LIMIT).all();
+ const list=rows.results||[];
+ return {cursor,
+  reflections:list.filter(r=>!r.deleted_at).map(r=>{let answers=null;try{answers=JSON.parse(r.answers);}catch(e){/* Unreadable answers are left out. */}return {id:r.id,ts:r.ts,answers};}).filter(r=>r.answers),
+  deleted:list.filter(r=>r.deleted_at).map(r=>r.id)};
 }
 async function deviceStatus(env,dev,owner){
  const [device,h,c,received]=await Promise.all([
@@ -924,11 +940,30 @@ async function syncApi(request,env,path){
   if(statements.length)await env.DB.batch(statements);
   return reply({ok:true,saved:moods.length,deleted:deleted.length});
  }
+ if(path==="/api/reflections"&&request.method==="GET"){
+  return reply({ok:true,email:owner,...await syncedReflections(env,owner,new URL(request.url).searchParams.get("since"))});
+ }
+ if(path==="/api/reflections"&&request.method==="POST"){
+  let input;try{input=await payload(request);}catch(e){return error("That request couldn't be read.",400,"invalid_body");}
+  const given=Array.isArray(input?.reflections)?input.reflections:[],gone=Array.isArray(input?.deleted)?input.deleted:[];
+  if(given.length>100||gone.length>100)return error("Too many reflections",400,"too_many");
+  const reflections=given.map(readReflection);
+  if(reflections.some(r=>!r))return error("That reflection couldn't be read.",400,"invalid_reflection");
+  const deleted=gone.map(String).filter(id=>id&&id.length<=80);
+  const live=await env.DB.prepare("SELECT COUNT(*) AS count FROM health_reflections WHERE owner_email=? AND deleted_at IS NULL").bind(owner).first();
+  if(reflections.length&&Number(live?.count||0)+reflections.length>REFLECTION_LIMIT)return error("Too many reflections",400,"reflection_limit");
+  const at=new Date().toISOString(),statements=[];
+  reflections.forEach(r=>statements.push(env.DB.prepare("INSERT INTO health_reflections(owner_email,id,ts,answers,updated_at) VALUES(?,?,?,?,?) ON CONFLICT(owner_email,id) DO UPDATE SET ts=excluded.ts,answers=excluded.answers,updated_at=excluded.updated_at,deleted_at=NULL").bind(owner,r.id,r.ts,r.answers,at)));
+  deleted.forEach(id=>statements.push(env.DB.prepare("INSERT INTO health_reflections(owner_email,id,ts,updated_at,deleted_at) VALUES(?,?,?,?,?) ON CONFLICT(owner_email,id) DO UPDATE SET answers=NULL,updated_at=excluded.updated_at,deleted_at=excluded.deleted_at").bind(owner,id,at,at,at)));
+  if(statements.length)await env.DB.batch(statements);
+  return reply({ok:true,saved:reflections.length,deleted:deleted.length});
+ }
  // Everything the app shows about this device and account, so coming back to the app takes one request.
  if(path==="/api/session"&&request.method==="GET"){
-  const [status,release,calendars,settings,moods]=await Promise.all([deviceStatus(env,dev,owner),loadShortcutRelease(env),calendarList(env,owner),syncChoices(env,owner),syncedMoods(env,owner,new URL(request.url).searchParams.get("since"))]);
+  const params=new URL(request.url).searchParams;
+  const [status,release,calendars,settings,moods,reflections]=await Promise.all([deviceStatus(env,dev,owner),loadShortcutRelease(env),calendarList(env,owner),syncChoices(env,owner),syncedMoods(env,owner,params.get("since")),syncedReflections(env,owner,params.get("reflectionsSince"))]);
   if(!status)return error("This device was revoked",401,"device_revoked");
-  return reply({ok:true,status,release,calendars,settings,moods});
+  return reply({ok:true,status,release,calendars,settings,moods,reflections:{email:owner,...reflections}});
  }
  if(path==="/api/sync/status"&&request.method==="GET"){
   const status=await deviceStatus(env,dev,owner);

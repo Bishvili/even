@@ -5,7 +5,7 @@
  var SETTINGS_KEY="health-reminder";
  var blockedReason="",syncError="",settings=readSettings();
 
- function defaults(){return{on:false,mode:"smart",from:"09:00",to:"21:00",count:5,times:["09:00"],every:2,hardest:"varies",brief:true,windDown:true,weekends:true,learnTimes:true,pairs:[],stressNudges:true,syncReminder:true,syncAt:"",intakeDone:false,intakeDismissed:false};}
+ function defaults(){return{on:false,mode:"smart",from:"09:00",to:"21:00",count:5,times:["09:00"],every:2,hardest:"varies",brief:true,windDown:true,reflection:true,weekends:true,learnTimes:true,pairs:[],stressNudges:true,syncReminder:true,syncAt:"",intakeDone:false,intakeDismissed:false};}
  function readSettings(){try{return Object.assign(defaults(),JSON.parse(localStorage.getItem(SETTINGS_KEY)||"{}"));}catch(e){return defaults();}}
  function saveSettings(){try{localStorage.setItem(SETTINGS_KEY,JSON.stringify(settings));}catch(e){/* Storage is full or blocked; settings last until the app closes. */}}
  function canPush(){return "serviceWorker" in navigator&&"PushManager" in window&&"Notification" in window;}
@@ -109,7 +109,7 @@
   items.forEach(function(item){var at=new Date(item.at),today=at.toDateString()===new Date().toDateString();row((today?"":at.toLocaleDateString([],{weekday:"short"})+" ")+app.formatTime(at),"Before a harder moment",item.message);});
   if(settings.stressNudges&&!items.length)row("—","Before a harder moment","Nothing ahead yet. These appear once your check-ins show a pattern.");
   $("reminder-sync-time-row").hidden=!settings.syncReminder;
-  $("reminder-learn").checked=settings.learnTimes;$("reminder-stress").checked=settings.stressNudges;$("reminder-sync").checked=settings.syncReminder;$("reminder-sync-time").value=syncTime(settings);
+  $("reminder-reflection").checked=settings.reflection!==false;$("reminder-learn").checked=settings.learnTimes;$("reminder-stress").checked=settings.stressNudges;$("reminder-sync").checked=settings.syncReminder;$("reminder-sync-time").value=syncTime(settings);
  }
  function renderSchedule(){
   document.querySelectorAll("[data-reminder-mode]").forEach(function(b){var on=b.dataset.reminderMode===settings.mode;b.classList.toggle("selected",on);b.setAttribute("aria-pressed",String(on));});
@@ -165,7 +165,7 @@
   var registration=await navigator.serviceWorker.ready;
   var subscription=await registration.pushManager.getSubscription()||await registration.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:keyBytes(key)});
   var stressItems=anticipated(settings);saveAnticipated(stressItems);
-  var saved=await fetch("/api/push/subscribe",{method:"POST",headers:deviceHeaders(),cache:"no-store",body:JSON.stringify({endpoint:subscription.endpoint,keys:subscription.toJSON().keys,mode:settings.mode==="smart"?"smart":"custom",schedule:globalThis.Coach.weekSchedule(app.personalMoods(),app.personalHealth(),Object.assign({alarms:app.alarms(),events:app.personalEvents(),customTimes:schedule(),moves:learnFromToday()},settings),new Date()),syncAt:settings.syncReminder?syncTime(settings):null,stressTimes:stressItems.map(function(item){return item.at;}),timeZone:Intl.DateTimeFormat().resolvedOptions().timeZone})});
+  var saved=await fetch("/api/push/subscribe",{method:"POST",headers:deviceHeaders(),cache:"no-store",body:JSON.stringify({endpoint:subscription.endpoint,keys:subscription.toJSON().keys,mode:settings.mode==="smart"?"smart":"custom",schedule:globalThis.Coach.weekSchedule(app.personalMoods(),app.personalHealth(),Object.assign({alarms:app.alarms(),events:app.personalEvents(),customTimes:schedule(),moves:learnFromToday(),reflections:app.reviewData().reflections},settings),new Date()),syncAt:settings.syncReminder?syncTime(settings):null,stressTimes:stressItems.map(function(item){return item.at;}),timeZone:Intl.DateTimeFormat().resolvedOptions().timeZone})});
   if(!saved.ok)throw Error("Couldn’t save your notifications.");
  }
  async function unsubscribe(){
@@ -210,7 +210,7 @@
  $("reminder-every").addEventListener("change",function(){settings.every=Number(this.value);scheduleChanged();});
  document.querySelectorAll("[data-reminder-mode]").forEach(function(b){b.addEventListener("click",function(){settings.mode=b.dataset.reminderMode;renderSchedule();scheduleChanged();});});
  $("reminder-hardest").addEventListener("change",function(){settings.hardest=this.value;scheduleChanged();});
- [["brief","brief"],["wind-down","windDown"],["weekends","weekends"],["learn","learnTimes"],["stress","stressNudges"],["sync","syncReminder"]].forEach(function(item){$("reminder-"+item[0]).addEventListener("change",function(){settings[item[1]]=this.checked;scheduleChanged();});});
+ [["brief","brief"],["wind-down","windDown"],["weekends","weekends"],["learn","learnTimes"],["stress","stressNudges"],["sync","syncReminder"],["reflection","reflection"]].forEach(function(item){$("reminder-"+item[0]).addEventListener("change",function(){settings[item[1]]=this.checked;scheduleChanged();});});
  $("reminder-sync-time").addEventListener("blur",function(){if(this.value&&this.value!==syncTime(settings)){settings.syncAt=this.value;scheduleChanged();}});
  function dismissIntake(){settings.intakeDismissed=true;saveSettings();renderReminder();}
  $("intake-retake").addEventListener("click",function(){openIntake("Cancel",function(){});});

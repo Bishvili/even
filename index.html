@@ -303,7 +303,7 @@
     <button type="button" class="btn subtle full" id="erase-remote">Erase synced data</button>
     <button type="button" class="btn subtle full" id="delete-account">Delete my account</button>
     </details>
-    <div class="help-note"><strong>Privacy</strong><p>Your first name can appear in notifications, including on your Lock Screen. When you’re signed in, check-ins and their notes are saved to your private account so they appear on your other devices. They’re stored as readable text. Health data, calendar events and alarms you sync are sent over an encrypted connection and stored in your private account. None of this is end-to-end encrypted. Weekly reflections, breathing sessions, suggestions you mark done and which check-ins you answered stay on this device. Sign-in codes are sent through our email provider. If you use Google, it tells us your email and name. You can disconnect a device or erase synced data at any time. {{name}} is for the US and in English for now: support numbers are US only, and {{sync}} reads Health in English. Send feedback in Settings opens an email with your app and sync details, and nothing else, and sends only if you send it.</p></div>
+    <div class="help-note"><strong>Privacy</strong><p>Your first name can appear in notifications, including on your Lock Screen. When you’re signed in, check-ins and their notes are saved to your private account so they appear on your other devices. They’re stored as readable text. Health data, calendar events and alarms you sync are sent over an encrypted connection and stored in your private account. None of this is end-to-end encrypted. Weekly reflections are saved to your account the same way. Breathing sessions, suggestions you mark done and which check-ins you answered stay on this device. Sign-in codes are sent through our email provider. If you use Google, it tells us your email and name. You can disconnect a device or erase synced data at any time. {{name}} is for the US and in English for now: support numbers are US only, and {{sync}} reads Health in English. Send feedback in Settings opens an email with your app and sync details, and nothing else, and sends only if you send it.</p></div>
    </section>
 
    <section id="view-settings" class="view" aria-labelledby="settings-title">
@@ -345,6 +345,7 @@
        <label class="calendar-row"><span>Wind-down before bed</span><input type="checkbox" role="switch" id="reminder-wind-down"></label>
       </div>
       <label class="calendar-row"><span>Nudge before harder moments</span><input type="checkbox" role="switch" id="reminder-stress"></label>
+      <label class="calendar-row"><span>Weekly reflection</span><input type="checkbox" role="switch" id="reminder-reflection"></label>
       <label class="calendar-row"><span>Remind me to sync</span><input type="checkbox" role="switch" id="reminder-sync"></label>
       <label class="calendar-row" id="reminder-sync-time-row"><span>Sync reminder time</span><input type="time" id="reminder-sync-time"></label>
       <label class="calendar-row"><span>Send on weekends</span><input type="checkbox" role="switch" id="reminder-weekends"></label>
@@ -387,7 +388,7 @@
      <p class="muted">Tell us what went wrong or what you’d change.</p>
      <button type="button" class="btn secondary full" id="feedback-open">Send feedback</button>
     </section>
-    <div class="card"><h2>About the insights</h2><p class="muted">Comparisons need at least 5 check-ins in each group. Mood data is subjective and gaps can skew results. Nothing here is a diagnosis or proves a cause.</p><button type="button" class="btn subtle full" id="setup-again">Go through setup again</button><a class="btn subtle full" id="whitepaper-link" href="/whitepaper.html" target="_blank" rel="noopener">How {{name}} works <span aria-hidden="true">↗</span></a><p class="muted">Version <span id="version">2.46.0</span> · No ads or analytics</p></div>
+    <div class="card"><h2>About the insights</h2><p class="muted">Comparisons need at least 5 check-ins in each group. Mood data is subjective and gaps can skew results. Nothing here is a diagnosis or proves a cause.</p><button type="button" class="btn subtle full" id="setup-again">Go through setup again</button><a class="btn subtle full" id="whitepaper-link" href="/whitepaper.html" target="_blank" rel="noopener">How {{name}} works <span aria-hidden="true">↗</span></a><p class="muted">Version <span id="version">2.47.0</span> · No ads or analytics</p></div>
     <div class="card"><h2>Explore a sample month</h2><p class="muted">See 28 days of fictional check-ins and events. They stay separate from your own data and are never uploaded.</p><button class="btn secondary full" id="demo-button">Load 28-day calendar demo</button><button class="btn subtle full" id="clear-demo-button">Remove demo data</button></div>
    </section>
   </main>
@@ -548,8 +549,15 @@
    <p class="muted">Four slow rounds. If it feels uncomfortable, breathe normally and stop.</p>
    <button type="button" class="btn secondary full" id="close-reset">Done</button>
   </dialog>
+  <dialog class="welcome signin-sheet" id="week-review" aria-labelledby="week-review-title">
+   <h2 id="week-review-title">Your week</h2>
+   <div id="week-review-lines"></div>
+   <p class="muted">Your own check, not a clinical measure.</p>
+   <button type="button" class="btn primary full" id="week-review-close">Done</button>
+  </dialog>
   <dialog class="welcome reflection" id="reflection-dialog" aria-labelledby="reflection-title">
    <h2 id="reflection-title">Your past 7 days</h2>
+   <p class="muted">Your answers are saved to your account, like check-ins.</p>
    <form id="reflection-form" method="dialog"></form>
   </dialog>
   <div class="pull-indicator" id="pull-indicator" role="status" hidden>{{pullMark}}<span id="pull-label"></span></div>

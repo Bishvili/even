@@ -263,3 +263,4 @@ h1[tabindex]:focus{outline:none}
 .toast-undo{min-height:44px;margin-left:6px;padding:0 10px;border:0;background:transparent;color:inherit;font:inherit;font-weight:700;text-decoration:underline;cursor:pointer}
 #changes-retry{min-height:44px;margin-bottom:8px}
 #changes-status{margin:0}
+.reflection-week{border-bottom:1px solid var(--border)}.reflection-week summary{list-style:none;min-height:44px;cursor:pointer;border-bottom:0}.reflection-week summary::-webkit-details-marker{display:none}.reflection-answer{display:flex;justify-content:space-between;gap:12px;margin:8px 0;font-size:0.824rem}.reflection-answer strong{text-align:right;flex:none;max-width:45%}.reflection-week .text-action{min-height:44px;padding:0;border:0;background:none;color:inherit;font:inherit;font-weight:700}

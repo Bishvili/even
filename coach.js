@@ -89,6 +89,43 @@
   return at-last>=REFLECTION_DAYS*DAY_MS;
  }
 
+ // The 7 days before a reflection, from what was measured. A figure needs at least 5 of the 7 days.
+ var WEEK_NEED=5;
+ function weekFigures(end,moods,health,events){
+  var to=new Date(end).getTime(),from=to-REFLECTION_DAYS*DAY_MS,inWeek=function(t){return t>=from&&t<to;};
+  var checks=(moods||[]).filter(function(m){return inWeek(new Date(m.ts).getTime());});
+  var days=(health||[]).filter(function(h){return inWeek(new Date(h.date+"T12:00:00").getTime());});
+  var measured=function(key){return days.filter(function(h){return Number.isFinite(h[key]);});};
+  var sleep=measured("sleepHours"),moved=measured("workoutMin");
+  var spans=(events||[]).filter(function(e){return inWeek(new Date(e.start).getTime())&&e.end;}).map(function(e){return[new Date(e.start).getTime(),new Date(e.end).getTime()];}).sort(function(a,b){return a[0]-b[0];});
+  var busy=0,top=0;spans.forEach(function(s){var start=Math.max(s[0],top);if(s[1]>start){busy+=s[1]-start;top=s[1];}});
+  var hardDays={};checks.forEach(function(m){if(m.stress>=4||m.score<=2)hardDays[localDay(m.ts)]=true;});
+  return{checkIns:checks.length,hardDays:Object.keys(hardDays).length,sleepHours:sleep.length>=WEEK_NEED?Math.round(mean(sleep.map(function(h){return h.sleepHours;}))*10)/10:null,sleepNights:sleep.length,
+   exerciseDays:moved.length>=WEEK_NEED?moved.filter(function(h){return h.workoutMin>0;}).length:null,calendarHours:spans.length?Math.round(busy/360000)/10:0};
+ }
+ function weekReview(figures,scores){
+  var lines=[plural(figures.checkIns,"check-in","check-ins")+" and "+plural(figures.hardDays,"hard day","hard days")+".",
+   figures.sleepHours===null?"Not enough sleep data to average.":figures.sleepHours+" hours of sleep on average, over "+plural(figures.sleepNights,"night","nights")+".",
+   figures.exerciseDays===null?"Not enough exercise data to count.":plural(figures.exerciseDays,"day","days")+" with exercise.",
+   figures.calendarHours+" hours on your calendar."];
+  if(scores.length>1)lines.push("Your last "+scores.length+" weeks: "+scores.join(", ")+".");
+  return lines;
+ }
+ function plural(n,one,many){return n+" "+(n===1?one:many);}
+ // One a week, at the weekday and time the person usually answers, else Sunday at 6 PM, inside their notification hours.
+ function reflectionSlot(reflections,moods,from,to,today){
+  var now=new Date(today),usual=(reflections||[]).slice(-8).map(function(r){return new Date(r.ts);}),day=0,minute=1080;
+  if(usual.length>=3){
+   var counts=[0,0,0,0,0,0,0];usual.forEach(function(d){counts[d.getDay()]++;});day=counts.indexOf(Math.max.apply(null,counts));
+   minute=median(usual.map(function(d){return d.getHours()*60+d.getMinutes();}));
+  }
+  var low=minutesOf(from),high=minutesOf(to);if(high<=low)high+=1440;
+  minute=Math.max(low,Math.min(Math.min(high,1439),minute));
+  var at=new Date(now);at.setHours(0,minute,0,0);at.setDate(at.getDate()+((day-at.getDay()+7)%7));
+  if(at<=now)at.setDate(at.getDate()+7);
+  if(!reflectionDue(reflections,moods,at))return null;
+  return{at:at,minute:minute};
+ }
  function minutesOf(time){var p=time.split(":");return Number(p[0])*60+Number(p[1]);}
  function timeOf(minutes){return String(Math.floor(minutes/60)).padStart(2,"0")+":"+String(minutes%60).padStart(2,"0");}
  // Spreads reminders across the window, favoring the times check-ins usually happen.
@@ -275,6 +312,17 @@
     var at=new Date(noon);at.setHours(0,slot.minute,0,0);
     if(at>now)items.push({at:at.toISOString(),kind:slot.kind==="usual"||slot.kind==="spaced"||slot.kind==="pair"?"custom":slot.kind,part:Day.partOf(slot.minute).id});
    });
+  }
+  if(prefs.reflection!==false&&prefs.reflections){
+   var slot=reflectionSlot(prefs.reflections,moods,prefs.from||"09:00",prefs.to||"21:00",now);
+   if(slot&&slot.at.getTime()-now.getTime()<=7*DAY_MS){
+    // It takes the place of a spaced check-in that day, so the day's total holds.
+    var key=slot.at.toDateString(),swap=-1;
+    items.forEach(function(item,index){if(item.kind==="custom"&&new Date(item.at).toDateString()===key)swap=index;});
+    if(swap>=0)items.splice(swap,1);
+    items.push({at:slot.at.toISOString(),kind:"reflection",part:Day.partOf(slot.minute).id});
+    items.sort(function(a,b){return new Date(a.at)-new Date(b.at);});
+   }
   }
   return items;
  }
@@ -538,12 +586,11 @@
   if(data.connected&&(!data.lastUpload||now.getTime()-new Date(data.lastUpload).getTime()>RULES.staleHours*3600000))actions.push({text:"Run {{sync}} to bring in last night’s sleep and your calendar.",action:"sync",label:"Run {{sync}}"});
   return actions.slice(0,3);
  }
- var api={learnedMoves:learnedMoves,validDay:validDay,weekSchedule:weekSchedule,whatHelps:whatHelps,anticipate:anticipate,nextActions:nextActions,bedtimeForAlarm:bedtimeForAlarm,morningAlarm:morningAlarm,alarmsOn:alarmsOn,smartPlan:smartPlan,bedtimeReminder:bedtimeReminder,smartTimes:smartTimes,repeatTimes:repeatTimes,outlook:outlook,findings:findings,brief:brief,briefFor:briefFor,hardStretch:hardStretch,steadiness:steadiness,reflectionDue:reflectionDue,REFLECTION:REFLECTION};
+ var api={weekFigures:weekFigures,weekReview:weekReview,reflectionSlot:reflectionSlot,learnedMoves:learnedMoves,validDay:validDay,weekSchedule:weekSchedule,whatHelps:whatHelps,anticipate:anticipate,nextActions:nextActions,bedtimeForAlarm:bedtimeForAlarm,morningAlarm:morningAlarm,alarmsOn:alarmsOn,smartPlan:smartPlan,bedtimeReminder:bedtimeReminder,smartTimes:smartTimes,repeatTimes:repeatTimes,outlook:outlook,findings:findings,brief:brief,briefFor:briefFor,hardStretch:hardStretch,steadiness:steadiness,reflectionDue:reflectionDue,REFLECTION:REFLECTION};
  root.Coach=api;
  if(typeof document==="undefined"||!root.App)return;
 
  var LEVELS={harder:"Tends to be harder",easier:"Tends to be easier",typical:"About average",unknown:"Not enough check-ins"};
- var reflectionSnoozed=false;
  var STEPS=["Breathe in","Hold","Breathe out","Hold"],breathTimer=null,breathDelay=null;
  function $(id){return document.getElementById(id);}
  function element(tag,className,text){var e=document.createElement(tag);if(className)e.className=className;if(text!==undefined)e.textContent=text;return e;}
@@ -614,13 +661,19 @@
   $("more-findings-section").hidden=rows.length<4;
  }
  function renderReflections(reflections){
-  var list=$("reflection-history"),rows=reflections.slice(-6).reverse();list.textContent="";
+  var list=$("reflection-history"),all=reflections.filter(function(r){return steadiness(r.answers)!==null;}),rows=all.slice(-12).reverse();list.textContent="";
   if(!rows.length){list.appendChild(element("p","muted","A week after your first check-in, a short reflection appears on Check in. Your weekly scores will show here."));return;}
   rows.forEach(function(r){
-   var row=element("div","outlook-row");
-   row.appendChild(element("strong","","Week ending "+new Date(r.ts).toLocaleDateString(undefined,{month:"short",day:"numeric"})));
-   row.appendChild(element("span","outlook-level",steadiness(r.answers)+" / 100"));
-   list.appendChild(row);
+   var at=all.indexOf(r),before=all.slice(Math.max(0,at-8),at).map(function(x){return steadiness(x.answers);});
+   var row=element("details","reflection-week"),head=element("summary","outlook-row");
+   head.appendChild(element("strong","","Week ending "+new Date(r.ts).toLocaleDateString(undefined,{month:"short",day:"numeric"})));
+   head.appendChild(element("span","outlook-level",steadiness(r.answers)+" / 100"));
+   row.appendChild(head);
+   if(before.length>=3)row.appendChild(element("p","muted","Your usual: "+Math.round(median(before))));
+   REFLECTION.forEach(function(q){var line=element("p","reflection-answer");line.appendChild(element("span","",q.text+" "));line.appendChild(element("strong","",q.options[r.answers[q.id]]||"—"));row.appendChild(line);});
+   var remove=element("button","text-action","Delete");remove.type="button";
+   remove.addEventListener("click",function(){root.App.askConfirm("Delete this reflection? It leaves your account and all your devices. This can’t be undone.","Delete").then(function(yes){if(yes)root.App.deleteReflection(r.id);});});
+   row.appendChild(remove);list.appendChild(row);
   });
   list.appendChild(element("p","muted","Each score combines your four answers. Higher means a steadier week."));
  }
@@ -639,12 +692,16 @@
    set.appendChild(options);form.appendChild(set);
   });
   var save=element("button","btn primary full","Save reflection");save.type="submit";save.value="save";form.appendChild(save);
-  var later=element("button","btn subtle full","Not now");later.type="button";later.id="close-reflection";form.appendChild(later);
-  later.addEventListener("click",function(){reflectionSnoozed=true;$("reflection-dialog").close();$("reflection-prompt").hidden=true;});
+  var later=element("button","btn subtle full","Later");later.type="button";later.id="close-reflection";form.appendChild(later);
+  later.addEventListener("click",function(){root.App.reflectionLater(localDay(new Date()));$("reflection-dialog").close();$("reflection-prompt").hidden=true;});
   form.addEventListener("submit",function(){
    var answers={};REFLECTION.forEach(function(q){answers[q.id]=Number(form.elements[q.id].value);});
-   form.reset();root.App.addReflection({ts:new Date().toISOString(),answers:answers});
-   root.App.toast("Reflection saved.");
+   var saved=new Date().toISOString(),shared=root.App.reviewData();
+   form.reset();root.App.addReflection({ts:saved,answers:answers});
+   var scores=shared.reflections.slice(-4).map(function(r){return steadiness(r.answers);}).filter(function(n){return n!==null;});
+   var box=$("week-review-lines");box.textContent="";
+   weekReview(weekFigures(saved,shared.moods,shared.health,shared.events),scores).forEach(function(line){box.appendChild(element("p","",line));});
+   $("week-review").showModal();
   });
  }
  function stopBreathing(){clearTimeout(breathDelay);if(breathTimer)clearInterval(breathTimer);breathTimer=null;}
@@ -666,7 +723,7 @@
  }
  function render(data){
   renderToday(data);
-  $("reflection-prompt").hidden=reflectionSnoozed||!reflectionDue(data.reflections,data.moods,new Date());
+  $("reflection-prompt").hidden=root.App.reflectionLaterDay()===localDay(new Date())||!reflectionDue(data.reflections,data.moods,new Date());
   // The demo view shows only fictional records.
   var isDemo=data.scope==="demo",source=isDemo?data.demo:data;
   renderReflections(isDemo?[]:data.reflections);
@@ -677,6 +734,7 @@
  api.openReset=openReset;
  buildReflectionForm();
  $("open-reflection").addEventListener("click",function(){$("reflection-dialog").showModal();});
+ $("week-review-close").addEventListener("click",function(){$("week-review").close();});
  $("open-reset").addEventListener("click",openReset);
  $("close-reset").addEventListener("click",function(){$("reset-dialog").close();});
  $("reset-dialog").addEventListener("close",stopBreathing);

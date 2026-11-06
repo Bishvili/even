@@ -40,7 +40,7 @@
   var planMoves=given.planMoves.filter(function(m){return !!m&&Number.isInteger(m.from)&&Number.isInteger(m.to)&&isTime(m.at);});
   var reflections=given.reflections.filter(validReflection),resets=given.resets.filter(isTime);
   var alarms=given.alarms.filter(validAlarm).map(function(a){return{timeMin:a.timeMin,days:a.days,enabled:a.enabled!==false,label:String(a.label||"").slice(0,80)};});
-  return{reflections:reflections.slice(-200),alarms:alarms.slice(0,40),resets:resets.slice(-500),tries:tries.slice(-500),planLog:planLog.slice(-300),planMoves:planMoves.slice(-60),skipped:given.tries.length-tries.length+given.planLog.length-planLog.length+given.planMoves.length-planMoves.length+given.reflections.length-reflections.length+given.alarms.length-alarms.length+given.resets.length-resets.length};
+  return{reflections:reflections.slice(-520),alarms:alarms.slice(0,40),resets:resets.slice(-500),tries:tries.slice(-500),planLog:planLog.slice(-300),planMoves:planMoves.slice(-60),skipped:given.tries.length-tries.length+given.planLog.length-planLog.length+given.planMoves.length-planMoves.length+given.reflections.length-reflections.length+given.alarms.length-alarms.length+given.resets.length-resets.length};
  }
  root.Backup={protect:protect,unprotect:unprotect,isProtected:isProtected,clean:clean};
 })(globalThis);

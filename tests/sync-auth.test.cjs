@@ -32,6 +32,7 @@ function harness({brand={},verified=false,buildVersion="2.8.0",helperBuild="2.0.
     if(sql.startsWith("SELECT updated_at,(SELECT COUNT(*) FROM health_push_subscriptions"))return null;
     if(sql.startsWith("SELECT (SELECT name FROM health_names")){const email=args[0];return{chosen:rows.names?.get(email)||null,given:email==="owner-a@example.com"?"Ada Lovelace":null,signin:(rows.userFields?.get(email)||{}).name||null};}
     if(sql.startsWith("SELECT COUNT(*) AS count FROM health_calendar_events WHERE owner_email=? AND calendar=?"))return{count:[...rows.events.values()].filter(d=>d.owner===args[0]&&d.calendar===args[1]).length};
+    if(sql.startsWith("SELECT COUNT(*) AS count FROM health_reflections"))return{count:(rows.reflections||[]).filter(r=>r.owner===args[0]&&!r.deleted_at).length};
     if(sql.startsWith("SELECT sync_off FROM health_users"))return (rows.userFields?.get(args[0]))||null;
     if(sql.startsWith("INSERT INTO health_service")){rows.sends=(rows.sends||0)+1;return{value:String(rows.sends)};}
     if(sql.includes("FROM health_approved_emails WHERE email"))return rows.approved.has(args[0])?{allowed:1}:null;
@@ -56,6 +57,7 @@ function harness({brand={},verified=false,buildVersion="2.8.0",helperBuild="2.0.
     if(sql.startsWith("SELECT email,display_name FROM health_release_emails"))return{results:[{email:"owner-a@example.com",display_name:"Ada"}]};
     if(sql.startsWith("SELECT email,name FROM health_names"))return{results:[...(rows.names||new Map()).entries()].map(([email,name])=>({email,name}))};
     if(sql.startsWith("SELECT email,name FROM health_users"))return{results:[...rows.users.keys()].map(email=>({email,name:(rows.userFields?.get(email)||{}).name}))};
+    if(sql.startsWith("SELECT id,ts,answers,deleted_at FROM health_reflections"))return{results:(rows.reflections||[]).filter(r=>r.owner===args[0]&&r.updated_at>=args[1]).map(r=>({id:r.id,ts:r.ts,answers:r.answers,deleted_at:r.deleted_at||null}))};
     if(sql.startsWith("SELECT id,ts,score"))return{results:(rows.moods||[]).filter(m=>m.owner===args[0]&&(m.updated_at||"")>=args[1])};
     if(sql.startsWith("SELECT s.endpoint"))return{results:[...rows.subs.values()].filter(s=>[...rows.devices.values()].some(d=>d.device_id===s.device_id&&!d.revoked_at))};
     if(sql.startsWith("SELECT event_id,title FROM health_calendar_events"))return{results:[]};
@@ -88,6 +90,14 @@ function harness({brand={},verified=false,buildVersion="2.8.0",helperBuild="2.0.
     }
     if(sql.startsWith("INSERT INTO health_names")){(rows.names=rows.names||new Map()).set(args[0],args[1]);return{meta:{changes:1}};}
     if(sql.startsWith("DELETE FROM health_names")){rows.names?.delete(args[0]);return{meta:{changes:1}};}
+    if(sql.startsWith("DELETE FROM health_reflections")){rows.reflections=(rows.reflections||[]).filter(r=>r.owner!==args[0]);return{meta:{changes:1}};}
+    if(sql.startsWith("UPDATE health_reflections SET ts=?")){(rows.reflections||[]).forEach(r=>{if(r.owner===args[3]&&!r.deleted_at){r.deleted_at=args[2];r.updated_at=args[1];r.answers=null;}});return{meta:{changes:1}};}
+    if(sql.startsWith("INSERT INTO health_reflections")){
+     rows.reflections=rows.reflections||[];const gone=sql.includes("deleted_at) VALUES");
+     const at=rows.reflections.find(r=>r.owner===args[0]&&r.id===args[1]),next=gone?{owner:args[0],id:args[1],ts:at?.ts||args[2],answers:null,updated_at:args[3],deleted_at:args[4]}:{owner:args[0],id:args[1],ts:args[2],answers:args[3],updated_at:args[4],deleted_at:null};
+     if(at)Object.assign(at,next);else rows.reflections.push(next);
+     return{meta:{changes:1}};
+    }
     if(sql.startsWith("DELETE FROM health_moods")){rows.moods=(rows.moods||[]).filter(m=>m.owner!==args[0]);return{meta:{changes:1}};}
     if(sql.startsWith("INSERT INTO health_moods")){
      rows.moods=rows.moods||[];const existing=rows.moods.find(m=>m.owner===args[0]&&m.id===args[1]);
@@ -1231,4 +1241,25 @@ test("time in bed counts only for a night with nothing else, and is marked",()=>
  assert.equal(nights["2026-11-05:sleepInBed"],1);
  assert.equal(nights["2026-11-05:bedtimeMin"],1320);
  assert.deepEqual(read(runtime.readSleep("","0","100","")),{});
+});
+
+test("reflections sync per account, are checked, delete everywhere, and go with an erase",async()=>{
+ const{call,ctx}=harness();
+ const a=await call("/api/user/device",{method:"POST",body:{label:"A"},context:ctx("owner-a@example.com")}),A={Authorization:"Bearer "+a.data.token};
+ const b=await call("/api/user/device",{method:"POST",body:{label:"B"},context:ctx("owner-b@example.com")}),B={Authorization:"Bearer "+b.data.token};
+ const answers={snapped:1,setOff:2,recovered:3,rested:4},ts="2026-11-01T18:00:00Z";
+ const post=(headers,body)=>call("/api/reflections",{method:"POST",headers,body});
+ assert.equal((await post(A,{reflections:[{id:"r1",ts,answers}]})).status,200);
+ for(const bad of [{id:"x",ts,answers:{...answers,rested:5}},{id:"x",ts,answers:{...answers,rested:1.5}},{id:"x",ts,answers:{snapped:1}},{id:"x",ts,answers:{...answers,extra:1}},{id:"",ts,answers},{id:"x".repeat(81),ts,answers},{id:"x",ts:"2099-01-01T00:00:00Z",answers}]){
+  const r=await post(A,{reflections:[bad]});assert.equal(r.status,400);assert.equal(r.data.code,"invalid_reflection");
+ }
+ assert.equal((await post(A,{reflections:Array(101).fill({id:"y",ts,answers})})).data.code,"too_many");
+ assert.deepEqual((await call("/api/reflections",{headers:B})).data.reflections,[]);
+ assert.equal((await post(B,{deleted:["r1"]})).status,200);
+ const session=await call("/api/session",{headers:A});
+ assert.deepEqual(session.data.reflections.reflections,[{id:"r1",ts:new Date(ts).toISOString(),answers}]);
+ assert.equal(session.data.reflections.email,"owner-a@example.com");
+ await post(A,{deleted:["r1"]});
+ const after=await call("/api/reflections",{headers:A});
+ assert.deepEqual(after.data.reflections,[]);assert.deepEqual(after.data.deleted,["r1"]);
 });

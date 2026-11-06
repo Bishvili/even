@@ -16,7 +16,7 @@ function fakeApi(overrides={}){
   const request=route.request(),url=new URL(request.url()),send=(body,status=200)=>route.fulfill({status,contentType:"application/json",body:JSON.stringify(body)});
   if(url.pathname==="/api/session"){
    if(api.session!==200)return send({ok:false,code:"signed_out"},api.session);
-   return send({ok:true,status:{deviceId:DEVICE,credentialValid:true,...api.status},release:{},calendars:api.calendars||[],settings:{},moods:api.moods});
+   return send({ok:true,status:{deviceId:DEVICE,credentialValid:true,...api.status},release:{},calendars:api.calendars||[],settings:{},moods:api.moods,reflections:{email:api.moods?.email,cursor:"",reflections:[],deleted:[]}});
   }
   if(url.pathname==="/api/moods"){
    if(api.failMoods)return send({ok:false,code:"unavailable"},503);
@@ -25,6 +25,7 @@ function fakeApi(overrides={}){
    api.uploaded.push(...(body.moods||[]));api.deleted.push(...(body.deleted||[]));
    return send({ok:true});
   }
+  if(url.pathname==="/api/reflections")return send({ok:true,email:api.moods?.email,cursor:"",reflections:[],deleted:[]});
   if(url.pathname==="/api/pull")return send(api.pull);
   if(url.pathname==="/api/user/me")return api.me?send({ok:true,email:api.me,devices:[{id:DEVICE,label:"iPhone"}]}):send({ok:false,code:"signed_out"},401);
   if(url.pathname==="/api/user/erase")return send({ok:true,erased:true});
@@ -59,7 +60,7 @@ const scenarios={
   const api=fakeApi();
   await open(browser,base,saved(),api,async({page})=>{
    await goTo(page,"data");
-   await statusIs(page,"All check-ins synced");
+   await statusIs(page,"All check-ins and reflections synced");
    assert.equal(await page.isVisible("#pair-connected"),true);
   });
  },
@@ -74,7 +75,7 @@ const scenarios={
    await statusIs(page,"1 check-in waiting. They’ll sync");
    assert.equal(api.uploaded.length,0);
    await context.setOffline(false);
-   await statusIs(page,"All check-ins synced");
+   await statusIs(page,"All check-ins and reflections synced");
    assert.equal(api.uploaded.length,1);
    assert.deepEqual((await stored(page)).pendingMoods,[]);
   });
@@ -88,7 +89,7 @@ const scenarios={
    assert.equal((await stored(page)).pendingMoods.length,1);
    api.failMoods=false;
    await page.click("#mood-sync-retry");
-   await statusIs(page,"All check-ins synced");
+   await statusIs(page,"All check-ins and reflections synced");
    assert.equal(api.uploaded.length,1);
   });
  },

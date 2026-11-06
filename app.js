@@ -1,6 +1,6 @@
 (function () {
 "use strict";
-var VERSION = "2.46.0";
+var VERSION = "2.47.0";
 var HIDEABLE={
  event:{list:"events",hidden:"hiddenEvents",key:"id"},
  health:{list:"health",hidden:"hiddenHealth",key:"date"}
@@ -20,7 +20,7 @@ var authService = null, authEmail = "", authDevices = [], authChecking = false, 
 var currentView = "", scrollTops = {};
 var shortcutRelease = null, shortcutStatus = null, shortcutStatusLoading = false, sessionLoading = false;
 function $(id){ return document.getElementById(id); }
-function emptyState(){ return {demo:{moods:[],health:[],events:[]},moods:[],health:[],events:[],hiddenEvents:[],hiddenHealth:[],pendingChanges:[],titleRules:[],reflections:[],alarms:[],resets:[],tries:[],planLog:[],planMoves:[],pendingMoods:[],deletedMoods:[],moodCursor:"",lastMoodSync:null,firstName:"",name:"",token:"",deviceId:"",syncOwnerEmail:"",pairedAt:null,lastSync:null}; }
+function emptyState(){ return {demo:{moods:[],health:[],events:[]},moods:[],health:[],events:[],hiddenEvents:[],hiddenHealth:[],pendingChanges:[],titleRules:[],pendingReflections:[],deletedReflections:[],reflectionCursor:"",reflectionLater:"",reflections:[],alarms:[],resets:[],tries:[],planLog:[],planMoves:[],pendingMoods:[],deletedMoods:[],moodCursor:"",lastMoodSync:null,firstName:"",name:"",token:"",deviceId:"",syncOwnerEmail:"",pairedAt:null,lastSync:null}; }
 // Fictional records live apart from personal ones. Older saved state kept them together, marked demo.
 function withDemoApart(loaded,saved){
  var demo={};
@@ -34,7 +34,7 @@ function withDemoApart(loaded,saved){
 function readState(){
  try { var raw=JSON.parse(localStorage.getItem(STORAGE_KEY)||"null"); if(!raw || typeof raw!=="object")return emptyState();
  var owner=typeof raw.syncOwnerEmail==="string"?raw.syncOwnerEmail.toLowerCase():"",deviceId=typeof raw.deviceId==="string"?raw.deviceId:"";
- var loaded={moods:Array.isArray(raw.moods)?raw.moods.slice(-LIMITS.moods):[],health:Array.isArray(raw.health)?raw.health.slice(-LIMITS.healthDays):[],events:Array.isArray(raw.events)?raw.events.slice(-LIMITS.events):[],hiddenEvents:Array.isArray(raw.hiddenEvents)?raw.hiddenEvents.slice(-LIMITS.events):[],hiddenHealth:Array.isArray(raw.hiddenHealth)?raw.hiddenHealth.slice(-LIMITS.healthDays):[],pendingChanges:Array.isArray(raw.pendingChanges)?raw.pendingChanges.filter(function(c){return c&&typeof c.op==="string";}):[],titleRules:Array.isArray(raw.titleRules)?raw.titleRules:[],reflections:Array.isArray(raw.reflections)?raw.reflections.slice(-200):[],alarms:Array.isArray(raw.alarms)?raw.alarms.slice(0,40):[],resets:Array.isArray(raw.resets)?raw.resets.slice(-500):[],tries:Array.isArray(raw.tries)?raw.tries.slice(-500):[],planLog:Array.isArray(raw.planLog)?raw.planLog.slice(-300):[],planMoves:Array.isArray(raw.planMoves)?raw.planMoves.slice(-60):[],pendingMoods:Array.isArray(raw.pendingMoods)?raw.pendingMoods:[],moodCursor:String(raw.moodCursor||""),lastMoodSync:raw.lastMoodSync||null,lastBackup:typeof raw.lastBackup==="string"?raw.lastBackup:null,deletedMoods:Array.isArray(raw.deletedMoods)?raw.deletedMoods.slice(-500):[],firstName:typeof raw.firstName==="string"?raw.firstName.slice(0,60):"",name:typeof raw.name==="string"?raw.name.slice(0,60):"",token:owner&&deviceId&&typeof raw.token==="string"?raw.token:"",deviceId:deviceId,syncOwnerEmail:owner,pairedAt:raw.pairedAt||null,lastSync:raw.lastSync||null};
+ var loaded={moods:Array.isArray(raw.moods)?raw.moods.slice(-LIMITS.moods):[],health:Array.isArray(raw.health)?raw.health.slice(-LIMITS.healthDays):[],events:Array.isArray(raw.events)?raw.events.slice(-LIMITS.events):[],hiddenEvents:Array.isArray(raw.hiddenEvents)?raw.hiddenEvents.slice(-LIMITS.events):[],hiddenHealth:Array.isArray(raw.hiddenHealth)?raw.hiddenHealth.slice(-LIMITS.healthDays):[],pendingChanges:Array.isArray(raw.pendingChanges)?raw.pendingChanges.filter(function(c){return c&&typeof c.op==="string";}):[],titleRules:Array.isArray(raw.titleRules)?raw.titleRules:[],pendingReflections:Array.isArray(raw.pendingReflections)?raw.pendingReflections:[],deletedReflections:Array.isArray(raw.deletedReflections)?raw.deletedReflections:[],reflectionCursor:typeof raw.reflectionCursor==="string"?raw.reflectionCursor:"",reflectionLater:typeof raw.reflectionLater==="string"?raw.reflectionLater:"",reflections:(Array.isArray(raw.reflections)?raw.reflections.slice(-520):[]).map(function(r){return r&&!r.id?Object.assign({},r,{id:"r-"+r.ts}):r;}),alarms:Array.isArray(raw.alarms)?raw.alarms.slice(0,40):[],resets:Array.isArray(raw.resets)?raw.resets.slice(-500):[],tries:Array.isArray(raw.tries)?raw.tries.slice(-500):[],planLog:Array.isArray(raw.planLog)?raw.planLog.slice(-300):[],planMoves:Array.isArray(raw.planMoves)?raw.planMoves.slice(-60):[],pendingMoods:Array.isArray(raw.pendingMoods)?raw.pendingMoods:[],moodCursor:String(raw.moodCursor||""),lastMoodSync:raw.lastMoodSync||null,lastBackup:typeof raw.lastBackup==="string"?raw.lastBackup:null,deletedMoods:Array.isArray(raw.deletedMoods)?raw.deletedMoods.slice(-500):[],firstName:typeof raw.firstName==="string"?raw.firstName.slice(0,60):"",name:typeof raw.name==="string"?raw.name.slice(0,60):"",token:owner&&deviceId&&typeof raw.token==="string"?raw.token:"",deviceId:deviceId,syncOwnerEmail:owner,pairedAt:raw.pairedAt||null,lastSync:raw.lastSync||null};
  return withDemoApart(loaded,raw.demo);
  } catch(e){return emptyState();}
 }
@@ -369,6 +369,55 @@ async function moodRequest(body){
  if(!r.ok)throw Error("Check-ins didn’t sync");
 }
 // The session already carries what changed when the app comes back, so this only fetches after a change here.
+// A reflection made before these had IDs gets one from its time, so the same one on two devices meets itself.
+function reflectionId(r){return r.id||"r-"+r.ts;}
+function mergeReflections(body){
+ var before=JSON.stringify(state.reflections),full=!state.reflectionCursor,gone={},remote={},waiting={};
+ state.reflections=state.reflections.map(function(r){return r.id?r:Object.assign({},r,{id:reflectionId(r)});});
+ (body.deleted||[]).concat(state.deletedReflections).forEach(function(id){gone[id]=true;});
+ state.pendingReflections=state.pendingReflections.filter(function(id){return !gone[id];});
+ state.pendingReflections.forEach(function(id){waiting[id]=true;});
+ (body.reflections||[]).forEach(function(r){remote[r.id]=r;});
+ var kept=state.reflections.filter(function(r){return !gone[r.id];}).map(function(r){
+  if(waiting[r.id]||!remote[r.id])return r;
+  var copy=remote[r.id];delete remote[r.id];return {id:copy.id,ts:copy.ts,answers:copy.answers};
+ });
+ Object.keys(remote).forEach(function(id){if(!gone[id])kept.push({id:id,ts:remote[id].ts,answers:remote[id].answers});});
+ // The first full list uploads what the account has never seen.
+ if(full)kept.forEach(function(r){if(!(body.reflections||[]).some(function(x){return x.id===r.id;})&&state.pendingReflections.indexOf(r.id)<0)state.pendingReflections.push(r.id);});
+ state.reflections=kept.sort(function(a,b){return new Date(a.ts)-new Date(b.ts);});
+ if(body.cursor)state.reflectionCursor=body.cursor;
+ persist();
+ if(JSON.stringify(state.reflections)!==before)render();
+}
+var reflectionSyncing=false;
+async function syncReflections(given){
+ if(!state.token||reflectionSyncing||!navigator.onLine)return;
+ reflectionSyncing=true;
+ try{
+  var body=given;
+  if(!body){
+   var r=await fetch("/api/reflections"+(state.reflectionCursor?"?since="+encodeURIComponent(state.reflectionCursor):""),{headers:{"Authorization":"Bearer "+state.token},cache:"no-store"});
+   if(!r.ok)throw Error("Reflections didn’t sync");
+   body=await r.json();
+  }
+  if(!body.email||body.email!==state.syncOwnerEmail)return;
+  mergeReflections(body);
+  var send=async function(data){var w=await fetch("/api/reflections",{method:"POST",headers:{"Authorization":"Bearer "+state.token,"Content-Type":"application/json"},body:JSON.stringify(data),cache:"no-store"});if(!w.ok&&w.status!==400)throw Error("Reflections didn’t sync");};
+  var waiting=state.pendingReflections.slice();
+  for(var n=0;n<waiting.length;n+=100){
+   var ids=waiting.slice(n,n+100),batch=state.reflections.filter(function(x){return ids.indexOf(x.id)>=0;});
+   if(batch.length)await send({reflections:batch});
+   state.pendingReflections=state.pendingReflections.filter(function(id){return ids.indexOf(id)<0;});
+  }
+  var removed=state.deletedReflections.slice();
+  for(var i=0;i<removed.length;i+=100)await send({deleted:removed.slice(i,i+100)});
+  state.deletedReflections=state.deletedReflections.filter(function(id){return removed.indexOf(id)<0;});
+  moodSyncFailed=false;
+  if(waiting.length||removed.length)persist();
+ }catch(e){moodSyncFailed=true;}
+ finally{reflectionSyncing=false;renderMoodStatus();}
+}
 async function syncMoods(given){
  if(!state.token||moodSyncing)return;
  if(!navigator.onLine){renderMoodStatus();return;}
@@ -425,9 +474,9 @@ function agoText(at){
  return minutes<2?"just now":minutes<60?minutes+" min ago":minutes<1440?Math.floor(minutes/60)+" hr ago":formatDate(at);
 }
 function renderMoodStatus(){
- var line=$("mood-sync-status"),retry=$("mood-sync-retry"),count=state.pendingMoods.length+state.deletedMoods.length,noun=count===1?"1 check-in":count+" check-ins";
+ var line=$("mood-sync-status"),retry=$("mood-sync-retry"),moodCount=state.pendingMoods.length+state.deletedMoods.length,thoughts=state.pendingReflections.length+state.deletedReflections.length,count=moodCount+thoughts,noun=!thoughts?(count===1?"1 check-in":count+" check-ins"):!moodCount?(count===1?"1 reflection":count+" reflections"):count+" check-ins and reflections";
  var failed=moodSyncFailed&&navigator.onLine&&count>0;
- line.textContent=failed?"Couldn’t sync "+noun+".":count&&!navigator.onLine?noun+" waiting. They’ll sync when you’re online.":count?noun+" waiting to sync.":state.lastMoodSync?"All check-ins synced · "+agoText(state.lastMoodSync):"Check-ins sync to your account.";
+ line.textContent=failed?"Couldn’t sync "+noun+".":count&&!navigator.onLine?noun+" waiting. They’ll sync when you’re online.":count?noun+" waiting to sync.":state.lastMoodSync?"All check-ins and reflections synced · "+agoText(state.lastMoodSync):"Check-ins sync to your account.";
  line.classList.toggle("sync-problem",failed);retry.hidden=!failed;
 }
 var SYNC_SETTING_NAMES={calendar:"Calendar events",sleep:"Sleep",steps:"Steps",restingHR:"Resting heart rate",hrv:"Heart rate variability",workout:"Exercise minutes",alarms:"Alarms"};
@@ -697,7 +746,7 @@ async function applyBackup(data){
  if(data.account&&state.syncOwnerEmail&&data.account!==state.syncOwnerEmail){toast("This backup belongs to another account.");return;}
  if(!await askConfirm("Replace the check-ins, health and calendar data on this device with this backup? This can’t be undone. Check-ins saved to your account stay there and come back to this device.","Replace"))return;
  var kept=globalThis.Backup.clean(data);
- state.reflections=kept.reflections;
+ state.reflections=kept.reflections.map(function(r){return Object.assign({},r,{id:reflectionId(r)});});state.pendingReflections=state.reflections.map(function(r){return r.id;});state.reflectionCursor="";
  state.moods=data.moods.slice(-LIMITS.moods).filter(function(x){return !x.demo&&Number.isInteger(x.score)&&x.score>=1&&x.score<=5&&!isNaN(new Date(x.ts).getTime());}).map(function(x){return {id:String(x.id||newId()),ts:new Date(x.ts).toISOString(),score:x.score,energy:Number.isInteger(x.energy)&&x.energy>=1&&x.energy<=5?x.energy:null,tags:Array.isArray(x.tags)?x.tags.filter(function(y){return ACTIVITY_LABELS.includes(y);}).slice(0,10):[],note:String(x.note||"").slice(0,400),stress:Number.isInteger(x.stress)&&x.stress>=1&&x.stress<=5?x.stress:undefined,demo:!!x.demo};});
  state.health=[];data.health.slice(-LIMITS.healthDays).filter(function(x){return !x.demo;}).forEach(function(x){var h=normalizeHealth(x,x.source);if(h)upsertHealth(h);});
  state.events=[];state.hiddenEvents=[];state.hiddenHealth=[];data.events.slice(-LIMITS.events).filter(function(x){return !x.demo;}).forEach(function(x){var e=normalizeEvent(x,x.source);if(e)upsertEvent(e);});
@@ -835,11 +884,12 @@ function deviceDisconnected(){
  state.token="";state.deviceId="";state.lastSync=null;persist();
 }
 // One request brings everything the app shows about this device and account.
+function sessionSince(){var since=moodSince();return state.reflectionCursor?since+(since?"&":"?")+"reflectionsSince="+encodeURIComponent(state.reflectionCursor):since;}
 async function loadSession(){
  if(!state.token||!state.deviceId||!navigator.onLine||sessionLoading)return;
  sessionLoading=true;
  try{
-  var r=await fetch("/api/session"+moodSince(),{headers:{"Authorization":"Bearer "+state.token},cache:"no-store"});
+  var r=await fetch("/api/session"+sessionSince(),{headers:{"Authorization":"Bearer "+state.token},cache:"no-store"});
   if(r.status===401){deviceDisconnected();renderSync();return;}
   if(!r.ok)throw Error();
   var data=await r.json();
@@ -850,6 +900,7 @@ async function loadSession(){
   renderSyncSettings(data.settings||{});
   renderSync();
   syncMoods(data.moods);
+  syncReflections(data.reflections);
   var uploaded=Date.parse(data.status.lastDataUploadAt);
   if(uploaded&&(!state.lastSync||uploaded>state.lastSync))pull(true);
  }catch(e){
@@ -1002,7 +1053,7 @@ async function deleteAccount(){
   if(r.status===401||r.status===403){await refreshAuth();toast("Sign in again to delete your account.");globalThis.Signin.open();return;}
   if(!r.ok)throw Error();
   if(globalThis.Reminders)globalThis.Reminders.turnOff();
-  state.token="";state.deviceId="";state.pairedAt=null;state.pendingChanges=[];state.pendingMoods=[];state.deletedMoods=[];state.moodCursor="";state.lastMoodSync=null;shortcutStatus=null;shortcutRelease=null;
+  state.token="";state.deviceId="";state.pairedAt=null;state.pendingChanges=[];state.pendingMoods=[];state.deletedMoods=[];state.moodCursor="";state.lastMoodSync=null;state.pendingReflections=[];state.deletedReflections=[];state.reflectionCursor="";shortcutStatus=null;shortcutRelease=null;
   persist();await refreshAuth();render();toast("Account deleted.");
  }catch(e){toast("Couldn’t delete your account. Check your connection and try again.");}
 }
@@ -1029,7 +1080,7 @@ async function eraseLocal(){
 async function eraseRemote(){
  if(!authEmail){toast("Sign in first to erase synced data.");globalThis.Signin.open();return;}
  if(!await askConfirm("Permanently delete everything synced for "+authEmail+": Health, calendar, alarms, your notification schedule, the name you set, and your check-ins and notes on all your devices? This can’t be undone. Health and calendar records already on this device stay.","Erase"))return;
- try{var r=await fetch(accountPath("erase"),{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:"{}",cache:"no-store"});if(!r.ok)throw Error("Delete failed");state.moods=[];state.hiddenEvents=[];state.hiddenHealth=[];state.pendingChanges=[];state.pendingMoods=[];state.deletedMoods=[];persist();if(globalThis.Reminders)globalThis.Reminders.turnOff();render();toast("Synced data erased.");}catch(e){toast("Could not delete cloud data.");}
+ try{var r=await fetch(accountPath("erase"),{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:"{}",cache:"no-store"});if(!r.ok)throw Error("Delete failed");state.moods=[];state.reflections=[];state.pendingReflections=[];state.deletedReflections=[];state.reflectionCursor="";state.hiddenEvents=[];state.hiddenHealth=[];state.pendingChanges=[];state.pendingMoods=[];state.deletedMoods=[];persist();if(globalThis.Reminders)globalThis.Reminders.turnOff();render();toast("Synced data erased.");}catch(e){toast("Could not delete cloud data.");}
 }
 var swRegistration=null;
 function checkForUpdate(){if(swRegistration)swRegistration.update().catch(function(){});}
@@ -1099,8 +1150,8 @@ function init(){
  $("erase-local").addEventListener("click",eraseLocal);$("delete-account").addEventListener("click",deleteAccount);
  $("demo-button").addEventListener("click",demo);$("clear-demo-button").addEventListener("click",clearDemo);
  setEnergyText();navigate(location.hash.slice(1)||"checkin");
- window.addEventListener("online",function(){renderSync();syncMoods();sendChanges();if(globalThis.DataList)globalThis.DataList.status();});window.addEventListener("offline",function(){renderSync();if(globalThis.DataList)globalThis.DataList.status();renderMoodStatus();});
- $("mood-sync-retry").addEventListener("click",function(){moodSyncFailed=false;renderMoodStatus();syncMoods();});
+ window.addEventListener("online",function(){renderSync();syncMoods();syncReflections();sendChanges();if(globalThis.DataList)globalThis.DataList.status();});window.addEventListener("offline",function(){renderSync();if(globalThis.DataList)globalThis.DataList.status();renderMoodStatus();});
+ $("mood-sync-retry").addEventListener("click",function(){moodSyncFailed=false;renderMoodStatus();syncMoods();syncReflections();});
  if(navigator.onLine)refreshAuth();
  if(state.token&&navigator.onLine)loadSession();
  window.addEventListener("online",foreground);
@@ -1126,6 +1177,7 @@ function handleNotificationAction(){
  if(!action)return;
  history.replaceState(null,"","/#checkin");
  if(action==="reset")globalThis.Coach.openReset();
+ if(action==="reflect")globalThis.Coach.openReflection();
  if(action==="sync"){
   if(!state.token){navigate("data");toast("Sign in to run {{sync}}.");return;}
   $("run-sync-dialog").showModal();
@@ -1147,6 +1199,6 @@ function logPlan(date,minutes,moves){
  state.planMoves=state.planMoves.concat(moves).slice(-60);
  persist();
 }
-globalThis.App={data:{state:function(){return state;},apply:applyChanges,sendChanges:sendChanges,toast:toast,toastUndo:toastUndo,askConfirm:askConfirm,removeLocal:removeLocal,editTyped:editTyped,esc:esc,blank:blank,formatDate:formatDate,formatTime:formatTime,EYE:EYE,EYE_OFF:EYE_OFF},logTry:logTry,logPlan:logPlan,planLog:function(){return state.planLog;},planMoves:function(){return state.planMoves;},tries:function(){return state.tries;},version:VERSION,signOut:signOut,syncStatus:function(){return shortcutStatus;},signedIn:function(){return !!authEmail;},askConfirm:askConfirm,accountPath:accountPath,refreshAuth:refreshAuth,firstName:function(){return state.firstName;},navigate:navigate,setup:setup,signIn:signIn,connect:issueDevice,isInstalled:isInstalled,isIOS:isIOS,alarms:function(){return state.alarms;},resets:function(){return state.resets;},logReset:function(){state.resets.push(new Date().toISOString());state.resets=state.resets.slice(-500);persist();},personalEvents:function(){return state.events;},personalHealth:function(){return state.health;},personalMoods:function(){return state.moods;},refresh:refresh,runShortcut:runShortcut,refreshCoach:refreshCoach,addReflection:function(r){state.reflections.push(r);if(persist())render();},toast:toast,formatTime:formatTime,deviceToken:function(){return state.token;}};
+globalThis.App={reviewData:function(){return {moods:state.moods,health:state.health,events:state.events,reflections:state.reflections};},reflectionLaterDay:function(){return state.reflectionLater;},data:{state:function(){return state;},apply:applyChanges,sendChanges:sendChanges,toast:toast,toastUndo:toastUndo,askConfirm:askConfirm,removeLocal:removeLocal,editTyped:editTyped,esc:esc,blank:blank,formatDate:formatDate,formatTime:formatTime,EYE:EYE,EYE_OFF:EYE_OFF},logTry:logTry,logPlan:logPlan,planLog:function(){return state.planLog;},planMoves:function(){return state.planMoves;},tries:function(){return state.tries;},version:VERSION,signOut:signOut,syncStatus:function(){return shortcutStatus;},signedIn:function(){return !!authEmail;},askConfirm:askConfirm,accountPath:accountPath,refreshAuth:refreshAuth,firstName:function(){return state.firstName;},navigate:navigate,setup:setup,signIn:signIn,connect:issueDevice,isInstalled:isInstalled,isIOS:isIOS,alarms:function(){return state.alarms;},resets:function(){return state.resets;},logReset:function(){state.resets.push(new Date().toISOString());state.resets=state.resets.slice(-500);persist();},personalEvents:function(){return state.events;},personalHealth:function(){return state.health;},personalMoods:function(){return state.moods;},refresh:refresh,runShortcut:runShortcut,refreshCoach:refreshCoach,addReflection:function(r){var saved=Object.assign({id:newId()},r);state.reflections.push(saved);state.pendingReflections.push(saved.id);persist();render();syncReflections();},deleteReflection:function(id){state.reflections=state.reflections.filter(function(r){return r.id!==id;});state.pendingReflections=state.pendingReflections.filter(function(x){return x!==id;});state.deletedReflections.push(id);persist();render();syncReflections();},reflectionLater:function(day){state.reflectionLater=day;persist();},toast:toast,formatTime:formatTime,deviceToken:function(){return state.token;}};
 init();
 })();
