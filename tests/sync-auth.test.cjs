@@ -29,6 +29,7 @@ function harness({brand={},verified=false,buildVersion="2.8.0",helperBuild="2.0.
  const env={PUBLIC_ORIGIN:"https://health.bishvili.org",INVITE_LIMIT:allow,DEVICE_LIMIT:allow,SIGNIN_LIMIT:allow,SEND_LIMIT:allow,NETWORK_LIMIT:allow,GITHUB_API_KEY:"server-only",APPROVED_SYNC_EMAILS:JSON.stringify(allowed),ASSETS:{async get(key){return {"config:shortcut:latest":release,"config:helper:latest":helperLink&&JSON.stringify(helperLink),"config:shortcut:source":sourceVersions&&JSON.stringify(sourceVersions)}[key]||null;}},DB:{
   prepare(sql){return{bind(...args){return {
    async first(){
+    if(sql.startsWith("SELECT start_time FROM health_calendar_events")){const e=rows.events.get(args[0]+"|"+args[1]);return e?{start_time:e.start_time}:null;}
     if(sql.startsWith("SELECT updated_at,(SELECT COUNT(*) FROM health_push_subscriptions"))return null;
     if(sql.startsWith("SELECT (SELECT name FROM health_names")){const email=args[0];return{chosen:rows.names?.get(email)||null,given:email==="owner-a@example.com"?"Ada Lovelace":null,signin:(rows.userFields?.get(email)||{}).name||null};}
     if(sql.startsWith("SELECT COUNT(*) AS count FROM health_calendar_events WHERE owner_email=? AND calendar=?"))return{count:[...rows.events.values()].filter(d=>d.owner===args[0]&&d.calendar===args[1]).length};
@@ -47,6 +48,7 @@ function harness({brand={},verified=false,buildVersion="2.8.0",helperBuild="2.0.
     throw new Error("Unexpected first: "+sql);
    },
    async all(){
+    if(sql.startsWith("SELECT event_id FROM health_hidden_events"))return{results:[...(rows.hidden||new Set())].filter(k=>k.startsWith(args[0]+"|")).map(k=>({event_id:k.split("|")[1]}))};
     if(sql.startsWith("SELECT email FROM health_approved_emails"))return{results:[...rows.approved.keys()].map(email=>({email}))};
     if(sql.startsWith("SELECT email,display_name FROM health_release_emails"))return{results:[{email:"owner-a@example.com",display_name:"Ada"}]};
     if(sql.startsWith("SELECT email,name FROM health_names"))return{results:[...(rows.names||new Map()).entries()].map(([email,name])=>({email,name}))};
@@ -113,6 +115,9 @@ function harness({brand={},verified=false,buildVersion="2.8.0",helperBuild="2.0.
     if(sql.startsWith("INSERT OR IGNORE INTO health_calendars")){const k=args[0]+"|"+args[1];if(!rows.calendars.has(k))rows.calendars.set(k,{owner:args[0],name:args[1],enabled:1});return{meta:{changes:1}};}
     if(sql.startsWith("UPDATE health_calendars")){const c=rows.calendars.get(args[1]+"|"+args[2]);if(c)c.enabled=args[0];return{meta:{changes:c?1:0}};}
     if(sql.startsWith("DELETE FROM health_calendars")){for(const [k,c] of rows.calendars)if(c.owner===args[0])rows.calendars.delete(k);return{meta:{changes:1}};}
+    if(sql.startsWith("INSERT OR IGNORE INTO health_hidden_events")){(rows.hidden=rows.hidden||new Set()).add(args[0]+"|"+args[1]);return{meta:{changes:1}};}
+    if(sql.startsWith("DELETE FROM health_hidden_events"))return{meta:{changes:0}};
+    if(sql.startsWith("DELETE FROM health_calendar_events WHERE owner_email=? AND event_id=?")){rows.events.delete(args[0]+"|"+args[1]);return{meta:{changes:1}};}
     if(sql.startsWith("INSERT INTO health_calendar_events")){rows.events.set(args[0]+"|"+args[1],{owner:args[0],id:args[1],start_time:args[2],end_time:args[3],title:args[4],category:args[5],calendar:args[6],start:args[2],updated:args[7]});return{meta:{changes:1}};}
     if(sql.startsWith("DELETE FROM health_metrics")){for(const [k,d] of rows.health)if(d.owner===args[0])rows.health.delete(k);return{meta:{changes:1}};}
     if(sql.includes("updated_at<?")){let changes=0;for(const [k,d] of rows.events)if(d.owner===args[0]&&d.start>=args[1]&&d.start<args[2]&&d.updated<args[3]){rows.events.delete(k);changes++;}return{meta:{changes}};}
@@ -1131,4 +1136,25 @@ test("the invitation takes every name from the brand file",async()=>{
   assert.match(part,/a made-up pitch/);
   assert.doesNotMatch(part,new RegExp("\\b"+require("../brand/brand.json").name+"\\b"));
  }
+});
+
+test("an event removed from the app stays out of later syncs, for that owner only",async()=>{
+ const{call,ctx,rows}=harness();
+ const device=async email=>({Authorization:"Bearer "+(await call("/api/user/device",{method:"POST",body:{label:"A"},context:ctx(email)})).data.token});
+ const A=await device("owner-a@example.com"),B=await device("owner-b@example.com");
+ const day=[["2026-11-04T10:00:00Z","2026-11-04T11:00:00Z","Work","Hide me"],["2026-11-04T12:00:00Z","2026-11-04T13:00:00Z","Work","Keep me"]];
+ await call("/api/ingest",{method:"POST",body:days("2026-11-04",day),headers:A});
+ await call("/api/ingest",{method:"POST",body:days("2026-11-04",day),headers:B});
+ const idOf=(owner,title)=>[...rows.events.values()].find(e=>e.owner===owner&&e.title===title).id;
+ const id=idOf("owner-a@example.com","Hide me");
+ assert.equal((await call("/api/calendars/events/hide",{method:"POST",body:{id}})).status,401);
+ assert.equal((await call("/api/calendars/events/hide",{method:"POST",body:{id:"x".repeat(65)},headers:A})).status,400);
+ assert.equal((await call("/api/calendars/events/hide",{method:"POST",body:{id},headers:A})).data.removed,1);
+ const again=await call("/api/ingest",{method:"POST",body:days("2026-11-04",day),headers:A});
+ assert.equal(again.data.calendarEvents,1);
+ assert.deepEqual([...rows.events.values()].filter(e=>e.owner==="owner-a@example.com").map(e=>e.title),["Keep me"]);
+ assert.equal((await call("/api/ingest",{method:"POST",body:days("2026-11-04",day),headers:B})).data.calendarEvents,2);
+ assert.equal([...rows.events.values()].filter(e=>e.owner==="owner-b@example.com").length,2);
+ // Someone else's event isn't theirs to hide.
+ assert.equal((await call("/api/calendars/events/hide",{method:"POST",body:{id:"not-mine"},headers:A})).data.removed,0);
 });

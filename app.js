@@ -1,6 +1,6 @@
 (function () {
 "use strict";
-var VERSION = "2.44.10";
+var VERSION = "2.44.11";
 var STORAGE_KEY = "health:v1";
 var MOOD_NAMES = ["","Rough","Low","Okay","Good","Great"];
 var MOOD_EMOJI = ["","😣","😕","😐","🙂","😄"];
@@ -501,6 +501,18 @@ function normalizeHealth(h,source){
  return Object.keys(item).some(function(k){return ["sleepHours","steps","hrv","restingHR","workoutMin"].includes(k);})?item:null;
 }
 function upsertHealth(h){var idx=state.health.findIndex(function(x){return x.date===h.date;});if(idx<0)state.health.push(h);else state.health[idx]=Object.assign({},state.health[idx],h);}
+// A synced event is removed from the account too, or the next sync would bring it back.
+async function removeEvent(id){
+ var event=state.events.find(function(x){return x.id===id;}),synced=!!event&&event.source==="shortcut"&&!!state.token;
+ if(!await askConfirm(synced?"Remove this event from the app? It stays in your calendar, and won’t come back here.":"Delete this event from this device? This can’t be undone.",synced?"Remove":"Delete"))return;
+ if(synced){
+  try{
+   var r=await fetch("/api/calendars/events/hide",{method:"POST",headers:{"Authorization":"Bearer "+state.token,"Content-Type":"application/json"},body:JSON.stringify({id:id}),cache:"no-store"});
+   if(!r.ok)throw Error();
+  }catch(e){toast("Couldn’t remove that event. Check your connection and try again.");return;}
+ }
+ state.events=state.events.filter(function(x){return x.id!==id;});persist();render();
+}
 function normalizeEvent(e,source){
  if(!e||typeof e!=="object")return null;
  var st=new Date(e.start),en=new Date(e.end);
@@ -974,7 +986,7 @@ function init(){
  $("edit-cancel").addEventListener("click",function(){$("edit-sheet").close();});
  $("recent-list").addEventListener("click",function(ev){var b=ev.target.closest("[data-delete-mood]");if(b)askConfirm("Delete this check-in? This can’t be undone.","Delete").then(function(yes){if(!yes)return;state.moods=state.moods.filter(function(x){return x.id!==b.dataset.deleteMood;});state.pendingMoods=state.pendingMoods.filter(function(id){return id!==b.dataset.deleteMood;});state.deletedMoods.push(b.dataset.deleteMood);persist();render();syncMoods();});});
  $("context-list").addEventListener("click",function(ev){var b=ev.target.closest("[data-delete-health]");if(b)askConfirm("Delete this health day from this device?","Delete").then(function(yes){if(!yes)return;state.health=state.health.filter(function(x){return x.date!==b.dataset.deleteHealth;});persist();render();});
- b=ev.target.closest("[data-delete-event]");if(b)askConfirm("Delete this event from this device?","Delete").then(function(yes){if(!yes)return;state.events=state.events.filter(function(x){return x.id!==b.dataset.deleteEvent;});persist();render();});});
+ b=ev.target.closest("[data-delete-event]");if(b)removeEvent(b.dataset.deleteEvent);});
  document.querySelectorAll("[data-days]").forEach(function(b){b.addEventListener("click",function(){insightDays=Number(b.dataset.days);document.querySelectorAll("[data-days]").forEach(function(x){x.classList.toggle("selected",x===b);});renderInsights();});});
  document.querySelectorAll("[data-scope]").forEach(function(b){b.addEventListener("click",function(){insightScope=b.dataset.scope;renderInsights();});});
  $("login-button").addEventListener("click",function(){signIn();});
@@ -996,7 +1008,6 @@ function init(){
  $("sync-light").addEventListener("click",tapSyncLight);
  $("calendar-insights").addEventListener("click",function(ev){var b=ev.target.closest("[data-pair]");if(b&&globalThis.Reminders){globalThis.Reminders.togglePair(b.dataset.pair);renderInsights();}});
  $("pull-button").addEventListener("click",function(){pull(false);});$("run-shortcut").addEventListener("click",function(event){event.preventDefault();runShortcut();});
- $("unpair-button").addEventListener("click",function(){if(state.deviceId)revokeDevice(state.deviceId);});
  $("sign-out").addEventListener("click",signOut);
  $("erase-remote").addEventListener("click",eraseRemote);
  $("backup-button").addEventListener("click",openBackup);

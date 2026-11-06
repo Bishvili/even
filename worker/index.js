@@ -40,7 +40,7 @@ async function payload(request){
  if(type.includes("application/x-www-form-urlencoded"))return Object.fromEntries(new URLSearchParams(text));
  try{return JSON.parse(text);}catch(e){return Object.fromEntries(new URLSearchParams(text));}
 }
-const VERSION_NAME="2.44.10";
+const VERSION_NAME="2.44.11";
 function normalEmail(value){return String(value||"").trim().toLowerCase();}
 async function signinAuth(env,ctx,request){
  const {createAuth}=await import("./signin.mjs");
@@ -84,6 +84,7 @@ function syncedDataStatements(env,owner,keepMoods){
   env.DB.prepare("UPDATE health_devices SET last_upload_counts=NULL WHERE owner_email=?").bind(owner),
   env.DB.prepare("DELETE FROM health_metrics WHERE owner_email=?").bind(owner),
   env.DB.prepare("DELETE FROM health_calendar_events WHERE owner_email=?").bind(owner),
+  env.DB.prepare("DELETE FROM health_hidden_events WHERE owner_email=?").bind(owner),
   env.DB.prepare("DELETE FROM health_calendars WHERE owner_email=?").bind(owner),
   env.DB.prepare("DELETE FROM health_alarms WHERE owner_email=?").bind(owner),
   env.DB.prepare("DELETE FROM health_push_subscriptions WHERE owner_email=?").bind(owner),
@@ -242,8 +243,17 @@ function readEventRecords(text){
  }
  return events;
 }
+const eventIdOf=async e=>(await digest(e.start+"|"+e.end+"|"+e.title)).slice(0,40);
+async function withoutHidden(env,owner,events){
+ // Events the person removed from the app stay out, even while they're still in their calendar.
+ const hidden=await env.DB.prepare("SELECT event_id FROM health_hidden_events WHERE owner_email=?").bind(owner).all();
+ const ids=new Set((hidden.results||[]).map(row=>row.event_id));
+ if(!ids.size)return events;
+ const kept=await Promise.all(events.map(async e=>ids.has(await eventIdOf(e))?null:e));
+ return kept.filter(Boolean);
+}
 async function eventStatement(env,owner,e,at){
- const eventId=(await digest(e.start+"|"+e.end+"|"+e.title)).slice(0,40);
+ const eventId=await eventIdOf(e);
  return env.DB.prepare("INSERT INTO health_calendar_events(owner_email,event_id,start_time,end_time,title,category,calendar,updated_at) VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(owner_email,event_id) DO UPDATE SET title=excluded.title,category=excluded.category,calendar=excluded.calendar,updated_at=excluded.updated_at").bind(owner,eventId,e.start,e.end,e.title,e.category,e.calendar,at);
 }
 // Requests within ten minutes belong to one run of the Shortcut, so their counts are kept together.
@@ -802,6 +812,20 @@ async function syncApi(request,env,path){
   const removed=await env.DB.prepare("DELETE FROM health_calendar_events WHERE owner_email=? AND calendar=?").bind(owner,name).run();
   return reply({ok:true,removed:removed.meta?.changes||0});
  }
+ if(path==="/api/calendars/events/hide"&&request.method==="POST"){
+  let input;try{input=await payload(request);}catch(e){return error("That request couldn't be read.",400,"invalid_body");}
+  const id=String(input?.id||"");
+  if(!id||id.length>64)return error("Invalid calendar request",400,"invalid_calendar");
+  const event=await env.DB.prepare("SELECT start_time FROM health_calendar_events WHERE owner_email=? AND event_id=?").bind(owner,id).first();
+  if(!event)return reply({ok:true,removed:0});
+  // A past event can't be sent again, so its record isn't needed any more.
+  await env.DB.batch([
+   env.DB.prepare("INSERT OR IGNORE INTO health_hidden_events(owner_email,event_id,start_time) VALUES(?,?,?)").bind(owner,id,event.start_time),
+   env.DB.prepare("DELETE FROM health_calendar_events WHERE owner_email=? AND event_id=?").bind(owner,id),
+   env.DB.prepare("DELETE FROM health_hidden_events WHERE owner_email=? AND start_time<?").bind(owner,new Date(Date.now()-2*86400000).toISOString())
+  ]);
+  return reply({ok:true,removed:1});
+ }
  if(path==="/api/profile/name"&&request.method==="POST"){
   let input;try{input=await payload(request);}catch(e){return error("That request couldn't be read.",400,"invalid_body");}
   const name=String(input?.name||"").trim().replace(/[\x00-\x1f]/g,"").slice(0,60);
@@ -899,7 +923,7 @@ async function syncApi(request,env,path){
    // the Shortcut says how many days it read, from today. Earlier versions read 2 and don't say.
    const calendarDays=Math.min(8,Math.max(2,Number(input.calendarDays)||2)),included=new Set();
    for(let i=0,next=day;i<calendarDays;i++,next=nextDay(next))included.add(next);
-   const records=readEventRecords(input.events),events=await enabledEvents(env,owner,records.filter(e=>included.has(e.day)));
+   const records=readEventRecords(input.events),events=await withoutHidden(env,owner,await enabledEvents(env,owner,records.filter(e=>included.has(e.day))));
    const at=new Date().toISOString(),statements=await Promise.all(events.map(e=>eventStatement(env,owner,e,at)));
    for(let i=0;i<statements.length;i+=50)await env.DB.batch(statements.slice(i,i+50));
    // Those days are complete, so anything the run didn't send was edited or deleted. A run cut off at its limit says nothing about the days past its last event.
@@ -911,6 +935,8 @@ async function syncApi(request,env,path){
   if(kind==="alarms"){
    const raw=String(input.alarms||""),alarms=readAlarms(raw),day=dateOnly(input.date);
    if(!day||(raw.trim()&&!alarms.length))return error("Invalid alarm details",400,"invalid_alarm_details");
+   // Repeat text only, with no times or names, to see what iOS sends. Remove once the format is handled.
+   await env.DB.prepare("INSERT INTO health_service(key,value,updated_at) VALUES('alarm_repeat_seen',?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at").bind(JSON.stringify(raw.split("\u241e").map(record=>record.split("\u241f")[1]??null).filter(value=>value!==null).map(value=>value.slice(0,120))),new Date().toISOString()).run();
    const at=new Date().toISOString(),first=firstAlarm(alarms,day);
    const statements=[env.DB.prepare("DELETE FROM health_alarms WHERE owner_email=?").bind(owner)];
    alarms.forEach((a,position)=>statements.push(env.DB.prepare("INSERT INTO health_alarms(owner_email,position,time_min,days,enabled,label,updated_at) VALUES(?,?,?,?,?,?,?)").bind(owner,position,a.timeMin,a.days.join(","),a.enabled,a.label,at)));

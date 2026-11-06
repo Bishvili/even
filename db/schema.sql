@@ -38,6 +38,12 @@ CREATE TABLE IF NOT EXISTS health_calendar_events (
   updated_at TEXT NOT NULL,
   PRIMARY KEY (owner_email, event_id)
 );
+CREATE TABLE IF NOT EXISTS health_hidden_events (
+  owner_email TEXT NOT NULL REFERENCES health_users(email),
+  event_id TEXT NOT NULL,
+  start_time TEXT NOT NULL,
+  PRIMARY KEY (owner_email, event_id)
+);
 CREATE INDEX IF NOT EXISTS health_calendar_owner_start ON health_calendar_events(owner_email, start_time);
 CREATE TABLE IF NOT EXISTS health_release_emails (
   email TEXT PRIMARY KEY,

@@ -197,9 +197,10 @@
       <p class="muted">This iPhone is connected to your account.</p>
       <p class="muted" id="mood-sync-status" role="status"></p>
       <button type="button" class="small-action" id="mood-sync-retry" hidden>Try again</button>
-      <div class="button-row"><button type="button" class="btn secondary" id="pull-button">Bring in data</button><button type="button" class="btn subtle" id="unpair-button">Disconnect this iPhone</button></div>
+      <div class="button-row"><button type="button" class="btn secondary" id="pull-button">Bring in data</button></div>
       <p class="sync-timestamp" id="last-sync">Not synced yet</p>
      </div>
+     <button type="button" class="btn subtle full" id="sign-out" hidden>Sign out</button>
     </div>
     <section class="card shortcut-card" id="shortcut-card" aria-labelledby="shortcut-title" hidden>
      <div class="shortcut-head">
@@ -233,7 +234,7 @@
        <p>Your device key is saved as a plain-text file, {{keyFile}}, in a {{keyFolder}} folder in On My iPhone. It isn’t encrypted by {{name}}. Anyone who can open that file, and any Shortcut you let read it, can use the key. Don’t share it.</p>
        <p>If Shortcuts asks, turn on <strong>Allow Sharing Large Amounts of Data</strong> in Settings → Apps → Shortcuts → Advanced.</p>
        <p>To sync on a schedule, add a Time of Day automation in Shortcuts that runs {{sync}}, and choose Run Immediately. Your iPhone must be unlocked to read Health data.</p>
-       <p>To disconnect, tap Disconnect this iPhone, then delete the file in Files.</p>
+       <p>To disconnect, go to Devices and data, tap Disconnect next to this iPhone, then delete the file in Files.</p>
       </div>
      </details>
     <div class="measure-list" id="shortcut-measures" hidden></div><p class="muted" id="shortcut-measures-note"></p>
@@ -290,7 +291,6 @@
      <div id="device-list" class="device-list"><p class="muted">Sign in to see your devices.</p></div>
     </div>
     <button type="button" class="btn subtle full" id="erase-remote">Erase synced data</button>
-    <button type="button" class="btn subtle full" id="sign-out">Sign out</button>
     <button type="button" class="btn subtle full" id="delete-account">Delete my account</button>
     </details>
     <div class="help-note"><strong>Privacy</strong><p>Your first name can appear in notifications, including on your Lock Screen. When you’re signed in, check-ins and their notes are saved to your private account so they appear on your other devices. They’re stored as readable text. Health data, calendar events and alarms you sync are sent over an encrypted connection and stored in your private account. None of this is end-to-end encrypted. Weekly reflections, breathing sessions, suggestions you mark done and which check-ins you answered stay on this device. Sign-in codes are sent through our email provider. If you use Google, it tells us your email and name. You can disconnect a device or erase synced data at any time. {{name}} is for the US and in English for now: support numbers are US only, and {{sync}} reads Health in English. Send feedback in Settings opens an email with your app and sync details, and nothing else, and sends only if you send it.</p></div>
@@ -377,7 +377,7 @@
      <p class="muted">Tell us what went wrong or what you’d change.</p>
      <button type="button" class="btn secondary full" id="feedback-open">Send feedback</button>
     </section>
-    <div class="card"><h2>About the insights</h2><p class="muted">Comparisons need at least 5 check-ins in each group. Mood data is subjective and gaps can skew results. Nothing here is a diagnosis or proves a cause.</p><button type="button" class="btn subtle full" id="setup-again">Go through setup again</button><a class="btn subtle full" id="whitepaper-link" href="/whitepaper.html" target="_blank" rel="noopener">How {{name}} works <span aria-hidden="true">↗</span></a><p class="muted">Version <span id="version">2.44.10</span> · No ads or analytics</p></div>
+    <div class="card"><h2>About the insights</h2><p class="muted">Comparisons need at least 5 check-ins in each group. Mood data is subjective and gaps can skew results. Nothing here is a diagnosis or proves a cause.</p><button type="button" class="btn subtle full" id="setup-again">Go through setup again</button><a class="btn subtle full" id="whitepaper-link" href="/whitepaper.html" target="_blank" rel="noopener">How {{name}} works <span aria-hidden="true">↗</span></a><p class="muted">Version <span id="version">2.44.11</span> · No ads or analytics</p></div>
     <div class="card"><h2>Explore a sample month</h2><p class="muted">See 28 days of fictional check-ins and events. They stay separate from your own data and are never uploaded.</p><button class="btn secondary full" id="demo-button">Load 28-day calendar demo</button><button class="btn subtle full" id="clear-demo-button">Remove demo data</button></div>
    </section>
   </main>
