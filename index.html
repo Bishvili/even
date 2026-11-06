@@ -41,6 +41,7 @@
   <script src="/looks.js"></script>
   <script src="/install.js"></script>
   <script src="/daycontext.js" defer></script>
+  <script src="/shared.js" defer></script>
   <script src="/items.js" defer></script>
   <script src="/app.js" defer></script>
   <script src="/data-list.js" defer></script>
@@ -245,7 +246,7 @@
        <p>{{sync}} sends what you leave on under What {{sync}} sends: up to the last 7 days of steps, resting heart rate, heart rate variability and exercise minutes; your sleep from recent nights, or up to a month on the first sync; your alarms; and the titles, times and calendar names of events for today and the next 7 days from the calendars you keep. Anything with no data is left out, and anything turned off that still arrives is discarded.</p>
        <p>Your device key is saved as a plain-text file, {{keyFile}}, in a {{keyFolder}} folder in On My iPhone. It isn’t encrypted by {{name}}. Anyone who can open that file, and any Shortcut you let read it, can use the key. Don’t share it.</p>
        <p>If Shortcuts asks, turn on <strong>Allow Sharing Large Amounts of Data</strong> in Settings → Apps → Shortcuts → Advanced.</p>
-       <p>Hiding an item, changing an event’s type, or setting a type for a title stays in your account until you delete it from your calendar or erase your synced data. Numbers you type stay on this iPhone.</p>
+       <p>Hiding an item, changing an event’s type, or setting a type for a title stays in your account until you delete it from your calendar or erase your synced data. Numbers you type are saved to your account too.</p>
        <p>To sync on a schedule, add a Time of Day automation in Shortcuts that runs {{sync}}, and choose Run Immediately. Your iPhone must be unlocked to read Health data.</p>
        <p>To disconnect, go to Devices and data, tap Disconnect next to this iPhone, then delete the file in Files.</p>
       </div>
@@ -315,7 +316,7 @@
     <button type="button" class="btn subtle full" id="erase-remote">Erase synced data</button>
     <button type="button" class="btn subtle full" id="delete-account">Delete my account</button>
     </details>
-    <div class="help-note"><strong>Privacy</strong><p>Your first name can appear in notifications, including on your Lock Screen. When you’re signed in, check-ins and their notes are saved to your private account so they appear on your other devices. They’re stored as readable text. Health data, calendar events and alarms you sync are sent over an encrypted connection and stored in your private account. None of this is end-to-end encrypted. Weekly reflections and the look you choose are saved to your account the same way. Breathing sessions, suggestions you mark done and which check-ins you answered stay on this device. Sign-in codes are sent through our email provider. If you use Google, it tells us your email and name. You can disconnect a device or erase synced data at any time. {{name}} is for the US and in English for now: support numbers are US only, and {{sync}} reads Health in English. Send feedback in Settings opens an email with your app and sync details, and nothing else, and sends only if you send it.</p></div>
+    <div class="help-note"><strong>Privacy</strong><p>Your first name can appear in notifications, including on your Lock Screen. When you’re signed in, check-ins and their notes are saved to your private account so they appear on your other devices. They’re stored as readable text. Health data, calendar events and alarms you sync are sent over an encrypted connection and stored in your private account. None of this is end-to-end encrypted. Everything else you make here, including reflections, breathing sessions, suggestions you mark done, which check-ins you answered, and health days and events you add by hand, is saved to your account the same way, along with the look you choose. Sign-in codes are sent through our email provider. If you use Google, it tells us your email and name. You can disconnect a device or erase synced data at any time. {{name}} is for the US and in English for now: support numbers are US only, and {{sync}} reads Health in English. Send feedback in Settings opens an email with your app and sync details, and nothing else, and sends only if you send it.</p></div>
    </section>
 
    <section id="view-settings" class="view" aria-labelledby="settings-title">
@@ -383,7 +384,7 @@
      </div>
      <button type="button" class="btn subtle full" id="intake-retake">Answer the questions again</button>
     </section>
-    <div class="card"><h2 data-jump="Your data">Your local data</h2><p class="muted">Mood check-ins, notes and locally imported health and calendar data are kept in this app’s storage on this device. Check-ins and notes also go to your account when you’re signed in. Clearing site data or deleting the Home Screen app may erase them.</p><div class="settings-meta" id="storage-summary"></div><p class="muted" id="storage-note"></p><p class="muted" id="limit-note" hidden>You’re near the most this device can keep, and the oldest records will be removed. Save a backup to keep them.</p><p class="muted" id="backup-note"></p><button class="btn secondary full" id="backup-button">Save a backup</button><label class="file-label">Restore from backup <input type="file" id="restore-input" accept="application/json,.json"></label><button class="btn danger full" id="erase-local">Erase all data on this device</button></div>
+    <div class="card"><h2 data-jump="Your data">Your local data</h2><p class="muted">What you make here is kept on this device and, when you’re signed in, in your account. Check-ins and notes also go to your account when you’re signed in. Clearing site data or deleting the Home Screen app may erase them.</p><div class="settings-meta" id="storage-summary"></div><p class="muted" id="storage-note"></p><p class="muted" id="limit-note" hidden>You’re near the most this device can keep, and the oldest records will be removed. Save a backup to keep them.</p><p class="muted" id="backup-note"></p><button class="btn secondary full" id="backup-button">Save a backup</button><label class="file-label">Restore from backup <input type="file" id="restore-input" accept="application/json,.json"></label><button class="btn danger full" id="erase-local">Erase all data on this device</button></div>
     
     <section class="card" id="support" aria-labelledby="support-title">
      <h2 id="support-title" data-jump="Support">Need support?</h2>
@@ -420,7 +421,7 @@
      <p class="muted">Tell us what went wrong or what you’d change.</p>
      <button type="button" class="btn secondary full" id="feedback-open">Send feedback</button>
     </section>
-    <div class="card"><h2 data-jump="About">About the insights</h2><p class="muted">Comparisons need at least 5 check-ins in each group. Mood data is subjective and gaps can skew results. Nothing here is a diagnosis or proves a cause.</p><button type="button" class="btn subtle full" id="setup-again">Go through setup again</button><a class="btn subtle full" id="whitepaper-link" href="/whitepaper.html" target="_blank" rel="noopener">How {{name}} works <span aria-hidden="true">↗</span></a><p class="muted">Version <span id="version">2.52.0</span> · No ads or analytics</p></div>
+    <div class="card"><h2 data-jump="About">About the insights</h2><p class="muted">Comparisons need at least 5 check-ins in each group. Mood data is subjective and gaps can skew results. Nothing here is a diagnosis or proves a cause.</p><button type="button" class="btn subtle full" id="setup-again">Go through setup again</button><a class="btn subtle full" id="whitepaper-link" href="/whitepaper.html" target="_blank" rel="noopener">How {{name}} works <span aria-hidden="true">↗</span></a><p class="muted">Version <span id="version">2.53.0</span> · No ads or analytics</p></div>
     <div class="card"><h2 data-jump="Sample">Explore a sample month</h2><p class="muted">See 28 days of fictional check-ins and events. They stay separate from your own data and are never uploaded.</p><button class="btn secondary full" id="demo-button">Load 28-day calendar demo</button><button class="btn subtle full" id="clear-demo-button">Remove demo data</button></div>
    </section>
   </main>
@@ -591,9 +592,8 @@
    <ol class="look-steps">
     <li>Open in Safari.</li>
     <li>Tap Share, then Add to Home Screen.</li>
-    <li>Open the new icon and sign in. Your check-ins, reflections and synced data come back.</li>
+    <li>Open the new icon and sign in. Everything comes back.</li>
    </ol>
-   <p class="muted">Health days and events you added by hand, and breathing sessions, stay with the old icon. To bring them, save a backup in Settings first.</p>
    <a class="btn primary full" id="look-safari" href="/">Open in Safari</a>
    <button type="button" class="btn subtle full" id="look-sheet-close">Done</button>
   </dialog>

@@ -222,7 +222,7 @@
   });
   return{slots:kept.sort(function(a,b){return a.minute-b.minute;}),dropped:dropped};
  }
- // Which check-in times have gone unanswered. Learned on this device from the planned times it logged.
+ // Which check-in times have gone unanswered. Learned from the planned times the app logged.
  // A time moves only after 8 planned with under a quarter answered, at most once a week, toward when the person does check in.
  function learnedMoves(log,moves,moods,today,from,to){
   var now=new Date(today).getTime(),cutoff=now-RULES.planLogDays*DAY_MS,recentCutoff=now-30*DAY_MS,buckets={},usual={},start=minutesOf(from),end=dayEnd(from,to),added=[];

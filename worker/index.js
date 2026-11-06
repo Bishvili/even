@@ -41,7 +41,7 @@ async function payload(request){
  if(type.includes("application/x-www-form-urlencoded"))return Object.fromEntries(new URLSearchParams(text));
  try{return JSON.parse(text);}catch(e){return Object.fromEntries(new URLSearchParams(text));}
 }
-const VERSION_NAME="2.52.0";
+const VERSION_NAME="2.53.0";
 function normalEmail(value){return String(value||"").trim().toLowerCase();}
 async function signinAuth(env,ctx,request){
  const {createAuth}=await import("./signin.mjs");
@@ -81,7 +81,7 @@ async function validDevice(request,env){
 }
 // Everything synced for one person, apart from their account and devices.
 function syncedDataStatements(env,owner,keepMoods){
- return [env.DB.prepare("UPDATE health_users SET look=NULL,look_name=NULL WHERE email=?").bind(owner),...(keepMoods?[]:[env.DB.prepare("DELETE FROM health_install_codes WHERE email=?").bind(owner),env.DB.prepare("DELETE FROM health_moods WHERE owner_email=?").bind(owner),env.DB.prepare("DELETE FROM health_reflections WHERE owner_email=?").bind(owner)]),
+ return [env.DB.prepare("UPDATE health_users SET look=NULL,look_name=NULL WHERE email=?").bind(owner),...(keepMoods?[]:[env.DB.prepare("DELETE FROM health_install_codes WHERE email=?").bind(owner),env.DB.prepare("DELETE FROM health_shared WHERE owner_email=?").bind(owner),env.DB.prepare("DELETE FROM health_moods WHERE owner_email=?").bind(owner),env.DB.prepare("DELETE FROM health_reflections WHERE owner_email=?").bind(owner)]),
   env.DB.prepare("UPDATE health_devices SET last_upload_counts=NULL WHERE owner_email=?").bind(owner),
   env.DB.prepare("DELETE FROM health_metrics WHERE owner_email=?").bind(owner),
   env.DB.prepare("DELETE FROM health_hidden_days WHERE owner_email=?").bind(owner),
@@ -381,7 +381,7 @@ async function authApi(request,env,ctx,path){
   if(path==="/api/user/erase"){
    // Each check-in keeps only its ID, so every device removes its copy instead of sending it back.
    const at=new Date().toISOString();
-   await env.DB.batch([env.DB.prepare("UPDATE health_moods SET ts=?,score=NULL,energy=NULL,stress=NULL,tags=NULL,note=NULL,updated_at=?,deleted_at=? WHERE owner_email=? AND deleted_at IS NULL").bind(at,at,at,email),env.DB.prepare("UPDATE health_reflections SET ts=?,answers=NULL,updated_at=?,deleted_at=? WHERE owner_email=? AND deleted_at IS NULL").bind(at,at,at,email),...syncedDataStatements(env,email,true)]);
+   await env.DB.batch([env.DB.prepare("UPDATE health_moods SET ts=?,score=NULL,energy=NULL,stress=NULL,tags=NULL,note=NULL,updated_at=?,deleted_at=? WHERE owner_email=? AND deleted_at IS NULL").bind(at,at,at,email),env.DB.prepare("UPDATE health_reflections SET ts=?,answers=NULL,updated_at=?,deleted_at=? WHERE owner_email=? AND deleted_at IS NULL").bind(at,at,at,email),env.DB.prepare("UPDATE health_shared SET data=NULL,updated_at=?,deleted_at=? WHERE owner_email=? AND deleted_at IS NULL").bind(at,at,email),...syncedDataStatements(env,email,true)]);
    return reply({ok:true,erased:true,email});
   }
   if(Date.now()-Date.parse(identity.signedInAt)>FRESH_SIGN_IN_MS)return error("Sign in again to delete your account.",403,"fresh_sign_in_required");
@@ -782,6 +782,14 @@ async function syncedMoods(env,owner,since){
   moods:live.map(m=>{let tags=[];try{tags=JSON.parse(m.tags||"[]");}catch(e){/* Unreadable tags read as none. */}return{id:m.id,ts:m.ts,score:m.score,energy:m.energy,stress:m.stress,tags,note:m.note||""};}),
   deleted:(rows.results||[]).filter(m=>m.deleted_at).map(m=>m.id)};
 }
+const SHARED_KINDS=new Set(["resets","tries","planLog","planMoves","health","events"]),SHARED_LIMIT=12000;
+async function syncedShared(env,owner,since){
+ const cursor=new Date().toISOString(),from=Number.isFinite(Date.parse(since))?new Date(since).toISOString():"";
+ const rows=await env.DB.prepare("SELECT kind,key,data,deleted_at FROM health_shared WHERE owner_email=? AND updated_at>=? LIMIT ?").bind(owner,from,SHARED_LIMIT).all();
+ const list=rows.results||[],items=[];
+ for(const row of list)if(!row.deleted_at){try{items.push({kind:row.kind,key:row.key,data:JSON.parse(row.data)});}catch(e){/* An unreadable record is left out. */}}
+ return {email:owner,cursor,items,deleted:list.filter(row=>row.deleted_at).map(row=>({kind:row.kind,key:row.key}))};
+}
 const REFLECTION_IDS=["snapped","setOff","recovered","rested"],REFLECTION_LIMIT=520;
 function readReflection(x){
  const id=String(x?.id||""),ts=new Date(x?.ts),answers=x?.answers;
@@ -953,6 +961,21 @@ async function syncApi(request,env,path){
   if(statements.length)await env.DB.batch(statements);
   return reply({ok:true,saved:moods.length,deleted:deleted.length});
  }
+ if(path==="/api/shared"&&request.method==="POST"){
+  let input;try{input=await payload(request);}catch(e){return error("That request couldn't be read.",400,"invalid_body");}
+  const given=Array.isArray(input?.items)?input.items:[],gone=Array.isArray(input?.deleted)?input.deleted:[];
+  if(given.length>100||gone.length>100)return error("Too many records",400,"too_many");
+  const fine=item=>SHARED_KINDS.has(item?.kind)&&typeof item.key==="string"&&item.key.length>0&&item.key.length<=160;
+  const items=given.map(item=>fine(item)&&item.data&&typeof item.data==="object"?{kind:item.kind,key:item.key,data:JSON.stringify(item.data)}:null);
+  if(items.some(item=>!item||item.data.length>4000)||!gone.every(fine))return error("That record couldn't be read.",400,"invalid_record");
+  const live=await env.DB.prepare("SELECT COUNT(*) AS count FROM health_shared WHERE owner_email=? AND deleted_at IS NULL").bind(owner).first();
+  if(items.length&&Number(live?.count||0)+items.length>SHARED_LIMIT)return error("Too many records",400,"shared_limit");
+  const at=new Date().toISOString(),statements=[];
+  items.forEach(item=>statements.push(env.DB.prepare("INSERT INTO health_shared(owner_email,kind,key,data,updated_at) VALUES(?,?,?,?,?) ON CONFLICT(owner_email,kind,key) DO UPDATE SET data=excluded.data,updated_at=excluded.updated_at,deleted_at=NULL").bind(owner,item.kind,item.key,item.data,at)));
+  gone.forEach(item=>statements.push(env.DB.prepare("INSERT INTO health_shared(owner_email,kind,key,updated_at,deleted_at) VALUES(?,?,?,?,?) ON CONFLICT(owner_email,kind,key) DO UPDATE SET data=NULL,updated_at=excluded.updated_at,deleted_at=excluded.deleted_at").bind(owner,item.kind,item.key,at,at)));
+  if(statements.length)await env.DB.batch(statements);
+  return reply({ok:true,saved:items.length,deleted:gone.length});
+ }
  if(path==="/api/look"&&request.method==="POST"){
   let input;try{input=await payload(request);}catch(e){return error("That request couldn't be read.",400,"invalid_body");}
   const chosen=input?.look===null?null:lookFrom(input?.look,input?.name);
@@ -981,9 +1004,9 @@ async function syncApi(request,env,path){
  // Everything the app shows about this device and account, so coming back to the app takes one request.
  if(path==="/api/session"&&request.method==="GET"){
   const params=new URL(request.url).searchParams;
-  const [look,status,release,calendars,settings,moods,reflections]=await Promise.all([env.DB.prepare("SELECT look,look_name FROM health_users WHERE email=?").bind(owner).first(),deviceStatus(env,dev,owner),loadShortcutRelease(env),calendarList(env,owner),syncChoices(env,owner),syncedMoods(env,owner,params.get("since")),syncedReflections(env,owner,params.get("reflectionsSince"))]);
+  const [shared,look,status,release,calendars,settings,moods,reflections]=await Promise.all([syncedShared(env,owner,params.get("sharedSince")),env.DB.prepare("SELECT look,look_name FROM health_users WHERE email=?").bind(owner).first(),deviceStatus(env,dev,owner),loadShortcutRelease(env),calendarList(env,owner),syncChoices(env,owner),syncedMoods(env,owner,params.get("since")),syncedReflections(env,owner,params.get("reflectionsSince"))]);
   if(!status)return error("This device was revoked",401,"device_revoked");
-  return reply({ok:true,status,release,calendars,settings,moods,reflections:{email:owner,...reflections},look:look?.look||null,lookName:look?.look_name||null});
+  return reply({ok:true,status,release,calendars,settings,moods,reflections:{email:owner,...reflections},look:look?.look||null,lookName:look?.look_name||null,shared});
  }
  if(path==="/api/sync/status"&&request.method==="GET"){
   const status=await deviceStatus(env,dev,owner);

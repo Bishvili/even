@@ -1,0 +1,43 @@
+"use strict";
+const test=require("node:test"),assert=require("node:assert/strict");
+require("../items.js");require("../shared.js");
+const{Items,Shared}=globalThis;
+const empty=()=>({resets:[],tries:[],planLog:[],planMoves:[],health:[],hiddenHealth:[],events:[],hiddenEvents:[],sharedSeen:{},sharedCursor:""});
+const copy=value=>JSON.parse(JSON.stringify(value));
+const settle=(state)=>{const found=Shared.changes(state,Items);found.send.forEach(r=>{state.sharedSeen[r.kind+":"+r.key]=found.now[r.kind+":"+r.key];});return found;};
+test("what a person made is found to send, and synced numbers and events aren't",()=>{
+ const state=empty();
+ state.resets.push({at:"2026-11-01T10:00:00Z",seconds:60});
+ state.tries.push({id:"walk",at:"2026-11-01T11:00:00Z"});
+ state.health.push({date:"2026-11-01",source:"shortcut",steps:100,sleepHours:7,synced:["steps"]});
+ state.health.push({date:"2026-11-02",source:"shortcut",steps:50,synced:["steps"]});
+ state.events.push({id:"s",source:"shortcut",title:"Synced"},{id:"m",source:"manual",title:"Mine"});
+ const found=Shared.changes(state,Items),kinds=found.send.map(r=>r.kind+":"+r.key).sort();
+ assert.deepEqual(kinds,["events:m","health:2026-11-01","resets:2026-11-01T10:00:00Z","tries:walk|2026-11-01T11:00:00Z"]);
+ assert.deepEqual(found.send.find(r=>r.kind==="health").data,{date:"2026-11-01",sleepHours:7});
+ settle(state);
+ assert.equal(Shared.changes(state,Items).send.length,0);
+ state.resets.length=0;
+ assert.deepEqual(Shared.changes(state,Items).gone,[{kind:"resets",key:"2026-11-01T10:00:00Z"}]);
+});
+test("a second device takes it all in, keeps a synced day's numbers, and a delete reaches it",()=>{
+ const first=empty();
+ first.resets.push({at:"t1"});first.health.push({date:"2026-11-01",source:"manual",sleepHours:7});first.events.push({id:"m",source:"manual",title:"Mine"});first.hiddenEvents.push({id:"h",source:"manual",title:"Hid"});
+ const items=Shared.records(first,Items);
+ const second=empty();second.health.push({date:"2026-11-01",source:"shortcut",steps:100,synced:["steps"]});
+ assert.equal(Shared.take(second,{items:copy(items),deleted:[],cursor:"c1"},Items),true);
+ assert.equal(second.sharedCursor,"c1");
+ assert.deepEqual(second.resets,[{at:"t1"}]);
+ assert.equal(second.health[0].steps,100);assert.equal(second.health[0].sleepHours,7);
+ assert.equal(second.events[0].title,"Mine");assert.equal(second.hiddenEvents[0].title,"Hid");
+ assert.equal(Shared.changes(second,Items).send.length,0);
+ Shared.take(second,{items:[],deleted:[{kind:"health",key:"2026-11-01"},{kind:"resets",key:"t1"},{kind:"events",key:"m"}]},Items);
+ assert.equal(second.resets.length,0);assert.equal(second.events.length,0);
+ assert.equal(second.health[0].steps,100);assert.equal(second.health[0].sleepHours,undefined);
+});
+test("a change still waiting here isn't overwritten by what arrives",()=>{
+ const state=empty();state.events.push({id:"m",source:"manual",title:"Old"});settle(state);
+ state.events[0].title="Newer";
+ Shared.take(state,{items:[{kind:"events",key:"m",data:{id:"m",source:"manual",title:"Remote"}}],deleted:[{kind:"events",key:"m"}]},Items);
+ assert.equal(state.events[0].title,"Newer");
+});

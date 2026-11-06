@@ -33,6 +33,8 @@ function harness({brand={},verified=false,buildVersion="2.8.0",helperBuild="2.0.
     if(sql.startsWith("SELECT (SELECT name FROM health_names")){const email=args[0];return{chosen:rows.names?.get(email)||null,given:email==="owner-a@example.com"?"Ada Lovelace":null,signin:(rows.userFields?.get(email)||{}).name||null};}
     if(sql.startsWith("SELECT COUNT(*) AS count FROM health_calendar_events WHERE owner_email=? AND calendar=?"))return{count:[...rows.events.values()].filter(d=>d.owner===args[0]&&d.calendar===args[1]).length};
     if(sql.startsWith("SELECT COUNT(*) AS count FROM health_reflections"))return{count:(rows.reflections||[]).filter(r=>r.owner===args[0]&&!r.deleted_at).length};
+    if(sql.startsWith("SELECT kind,key,data,deleted_at FROM health_shared"))return null;
+    if(sql.startsWith("SELECT COUNT(*) AS count FROM health_shared"))return{count:(rows.shared||[]).filter(r=>r.owner===args[0]&&!r.deleted_at).length};
     if(sql.startsWith("DELETE FROM health_install_codes WHERE code_hash")){const at=(rows.installCodes||[]).findIndex(x=>x.hash===args[0]&&x.expires>args[1]);if(at<0)return null;return{email:rows.installCodes.splice(at,1)[0].email};}
     if(sql.startsWith("SELECT look,look_name FROM health_users"))return{look:rows.looks?.get(args[0])||null,look_name:rows.lookNames?.get(args[0])||null};
     if(sql.startsWith("SELECT sync_off FROM health_users"))return (rows.userFields?.get(args[0]))||null;
@@ -60,6 +62,7 @@ function harness({brand={},verified=false,buildVersion="2.8.0",helperBuild="2.0.
     if(sql.startsWith("SELECT email,name FROM health_names"))return{results:[...(rows.names||new Map()).entries()].map(([email,name])=>({email,name}))};
     if(sql.startsWith("SELECT look,COUNT(*)")){const counts=new Map();for(const look of (rows.looks||new Map()).values())counts.set(look,(counts.get(look)||0)+1);return{results:[...counts].map(([look,count])=>({look,count}))};}
     if(sql.startsWith("SELECT email,name FROM health_users"))return{results:[...rows.users.keys()].map(email=>({email,name:(rows.userFields?.get(email)||{}).name}))};
+    if(sql.startsWith("SELECT kind,key,data,deleted_at FROM health_shared"))return{results:(rows.shared||[]).filter(r=>r.owner===args[0]&&r.updated_at>=args[1]).map(r=>({kind:r.kind,key:r.key,data:r.data,deleted_at:r.deleted_at||null}))};
     if(sql.startsWith("SELECT id,ts,answers,deleted_at FROM health_reflections"))return{results:(rows.reflections||[]).filter(r=>r.owner===args[0]&&r.updated_at>=args[1]).map(r=>({id:r.id,ts:r.ts,answers:r.answers,deleted_at:r.deleted_at||null}))};
     if(sql.startsWith("SELECT id,ts,score"))return{results:(rows.moods||[]).filter(m=>m.owner===args[0]&&(m.updated_at||"")>=args[1])};
     if(sql.startsWith("SELECT s.endpoint"))return{results:[...rows.subs.values()].filter(s=>[...rows.devices.values()].some(d=>d.device_id===s.device_id&&!d.revoked_at))};
@@ -94,6 +97,13 @@ function harness({brand={},verified=false,buildVersion="2.8.0",helperBuild="2.0.
     }
     if(sql.startsWith("INSERT INTO health_names")){(rows.names=rows.names||new Map()).set(args[0],args[1]);return{meta:{changes:1}};}
     if(sql.startsWith("DELETE FROM health_names")){rows.names?.delete(args[0]);return{meta:{changes:1}};}
+    if(sql.startsWith("DELETE FROM health_shared")){rows.shared=(rows.shared||[]).filter(r=>r.owner!==args[0]);return{meta:{changes:1}};}
+    if(sql.startsWith("UPDATE health_shared SET data=NULL")){(rows.shared||[]).forEach(r=>{if(r.owner===args[2]&&!r.deleted_at){r.data=null;r.updated_at=args[0];r.deleted_at=args[1];}});return{meta:{changes:1}};}
+    if(sql.startsWith("INSERT INTO health_shared")){
+     rows.shared=rows.shared||[];const gone=sql.includes("deleted_at) VALUES"),found=rows.shared.find(r=>r.owner===args[0]&&r.kind===args[1]&&r.key===args[2]);
+     const next=gone?{owner:args[0],kind:args[1],key:args[2],data:null,updated_at:args[3],deleted_at:args[4]}:{owner:args[0],kind:args[1],key:args[2],data:args[3],updated_at:args[4],deleted_at:null};
+     if(found)Object.assign(found,next);else rows.shared.push(next);return{meta:{changes:1}};
+    }
     if(sql.startsWith("INSERT INTO health_install_codes")){rows.installCodes=rows.installCodes||[];rows.installCodes.push({hash:args[0],email:args[1],expires:args[2]});return{meta:{changes:1}};}
     if(sql.startsWith("DELETE FROM health_install_codes")){rows.installCodes=(rows.installCodes||[]).filter(x=>x.email!==args[0]&&!(args[1]&&x.expires<args[1]));return{meta:{changes:1}};}
     if(sql.startsWith("DELETE FROM health_reflections")){rows.reflections=(rows.reflections||[]).filter(r=>r.owner!==args[0]);return{meta:{changes:1}};}
@@ -1326,4 +1336,24 @@ test("an install code is issued only to a signed-in browser, stored as a hash, a
  const manifest=await (await open("/look.webmanifest?pass="+again.data.code+"&look=n2.i4.p7")).json();
  assert.ok(manifest.start_url.includes("pass="+again.data.code));assert.ok(manifest.start_url.includes("look=n2.i4.p7"));
  assert.equal(await (await open("/?pass=nope")).text(),page);
+});
+
+test("shared records are checked, belong to one account, come with the session, and delete everywhere",async()=>{
+ const{call,ctx}=harness();
+ const a=await call("/api/user/device",{method:"POST",body:{label:"A"},context:ctx("owner-a@example.com")}),A={Authorization:"Bearer "+a.data.token};
+ const b=await call("/api/user/device",{method:"POST",body:{label:"B"},context:ctx("owner-b@example.com")}),B={Authorization:"Bearer "+b.data.token};
+ const post=(headers,body)=>call("/api/shared",{method:"POST",headers,body});
+ assert.equal((await post(A,{items:[{kind:"resets",key:"t1",data:{at:"t1"}}]})).status,200);
+ for(const bad of [{kind:"secrets",key:"x",data:{}},{kind:"resets",key:"",data:{}},{kind:"resets",key:"x".repeat(161),data:{}},{kind:"resets",key:"x"},{kind:"resets",key:"x",data:{note:"y".repeat(4001)}}]){
+  const r=await post(A,{items:[bad]});assert.equal(r.status,400);assert.equal(r.data.code,"invalid_record");
+ }
+ assert.equal((await post(A,{items:Array(101).fill({kind:"resets",key:"y",data:{}})})).data.code,"too_many");
+ assert.equal((await call("/api/session",{headers:B})).data.shared.items.length,0);
+ await post(B,{deleted:[{kind:"resets",key:"t1"}]});
+ const session=await call("/api/session",{headers:A});
+ assert.deepEqual(JSON.parse(JSON.stringify(session.data.shared.items)),[{kind:"resets",key:"t1",data:{at:"t1"}}]);
+ assert.equal(session.data.shared.email,"owner-a@example.com");
+ await post(A,{deleted:[{kind:"resets",key:"t1"}]});
+ const after=await call("/api/session",{headers:A});
+ assert.equal(after.data.shared.items.length,0);assert.deepEqual(JSON.parse(JSON.stringify(after.data.shared.deleted)),[{kind:"resets",key:"t1"}]);
 });

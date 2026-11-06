@@ -59,6 +59,7 @@ Only an iPhone proves iOS behavior, and each round trip costs the owner time. Be
 - `position: fixed` breaks inside a transformed parent. Keep fixed elements out of anything you transform.
 - iOS can misplace `position: fixed` elements once the document scrolls (WebKit bug 297779), and correcting them from JavaScript visibly lags. Only `.page` scrolls, the document never does, and the tab bar is part of the layout. Scroll `.page`, not `window`, and keep this structure. Never reload while the app is hidden; wait until it's visible again.
 - `env(safe-area-inset-top)` doesn't clear the Dynamic Island's blur. Leave extra room above the header.
+- Records a person makes in the app reach the account through `shared.js`, which compares them with what the account last saw. A new kind of record goes in its `records` and in `SHARED_KINDS` in the Worker.
 - Coming back to the app makes one `/api/session` request, plus one more only when there is new data to bring in. Add what a screen needs to that response, not a new request.
 - Ask with `askConfirm` (the in-app sheet), never the native `confirm()`, which shows the site address as its title.
 - Installed apps resume without reloading. Bump the version with `node scripts/bump-version.cjs x.y.z`, and a new script must be added to `index.html` and to `SHELL` in `sw.js`, which is the one list of public files (`scripts/build-assets.cjs`). `tests/versions.test.cjs` checks this.
@@ -222,8 +223,8 @@ What the app holds and where it goes. Write every privacy statement from this ta
 | --- | --- | --- | --- | --- |
 | Mood, optional stress and energy, tags, notes | Check-ins | Yes | Yes when signed in, as readable text. A deleted check-in leaves only its ID, so other devices can remove it. | Insights, coaching and notification times. Notes are only displayed. |
 | Weekly reflections: four answers and a time | The app | Yes | Yes when signed in, as readable text. A deleted one leaves only its ID and time. | Insights, the week in review and the reminder. Never in notification text. |
-| Breathing sessions, suggestions marked done, and which planned check-ins were answered | The app | Yes | No | Insights. Breathing and suggestions marked done also feed what tends to help. Unanswered times move check-ins. |
-| Health days and events added by hand or imported, and numbers typed on a synced day | The Data tab | Yes | No | Insights and coaching. A typed number wins on that iPhone and a sync never replaces it. |
+| Breathing sessions, suggestions marked done, and which planned check-ins were answered | The app | Yes | Yes when signed in, as readable text. A deleted record leaves only its key. | Insights. Breathing and suggestions marked done also feed what tends to help. Unanswered times move check-ins. |
+| Health days and events added by hand or imported, and numbers typed on a synced day | The Data tab | Yes | Yes when signed in, as readable text. A deleted one leaves only its key. | Insights and coaching. A typed number wins over a sync on every device. |
 | Steps, exercise minutes, sleep hours, HRV | Health Sync, from Apple Health, up to the last 7 days each run. Sleep arrives as intervals from recent nights, with time in bed used for a night with nothing else, up to a month on the first sync | Yes | Yes | Insights and coaching. HRV: Insights only. |
 | Bedtimes | Worked out from the sleep intervals | Yes | Yes | Bedtime estimate and wind-down |
 | Resting heart rate | Health Sync, from Apple Health | Yes | Yes | Insights: compared with the person's own usual level |
