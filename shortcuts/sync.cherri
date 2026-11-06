@@ -177,7 +177,7 @@ if @exerciseSeen >= 1 {
 
 // Each asleep sample goes up as its start and end. The server merges overlapping samples from more than one device
 // and files each night under the morning it ends, so time in bed, awake time and naps don't count.
-// The first sync reads up to a month back, so the bedtime estimate works straight away.
+// Up to a month back on every run, because nothing is known about earlier runs yet.
 @sleepSamples = findSleepHistory(sleepFilter)
 const sleepSampleCount = count(@sleepSamples)
 @sleepCount = "{sleepSampleCount}"
