@@ -1,6 +1,6 @@
 (function () {
 "use strict";
-var VERSION = "2.44.18";
+var VERSION = "2.44.19";
 var HIDEABLE={
  event:{list:"events",hidden:"hiddenEvents",key:"id",path:"/api/calendars/events/hidden",field:"id"},
  health:{list:"health",hidden:"hiddenHealth",key:"date",path:"/api/health/hidden",field:"date"}
@@ -152,7 +152,7 @@ function renderSources(){
  var all=hs.concat(cs).filter(function(x){return !isNaN(new Date(x.ts).getTime());}).sort(function(a,b){return new Date(b.ts)-new Date(a.ts);});
  $("context-count").textContent=plural(all.length,"item","items");
  $("context-list").innerHTML=all.length?all.slice(0,12).map(function(x){
- if(x.kind==="health"){var h=x.h, summary=[h.sleepHours!=null?Math.round(h.sleepHours*10)/10+"h sleep":"",h.steps!=null?h.steps.toLocaleString()+" steps":"",h.hrv!=null?Math.round(h.hrv)+" ms HRV":"",h.restingHR!=null?Math.round(h.restingHR)+" bpm resting":"",h.workoutMin!=null?Math.round(h.workoutMin)+" min exercise":""].filter(Boolean).join(" · ");
+ if(x.kind==="health"){var h=x.h, summary=[h.sleepHours!=null?Math.round(h.sleepHours*10)/10+(h.sleepInBed?"h in bed":"h sleep"):"",h.steps!=null?h.steps.toLocaleString()+" steps":"",h.hrv!=null?Math.round(h.hrv)+" ms HRV":"",h.restingHR!=null?Math.round(h.restingHR)+" bpm resting":"",h.workoutMin!=null?Math.round(h.workoutMin)+" min exercise":""].filter(Boolean).join(" · ");
  return '<div class="entry"><span class="entry-emoji" aria-hidden="true">♥︎</span><div class="entry-main"><strong>Health · '+esc(h.date)+'</strong><small>'+esc(summary||"Health day")+'</small></div>'+(h.source==="shortcut"&&state.token?'<button type="button" class="icon-action" aria-label="Hide health day '+esc(h.date)+'" title="Hide" data-hide-health="'+esc(h.date)+'">'+EYE_OFF+'</button>':'<button class="entry-delete" aria-label="Delete health day" data-delete-health="'+esc(h.date)+'">×</button>')+'</div>';}
  var e=x.e;
  return '<div class="entry"><span class="entry-emoji" aria-hidden="true">▦︎</span><div class="entry-main"><strong>'+esc(e.title||"Calendar event")+'</strong><small>'+esc(formatDate(e.start)+" "+formatTime(e.start)+" · "+e.category)+'</small></div>'+(e.source==="shortcut"&&state.token?'<button type="button" class="icon-action" aria-label="Hide '+esc(e.title||"event")+'" title="Hide" data-hide-event="'+esc(e.id)+'">'+EYE_OFF+'</button>':'<button class="entry-delete" aria-label="Delete calendar event" data-delete-event="'+esc(e.id)+'">×</button>')+'</div>';
@@ -504,7 +504,7 @@ function normalizeHealth(h,source){
  if(!h||typeof h!=="object")return null;
  var date=String(h.date||"");if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||dateKey(date+"T12:00:00")!==date)return null;
  var item={date:date,source:source||h.source||"manual"};
- [["sleepHours",0,24],["steps",0,100000],["hrv",0,500],["restingHR",20,250],["bedtimeMin",0,1439],["workoutMin",0,1440],["firstAlarmMin",0,719]].forEach(function(t){if(h[t[0]]!==undefined&&h[t[0]]!==null&&h[t[0]]!==""){var n=number(h[t[0]]);if(Number.isFinite(n)&&n>=t[1]&&n<=t[2])item[t[0]]=n;}});
+ [["sleepHours",0,24],["steps",0,100000],["hrv",0,500],["restingHR",20,250],["bedtimeMin",0,1439],["sleepInBed",0,1],["workoutMin",0,1440],["firstAlarmMin",0,719]].forEach(function(t){if(h[t[0]]!==undefined&&h[t[0]]!==null&&h[t[0]]!==""){var n=number(h[t[0]]);if(Number.isFinite(n)&&n>=t[1]&&n<=t[2])item[t[0]]=n;}});
  return Object.keys(item).some(function(k){return ["sleepHours","steps","hrv","restingHR","workoutMin"].includes(k);})?item:null;
 }
 function upsertHealth(h){var idx=state.health.findIndex(function(x){return x.date===h.date;});if(idx<0)state.health.push(h);else state.health[idx]=Object.assign({},state.health[idx],h);}

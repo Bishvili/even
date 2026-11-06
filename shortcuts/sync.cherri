@@ -47,7 +47,7 @@ if providedKeyCount == 0 {
 // Verify the connection and record the Shortcut's version, even if no health samples are available.
 // The reply also says whether a newer version is ready.
 const handshakeRaw = jsonRequest("{appAddress}/api/shortcut/hello", "POST", {
-    "shortcutVersion": "4.1.0"
+    "shortcutVersion": "4.2.0"
 }, {"Authorization": "{@credential}"})
 const handshake = getDictionary(handshakeRaw)
 const connectionStatusValue = getValue(handshake, "state")
@@ -124,7 +124,7 @@ for upcomingEvent in upcomingEvents {
 const calendarBody = formRequest("{appAddress}/api/ingest", "POST", {
     "kind": "calendar_days",
     "calendarDays": "8",
-    "shortcutVersion": "4.1.0",
+    "shortcutVersion": "4.2.0",
     "date": "{day}",
     "utcOffset": "{utcOffset}",
     "events": "{@eventRecords}"
@@ -174,6 +174,10 @@ action 'is.workflow.actions.statistics' sumValues(variable values: 'Input'): num
 @exerciseField = ""
 @sleepIntervals = ""
 @sleepCount = "0"
+@sleepInBed = ""
+@probeResting = ""
+@probeHrv = ""
+@probeStages = ""
 @sleepLimit = "100"
 
 // Find Health Samples ends the run when a type has no samples, so check which types have recent data first.
@@ -224,6 +228,7 @@ if restingAvailable >= 1 {
             // A Health value is a measurement with a unit, which an If can't compare with a number, so its number is read from the text.
             const restingReading = getSampleValue(@restingGroup)
             const restingText = getText(restingReading)
+            @probeResting = "{@probeResting}|{restingText}"
             const restingValue = replaceText('^\D*(\d+(?:\.\d+)?)[\s\S]*$', "$1", restingText, true, true)
             const restingUsable = matchText('^[1-9]', restingValue)
             const restingFound = count(restingUsable)
@@ -252,6 +257,7 @@ if hrvAvailable >= 1 {
             // A Health value is a measurement with a unit, which an If can't compare with a number, so its number is read from the text.
             const hrvReading = getSampleValue(@hrvGroup)
             const hrvText = getText(hrvReading)
+            @probeHrv = "{@probeHrv}|{hrvText}"
             const hrvValue = replaceText('^\D*(\d+(?:\.\d+)?)[\s\S]*$', "$1", hrvText, true, true)
             const hrvUsable = matchText('^[1-9]', hrvValue)
             const hrvFound = count(hrvUsable)
@@ -311,7 +317,9 @@ if sleepAvailable >= 1 {
     for sleepSample in @sleepSamples {
         const stageValue = getSampleValue(@sleepSample)
         const stageText = getText(stageValue)
-        const stageMatches = matchText('(?i)asleep', stageText)
+        @probeStages = "{@probeStages}|{stageText}"
+        // iOS can report stages as plain Core, Deep and REM, as well as Asleep.
+        const stageMatches = matchText('(?i)asleep|core|deep|\brem\b', stageText)
         const stageCount = count(stageMatches)
         if stageCount >= 1 {
             const sleepStart = getSampleStart(@sleepSample)
@@ -319,6 +327,16 @@ if sleepAvailable >= 1 {
             const sleepStartISO = formatTimestamp(sleepStart, "Custom", "None", "yyyy-MM-dd'T'HH:mm:ssZZZZZ")
             const sleepEndISO = formatTimestamp(sleepEnd, "Custom", "None", "yyyy-MM-dd'T'HH:mm:ssZZZZZ")
             @sleepIntervals = "{@sleepIntervals}␞{sleepStartISO}␟{sleepEndISO}"
+        }
+        // Time in bed only counts for a night with nothing else, which the server works out.
+        const bedMatches = matchText('(?i)in\s*bed', stageText)
+        const bedCount = count(bedMatches)
+        if bedCount >= 1 {
+            const bedStart = getSampleStart(@sleepSample)
+            const bedEnd = getSampleEnd(@sleepSample)
+            const bedStartISO = formatTimestamp(bedStart, "Custom", "None", "yyyy-MM-dd'T'HH:mm:ssZZZZZ")
+            const bedEndISO = formatTimestamp(bedEnd, "Custom", "None", "yyyy-MM-dd'T'HH:mm:ssZZZZZ")
+            @sleepInBed = "{@sleepInBed}␞{bedStartISO}␟{bedEndISO}"
         }
     }
     @healthFields += 1
@@ -328,7 +346,7 @@ if sleepAvailable >= 1 {
 if @healthFields >= 1 {
     const healthBody = formRequest("{appAddress}/api/ingest", "POST", {
         "kind": "health",
-        "shortcutVersion": "4.1.0",
+        "shortcutVersion": "4.2.0",
         "date": "{day}",
         "stepsRecent": "{@stepsField}",
         "restingHRRecent": "{@restingField}",
@@ -336,7 +354,12 @@ if @healthFields >= 1 {
         "workoutMinRecent": "{@exerciseField}",
         "sleepIntervals": "{@sleepIntervals}",
         "sleepSamples": "{@sleepCount}",
-        "sleepLimit": "{@sleepLimit}"
+        "sleepLimit": "{@sleepLimit}",
+        "sleepInBed": "{@sleepInBed}",
+        "probeTypes": "{recentTypes}",
+        "probeResting": "{@probeResting}",
+        "probeHrv": "{@probeHrv}",
+        "probeStages": "{@probeStages}"
     }, {"Authorization": "{@credential}"})
     const healthResponse = getDictionary(healthBody)
     const healthStatusValue = getValue(healthResponse, "state")
@@ -369,7 +392,7 @@ for alarm in alarms {
 }
 formRequest("{appAddress}/api/ingest", "POST", {
     "kind": "alarms",
-    "shortcutVersion": "4.1.0",
+    "shortcutVersion": "4.2.0",
     "date": "{day}",
     "alarms": "{@alarmRecords}"
 }, {"Authorization": "{@credential}"})

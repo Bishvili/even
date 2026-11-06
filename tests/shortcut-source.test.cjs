@@ -42,7 +42,7 @@ test("every comparison is typed text or a number, never a Boolean",()=>{
  assert.deepEqual(conditions(sync),[
   'providedKeyCount == 0','savedKeyMatchCount == 0','connectionStatus != "connected"','syncCalendar == "on"','todayOffCount == 0','upcomingOffCount == 0','calendarStatus != "accepted"',
   'syncSteps == "on"','stepsAvailable >= 1','@stepsSeen < 7','totalSteps >= 1','@stepsSeen >= 1','syncRestingHR == "on"','restingAvailable >= 1','@restingSeen < 7','restingFound >= 1','@restingSeen >= 1','syncHrv == "on"','hrvAvailable >= 1','@hrvSeen < 7','hrvFound >= 1','@hrvSeen >= 1',
-  'syncWorkout == "on"','exerciseAvailable >= 1','@exerciseSeen < 7','exerciseValue >= 1','@exerciseSeen >= 1','syncSleep == "on"','sleepAvailable >= 1','historyState == "needed"','stageCount >= 1',
+  'syncWorkout == "on"','exerciseAvailable >= 1','@exerciseSeen < 7','exerciseValue >= 1','@exerciseSeen >= 1','syncSleep == "on"','sleepAvailable >= 1','historyState == "needed"','stageCount >= 1','bedCount >= 1',
   '@healthFields >= 1','healthStatus != "accepted"','updateStatus == "new_release"','syncAlarms == "on"','syncedState != "sent"'
  ]);
  for(const source of [sync,helper])assert.doesNotMatch(source,/if\s+@?\w+\s*(==|!=)\s*(true|false)/);
@@ -111,8 +111,7 @@ test("sleep goes up as asleep intervals, with the sample count so the server kno
  for(const [name,source] of [["sleepStartISO","sleepStart"],["sleepEndISO","sleepEnd"]])
   assert.ok(sync.includes(`const ${name} = formatTimestamp(${source}, "Custom", "None", "${TIMESTAMP}")`),name);
  assert.ok(sync.includes('@sleepIntervals = "{@sleepIntervals}␞{sleepStartISO}␟{sleepEndISO}"'));
- assert.match(sync,/matchText\('\(\?i\)asleep', stageText\)/);
- const limit=name=>sync.match(new RegExp(name+"\\(&variable filter: 'WFContentItemFilter'\\): array \\{[^}]*\"WFContentItemLimitNumber\":(\\d+)"))[1];
+  const limit=name=>sync.match(new RegExp(name+"\\(&variable filter: 'WFContentItemFilter'\\): array \\{[^}]*\"WFContentItemLimitNumber\":(\\d+)"))[1];
  const declared=[...sync.matchAll(/@sleepLimit = "(\d+)"/g)].map(m=>m[1]);
  assert.deepEqual(declared,[limit("findSamples"),limit("findSleepHistory")]);
  for(const field of ['"sleepIntervals": "{@sleepIntervals}"','"sleepSamples": "{@sleepCount}"','"sleepLimit": "{@sleepLimit}"'])assert.ok(sync.includes(field),field);
@@ -193,4 +192,9 @@ test("no comparison treats a Health measurement as a number, which iOS can't eva
  assert.doesNotMatch(sync,/: number \{"WFContentItemPropertyName":"Value"\}/);
  assert.match(sync,/@alarm\['Repeat Days'\]/);
  assert.match(sync,/@alarm\['Label'\]/);
+});
+
+test("sleep counts every stage, and sends time in bed apart",()=>{
+ assert.match(sync,/asleep\|core\|deep\|\\brem\\b/);
+ assert.ok(sync.includes('"sleepInBed": "{@sleepInBed}"'));
 });

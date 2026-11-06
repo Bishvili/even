@@ -622,7 +622,7 @@ test("sleep intervals are merged across devices, filed by the morning they end, 
  assert.equal(complete["2026-11-04 bedtimeMin"],23*60+30);
  assert.equal(complete["2026-11-03 sleepHours"],7.17);
  assert.equal(complete["2026-11-03 bedtimeMin"],22*60+50);
- assert.equal(Object.keys(complete).length,4);
+ assert.equal(Object.keys(complete).length,6);
  const capped=byNight(runtime.readSleep(text,"100","100"));
  assert.equal(capped["2026-11-03 sleepHours"],undefined);
  assert.equal(capped["2026-11-04 sleepHours"],7);
@@ -1179,4 +1179,18 @@ test("a hidden health day stays hidden through a sync, can be shown again, and b
  assert.equal((await day(A)).hidden,true);
  await hide({date:"2026-11-04",hidden:false},A);
  assert.equal((await day(A)).hidden,false);
+});
+
+test("time in bed counts only for a night with nothing else, and is marked",()=>{
+ const{runtime}=harness();
+ const asleep="\u241e2026-11-03T23:00:00-08:00\u241f2026-11-04T05:00:00-08:00";
+ const bed="\u241e2026-11-03T22:00:00-08:00\u241f2026-11-04T07:00:00-08:00\u241e2026-11-04T22:00:00-08:00\u241f2026-11-05T06:00:00-08:00";
+ const read=rows=>Object.fromEntries(rows.map(r=>[r.day+":"+r.metric,r.value]));
+ const nights=read(runtime.readSleep(asleep,"3","100",bed));
+ assert.equal(nights["2026-11-04:sleepHours"],6);
+ assert.equal(nights["2026-11-04:sleepInBed"],0);
+ assert.equal(nights["2026-11-05:sleepHours"],8);
+ assert.equal(nights["2026-11-05:sleepInBed"],1);
+ assert.equal(nights["2026-11-05:bedtimeMin"],1320);
+ assert.deepEqual(read(runtime.readSleep("","0","100","")),{});
 });

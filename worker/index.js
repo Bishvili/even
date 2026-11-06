@@ -40,7 +40,7 @@ async function payload(request){
  if(type.includes("application/x-www-form-urlencoded"))return Object.fromEntries(new URLSearchParams(text));
  try{return JSON.parse(text);}catch(e){return Object.fromEntries(new URLSearchParams(text));}
 }
-const VERSION_NAME="2.44.18";
+const VERSION_NAME="2.44.19";
 function normalEmail(value){return String(value||"").trim().toLowerCase();}
 async function signinAuth(env,ctx,request){
  const {createAuth}=await import("./signin.mjs");
@@ -126,7 +126,7 @@ function firstAlarm(alarms,day){
  return times.length?Math.min(...times):null;
 }
 const SYNC_KINDS=["calendar","sleep","steps","restingHR","hrv","workout","alarms"];
-const METRIC_KINDS={sleepHours:"sleep",bedtimeMin:"sleep",steps:"steps",restingHR:"restingHR",hrv:"hrv",workoutMin:"workout"};
+const METRIC_KINDS={sleepHours:"sleep",bedtimeMin:"sleep",sleepInBed:"sleep",steps:"steps",restingHR:"restingHR",hrv:"hrv",workoutMin:"workout"};
 async function syncOff(env,owner){
  const row=await env.DB.prepare("SELECT sync_off FROM health_users WHERE email=?").bind(owner).first();
  try{return new Set(JSON.parse(row?.sync_off||"[]"));}catch(e){return new Set();}
@@ -163,10 +163,11 @@ function readBedtimes(starts){
  return [...nights].map(([day,n])=>({day,metric:"bedtimeMin",value:n.value}));
 }
 function nextDay(day){return new Date(new Date(day+"T12:00:00Z").getTime()+86400000).toISOString().slice(0,10);}
-// Sleep arrives as the start and end of each asleep sample. Overlapping samples from more than one device are merged,
-// each night is filed under the morning it ends, and daytime naps don't count. When the Shortcut reached its sample
-// limit, the oldest night may be cut off, so it's left as it was.
-function readSleep(text,samples,limit){
+// Sleep arrives as the start and end of each sample. Overlapping samples from more than one device are merged,
+// each night is filed under the morning it ends, and daytime naps don't count. Time in bed runs longer than sleep, so it
+// only counts for a night with nothing else, and that night is marked. When the Shortcut reached its sample limit,
+// the oldest night may be cut off, so it's left as it was.
+function sleepNights(text){
  const nights=new Map();
  for(const record of String(text||"").split("\u241e").slice(0,1000)){
   const [startText="",endText=""]=record.split("\u241f").map(v=>v.trim());
@@ -180,14 +181,19 @@ function readSleep(text,samples,limit){
   if(order<night.order){night.order=order;night.bed=value;}
   night.spans.push([start,end]);nights.set(morning,night);
  }
- const days=[...nights.keys()].sort(),cap=Number(limit);
+ return nights;
+}
+function readSleep(text,samples,limit,inBedText){
+ const asleepNights=sleepNights(text),bedNights=sleepNights(inBedText);
+ const days=[...new Set([...asleepNights.keys(),...bedNights.keys()])].sort(),cap=Number(limit);
  if(cap>0&&Number(samples)>=cap)days.shift();
  return days.flatMap(day=>{
-  const spans=nights.get(day).spans.sort((a,b)=>a[0]-b[0]);
-  let asleep=0,[from,to]=spans[0];
-  for(const [s,e] of spans.slice(1)){if(s>to){asleep+=to-from;from=s;to=e;}else if(e>to)to=e;}
-  asleep+=to-from;
-  return [{day,metric:"sleepHours",value:Math.round(asleep/36000)/100},{day,metric:"bedtimeMin",value:nights.get(day).bed}];
+  const inBed=!asleepNights.has(day),night=inBed?bedNights.get(day):asleepNights.get(day);
+  const spans=night.spans.sort((a,b)=>a[0]-b[0]);
+  let total=0,[from,to]=spans[0];
+  for(const [s,e] of spans.slice(1)){if(s>to){total+=to-from;from=s;to=e;}else if(e>to)to=e;}
+  total+=to-from;
+  return [{day,metric:"sleepHours",value:Math.round(total/36000)/100},{day,metric:"bedtimeMin",value:night.bed},{day,metric:"sleepInBed",value:inBed?1:0}];
  });
 }
 // Some locales write decimals with a comma.
@@ -195,7 +201,7 @@ function measure(raw){const value=String(raw).trim();return Number(/^\d+,\d+$/.t
 // Each measure can carry its own date, because its latest daily total may be from an earlier day.
 function readHealth(x){
  if(!x||typeof x!=="object")return [];
- const base=dateOnly(x.date||x.day),results=[...readBedtimes(x.sleepStarts),...readSleep(x.sleepIntervals,x.sleepSamples,x.sleepLimit)];
+ const base=dateOnly(x.date||x.day),results=[...readBedtimes(x.sleepStarts),...readSleep(x.sleepIntervals,x.sleepSamples,x.sleepLimit,x.sleepInBed)];
  for(const [metric,[low,high]] of Object.entries(METRICS)){
   const raw=x[metric];if(raw===undefined||raw===null||String(raw).trim()==="")continue;
   const day=dateOnly(x[metric+"Date"])||base,value=measure(raw);
@@ -908,6 +914,11 @@ async function syncApi(request,env,path){
    await recordSyncFailure(env,dev,"invalid_body");return error("This upload couldn't be read.",400,"invalid_body");
   }
   const kind=String(input.kind||"").toLowerCase();
+  // What iOS reports for each Health type, with numbers masked, to see why a measure isn't arriving. Remove once they arrive.
+  if(kind==="health"&&input.probeTypes!==undefined){
+   const masked=value=>String(value||"").replace(/[1-9]\d*/g,"#").slice(0,300);
+   await env.DB.prepare("INSERT INTO health_service(key,value,updated_at) VALUES('health_probe',?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at").bind(JSON.stringify({types:[...new Set(String(input.probeTypes).split(/\r?\n/))].slice(0,20),resting:masked(input.probeResting),hrv:masked(input.probeHrv),stages:masked(input.probeStages)}),new Date().toISOString()).run();
+  }
   // A setting changed since the handshake still applies to this upload.
   const off=await syncOff(env,owner);
   if((off.has("calendar")&&kind==="calendar_days")||(off.has("alarms")&&kind==="alarms"))return reply({ok:true,state:"accepted",skipped:true});
@@ -929,8 +940,6 @@ async function syncApi(request,env,path){
   if(kind==="alarms"){
    const raw=String(input.alarms||""),alarms=readAlarms(raw),day=dateOnly(input.date);
    if(!day||(raw.trim()&&!alarms.length))return error("Invalid alarm details",400,"invalid_alarm_details");
-   // Repeat text only, with no times or names, to see what iOS sends. Remove once the format is handled.
-   await env.DB.prepare("INSERT INTO health_service(key,value,updated_at) VALUES('alarm_repeat_seen',?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at").bind(JSON.stringify(raw.split("\u241e").map(record=>record.split("\u241f")[1]??null).filter(value=>value!==null).map(value=>value.slice(0,120))),new Date().toISOString()).run();
    const at=new Date().toISOString(),first=firstAlarm(alarms,day);
    const statements=[env.DB.prepare("DELETE FROM health_alarms WHERE owner_email=?").bind(owner)];
    alarms.forEach((a,position)=>statements.push(env.DB.prepare("INSERT INTO health_alarms(owner_email,position,time_min,days,enabled,label,updated_at) VALUES(?,?,?,?,?,?,?)").bind(owner,position,a.timeMin,a.days.join(","),a.enabled,a.label,at)));

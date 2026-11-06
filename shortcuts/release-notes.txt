@@ -1,1 +1,1 @@
-Now brings in your alarms' repeat days and names, resting heart rate, heart rate variability and exercise.
+Counts every sleep stage, and uses time in bed for nights with nothing else.

@@ -88,7 +88,7 @@ Only an iPhone proves iOS behavior, and each round trip costs the owner time. Be
 - Clients check an error's `code`, never its message.
 - Health Sync follows the settings the handshake returns: `sync…` values for each kind of data, and `calendarsOff`, a pattern of turned-off calendars. The Worker also applies them on arrival, in case they changed during the run.
 - A run makes five requests: the handshake, the next week's events, all Health measures, alarms, and the final notification. Every request is a round trip from the phone, often on cellular or inside an automation, so add fields to one of these instead of adding requests.
-- Sleep arrives as asleep intervals that the Worker merges per night, so two wearables count once. A batch that reached its sample limit leaves its oldest night alone, because that night may be cut off.
+- Sleep arrives as intervals that the Worker merges per night, so two wearables count once. Asleep, Core, Deep and REM count as sleep. In Bed counts only for a night with none of them, and that night is marked `sleepInBed`. Awake never counts. A batch that reached its sample limit leaves its oldest night alone, because that night may be cut off.
 
 **Cloud and naming**
 - To change the name, colors or logo, follow `BRANDING.md`.
@@ -222,7 +222,7 @@ What the app holds and where it goes. Write every privacy statement from this ta
 | Mood, optional stress and energy, tags, notes | Check-ins | Yes | Yes when signed in, as readable text. A deleted check-in leaves only its ID, so other devices can remove it. | Insights, coaching and notification times. Notes are only displayed. |
 | Weekly reflections, breathing sessions, suggestions marked done, and which planned check-ins were answered | The app | Yes | No | Insights. Breathing and suggestions marked done also feed what tends to help. Unanswered times move check-ins. |
 | Health days and events added by hand or imported | The Data tab | Yes | No | Insights and coaching |
-| Steps, exercise minutes, sleep hours, HRV | Health Sync, from Apple Health, up to the last 7 days each run. Sleep arrives as asleep intervals from recent nights, up to a month on the first sync | Yes | Yes | Insights and coaching. HRV: Insights only. |
+| Steps, exercise minutes, sleep hours, HRV | Health Sync, from Apple Health, up to the last 7 days each run. Sleep arrives as intervals from recent nights, with time in bed used for a night with nothing else, up to a month on the first sync | Yes | Yes | Insights and coaching. HRV: Insights only. |
 | Bedtimes | Worked out from the sleep intervals | Yes | Yes | Bedtime estimate and wind-down |
 | Resting heart rate | Health Sync, from Apple Health | Yes | Yes | Insights: compared with the person's own usual level |
 | Calendar events for today and the next 7 days: title, start, end, calendar name | Health Sync reads calendars left on. Saved events from a turned-off calendar can be removed in the app; the Worker adds a category | Yes, without the calendar name | Yes, except events from turned-off calendars, which are discarded on arrival | Insights, coaching and nudges before events |
