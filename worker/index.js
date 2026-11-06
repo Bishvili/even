@@ -41,7 +41,7 @@ async function payload(request){
  if(type.includes("application/x-www-form-urlencoded"))return Object.fromEntries(new URLSearchParams(text));
  try{return JSON.parse(text);}catch(e){return Object.fromEntries(new URLSearchParams(text));}
 }
-const VERSION_NAME="2.51.0";
+const VERSION_NAME="2.51.1";
 function normalEmail(value){return String(value||"").trim().toLowerCase();}
 async function signinAuth(env,ctx,request){
  const {createAuth}=await import("./signin.mjs");
@@ -1113,7 +1113,6 @@ function lookFrom(value,typed){
  const own=lookName(typed),name=match[1]==="n0"?(own?{name:own,installName:own,tagline:BRAND.tagline}:null):LOOK_NAMES.find(item=>item.id===match[1]);
  return name&&{id:match[0],name,typed:match[1]==="n0"?own:null,icon:"/look-icon-"+match[2]+"-"+match[3]+".png"};
 }
-function escapeHtml(text){return String(text).replace(/[&<>"']/g,mark=>"&#"+mark.charCodeAt(0)+";");}
 // iOS takes the Home Screen icon and label from the page when the app is added, so this one response carries the look. It is never cached.
 async function dressedPage(request,env,look){
  const file=await asset(request,env,"/");

@@ -1279,7 +1279,7 @@ test("a catalogue look dresses one uncached page, and anything else gets the nor
  const manifest=await (await open("/look.webmanifest?look=n2.i4.p7")).json();
  assert.equal(manifest.short_name,"Fulcrum");assert.equal(manifest.icons[0].src,"/look-icon-i4-p7.png");assert.equal(manifest.start_url,"/?look=n2.i4.p7#checkin");
  const own=await open("/?look=n0.i4.p7&name="+encodeURIComponent('A"><script>$1'));
- const ownPage=await own.text();assert.doesNotMatch(ownPage,/<script>/);assert.match(ownPage,/app-title" content="A&#34;&#62;&#60;script&#62;\$1"/);
+ const ownPage=await own.text();assert.doesNotMatch(ownPage,/<script>/);assert.match(ownPage,/app-title" content="A&quot;&gt;&lt;script&gt;\$1"/);
  assert.equal((await (await open("/look.webmanifest?look=n0.i4.p7&name=Mine")).json()).short_name,"Mine");
  for(const bad of ["n0.i1.p1","n2.i4","n2.i4.p7<script>","x"])assert.equal(await (await open("/?look="+encodeURIComponent(bad))).text(),page);
 });
