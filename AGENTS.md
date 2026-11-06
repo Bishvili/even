@@ -79,7 +79,7 @@ Only an iPhone proves iOS behavior, and each round trip costs the owner time. Be
 - The app sends a dated plan for the next 7 days when it opens (at most every 6 hours when it only comes back to the foreground), after a sync and after a check-in (`weekSchedule` in `coach.js`). If it stays closed, the last week repeats, and nudges before events stop. A day can run past midnight, up to 20 hours. A repeated week keeps its local times across a clock change.
 
 **Shortcuts**
-- Find Health Samples ends the run when a type has no samples, and Shortcuts can't catch errors. Check `recentTypes` first and never query a type it doesn't list.
+- Find Health Samples stops the run with an error when a type has no samples, Shortcuts can't catch it, and iOS reads only one type from a filter that names several. So nothing on the phone can check first: the handshake sends `healthPlan` and `healthTry`, worked out in `planHealth` from what earlier runs reported. Send what's gathered before reading a type in `healthTry`. A type with nothing found is skipped, and tried again after 30 days or with **Check again** in the app.
 - Look up Shortcuts by exact name with Get My Shortcuts. Search results passed to Create iCloud Link can make iOS show a menu of every Shortcut.
 - A Shortcut must never wait for an answer on a normal run, because automations can't respond. Use notifications, and stop with a clear alert only when it can't continue.
 - A result limit applies before grouping, so read grouped values from the first group.
@@ -237,6 +237,7 @@ What the app holds and where it goes. Write every privacy statement from this ta
 | What Health Sync sends | The app | Yes | Yes | Followed by Health Sync and the Worker |
 | Alarms: time, repeat days, on/off, name | Health Sync, from Clock | Yes | Yes, plus each synced day's first morning alarm | Brief, wind-down, next steps and the early-alarm pattern |
 | Notification settings and answers | The app | Yes, including each message's text | Dated times for the next 7 days and their kinds, time zone, sync reminder time, times of expected harder moments, latest check-in time, push subscription and delivery status | Sending notifications |
+| Which Health types this iPhone has, and when each was last read | Health Sync | No | Yes, until synced data is erased | Telling Health Sync what to read |
 | Account and devices | Sign-in and Health Sync | Account email (the last one entered stays to fill in sign-in, until Erase), first name, device ID and credential | Email; the name from sign-in, if any, shown to developer accounts; each device's label, dates (devices unused for 90 days disconnect), last error, Shortcut version and how many records its last upload held; only a hash of each credential; sign-in sessions with the browser's description, and whether the account uses Google | Sync status and access |
 | Look: the chosen name, including one typed in, icon and palette | Settings | Yes, plus light, dark or system | Yes, until changed or synced data is erased. Release accounts see counts of choices, never who chose what or a typed name | Wearing it on this device and others |
 | One-time install code | Signing in on the install page | In the address saved with the icon, unusable once used or after 30 minutes | Only a hash, until used or replaced | Carrying a sign-in from Safari to the new icon |

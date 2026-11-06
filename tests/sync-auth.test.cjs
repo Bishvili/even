@@ -36,7 +36,8 @@ function harness({brand={},verified=false,buildVersion="2.8.0",helperBuild="2.0.
     if(sql.startsWith("SELECT kind,key,data,deleted_at FROM health_shared"))return null;
     if(sql.startsWith("SELECT COUNT(*) AS count FROM health_shared"))return{count:(rows.shared||[]).filter(r=>r.owner===args[0]&&!r.deleted_at).length};
     if(sql.startsWith("DELETE FROM health_install_codes WHERE code_hash")){const at=(rows.installCodes||[]).findIndex(x=>x.hash===args[0]&&x.expires>args[1]);if(at<0)return null;return{email:rows.installCodes.splice(at,1)[0].email};}
-    if(sql.startsWith("SELECT look,look_name FROM health_users"))return{look:rows.looks?.get(args[0])||null,look_name:rows.lookNames?.get(args[0])||null};
+    if(sql.startsWith("SELECT health_types FROM health_users"))return{health_types:rows.healthTypes?.get(args[0])||null};
+    if(sql.startsWith("SELECT look,look_name,health_types FROM health_users"))return{look:rows.looks?.get(args[0])||null,look_name:rows.lookNames?.get(args[0])||null,health_types:rows.healthTypes?.get(args[0])||null};
     if(sql.startsWith("SELECT sync_off FROM health_users"))return (rows.userFields?.get(args[0]))||null;
     if(sql.startsWith("INSERT INTO health_service")){rows.sends=(rows.sends||0)+1;return{value:String(rows.sends)};}
     if(sql.includes("FROM health_approved_emails WHERE email"))return rows.approved.has(args[0])?{allowed:1}:null;
@@ -89,6 +90,8 @@ function harness({brand={},verified=false,buildVersion="2.8.0",helperBuild="2.0.
     if(sql.startsWith("UPDATE health_devices SET last_used_at")){for(const d of rows.devices.values())if(d.device_id===args[6]&&d.owner_email===args[7]&&!d.revoked_at){d.last_upload_counts=d.last_used_at>args[3]?JSON.stringify({...JSON.parse(d.last_upload_counts||"{}"),...JSON.parse(args[4])}):args[5];d.last_used_at=args[0];d.last_attempt_at=args[1];d.last_error_code=null;d.shortcut_version=args[2]||d.shortcut_version;}return{meta:{changes:1}};}
     if(sql.startsWith("DELETE FROM health_alarms")){rows.alarms=(rows.alarms||[]).filter(x=>x.owner!==args[0]);return{meta:{changes:1}};}
     if(sql.startsWith("INSERT INTO health_alarms")){(rows.alarms=rows.alarms||[]).push({owner:args[0],time_min:args[2],days:args[3],enabled:args[4],label:args[5]});return{meta:{changes:1}};}
+    if(sql.startsWith("UPDATE health_users SET health_types=?")){rows.healthTypes=rows.healthTypes||new Map();rows.healthTypes.set(args[1],args[0]);return{meta:{changes:1}};}
+    if(sql.startsWith("UPDATE health_users SET look=NULL")){rows.healthTypes?.delete(args[0]);}
     if(sql.startsWith("UPDATE health_users SET look=")){const hasLook=args.length===3,email=args.at(-1);rows.looks=rows.looks||new Map();rows.lookNames=rows.lookNames||new Map();if(hasLook&&args[0]){rows.looks.set(email,args[0]);rows.lookNames.set(email,args[1]);}else{rows.looks.delete(email);rows.lookNames.delete(email);}return{meta:{changes:1}};}
     if(sql.startsWith("UPDATE health_users")){
      const u=(rows.userFields=rows.userFields||new Map());const email=args[args.length>2?1:1];const row=u.get(email)||{};
@@ -1356,4 +1359,28 @@ test("shared records are checked, belong to one account, come with the session, 
  await post(A,{deleted:[{kind:"resets",key:"t1"}]});
  const after=await call("/api/session",{headers:A});
  assert.equal(after.data.shared.items.length,0);assert.deepEqual(JSON.parse(JSON.stringify(after.data.shared.deleted)),[{kind:"resets",key:"t1"}]);
+});
+
+test("each run is told which Health types to read, learning from where the last one stopped",async()=>{
+ const{call,ctx}=harness();
+ const a=await call("/api/user/device",{method:"POST",body:{label:"A"},context:ctx("owner-a@example.com")}),A={Authorization:"Bearer "+a.data.token};
+ const hello=async(version="4.4.0")=>(await call("/api/shortcut/hello",{method:"POST",headers:A,body:{shortcutVersion:version}})).data;
+ const report=healthRead=>call("/api/ingest",{method:"POST",headers:A,body:{kind:"health",date:"2026-11-05",shortcutVersion:"4.4.0",healthRead}});
+ const pause=()=>new Promise(done=>setTimeout(done,3));
+ const old=await hello("4.3.0");assert.equal(old.healthPlan,undefined);
+ const all="Steps,Resting,Hrv,Exercise,Sleep";
+ let run=await hello();assert.equal(run.healthPlan,all);assert.equal(run.healthTry,all);
+ await pause();await report(",Steps,Resting");await pause();
+ run=await hello();assert.equal(run.healthPlan,"Steps,Resting,Exercise,Sleep");assert.equal(run.healthTry,"Exercise,Sleep");
+ await pause();await report(",Steps,Resting");await pause();
+ run=await hello();assert.equal(run.healthPlan,"Steps,Resting,Sleep");assert.equal(run.healthTry,"Sleep");
+ await pause();await report(",Steps,Resting,Sleep");await pause();
+ run=await hello();assert.equal(run.healthPlan,"Steps,Resting,Sleep");assert.equal(run.healthTry,"none");
+ assert.deepEqual([...(await call("/api/session",{headers:A})).data.healthMissing],["hrv","workout"]);
+ await pause();await report(",Steps");await pause();
+ run=await hello();assert.equal(run.healthPlan,"Steps,Resting,Sleep");assert.equal(run.healthTry,"Resting");
+ await pause();await report(",Steps,Resting,Sleep");await pause();await hello();await pause();await report(",Steps,Resting,Sleep");await pause();
+ await call("/api/health-types/check-again",{method:"POST",headers:A,body:{}});
+ run=await hello();assert.equal(run.healthTry,"Hrv,Exercise");
+ assert.deepEqual([...(await call("/api/session",{headers:A})).data.healthMissing],[]);
 });

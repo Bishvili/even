@@ -258,6 +258,7 @@
      <h2 id="sync-settings-title" data-jump="What it sends">What {{sync}} sends</h2>
      <p class="muted">{{sync}} checks these each time it runs. Turning one off stops new data, and what’s already saved stays until you erase it.</p>
      <div id="sync-settings" class="calendar-list"></div>
+     <div id="health-missing" hidden><p class="muted" id="health-missing-text"></p><button type="button" class="btn subtle full" id="health-missing-again">Check again</button></div>
      <h3 class="plan-heading" id="calendars-title">Calendars</h3>
      <p class="muted">{{sync}} skips calendars you turn off, and their saved events are hidden. Turning one back on brings in events from the next sync.</p>
      <div id="calendar-list" class="calendar-list"></div>
@@ -421,7 +422,7 @@
      <p class="muted">Tell us what went wrong or what you’d change.</p>
      <button type="button" class="btn secondary full" id="feedback-open">Send feedback</button>
     </section>
-    <div class="card"><h2 data-jump="About">About the insights</h2><p class="muted">Comparisons need at least 5 check-ins in each group. Mood data is subjective and gaps can skew results. Nothing here is a diagnosis or proves a cause.</p><button type="button" class="btn subtle full" id="setup-again">Go through setup again</button><a class="btn subtle full" id="whitepaper-link" href="/whitepaper.html" target="_blank" rel="noopener">How {{name}} works <span aria-hidden="true">↗</span></a><p class="muted">Version <span id="version">2.53.1</span> · No ads or analytics</p></div>
+    <div class="card"><h2 data-jump="About">About the insights</h2><p class="muted">Comparisons need at least 5 check-ins in each group. Mood data is subjective and gaps can skew results. Nothing here is a diagnosis or proves a cause.</p><button type="button" class="btn subtle full" id="setup-again">Go through setup again</button><a class="btn subtle full" id="whitepaper-link" href="/whitepaper.html" target="_blank" rel="noopener">How {{name}} works <span aria-hidden="true">↗</span></a><p class="muted">Version <span id="version">2.54.0</span> · No ads or analytics</p></div>
     <div class="card"><h2 data-jump="Sample">Explore a sample month</h2><p class="muted">See 28 days of fictional check-ins and events. They stay separate from your own data and are never uploaded.</p><button class="btn secondary full" id="demo-button">Load 28-day calendar demo</button><button class="btn subtle full" id="clear-demo-button">Remove demo data</button></div>
    </section>
   </main>

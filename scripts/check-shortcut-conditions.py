@@ -18,8 +18,8 @@ import sys
 from pathlib import Path
 
 
-SYNC_TEXT = collections.Counter({"on": 11, "connected": 1, "accepted": 2, "needed": 1, "new_release": 1, "sent": 1})
-SYNC_NUMBERS = [0, 0, 0, 0] + [1] * 17 + [7] * 4
+SYNC_TEXT = collections.Counter({"on": 7, "connected": 1, "accepted": 2, "needed": 1, "new_release": 1, "sent": 1})
+SYNC_NUMBERS = [0, 0, 0, 0, 0] + [1] * 27 + [7] * 4
 HELPER_TEXT = collections.Counter({
     "Health Sync": 2, "Release Helper": 1, "\ufffc": 1, "share": 1, "install": 1, "building": 1,
     "ahead": 1, "current": 2, "publish": 1, "Publish": 1,
@@ -182,7 +182,7 @@ def check_connection_and_health(document, actions) -> None:
 
     for finder, types in (
         ("is.workflow.actions.filter.calendarevents", [None, None]),
-        ("is.workflow.actions.filter.health.quantity", ["Steps", "Resting Heart Rate", "Heart Rate Variability", "Exercise Minutes", "Sleep", "Steps", "Resting Heart Rate", "Heart Rate Variability", "Exercise Minutes", "Sleep", "Sleep"]),
+        ("is.workflow.actions.filter.health.quantity", ["Steps", "Resting Heart Rate", "Heart Rate Variability", "Exercise Minutes", "Sleep", "Sleep"]),
     ):
         found = by_id(finder)
         if len(found) != len(types):

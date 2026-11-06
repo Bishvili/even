@@ -1,6 +1,6 @@
 (function () {
 "use strict";
-var VERSION = "2.53.1";
+var VERSION = "2.54.0";
 var HIDEABLE={
  event:{list:"events",hidden:"hiddenEvents",key:"id"},
  health:{list:"health",hidden:"hiddenHealth",key:"date"}
@@ -495,6 +495,19 @@ function renderSyncSettings(settings){
   row.appendChild(name);row.appendChild(box);list.appendChild(row);
  });
 }
+function renderHealthMissing(missing){
+ var names=(missing||[]).map(function(kind){return SYNC_SETTING_NAMES[kind];}).filter(Boolean);
+ $("health-missing").hidden=!names.length;
+ if(names.length)$("health-missing-text").textContent="Nothing found on this iPhone yet: "+names.join(", ")+". {{sync}} skips these and looks again in a month.";
+}
+async function checkHealthAgain(){
+ if(!state.token||!navigator.onLine){toast("Connect to the internet to check again.");return;}
+ try{
+  var r=await fetch("/api/health-types/check-again",{method:"POST",headers:{"Authorization":"Bearer "+state.token,"Content-Type":"application/json"},body:"{}",cache:"no-store"});
+  if(!r.ok)throw Error();
+  $("health-missing").hidden=true;toast("{{sync}} will look for these on its next run.");
+ }catch(e){toast("That didn’t work. Try again.");}
+}
 async function setSyncSetting(kind,box){
  var enabled=box.checked;box.disabled=true;
  try{
@@ -918,6 +931,7 @@ async function loadSession(){
   if(globalThis.Look){if(globalThis.Look.waiting())sendLook();else if(globalThis.Look.follow(data.look||null,data.lookName||""))render();}
   syncMoods(data.moods);
   syncReflections(data.reflections);
+  renderHealthMissing(data.healthMissing);
   if(globalThis.Shared)globalThis.Shared.sync(sharedApp(),data.shared);
   var uploaded=Date.parse(data.status.lastDataUploadAt);
   if(uploaded&&(!state.lastSync||uploaded>state.lastSync))pull(true);
@@ -1170,7 +1184,8 @@ function init(){
  $("demo-button").addEventListener("click",demo);$("clear-demo-button").addEventListener("click",clearDemo);
  setEnergyText();navigate(location.hash.slice(1)||"checkin");
  window.addEventListener("online",function(){renderSync();syncMoods();syncReflections();sendChanges();if(globalThis.DataList)globalThis.DataList.status();});window.addEventListener("offline",function(){renderSync();if(globalThis.DataList)globalThis.DataList.status();renderMoodStatus();});
- $("mood-sync-retry").addEventListener("click",function(){moodSyncFailed=false;renderMoodStatus();syncMoods();syncReflections();});
+ $("health-missing-again").addEventListener("click",checkHealthAgain);
+$("mood-sync-retry").addEventListener("click",function(){moodSyncFailed=false;renderMoodStatus();syncMoods();syncReflections();});
  if(navigator.onLine)refreshAuth();
  if(state.token&&navigator.onLine)loadSession();
  window.addEventListener("online",foreground);

@@ -41,21 +41,22 @@ test("the device key is read from its file, checked by the server, and saved onl
 test("every comparison is typed text or a number, never a Boolean",()=>{
  assert.deepEqual(conditions(sync),[
   'providedKeyCount == 0','savedKeyMatchCount == 0','connectionStatus != "connected"','syncCalendar == "on"','todayOffCount == 0','upcomingOffCount == 0','calendarStatus != "accepted"',
-  'recentStepCount >= 1','syncRestingHR == "on"','syncHrv == "on"','syncWorkout == "on"','syncSleep == "on"',
-  'syncSteps == "on"','stepsAvailable >= 1','@stepsSeen < 7','totalSteps >= 1','@stepsSeen >= 1','syncRestingHR == "on"','restingAvailable >= 1','@restingSeen < 7','restingFound >= 1','@restingSeen >= 1','syncHrv == "on"','hrvAvailable >= 1','@hrvSeen < 7','hrvFound >= 1','@hrvSeen >= 1',
-  'syncWorkout == "on"','exerciseAvailable >= 1','@exerciseSeen < 7','exerciseValue >= 1','@exerciseSeen >= 1','syncSleep == "on"','sleepAvailable >= 1','historyState == "needed"','stageCount >= 1','bedCount >= 1',
-  '@healthFields >= 1','healthStatus != "accepted"','updateStatus == "new_release"','syncAlarms == "on"','syncedState != "sent"'
+  'syncSteps == "on"','stepsAvailable >= 1','stepsTryCount >= 1','@readCount >= 1','@stepsSeen < 7','totalSteps >= 1','@stepsSeen >= 1','syncRestingHR == "on"','restingAvailable >= 1','restingTryCount >= 1','@readCount >= 1','@restingSeen < 7','restingFound >= 1','@restingSeen >= 1','syncHrv == "on"','hrvAvailable >= 1','hrvTryCount >= 1','@readCount >= 1','@hrvSeen < 7','hrvFound >= 1','@hrvSeen >= 1',
+  'syncWorkout == "on"','exerciseAvailable >= 1','exerciseTryCount >= 1','@readCount >= 1','@exerciseSeen < 7','exerciseValue >= 1','@exerciseSeen >= 1','syncSleep == "on"','sleepAvailable >= 1','sleepTryCount >= 1','@readCount >= 1','historyState == "needed"','stageCount >= 1','bedCount >= 1',
+  '@healthFields >= 1','healthStatus != "accepted"','@healthFields == 0','@readCount >= 1','updateStatus == "new_release"','syncAlarms == "on"','syncedState != "sent"'
  ]);
  for(const source of [sync,helper])assert.doesNotMatch(source,/if\s+@?\w+\s*(==|!=)\s*(true|false)/);
  for(const name of ["connectionStatus","calendarStatus","healthStatus","updateStatus"])
   assert.match(sync,new RegExp("const "+name+" = getText\\("+name+"Value\\)"));
 });
 
+// A run with nothing to find out: the extra uploads only happen while a Health type is still unknown.
+const settled=sync.replace(/\n +if \w+TryCount >= 1 \{[\s\S]*?\n    \}\n/g,"\n").replace(/\/\/ A type can be there[\s\S]*?\n\}\n/,"");
 test("a run makes five requests, each with one version, and learns about updates from the handshake",()=>{
- assert.equal((sync.match(/\b(?:jsonRequest|formRequest|downloadURL)\(/g)||[]).length,5);
- const versions=sync.match(/"shortcutVersion": "\d+\.\d+\.\d+"/g)||[];
+ assert.equal((settled.match(/\b(?:jsonRequest|formRequest|downloadURL)\(/g)||[]).length,5);
+ const versions=settled.match(/"shortcutVersion": "\d+\.\d+\.\d+"/g)||[];
  assert.equal(versions.length,4);
- assert.equal(new Set(versions).size,1);
+ assert.equal(new Set(sync.match(/"shortcutVersion": "\d+\.\d+\.\d+"/g)).size,1);
  assert.doesNotMatch(sync,/\/api\/shortcut\/release\?/);
  assert.match(sync,/getValue\(handshake, "updateStatus"\)/);
  assert.match(sync,/showNotification\("A new version is ready in the app\.", "Health Sync"\)/);
@@ -82,9 +83,8 @@ test("Health goes up in one request, up to 7 days of each measure with their dat
  for(const [field,variable] of [["steps","steps"],["restingHR","resting"],["hrv","hrv"],["workoutMin","exercise"]]){
   assert.ok(sync.includes(`"${field}Recent": "{@${variable}Field}"`),field);
  }
- assert.equal((sync.match(/"kind": "health"/g)||[]).length,1);
+ assert.equal((settled.match(/"kind": "health"/g)||[]).length,1);
  assert.doesNotMatch(sync,/heartRate|"Heart Rate"/);
- assert.deepEqual(rows("recentTypesFilter").map(t=>t.Values.Enumeration.Value),["Steps","Resting Heart Rate","Heart Rate Variability","Exercise Minutes","Sleep"]);
  for(const [name,type] of [["stepsFilter","Steps"],["restingFilter","Resting Heart Rate"],["hrvFilter","Heart Rate Variability"],["exerciseFilter","Exercise Minutes"],["sleepFilter","Sleep"]]){
   assert.equal(filters[name].WFSerializationType,"WFContentPredicateTableTemplate",name);
   assert.equal(rows(name)[0].Values.Enumeration.Value,type,name);
