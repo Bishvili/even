@@ -73,7 +73,7 @@
  function render(){
   if(!$("view-sync"))return;
   var state=data().state(),connected=!!state.token,pending=waiting(),isLive=live(run),r=run,action=$("sync-action"),hint="";
-  var title,note="",label="Sync now",kind="primary";
+  var title,note,label="Sync now",kind="primary";
   if(!connected){title="Connect to sync";note="Sign in and connect this iPhone in Data.";label="Go to Data";}
   else if(pending){title="Waiting for {{sync}}";note="It opens in Shortcuts.";label="Stop";kind="secondary";
    if(Date.now()-tappedAt>15000)hint="If Shortcuts is asking something, answer it, then come back here.";}
