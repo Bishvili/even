@@ -22,7 +22,8 @@ action 'is.workflow.actions.properties.health.quantity' sampleStarts(variable sa
 
 // Nothing leaves the iPhone: every result is shown here and only here.
 const options = list("Resting Heart Rate", "Sleep", "Heart Rate Variability", "Exercise Minutes", "Steps", "All five together")
-const choice = chooseFromList(options, "Check which Health data? Run this once for each.")
+const chosen = chooseFromList(options, "Check which Health data? Run this once for each.")
+const choice = getText(chosen)
 const notice = "If no result appears after this, iOS returned nothing for this type: either no samples, or no access."
 
 if choice == "Resting Heart Rate" {
