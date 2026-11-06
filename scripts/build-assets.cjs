@@ -93,11 +93,23 @@ async function renderer(){
   return page.screenshot({omitBackground:true});
  },close:()=>browser.close()};
 }
+// The Home Screen icon for every icon and palette in the catalogue. Served, but never in the shell, so installed apps don't download them.
+function lookIcons(written=readJson("brand/palette.json")){
+ const icons=readJson("brand/catalog/icons.json"),palettes=readJson("brand/catalog/palettes.json"),list=[];
+ for(const icon of icons)for(const choice of palettes){
+  const palette=resolve(written,choice.colors),file="brand/catalog/"+icon.file;
+  list.push({file:"look-icon-"+icon.id+"-"+choice.id+".png",spec:imageSpec("icon-180.png",fill(fs.readFileSync(path.join(root,file),"utf8"),colorValues(palette),file),palette)});
+ }
+ return list;
+}
 async function buildImages(out=path.join(root,"dist"),palette=resolve(readJson("brand/palette.json"),readJson("brand/brand.json").colors)){
  const logo=fs.readFileSync(path.join(out,"icon.svg"),"utf8"),files=publicFiles(fs.readFileSync(path.join(root,"sw.js"),"utf8")).filter(file=>file.endsWith(".png"));
  const pen=await renderer();
- try{for(const file of files)fs.writeFileSync(path.join(out,file),await pen.draw(imageSpec(file,logo,palette)));}
+ try{
+  for(const file of files)fs.writeFileSync(path.join(out,file),await pen.draw(imageSpec(file,logo,palette)));
+  for(const{file,spec}of lookIcons())fs.writeFileSync(path.join(out,file),await pen.draw(spec));
+ }
  finally{await pen.close();}
 }
 if(require.main===module){build();buildImages().catch(error=>{console.error(error);process.exitCode=1;});}
-module.exports={publicFiles,build,buildImages,imageSpec,tokenValues,colorValues,fill};
+module.exports={publicFiles,build,buildImages,imageSpec,lookIcons,tokenValues,colorValues,fill};

@@ -1,5 +1,6 @@
 import BRAND from "../brand/brand.json";
 import STABLE from "../brand/stable.json";
+import LOOK_NAMES from "../brand/catalog/names.json";
 // Account sign-in and owner-scoped device sync.
 // All server tokens are generated randomly, stored only as SHA-256 hashes, and revocable.
 // /api/user/* needs a signed-in session. All other routes reject
@@ -40,7 +41,7 @@ async function payload(request){
  if(type.includes("application/x-www-form-urlencoded"))return Object.fromEntries(new URLSearchParams(text));
  try{return JSON.parse(text);}catch(e){return Object.fromEntries(new URLSearchParams(text));}
 }
-const VERSION_NAME="2.47.1";
+const VERSION_NAME="2.48.0";
 function normalEmail(value){return String(value||"").trim().toLowerCase();}
 async function signinAuth(env,ctx,request){
  const {createAuth}=await import("./signin.mjs");
@@ -1096,6 +1097,31 @@ async function asset(request,env,path){
  if(path==="/sw.js")headers.set("Service-Worker-Allowed","/");
  return new Response(file.body,{status:file.status,headers});
 }
+// A look from the catalogue, as name.icon.palette. Anything else gets the normal page.
+function lookFrom(value){
+ const match=/^(n[1-9])\.(i[1-9])\.(p[1-9])$/.exec(value||"");
+ if(!match)return null;
+ const name=LOOK_NAMES.find(item=>item.id===match[1]);
+ return name&&{id:match[0],name,icon:"/look-icon-"+match[2]+"-"+match[3]+".png"};
+}
+// iOS takes the Home Screen icon and label from the page when the app is added, so this one response carries the look. It is never cached.
+async function dressedPage(request,env,look){
+ const file=await asset(request,env,"/");
+ if(!file.ok)return file;
+ const html=(await file.text())
+  .replace(/<title>[^<]*<\/title>/,"<title>"+look.name.name+"</title>")
+  .replace(/(<meta name="apple-mobile-web-app-title" content=")[^"]*/,"$1"+look.name.installName)
+  .replace(/(<link rel="apple-touch-icon" href=")[^"]*/,"$1"+look.icon)
+  .replace(/(<link rel="manifest" href=")[^"]*/,"$1/look.webmanifest?look="+look.id);
+ const headers=new Headers(file.headers);headers.set("Cache-Control","no-store");
+ return new Response(html,{status:200,headers});
+}
+async function lookManifest(request,env,look){
+ const file=await asset(request,env,"/manifest.webmanifest");
+ if(!file.ok)return file;
+ const manifest=await file.json(),headers=new Headers(file.headers);headers.set("Cache-Control","no-store");
+ return new Response(JSON.stringify({...manifest,name:look.name.installName,short_name:look.name.installName,description:look.name.tagline,icons:[{src:look.icon,sizes:"180x180",type:"image/png"}]}),{status:200,headers});
+}
 // Records each run, so a stalled schedule can be told from a quiet one.
 async function runCron(env){
  const at=new Date().toISOString();
@@ -1111,6 +1137,8 @@ export default {async fetch(request,env,ctx){
  if(onShortcutHost(request,env)&&!shortcutPath(path,env))return error("Not found",404,"not_found");
  if(path.startsWith("/api/"))return await api(request,env,ctx,path);
  if(request.method!=="GET"&&request.method!=="HEAD")return new Response("Method not allowed",{status:405,headers:SECURITY});
+ const look=(path==="/"||path==="/look.webmanifest")&&request.method==="GET"?lookFrom(new URL(request.url).searchParams.get("look")):null;
+ if(look)return await (path==="/"?dressedPage:lookManifest)(request,env,look);
  return await asset(request,env,path);
  }catch(e){logEvent("request_failed",{route:new URL(request.url).pathname,status:500,error:e?.name});return error("Request could not be processed",500,"server_error");}
 },

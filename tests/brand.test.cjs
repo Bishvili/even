@@ -127,3 +127,9 @@ test("every look to try can be built and read",()=>{
  try{for(const look of looks)build({out,brand:{...brand,name:look.name,colors:look.colors||brand.colors}});}
  finally{fs.rmSync(out,{recursive:true});}
 });
+
+test("every icon and palette has a Home Screen icon, none in the shell",()=>{
+ const{lookIcons}=require("../scripts/build-assets.cjs"),list=lookIcons(),shell=publicFiles(fs.readFileSync("sw.js","utf8"));
+ assert.equal(new Set(list.map(x=>x.file)).size,81);
+ for(const{file,spec}of list){assert.equal(spec.width,180);assert.doesNotMatch(spec.svg,/\{\{/);assert.ok(!shell.includes(file));}
+});

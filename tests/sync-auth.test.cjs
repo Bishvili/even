@@ -12,7 +12,7 @@ const days=(date,records)=>({kind:"calendar_days",date,utcOffset:"+00:00",events
 function harness({brand={},verified=false,buildVersion="2.8.0",helperBuild="2.0.0",sourceVersions=null,helperLink=null}={}){
  const source=fs.readFileSync(path.join(__dirname,"..","worker","index.js"),"utf8");
  const session='{createAuth:(authEnv,options)=>({handler:async request=>{const url=new URL(request.url);globalThis.lastAuth={baseURL:options.baseURL,url:request.url,body:request.method==="POST"?await request.text():""};return url.pathname.endsWith("/oauth-proxy")?new Response(null,{status:302,headers:{Location:url.searchParams.get("callbackURL"),"Set-Cookie":"health.session_token=abc; Path=/"}}):new Response("{}",{status:200,headers:{"Content-Type":"application/json"}});},api:{getSession:async({headers})=>{const m=/health\\.session_token=([^;]+)/.exec(headers.get("cookie")||"");if(!m)return null;const user=JSON.parse(decodeURIComponent(m[1]));return{user,session:{createdAt:new Date(user.name==="Old session"?0:Date.now())}};}}})}';
- const loaded=source.replace(/^import (\w+) from "\.\.\/brand\/(\w+)\.json";$/gm,(line,name,file)=>"const "+name+"="+JSON.stringify({...JSON.parse(fs.readFileSync(path.join(__dirname,"..","brand",file+".json"),"utf8")),...(file==="brand"?brand:{})})+";").replace('await import("./signin.mjs")',session).replace("export default {","globalThis.logEvent = logEvent;globalThis.runCron = runCron;globalThis.sendReminders = sendReminders;globalThis.readBedtimes = readBedtimes;globalThis.readSleep = readSleep;globalThis.reminderMessage = reminderMessage;globalThis.dueScheduled = dueScheduled;globalThis.readAlarms = readAlarms;globalThis.firstAlarm = firstAlarm;globalThis.pushPayload = pushPayload;globalThis.__worker = {");
+ const loaded=source.replace(/^import (\w+) from "\.\.\/brand\/([\w/]+)\.json";$/gm,(line,name,file)=>"const "+name+"="+JSON.stringify(file==="brand"?{...JSON.parse(fs.readFileSync(path.join(__dirname,"..","brand",file+".json"),"utf8")),...brand}:JSON.parse(fs.readFileSync(path.join(__dirname,"..","brand",file+".json"),"utf8")))+";").replace('await import("./signin.mjs")',session).replace("export default {","globalThis.logEvent = logEvent;globalThis.runCron = runCron;globalThis.sendReminders = sendReminders;globalThis.readBedtimes = readBedtimes;globalThis.readSleep = readSleep;globalThis.reminderMessage = reminderMessage;globalThis.dueScheduled = dueScheduled;globalThis.readAlarms = readAlarms;globalThis.firstAlarm = firstAlarm;globalThis.pushPayload = pushPayload;globalThis.__worker = {");
  assert.notEqual(source,loaded,"Worker ESM export not found");
  const dispatches=[];
  const runtime={crypto:webcrypto,TextEncoder,Response,Request,Headers,URL,atob,btoa,Intl,Uint8Array,console,async fetch(url,init){
@@ -1262,4 +1262,18 @@ test("reflections sync per account, are checked, delete everywhere, and go with 
  await post(A,{deleted:["r1"]});
  const after=await call("/api/reflections",{headers:A});
  assert.deepEqual(after.data.reflections,[]);assert.deepEqual(after.data.deleted,["r1"]);
+});
+
+test("a catalogue look dresses one uncached page, and anything else gets the normal one",async()=>{
+ const{env,runtime}=harness();
+ const page='<title>Old</title><meta name="apple-mobile-web-app-title" content="Old"><link rel="manifest" href="/manifest.webmanifest"><link rel="apple-touch-icon" href="/icon-180.png">';
+ env.STATIC={async fetch(request){const at=new URL(request.url).pathname;return new Response(at==="/manifest.webmanifest"?JSON.stringify({name:"Old",id:"/",start_url:"/#checkin"}):page,{status:200});}};
+ const open=at=>runtime.__worker.fetch(new Request("https://health.example"+at),env,{});
+ const dressed=await open("/?look=n2.i4.p7"),html=await dressed.text();
+ assert.match(html,/<title>Fulcrum<\/title>/);assert.match(html,/app-title" content="Fulcrum"/);
+ assert.match(html,/href="\/look-icon-i4-p7.png"/);assert.match(html,/\/look\.webmanifest\?look=n2\.i4\.p7/);
+ assert.equal(dressed.headers.get("Cache-Control"),"no-store");
+ const manifest=await (await open("/look.webmanifest?look=n2.i4.p7")).json();
+ assert.equal(manifest.short_name,"Fulcrum");assert.equal(manifest.icons[0].src,"/look-icon-i4-p7.png");assert.equal(manifest.start_url,"/#checkin");
+ for(const bad of ["n0.i1.p1","n2.i4","n2.i4.p7<script>","x"])assert.equal(await (await open("/?look="+encodeURIComponent(bad))).text(),page);
 });
