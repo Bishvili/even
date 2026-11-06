@@ -1,6 +1,6 @@
 (function () {
 "use strict";
-var VERSION = "2.44.17";
+var VERSION = "2.44.18";
 var HIDEABLE={
  event:{list:"events",hidden:"hiddenEvents",key:"id",path:"/api/calendars/events/hidden",field:"id"},
  health:{list:"health",hidden:"hiddenHealth",key:"date",path:"/api/health/hidden",field:"date"}
@@ -213,7 +213,7 @@ function renderMeasures(){
  });
  var sent=shortcutStatus.lastUpload||{};
  if(missing&&sent.healthSeen>0&&sent.healthMatched===0)note.textContent="{{sync}} found Health data but couldn’t read it. It reads Health in English only for now.";
- else if(missing&&shortcutStatus.lastDataUploadAt)note.textContent="If something isn’t arriving, open {{sync}} and tap Allow Access on any Health step. A device also has to be recording it. If a run stops, turn on Allow Sharing Large Amounts of Data in Settings > Apps > Shortcuts > Advanced.";
+ else if(missing&&shortcutStatus.lastDataUploadAt)note.textContent="If something isn’t arriving, open {{sync}} and tap Allow Access on any Health step. A device also has to be recording it. If a run stops, turn on Allow Sharing Large Amounts of Data in Settings → Apps → Shortcuts → Advanced.";
  $("open-sync-editor").hidden=!(missing&&shortcutStatus.lastDataUploadAt);
 }
 function renderSync(){
