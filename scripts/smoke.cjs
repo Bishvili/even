@@ -29,6 +29,10 @@ async function run(type,base){
  phonePage.on("pageerror",error=>problems.push("Error: "+error.message));
  await phonePage.goto(base);
  if(!/^Install /.test(await phonePage.textContent("#gate-title")))problems.push("A new iPhone doesn't start with the Home Screen step.");
+ const installInView=await phonePage.evaluate(()=>{const r=document.getElementById("gate-action").getBoundingClientRect();return r.height>0&&r.bottom<=innerHeight;});
+ if(!installInView)problems.push("Add to Home Screen isn't in view at 375x667 on the install page.");
+ await phonePage.click("#gate-action");
+ if(!await phonePage.evaluate(()=>document.getElementById("install-help").open))problems.push("Add to Home Screen didn't show how to add it.");
  await phone.close();
  await page.evaluate(connect);
  await page.reload();
@@ -43,7 +47,7 @@ async function run(type,base){
  await page.waitForTimeout(100);
  const saveInView=await page.evaluate(()=>{const bar=document.querySelector(".bottom-nav").getBoundingClientRect().top,r=document.getElementById("save-mood").getBoundingClientRect();return r.top>=0&&r.bottom<=bar;});
  if(!saveInView)problems.push("Save isn't in view after choosing a mood.");
- for(const name of ["insights","data","settings","checkin"])await tab(name);
+ for(const name of ["insights","sync","data","settings","checkin"])await tab(name);
  await tab("settings");
  await page.click("#erase-local");
  if(!await page.evaluate(()=>document.getElementById("confirm-sheet").open))problems.push("The confirmation sheet didn't open.");
@@ -61,14 +65,15 @@ async function run(type,base){
  await page.evaluate(connect);
  await page.reload();
  await page.waitForSelector(".bottom-nav");
- for(const old of ["sync","sources"]){
-  await page.evaluate(name=>App.navigate(name),old);
-  if(!await page.evaluate(()=>document.getElementById("view-data").classList.contains("active")))problems.push("#"+old+" doesn't land on Data.");
+ for(const[link,view]of[["sync","sync"],["sources","data"]]){
+  await page.evaluate(name=>App.navigate(name),link);
+  if(!await page.evaluate(id=>document.getElementById("view-"+id).classList.contains("active"),view))problems.push("#"+link+" doesn't land on "+view+".");
+  if(await page.evaluate(()=>document.scrollingElement.scrollTop))problems.push("#"+link+" scrolled the document.");
  }
  await tab("settings");
  await page.click("#demo-button");
  await page.waitForTimeout(200);
- for(const name of ["insights","data","settings"])await tab(name);
+ for(const name of ["insights","sync","data","settings"])await tab(name);
  await tab("insights");
  const bars=await page.$$eval("#time-insights .bar-value",nodes=>nodes.map(n=>n.getAttribute("width")));
  if(bars.length&&new Set(bars).size<2)problems.push("Time of day bars are all the same length: "+bars.join(", "));

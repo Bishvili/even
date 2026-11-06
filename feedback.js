@@ -16,7 +16,8 @@
    "Signed in":app.signedIn()?"Yes":"No",
    "{{sync}} version":status.installedShortcutVersion||"None",
    "Last upload":status.lastDataUploadAt||"None",
-   "Last error":status.lastErrorCode||"None"
+   "Last error":status.lastErrorCode||"None",
+   "Layout fix":globalThis.Viewport?globalThis.Viewport.summary():"None"
   };
  }
  function summaryText(){var s=summary();return Object.keys(s).map(function(k){return k+": "+s[k];}).join("\n");}

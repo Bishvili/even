@@ -1,6 +1,6 @@
 (function () {
 "use strict";
-var VERSION = "2.59.0";
+var VERSION = "2.60.0";
 var HIDEABLE={
  event:{list:"events",hidden:"hiddenEvents",key:"id"},
  health:{list:"health",hidden:"hiddenHealth",key:"date"}
@@ -58,10 +58,10 @@ function isIOS(){return /iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator
 function navigate(view){
  if(globalThis.DataList)globalThis.DataList.leave();
  if(globalThis.LookPicker&&view!=="settings")globalThis.LookPicker.leave();
- // Sources and Sync were merged into Data, and older links still use their names.
+ // Sources became part of Data, and older links still use its name.
  var target=view==="sources"?"data-context":"";
- if(view==="sources"||view==="sync")view="data";
- if(!["checkin","insights","data","settings"].includes(view))view="checkin";
+ if(view==="sources")view="data";
+ if(!["checkin","insights","sync","data","settings"].includes(view))view="checkin";
  var top=view===currentView?0:scrollTops[view]||0;
  if(currentView)scrollTops[currentView]=$("page").scrollTop;
  currentView=view;
@@ -69,7 +69,8 @@ function navigate(view){
  document.querySelectorAll(".nav-item").forEach(function(n){var on=n.dataset.go===view;n.classList.toggle("active",on);if(on)n.setAttribute("aria-current","page");else n.removeAttribute("aria-current");});
  if(location.hash!=="#"+view)history.replaceState(null,"","#"+view);
  resetPageScroll(top);render();if(globalThis.Jump)globalThis.Jump.refresh();
- if(target)$(target).scrollIntoView();
+ if(target)globalThis.Viewport.reveal($(target));
+ if(view==="sync"&&globalThis.SyncStatus)globalThis.SyncStatus.shown();
 }
 function alarmRow(a){
  var names=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"],row=document.createElement("div"),time=document.createElement("span"),who=document.createElement("div"),title=document.createElement("strong"),when=document.createElement("small"),clock=new Date(2024,0,1);
@@ -177,7 +178,7 @@ function tapSyncLight(){
  if(syncLightAction==="signin"){signIn();return;}
  if(syncLightAction==="connect"){issueDevice();return;}
  if(syncLightAction==="run"){runShortcut();return;}
- navigate("data");$("data-title").focus({preventScroll:true});
+ navigate("sync");$("sync-title").focus({preventScroll:true});
 }
 function renderSyncLight(paired){
  var last=Date.parse(shortcutStatus&&shortcutStatus.lastDataUploadAt)||state.lastSync||0,age=Date.now()-last,minutes=Math.floor(age/60000);
@@ -185,7 +186,7 @@ function renderSyncLight(paired){
  var otherAccount=!!(authEmail&&state.syncOwnerEmail&&authEmail!==state.syncOwnerEmail);
  syncLightAction=!navigator.onLine?"offline":!authEmail&&!paired?"signin":otherAccount||(!paired&&!authKnown)?"data":!paired?"connect":!last?"data":"run";
  $("sync-light-text").textContent=text;
- $("sync-light").setAttribute("aria-label",text+{offline:". {{sync}} needs a connection.",signin:"",connect:"",data:". Open Data.",run:". Run {{sync}}."}[syncLightAction]);
+ $("sync-light").setAttribute("aria-label",text+{offline:". {{sync}} needs a connection.",signin:"",connect:"",data:". Open Sync.",run:". Run {{sync}}."}[syncLightAction]);
  $("sync-light").classList.toggle("connected",navigator.onLine&&paired&&!!last&&minutes<1440);
 }
 var MEASURES=[["sleepHours","Sleep","sleep"],["steps","Steps","steps"],["workoutMin","Exercise","workout"],["restingHR","Resting heart rate","restingHR"],["hrv","Heart rate variability","hrv"]];
@@ -236,7 +237,6 @@ function renderSync(){
  var install=$("install-shortcut"),link=shortcutLink(),canInstall=!!link;
  var publishedRelease=shortcutRelease&&shortcutRelease.url&&shortcutRelease.verified?shortcutRelease:null;
  install.hidden=!canInstall;
- $("run-shortcut").hidden=!paired||mismatch;
  if(canInstall){install.href=link;install.removeAttribute("aria-disabled");install.removeAttribute("tabindex");}
  else{install.removeAttribute("href");install.setAttribute("aria-disabled","true");install.setAttribute("tabindex","-1");}
  $("shortcut-release-version").textContent=shortcutStatus&&shortcutStatus.installedShortcutVersion?"Connected · v"+shortcutStatus.installedShortcutVersion:"Not connected";
@@ -495,16 +495,22 @@ function renderSyncSettings(settings){
   box.addEventListener("change",function(){setSyncSetting(kind,box);});
   row.appendChild(name);row.appendChild(box);list.appendChild(row);
  });
- var stopped=healthStopped.filter(function(kind){return settings[kind]===false;}).map(function(kind){return SYNC_SETTING_NAMES[kind];});
- if(stopped.length){var note=document.createElement("p");note.className="muted";note.textContent="Turned off because Apple Health had none: "+stopped.join(", ")+". Turn one back on once you’re recording it.";list.appendChild(note);}
+ if(globalThis.SyncStatus)globalThis.SyncStatus.render();
 }
 async function setSyncSetting(kind,box){
  var enabled=box.checked;box.disabled=true;
  try{
   var r=await fetch("/api/sync/settings",{method:"POST",headers:{"Authorization":"Bearer "+state.token,"Content-Type":"application/json"},body:JSON.stringify({kind:kind,enabled:enabled}),cache:"no-store"});
   if(!r.ok)throw Error();
+  syncChoicesShown[kind]=enabled;if(globalThis.SyncStatus)globalThis.SyncStatus.render();
  }catch(e){box.checked=!enabled;toast("Couldn’t change that. Check your connection and try again.");}
  box.disabled=false;
+}
+// Turning a type back on from the Sync tab goes out on its own, because Shortcuts opens straight after.
+function enableSync(kind){
+ if(syncChoicesShown)syncChoicesShown[kind]=true;
+ fetch("/api/sync/settings",{method:"POST",keepalive:true,headers:{"Authorization":"Bearer "+state.token,"Content-Type":"application/json"},body:JSON.stringify({kind:kind,enabled:true}),cache:"no-store"}).catch(function(){toast("Couldn’t turn that back on. Check your connection and try again.");});
+ renderSyncSettings(syncChoicesShown||{});
 }
 function openRenameDevice(id){
  var device=authDevices.filter(function(d){return d.id===id;})[0];if(!device)return;
@@ -922,6 +928,7 @@ async function loadSession(){
   syncMoods(data.moods);
   syncReflections(data.reflections);
   healthStopped=data.healthStopped||[];renderSyncSettings(syncChoicesShown||{});
+  if(globalThis.SyncStatus)globalThis.SyncStatus.accept({run:data.syncRun||null,runs:data.syncRuns||[]});
   if(globalThis.Shared)globalThis.Shared.sync(sharedApp(),data.shared);
   var uploaded=Date.parse(data.status.lastDataUploadAt);
   if(uploaded&&(!state.lastSync||uploaded>state.lastSync))pull(true);
@@ -1033,10 +1040,11 @@ async function revokeDevice(id){
 var shortcutRunPending=false;
 // If a run stops on a Health type Apple Health has none of, Shortcuts opens the next address straight away. That run tells the
 // account the type stopped, which turns it off, and goes on. One retry for each Health type is enough to finish.
+// Each retry says so after the key, so a sync stopped in the app ends there instead of starting again.
 var SYNC_RETRIES=5;
-function shortcutAddress(retries){
- var address="shortcuts://x-callback-url/run-shortcut?name={{syncUrl}}&input=text&text="+encodeURIComponent("Bearer "+state.token);
- return retries>0?address+"&x-error="+encodeURIComponent(shortcutAddress(retries-1)):address;
+function shortcutAddress(retries,again){
+ var address="shortcuts://x-callback-url/run-shortcut?name={{syncUrl}}&input=text&text="+encodeURIComponent("Bearer "+state.token+(again?" again":""));
+ return retries>0?address+"&x-error="+encodeURIComponent(shortcutAddress(retries-1,true)):address;
 }
 function runShortcut(){shortcutRunPending=true;if(globalThis.SyncStatus)globalThis.SyncStatus.start();window.location.href=shortcutAddress(SYNC_RETRIES);}
 async function pull(silent){
@@ -1168,7 +1176,7 @@ function init(){
  });
  $("sync-light").addEventListener("click",tapSyncLight);
  $("calendar-insights").addEventListener("click",function(ev){var b=ev.target.closest("[data-pair]");if(b&&globalThis.Reminders){globalThis.Reminders.togglePair(b.dataset.pair);renderInsights();}});
- $("pull-button").addEventListener("click",function(){pull(false);});$("run-shortcut").addEventListener("click",function(event){event.preventDefault();runShortcut();});
+ $("pull-button").addEventListener("click",function(){pull(false);});
  $("sign-out").addEventListener("click",signOut);
  $("erase-remote").addEventListener("click",eraseRemote);
  $("backup-button").addEventListener("click",openBackup);
@@ -1187,9 +1195,7 @@ function init(){
  window.addEventListener("online",foreground);
  document.addEventListener("visibilitychange",function(){if(!document.hidden)foreground();});
  watchForUpdates();
- // iOS can pan the document to reveal a focused field, and the document should never stay scrolled.
- document.addEventListener("focusout",function(){setTimeout(function(){if(window.scrollY)window.scrollTo(0,0);},100);});
- window.addEventListener("load",handleNotificationAction);
+  window.addEventListener("load",handleNotificationAction);
  var authResult=new URLSearchParams(location.search).get("auth");
  if(authResult==="denied"||authResult==="failed"){var back=location.hash==="#checkin"?"checkin":"data";history.replaceState(null,"","/#"+back);navigate(back);toast(authResult==="denied"?"This email isn’t on the list yet. Ask the person who invited you.":"That sign-in didn’t finish. Try again.");}
  if(new URLSearchParams(location.search).get("sync")==="1"){history.replaceState(null,"","/#checkin");navigate("checkin");if(state.token)pull(false);}
@@ -1211,6 +1217,7 @@ function handleNotificationAction(){
  if(action==="syncing"&&globalThis.SyncStatus)globalThis.SyncStatus.watch();
  if(action==="sync"){
   if(!state.token){navigate("data");toast("Sign in to run {{sync}}.");return;}
+  navigate("sync");
   $("run-sync-dialog").showModal();
   runShortcut();
  }
@@ -1230,6 +1237,6 @@ function logPlan(date,minutes,moves){
  state.planMoves=state.planMoves.concat(moves).slice(-60);
  persist();
 }
-globalThis.App={reviewData:function(){return {moods:state.moods,health:state.health,events:state.events,reflections:state.reflections};},reflectionLaterDay:function(){return state.reflectionLater;},data:{state:function(){return state;},apply:applyChanges,sendChanges:sendChanges,sendLook:sendLook,toast:toast,toastUndo:toastUndo,askConfirm:askConfirm,removeLocal:removeLocal,editTyped:editTyped,esc:esc,blank:blank,formatDate:formatDate,formatTime:formatTime,EYE:EYE,EYE_OFF:EYE_OFF},logTry:logTry,logPlan:logPlan,planLog:function(){return state.planLog;},planMoves:function(){return state.planMoves;},tries:function(){return state.tries;},version:VERSION,signOut:signOut,syncStatus:function(){return shortcutStatus;},signedIn:function(){return !!authEmail;},askConfirm:askConfirm,accountPath:accountPath,refreshAuth:refreshAuth,firstName:function(){return state.firstName;},navigate:navigate,setup:setup,signIn:signIn,connect:issueDevice,isInstalled:isInstalled,isIOS:isIOS,alarms:function(){return state.alarms;},resets:function(){return state.resets;},logReset:function(){state.resets.push(new Date().toISOString());state.resets=state.resets.slice(-500);persist();},personalEvents:function(){return state.events;},personalHealth:function(){return state.health;},personalMoods:function(){return state.moods;},refresh:refresh,runShortcut:runShortcut,refreshCoach:refreshCoach,addReflection:function(r){var saved=Object.assign({id:newId()},r);state.reflections.push(saved);state.pendingReflections.push(saved.id);persist();render();syncReflections();},deleteReflection:function(id){state.reflections=state.reflections.filter(function(r){return r.id!==id;});state.pendingReflections=state.pendingReflections.filter(function(x){return x!==id;});state.deletedReflections.push(id);persist();render();syncReflections();},reflectionLater:function(day){state.reflectionLater=day;persist();},toast:toast,formatTime:formatTime,deviceToken:function(){return state.token;}};
+globalThis.App={reviewData:function(){return {moods:state.moods,health:state.health,events:state.events,reflections:state.reflections};},reflectionLaterDay:function(){return state.reflectionLater;},data:{state:function(){return state;},apply:applyChanges,sendChanges:sendChanges,sendLook:sendLook,toast:toast,toastUndo:toastUndo,askConfirm:askConfirm,removeLocal:removeLocal,editTyped:editTyped,esc:esc,blank:blank,formatDate:formatDate,formatTime:formatTime,EYE:EYE,EYE_OFF:EYE_OFF},logTry:logTry,logPlan:logPlan,planLog:function(){return state.planLog;},planMoves:function(){return state.planMoves;},tries:function(){return state.tries;},version:VERSION,signOut:signOut,syncStatus:function(){return shortcutStatus;},signedIn:function(){return !!authEmail;},askConfirm:askConfirm,accountPath:accountPath,refreshAuth:refreshAuth,firstName:function(){return state.firstName;},navigate:navigate,setup:setup,signIn:signIn,connect:issueDevice,isInstalled:isInstalled,isIOS:isIOS,alarms:function(){return state.alarms;},resets:function(){return state.resets;},logReset:function(){state.resets.push(new Date().toISOString());state.resets=state.resets.slice(-500);persist();},personalEvents:function(){return state.events;},personalHealth:function(){return state.health;},personalMoods:function(){return state.moods;},refresh:refresh,runShortcut:runShortcut,syncChoices:function(){return syncChoicesShown;},healthStopped:function(){return healthStopped;},enableSync:enableSync,pullQuietly:function(){pull(true);},refreshCoach:refreshCoach,addReflection:function(r){var saved=Object.assign({id:newId()},r);state.reflections.push(saved);state.pendingReflections.push(saved.id);persist();render();syncReflections();},deleteReflection:function(id){state.reflections=state.reflections.filter(function(r){return r.id!==id;});state.pendingReflections=state.pendingReflections.filter(function(x){return x!==id;});state.deletedReflections.push(id);persist();render();syncReflections();},reflectionLater:function(day){state.reflectionLater=day;persist();},toast:toast,formatTime:formatTime,deviceToken:function(){return state.token;}};
 init();
 })();

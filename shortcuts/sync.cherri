@@ -45,7 +45,11 @@ const appAddress = "https://sync.bishvili.org"
 
 const keyFolder = createKeyFolder(onMyIPhone)
 // Running from the app passes the key as input, so nothing needs pasting.
-@credential = getText(ShortcutInput)
+// A rerun after a run stopped carries " again" after the key, so a sync stopped in the app can end it.
+const shortcutInputText = getText(ShortcutInput)
+const againMatches = matchText(' again$', shortcutInputText)
+const againCount = count(againMatches)
+@credential = replaceText(' again$', "", shortcutInputText, true, true)
 const providedKeyMatches = matchText('^Bearer [0-9A-Fa-f]{64}$', @credential)
 const providedKeyCount = count(providedKeyMatches)
 if providedKeyCount == 0 {
@@ -54,20 +58,36 @@ if providedKeyCount == 0 {
     const savedKeyMatches = matchText('^Bearer [0-9A-Fa-f]{64}$', @credential)
     const savedKeyMatchCount = count(savedKeyMatches)
     if savedKeyMatchCount == 0 {
-        alert("Open the app, go to Data, and tap Run Health Sync.", "Not connected")
+        alert("Open the app, go to Sync, and tap Sync now.", "Not connected")
         stop()
     }
 }
 
+// The app's Sync tab shows whether a run came from the app or an automation.
+@launch = "automation"
+if providedKeyCount >= 1 {
+    @launch = "app"
+}
+if againCount >= 1 {
+    @launch = "rerun"
+}
+
 // Verify the connection first. The reply says which Health types to read and whether a newer version is ready.
 const handshakeRaw = jsonRequest("{appAddress}/api/shortcut/hello", "POST", {
-    "shortcutVersion": "4.7.0"
+    "shortcutVersion": "4.8.0",
+    "launch": "{@launch}"
 }, {"Authorization": "{@credential}"})
 const handshake = getDictionary(handshakeRaw)
 const connectionStatusValue = getValue(handshake, "state")
 const connectionStatus = getText(connectionStatusValue)
 if connectionStatus != "connected" {
-    alert("Open the app, go to Data, and tap Run Health Sync to reconnect.", "Not connected")
+    alert("Open the app, go to Sync, and tap Sync now to reconnect.", "Not connected")
+    stop()
+}
+// Someone stopped this sync in the app.
+const handshakeStopValue = getValue(handshake, "stop")
+const handshakeStop = getText(handshakeStopValue)
+if handshakeStop == "yes" {
     stop()
 }
 
@@ -285,7 +305,7 @@ for alarm in alarms {
 const calendarBody = formRequest("{appAddress}/api/ingest", "POST", {
     "kind": "calendar_days",
     "calendarDays": "8",
-    "shortcutVersion": "4.7.0",
+    "shortcutVersion": "4.8.0",
     "date": "{day}",
     "utcOffset": "{utcOffset}",
     "events": "{@eventRecords}"
@@ -293,6 +313,11 @@ const calendarBody = formRequest("{appAddress}/api/ingest", "POST", {
 const calendarResponse = getDictionary(calendarBody)
 const calendarStatusValue = getValue(calendarResponse, "state")
 const calendarStatus = getText(calendarStatusValue)
+const calendarStopValue = getValue(calendarResponse, "stop")
+const calendarStop = getText(calendarStopValue)
+if calendarStop == "yes" {
+    stop()
+}
 // A notification, not an alert, so a scheduled run keeps going.
 if calendarStatus != "accepted" {
     const calendarErrorValue = getValue(calendarResponse, "error")
@@ -305,7 +330,7 @@ if calendarStatus != "accepted" {
 // Health always goes up, even empty, so the Worker hears that every type it named was read.
 const healthBody = formRequest("{appAddress}/api/ingest", "POST", {
     "kind": "health",
-    "shortcutVersion": "4.7.0",
+    "shortcutVersion": "4.8.0",
     "date": "{day}",
     "stepsRecent": "{@stepsField}",
     "restingHRRecent": "{@restingField}",
@@ -320,6 +345,11 @@ const healthBody = formRequest("{appAddress}/api/ingest", "POST", {
 const healthResponse = getDictionary(healthBody)
 const healthStatusValue = getValue(healthResponse, "state")
 const healthStatus = getText(healthStatusValue)
+const healthStopValue = getValue(healthResponse, "stop")
+const healthStop = getText(healthStopValue)
+if healthStop == "yes" {
+    stop()
+}
 if healthStatus != "accepted" {
     const healthErrorValue = getValue(healthResponse, "error")
     const healthError = getText(healthErrorValue)
@@ -340,7 +370,7 @@ if updateStatus == "new_release" {
 
 formRequest("{appAddress}/api/ingest", "POST", {
     "kind": "alarms",
-    "shortcutVersion": "4.7.0",
+    "shortcutVersion": "4.8.0",
     "date": "{day}",
     "alarms": "{@alarmRecords}"
 }, {"Authorization": "{@credential}"})

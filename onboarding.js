@@ -61,7 +61,7 @@
  if(typeof document==="undefined"||!root.App)return;
 
  var COPY={
-  "install:share":{title:"Install {{name}}",text:"{{tagline}}",privacy:true,add:"In Safari, tap Share (or ••• and then Share), then Add to Home Screen."},
+  "install:share":{title:"Install {{name}}",text:"{{tagline}}",privacy:true,add:"In Safari, tap Share (or ••• and then Share), then Add to Home Screen.",action:"Add to Home Screen"},
   "install:prompt":{title:"Install {{name}}",text:"Open {{name}} in its own window, with notifications for check-ins.",action:"Install"},
   "install:safari":{title:"Open {{name}} in Safari",text:"To add {{name}} to your Home Screen, open this page in Safari.",safari:true},
   "signin:other":{title:"This {device} has another account’s records",text:"Back them up and erase them to use this account, or sign out and use the account they belong to.",action:"Sign out"},
@@ -197,10 +197,12 @@
    prompt.prompt();prompt.userChoice.finally(function(){progress.skipped=Object.assign({},progress.skipped,{install:Date.now()});saveProgress();render();});
    return;
   }
+  // Safari doesn't let a page open its Add to Home Screen, so this shows where to tap.
+  if(variant==="share"){$("install-help").showModal();return;}
   if(variant==="signin"){app.signIn("checkin");return;}
   if(variant==="other"){app.signOut();return;}
   if(variant==="connect"){app.connect();return;}
-  // The Data tab's help line says why the link is missing.
+  // The Sync tab's help line says why the link is missing.
   if(variant==="get"){app.toast($("shortcut-install-help").textContent);return;}
   if(current.id==="shortcut"){app.runShortcut();return;}
   if(current.id==="notifications")root.Reminders.startIntake();
@@ -211,6 +213,7 @@
   if(!app.setup().online){app.toast(OFFLINE.run);return;}
   progress.gotShortcut=Date.now();saveProgress();app.runShortcut();render();
  }
+ $("install-help-done").addEventListener("click",function(){$("install-help").close();});
  ["setup","gate"].forEach(function(prefix){
   $(prefix+"-action").addEventListener("click",act);
   $(prefix+"-skip").addEventListener("click",skip);

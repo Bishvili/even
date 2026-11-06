@@ -21,7 +21,7 @@ test("Health Sync keeps its stable name and has no install question",()=>{
  assert.doesNotMatch(sync,/^#define name.*v\d/m);
  assert.doesNotMatch(sync,/#question|prompt\(/);
  assert.doesNotMatch(sync,/\brun\("/);
- assert.match(html,/id="run-shortcut"[^>]*href="shortcuts:\/\/run-shortcut\?name=\{\{syncUrl\}\}"/);
+ assert.match(html,/id="sync-action"/);
  assert.doesNotMatch(html,/Bearer [a-f0-9]{64}/i);
 });
 
@@ -33,16 +33,16 @@ test("the device key is read from its file, checked by the server, and saved onl
  const refused=position(sync,'if connectionStatus != "connected"'),save=position(sync,"saveDeviceKey(@credential, keyFolder)"),events=position(sync,"const todayEvents = findEvents(todayEventsFilter)");
  assert.ok(saved<handshake&&handshake<refused&&refused<save&&save<events);
  assert.equal((sync.match(/^saveDeviceKey\(/gm)||[]).length,1);
- assert.match(sync,/alert\("Open the app, go to Data, and tap Run Health Sync to reconnect/);
+ assert.match(sync,/alert\("Open the app, go to Sync, and tap Sync now to reconnect/);
  assert.match(sync,/Authorization": "\{@credential\}"/);
  assert.doesNotMatch(sync,/Bearer [a-f0-9]{64}/i);
 });
 
 test("every comparison is typed text or a number, never a Boolean",()=>{
  assert.deepEqual(conditions(sync),[
-  'providedKeyCount == 0','savedKeyMatchCount == 0','connectionStatus != "connected"','providedKeyCount >= 1',
+  'providedKeyCount == 0','savedKeyMatchCount == 0','providedKeyCount >= 1','againCount >= 1','connectionStatus != "connected"','handshakeStop == "yes"','providedKeyCount >= 1',
   'stepsPlannedCount >= 1','@stepsSeen < 7','totalSteps >= 1','@stepsSeen >= 1','restingPlannedCount >= 1','@restingSeen < 7','restingFound >= 1','@restingSeen >= 1','hrvPlannedCount >= 1','@hrvSeen < 7','hrvFound >= 1','@hrvSeen >= 1','exercisePlannedCount >= 1','@exerciseSeen < 7','exerciseValue >= 1','@exerciseSeen >= 1','sleepPlannedCount >= 1','stageCount >= 1','bedCount >= 1',
-  'calendarStatus != "accepted"','healthStatus != "accepted"','updateStatus == "new_release"','syncedState != "sent"'
+  'calendarStop == "yes"','calendarStatus != "accepted"','healthStop == "yes"','healthStatus != "accepted"','updateStatus == "new_release"','syncedState != "sent"'
  ]);
  for(const source of [sync,helper])assert.doesNotMatch(source,/if\s+@?\w+\s*(==|!=)\s*(true|false)/);
  for(const name of ["connectionStatus","calendarStatus","healthStatus","updateStatus"])

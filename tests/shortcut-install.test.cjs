@@ -81,7 +81,6 @@ test("an unverified release offers nothing to install, and says so",async()=>{
  t.app.renderSync();
  assert.equal(t.element("install-shortcut").hidden,true);
  assert.match(t.element("shortcut-install-help").textContent,/isn’t available right now/);
- assert.equal(t.element("run-shortcut").hidden,false);
 });
 test("a valid credential is not mistaken for a successful Health upload",async()=>{
  const t=setup();
@@ -99,7 +98,6 @@ test("server-reported Shortcut handshake replaces manual installation confirmati
  await t.app.loadSession();
  await t.app.checkShortcutUpload(false);
  assert.match(t.element("shortcut-release-version").textContent,/Connected · v2\.3\.3/);
- assert.equal(t.element("run-shortcut").hidden,false);
  assert.match(t.element("shortcut-last-upload").textContent,/no data yet/);
  assert.match(t.element("shortcut-sync-diagnostic").textContent,/no data has arrived/i);
  assert.equal(t.storageWrites.length,0);

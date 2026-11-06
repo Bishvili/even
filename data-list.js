@@ -172,7 +172,7 @@
   $("list-chips").addEventListener("click",function(ev){var b=ev.target.closest("[data-clear]");if(!b)return;filters[b.dataset.clear]=b.dataset.clear==="setByYou"?false:"";resetPage();render();});
   $("health-count-button").addEventListener("click",function(){filters.kind=filters.kind==="health"?"":"health";resetPage();render();});
   $("calendar-count-button").addEventListener("click",function(){filters.kind=filters.kind==="event"?"":"event";resetPage();render();});
-  function turn(step){pageNumber+=step;render();var h=$("data-context-title");h.scrollIntoView({block:"start"});h.focus({preventScroll:true});}
+  function turn(step){pageNumber+=step;render();var h=$("data-context-title");globalThis.Viewport.reveal(h);h.focus({preventScroll:true});}
   $("list-prev").addEventListener("click",function(){turn(-1);});$("list-next").addEventListener("click",function(){turn(1);});
   $("list-select").addEventListener("click",function(){selecting=!selecting;if(!selecting)selected={};render();});
   $("list-select-page").addEventListener("click",function(){globalThis.Items.page(shown,pageNumber).items.forEach(function(item){selected[item.key]=true;});render();});

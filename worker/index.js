@@ -41,7 +41,7 @@ async function payload(request){
  if(type.includes("application/x-www-form-urlencoded"))return Object.fromEntries(new URLSearchParams(text));
  try{return JSON.parse(text);}catch(e){return Object.fromEntries(new URLSearchParams(text));}
 }
-const VERSION_NAME="2.59.0";
+const VERSION_NAME="2.60.0";
 function normalEmail(value){return String(value||"").trim().toLowerCase();}
 async function signinAuth(env,ctx,request){
  const {createAuth}=await import("./signin.mjs");
@@ -821,23 +821,32 @@ async function stopTrial(env,owner,state,now,notify=false){
  for(const sub of subs.results||[])await deliverPush(env,key,sub,now,pushPayload(env,body,"/?do=sync")).catch(()=>{});
 }
 const HEALTH_LABELS={steps:"steps",restingHR:"resting heart rate",hrv:"heart rate variability",workout:"exercise minutes",sleep:"sleep"};
-// What the latest run has done, for the app's sync status. Runs that follow straight on from a stopped one count as the same sync.
-const RUN_CHAIN_MS=5*60000,RUN_PHASES=new Set(["calendar","health","alarms","done"]);
-function startRun(state,read,stopped,now){
- const last=state.run,chained=last&&!last.done&&now-Date.parse(last.at)<RUN_CHAIN_MS;
- state.run={at:now.toISOString(),started:chained?last.started:now.toISOString(),read,stopped:[...(chained?last.stopped||[]:[]),...stopped],attempt:chained?(last.attempt||1)+1:1};
+// What the latest run has done, for the app's Sync tab. Runs that follow straight on from a stopped one count as the same sync.
+// Earlier runs are kept briefly, as times and counts only, so the tab can list recent syncs.
+const RUN_CHAIN_MS=5*60000,RUN_PHASES=new Set(["calendar","health","alarms","done"]),RUN_HISTORY=10,RUN_LAUNCHES=new Set(["app","rerun","automation"]);
+function runResult(run){return run.done?"finished":run.cancelled?"stopped":"incomplete";}
+function startRun(state,read,stopped,now,launch){
+ const last=state.run,recent=last&&!last.done&&!last.cancelled&&now-Date.parse(last.at)<RUN_CHAIN_MS;
+ // Health Sync 4.8.0 and later say how they were started, so a fresh tap never joins an earlier run.
+ const chained=recent&&(launch?launch==="rerun":true);
+ if(last&&!chained)state.runs=[{...last,result:runResult(last)},...(state.runs||[])].slice(0,RUN_HISTORY-1);
+ state.run={at:now.toISOString(),started:chained?last.started:now.toISOString(),read,stopped:[...(chained?last.stopped||[]:[]),...stopped],attempt:chained?(last.attempt||1)+1:1,launch:chained?last.launch:launch==="rerun"?"app":launch||null,counts:chained?last.counts||{}:{}};
 }
-async function markRun(env,owner,phase){
+async function markRun(env,owner,phase,counts){
  const state=await loadHealthState(env,owner);
  if(!state.run||!RUN_PHASES.has(phase))return;
  state.run[phase]=new Date().toISOString();
+ if(counts)state.run.counts={...state.run.counts,...counts};
  await saveHealthState(env,owner,state);
 }
-function runStatus(state){
- const run=state.run;if(!run)return null;
+// A stopped run accepts nothing more, and a rerun of it ends at its handshake.
+function runCancelled(state){return !!(state.run&&state.run.cancelled&&!state.run.done);}
+function runView(run){
  const kind=type=>HEALTH_TYPES.find(item=>item[0]===type)?.[1];
- return {started:run.started,at:run.at,attempt:run.attempt||1,read:String(run.read||"").split(",").map(kind).filter(Boolean),stopped:(run.stopped||[]).map(kind).filter(Boolean),calendar:run.calendar||null,health:run.health||null,alarms:run.alarms||null,done:run.done||null};
+ return {started:run.started,at:run.at,attempt:run.attempt||1,launch:run.launch||null,read:String(run.read||"").split(",").map(kind).filter(Boolean),stopped:(run.stopped||[]).map(kind).filter(Boolean),calendar:run.calendar||null,health:run.health||null,alarms:run.alarms||null,done:run.done||null,cancelled:run.cancelled||null,counts:run.counts||{}};
 }
+function runStatus(state){return state.run?runView(state.run):null;}
+function runHistory(state){return (state.runs||[]).slice(0,RUN_HISTORY-1).map(run=>({...runView(run),result:run.result||runResult(run)}));}
 async function stopQuietTrials(env,now){
  const rows=await env.DB.prepare("SELECT email,health_types FROM health_users WHERE health_types LIKE '%\"trial\":{%'").bind().all();
  for(const row of rows.results||[]){
@@ -880,7 +889,7 @@ async function deviceStatus(env,dev,owner){
 }
 async function syncApi(request,env,path){
  const dev=await validDevice(request,env);
- if(!dev)return error("This iPhone isn't connected. Open "+BRAND.name+", go to Data, and tap Run "+STABLE.sync+".",401,"device_required");
+ if(!dev)return error("This iPhone isn't connected. Open "+BRAND.name+", go to Sync, and tap Sync now.",401,"device_required");
  const owner=dev.owner;
  if(request.method==="POST"&&(path==="/api/ingest"||path.startsWith("/api/push/"))&&await overLimit(env.DEVICE_LIMIT,dev.id))return error("Too many requests. Try again in a minute.",429,"rate_limited");
  if(path==="/api/shortcut/release-state"&&request.method==="GET"){
@@ -1038,7 +1047,13 @@ async function syncApi(request,env,path){
   if(statements.length)await env.DB.batch(statements);
   return reply({ok:true,saved:items.length,deleted:gone.length});
  }
- if(path==="/api/sync/run"&&request.method==="GET")return reply({ok:true,run:runStatus(await loadHealthState(env,owner))});
+ if(path==="/api/sync/run"&&request.method==="GET"){const state=await loadHealthState(env,owner);return reply({ok:true,run:runStatus(state),runs:runHistory(state)});}
+ // The app can't end a Shortcut that's running, so the run is refused from its next request on. What already arrived stays.
+ if(path==="/api/sync/run/stop"&&request.method==="POST"){
+  const state=await loadHealthState(env,owner);
+  if(state.run&&!state.run.done&&!state.run.cancelled){state.run.cancelled=new Date().toISOString();state.trial=null;await saveHealthState(env,owner,state);}
+  return reply({ok:true,run:runStatus(state),runs:runHistory(state)});
+ }
  if(path==="/api/look"&&request.method==="POST"){
   let input;try{input=await payload(request);}catch(e){return error("That request couldn't be read.",400,"invalid_body");}
   const chosen=input?.look===null?null:lookFrom(input?.look,input?.name);
@@ -1069,7 +1084,7 @@ async function syncApi(request,env,path){
   const params=new URL(request.url).searchParams;
   const [shared,look,status,release,calendars,settings,moods,reflections]=await Promise.all([syncedShared(env,owner,params.get("sharedSince")),env.DB.prepare("SELECT look,look_name,health_types FROM health_users WHERE email=?").bind(owner).first(),deviceStatus(env,dev,owner),loadShortcutRelease(env),calendarList(env,owner),syncChoices(env,owner),syncedMoods(env,owner,params.get("since")),syncedReflections(env,owner,params.get("reflectionsSince"))]);
   if(!status)return error("This device was revoked",401,"device_revoked");
-  return reply({ok:true,status,release,calendars,settings,moods,reflections:{email:owner,...reflections},look:look?.look||null,lookName:look?.look_name||null,shared,syncRun:runStatus(healthState(look?.health_types)),healthStopped:Object.keys(healthState(look?.health_types).stopped).map(type=>HEALTH_TYPES.find(item=>item[0]===type)?.[1]).filter(Boolean)});
+  return reply({ok:true,status,release,calendars,settings,moods,reflections:{email:owner,...reflections},look:look?.look||null,lookName:look?.look_name||null,shared,syncRun:runStatus(healthState(look?.health_types)),syncRuns:runHistory(healthState(look?.health_types)),healthStopped:Object.keys(healthState(look?.health_types).stopped).map(type=>HEALTH_TYPES.find(item=>item[0]===type)?.[1]).filter(Boolean)});
  }
  if(path==="/api/sync/status"&&request.method==="GET"){
   const status=await deviceStatus(env,dev,owner);
@@ -1096,14 +1111,18 @@ async function syncApi(request,env,path){
   // the Shortcut reads its settings here, so they take effect with no extra request.
   const off=await syncOff(env,owner),settings=Object.fromEntries(SYNC_KINDS.map(kind=>["sync"+kind[0].toUpperCase()+kind.slice(1),off.has(kind)?"off":"on"]));
   let healthRead;
+  const launch=RUN_LAUNCHES.has(body?.launch)?body.launch:null;
   if(!semverNewer(FIRST_PLANNED_VERSION,clientVersion)){
-   const state=await loadHealthState(env,owner),now=new Date(),stopped=state.trial?[state.trial.type]:[];
+   const state=await loadHealthState(env,owner),now=new Date();
+   // Someone stopped this sync in the app, and a run that follows on from it ends here.
+   if(launch==="rerun"&&runCancelled(state)&&now-Date.parse(state.run.at)<RUN_CHAIN_MS)return reply({ok:true,state:"connected",stop:"yes",healthRead:"none"});
+   const stopped=state.trial?[state.trial.type]:[];
    if(state.trial)await stopTrial(env,owner,state,now);
    healthRead=planHealth(state,await syncOff(env,owner),now);
-   startRun(state,healthRead,stopped,now);
+   startRun(state,healthRead,stopped,now,launch);
    await saveHealthState(env,owner,state);
   }
-  // The installed app opens from this address, so the sync sheet is on screen while the run works.
+  // The installed app opens from this address, on its Sync tab, while the run works.
   const openApp="webapp://"+new URL(env.PUBLIC_ORIGIN).host+"/?do=syncing";
   return reply({ok:true,healthRead,openApp,connected:true,state:"connected",shortcutVersion:clientVersion,receivedAt:at,sleepHistory:Number(nights?.count||0)<3?"needed":"complete",updateStatus:updateAvailable?"new_release":"current",...settings,calendarsOff:await calendarsOffPattern(env,owner)});
  }
@@ -1133,10 +1152,10 @@ async function syncApi(request,env,path){
    await recordSyncFailure(env,dev,"invalid_body");return error("This upload couldn't be read.",400,"invalid_body");
   }
   const kind=String(input.kind||"").toLowerCase();
+  if(runCancelled(await loadHealthState(env,owner)))return reply({ok:true,state:"stopped",stop:"yes",error:"You stopped this sync."});
   // A setting changed since the handshake still applies to this upload.
   const off=await syncOff(env,owner);
   if((off.has("calendar")&&kind==="calendar_days")||(off.has("alarms")&&kind==="alarms"))return reply({ok:true,state:"accepted",skipped:true});
-  if(kind==="calendar_days"||kind==="alarms")await markRun(env,owner,kind==="alarms"?"alarms":"calendar");
   if(kind==="calendar_days"){
    const day=dateOnly(input.date),offset=String(input.utcOffset||"").trim();
    if(!day||!UTC_OFFSET.test(offset))return error("Invalid calendar sync details",400,"invalid_calendar_details");
@@ -1150,6 +1169,7 @@ async function syncApi(request,env,path){
    const from=new Date(day+"T00:00:00"+offset),last=records.length>=EVENT_LIMIT?Math.max(...records.map(e=>Date.parse(e.start))):Infinity,to=new Date(Math.min(from.getTime()+calendarDays*86400000,last));
    const removed=await env.DB.prepare("DELETE FROM health_calendar_events WHERE owner_email=? AND start_time>=? AND start_time<? AND updated_at<?").bind(owner,from.toISOString(),to.toISOString(),at).run();
    const shortcutVersion=await markUpload(env,dev,input.shortcutVersion,at,{events:events.length});
+   await markRun(env,owner,"calendar",{events:events.length});
    return reply({ok:true,state:"accepted",receivedAt:at,calendarEvents:events.length,removed:removed.meta?.changes||0,shortcutVersion});
   }
   if(kind==="alarms"){
@@ -1160,20 +1180,23 @@ async function syncApi(request,env,path){
    alarms.forEach((a,position)=>statements.push(env.DB.prepare("INSERT INTO health_alarms(owner_email,position,time_min,days,enabled,label,updated_at) VALUES(?,?,?,?,?,?,?)").bind(owner,position,a.timeMin,a.days.join(","),a.enabled,a.label,at)));
    if(first!==null)statements.push(env.DB.prepare("INSERT INTO health_metrics(owner_email,day,metric,value,updated_at) VALUES(?,?,?,?,?) ON CONFLICT(owner_email,day,metric) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at").bind(owner,day,"firstAlarmMin",first,at));
    await env.DB.batch(statements);
+   await markRun(env,owner,"alarms",{alarms:alarms.length});
    return reply({ok:true,state:"accepted",alarms:alarms.length});
   }
   if(kind!=="health"){
    await recordSyncFailure(env,dev,"invalid_kind");return error("This upload couldn't be read.",400,"invalid_kind");
   }
   const reported=typeof input.healthRead==="string"?input.healthRead.split(",").filter(type=>HEALTH_TYPES.some(item=>item[0]===type)):null;
+  const allMetrics=(Array.isArray(input.days)?input.days.slice(0,75):[input]).flatMap(readHealth),metrics=allMetrics.filter(x=>!off.has(METRIC_KINDS[x.metric]));
   if(reported){
+   // How many days or nights of each type arrived, for the Sync tab.
+   const days={};for(const x of metrics)(days[METRIC_KINDS[x.metric]]||(days[METRIC_KINDS[x.metric]]=new Set())).add(x.day);
    const state=await loadHealthState(env,owner),at=new Date().toISOString();
    for(const type of reported){state.worked[type]=at;delete state.stopped[type];}
    if(state.trial&&reported.includes(state.trial.type))state.trial=null;
-   if(state.run)state.run.health=at;
+   if(state.run){state.run.health=at;state.run.counts={...state.run.counts,health:Object.fromEntries(Object.entries(days).map(([k,v])=>[k,v.size]))};}
    await saveHealthState(env,owner,state);
   }
-  const allMetrics=(Array.isArray(input.days)?input.days.slice(0,75):[input]).flatMap(readHealth),metrics=allMetrics.filter(x=>!off.has(METRIC_KINDS[x.metric]));
   if(allMetrics.length&&!metrics.length)return reply({ok:true,state:"accepted",skipped:true});
   if(!metrics.length&&reported)return reply({ok:true,state:"accepted",skipped:true});
   if(!metrics.length){

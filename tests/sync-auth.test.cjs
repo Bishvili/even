@@ -1385,16 +1385,17 @@ test("each run reads the types that worked plus one untried type, and a run that
  assert.deepEqual([...(await settings()).healthStopped],[]);
 });
 
-test("the app reruns Health Sync once for each Health type if a run stops",()=>{
+test("the app reruns Health Sync once for each Health type if a run stops, and marks each rerun",()=>{
  const app=require("fs").readFileSync(require("path").join(__dirname,"..","app.js"),"utf8");
  const start=app.indexOf("var SYNC_RETRIES"),code=app.slice(start,app.indexOf("function runShortcut",start));
  const make=new Function("state",code.replace("{{syncUrl}}","Health%20Sync")+";return shortcutAddress;")({token:"k"});
  let address=make(5),depth=0;
- while(address.includes("&x-error=")){address=decodeURIComponent(address.slice(address.indexOf("&x-error=")+9));depth++;}
+ assert.ok(address.split("&x-error=")[0].endsWith("text=Bearer%20k"));
+ while(address.includes("&x-error=")){address=decodeURIComponent(address.slice(address.indexOf("&x-error=")+9));depth++;assert.ok(address.split("&x-error=")[0].endsWith("text=Bearer%20k%20again"));}
  assert.equal(depth,5);assert.ok(address.startsWith("shortcuts://x-callback-url/run-shortcut?name=Health%20Sync&input=text&text=Bearer%20k"));
 });
 
-test("the sync sheet follows a run, including one that stopped and started again",async()=>{
+test("the Sync tab follows a run, including one that stopped and started again",async()=>{
  const{call,ctx}=harness();
  const a=await call("/api/user/device",{method:"POST",body:{label:"A"},context:ctx("owner-a@example.com")}),A={Authorization:"Bearer "+a.data.token};
  const run=async()=>(await call("/api/sync/run",{headers:A})).data.run;
@@ -1412,4 +1413,36 @@ test("the sync sheet follows a run, including one that stopped and started again
  await call("/api/push/synced",{method:"POST",headers:A,body:{items:1}});
  assert.ok((await run()).done);
  assert.ok((await call("/api/session",{headers:A})).data.syncRun.done);
+});
+
+test("stopping a sync refuses the rest of that run and its reruns, and a fresh run starts over",async()=>{
+ const{call,ctx}=harness();
+ const a=await call("/api/user/device",{method:"POST",body:{label:"A"},context:ctx("owner-a@example.com")}),A={Authorization:"Bearer "+a.data.token};
+ const b=await call("/api/user/device",{method:"POST",body:{label:"B"},context:ctx("owner-b@example.com")}),B={Authorization:"Bearer "+b.data.token};
+ const hello=launch=>call("/api/shortcut/hello",{method:"POST",headers:A,body:{shortcutVersion:"4.8.0",launch}});
+ const sync=async(h=A)=>(await call("/api/sync/run",{headers:h})).data;
+ await hello("app");
+ // Another account can't stop it.
+ await call("/api/sync/run/stop",{method:"POST",headers:B});
+ assert.equal((await sync()).run.cancelled,null);
+ assert.ok((await call("/api/sync/run/stop",{method:"POST",headers:A})).data.run.cancelled);
+ const calendar=await call("/api/ingest",{method:"POST",headers:A,body:{kind:"calendar_days",date:"2026-11-05",utcOffset:"-08:00",calendarDays:"8",events:"",shortcutVersion:"4.8.0"}});
+ assert.equal(calendar.data.state,"stopped");assert.equal(calendar.data.stop,"yes");
+ assert.equal((await sync()).run.calendar,null);
+ // Nothing to turn off: the cron leaves a stopped run alone.
+ assert.equal((await hello("rerun")).data.stop,"yes");
+ // Tapping Sync now again starts a new run, and the stopped one moves to the history.
+ const fresh=await hello("app");assert.equal(fresh.data.stop,undefined);
+ let now=await sync();assert.equal(now.run.cancelled,null);assert.equal(now.run.attempt,1);assert.equal(now.run.launch,"app");
+ assert.equal(now.runs.length,1);assert.equal(now.runs[0].result,"stopped");
+ await call("/api/ingest",{method:"POST",headers:A,body:{kind:"calendar_days",date:"2026-11-05",utcOffset:"-08:00",calendarDays:"8",events:"",shortcutVersion:"4.8.0"}});
+ await call("/api/ingest",{method:"POST",headers:A,body:{kind:"health",date:"2026-11-05",shortcutVersion:"4.8.0",healthRead:"Steps",stepsRecent:"2026-11-05=4000␞2026-11-04=5000"}});
+ await call("/api/ingest",{method:"POST",headers:A,body:{kind:"alarms",date:"2026-11-05",shortcutVersion:"4.8.0",alarms:""}});
+ now=(await sync()).run;
+ assert.equal(now.counts.events,0);assert.equal(now.counts.alarms,0);assert.equal(now.counts.health.steps,2);
+ // An automation is its own run, and only the last 9 earlier runs are kept.
+ for(let i=0;i<12;i++){await hello("automation");await call("/api/push/synced",{method:"POST",headers:A,body:{items:1}});}
+ now=await sync();assert.equal(now.run.launch,"automation");assert.equal(now.runs.length,9);assert.equal(now.runs[0].result,"finished");
+ assert.equal((await sync(B)).run,null);
+ assert.equal((await call("/api/session",{headers:A})).data.syncRuns.length,9);
 });

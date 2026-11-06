@@ -9,7 +9,7 @@ Health Sync is a single Shortcut. It has no import questions and holds no creden
 1. Install **Health Sync**. Its signed file is named `Health Sync.shortcut`. Choose to replace the older Sync Shortcut if Apple offers this option.
 2. In WebApp → **Data**, sign in with an approved email. The iPhone connects automatically.
 3. Tap **Run Health Sync**. The app passes the device key, and once the app accepts it the Shortcut saves it to `device-key.txt` in a `Health` folder in On My iPhone, so later runs and automations need nothing else. Running it with no saved key shows a message pointing back to the app.
-4. Check **Data → Test connection** and **Bring in data** in the app. A successful handshake without accepted data doesn't show that uploads worked.
+4. Check **Sync → Test connection** and **Bring in data** in the app. A successful handshake without accepted data doesn't show that uploads worked.
 
 A key that isn't accepted is never saved, so a failed attempt or a server outage can't replace a working key.
 

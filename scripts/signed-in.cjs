@@ -212,7 +212,7 @@ const scenarios={
  "turned-off calendars collapse, and turning one on brings it back":async(browser,base)=>{
   const api=fakeApi();api.calendars=[{name:"Work",enabled:true,category:"Work"},{name:"Holidays",enabled:false,category:"Other"},{name:"Birthdays",enabled:false,category:"Other"}];
   await open(browser,base,saved({moodCursor:shared.cursor}),api,async({page})=>{
-   await goTo(page,"data");
+   await goTo(page,"sync");
    await until(page,()=>document.getElementById("calendar-off-count").textContent==="2 calendars off");
    assert.equal(await page.isVisible("#calendar-off-list"),false);
    assert.equal(await page.locator("#calendar-list .calendar-purpose").count(),1);

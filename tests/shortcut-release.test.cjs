@@ -18,7 +18,7 @@ test("server offers upgrades only for verified releases",()=>{
 });
 
 test("the public listing is offered without a falsely signed release",()=>{
- assert.match(html,/id="run-shortcut"[^>]*href="shortcuts:\/\/run-shortcut\?name=\{\{syncUrl\}\}"/);
+ assert.match(html,/id="sync-action"/);assert.match(app,/run-shortcut\?name=\{\{syncUrl\}\}/);
  assert.doesNotMatch(app,/markShortcutInstalled/);
 });
 

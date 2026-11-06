@@ -60,7 +60,7 @@ test("the phone and the account keep the same limits",()=>{
 });
 test("feedback holds only the listed details",()=>{
  const source=read("feedback.js"),keys=[...source.slice(source.indexOf("function summary()"),source.indexOf("function summaryText()")).matchAll(/^\s*"([\w{} ]+)":/gm)].map(m=>m[1]);
- assert.deepEqual(keys,["App version","Software","Opened from","Signed in","{{sync}} version","Last upload","Last error"]);
+ assert.deepEqual(keys,["App version","Software","Opened from","Signed in","{{sync}} version","Last upload","Last error","Layout fix"]);
  assert.ok(read("index.html").includes('id="feedback-open"'));
 });
 test("startup images are built for every size the page lists",()=>{

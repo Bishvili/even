@@ -65,7 +65,7 @@ Spacing and shape:
 - Do not disable pinch zoom, text selection, long-press, or scrolling to force an app-like appearance.
 - Use descriptive labels, stable navigation, and predictable back/forward behavior. Do not hide an essential feature behind gestures.
 - The active tab carries `aria-current="page"`, focus moves to the new view's title, and each tab keeps its scroll position. Tapping the active tab scrolls to the top.
-- There are four tabs: Check in, Insights, Data and Settings. Don't add a tab.
+- There are five tabs: Check in, Insights, Sync, Data and Settings. Don't add a tab.
 - Show one overlay at a time. Toasts and the update banner never cover the primary action.
 - Confirm destructive actions with an in-app sheet that names whose data and which data. Native `confirm()` shows the site address as its title; #27 adds the sheet, so use it once it exists.
 
@@ -126,7 +126,7 @@ Spacing and shape:
 
 Write natural product copy for a thoughtful wellness tool.
 
-- Buttons state verbs and outcomes: "Save check-in", "Run Health Sync", "Remove device".
+- Buttons state verbs and outcomes: "Save check-in", "Sync now", "Remove device".
 - Error messages explain what failed, what remains safe, and the next step.
 - Empty states guide action without making someone feel judged.
 - Use specific facts, not broad reassurance. Do not claim that synced health data is equivalent to on-device storage or end-to-end encryption.

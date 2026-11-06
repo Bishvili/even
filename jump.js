@@ -3,12 +3,15 @@
  var page=null,ticking=false,MIN=3;
  function bar(view){return view.querySelector(":scope > .jump-bar");}
  function targets(view){
-  return Array.prototype.filter.call(view.querySelectorAll("h2"),function(heading){return heading.textContent.trim()&&heading.offsetParent!==null;}).map(function(heading){
+  // A heading inside a collapsed disclosure still gets a chip, and jumping there opens it.
+  return Array.prototype.filter.call(view.querySelectorAll("h2"),function(heading){return heading.textContent.trim()&&(heading.offsetParent!==null||shut(heading));}).map(function(heading){
    return {heading:heading,box:heading.closest(".card,.section-heading,details")||heading,label:heading.getAttribute("data-jump")||heading.textContent.trim()};
   });
  }
+ function shut(heading){var d=heading.closest("details:not([open])");return !!d&&!heading.closest("[hidden]")&&d.querySelector(":scope > summary").offsetParent!==null;}
  function inset(row){return parseFloat(getComputedStyle(row).top)||0;}
  function go(row,item){
+  for(var d=item.heading.closest("details:not([open])");d;d=d.parentElement&&d.parentElement.closest("details:not([open])"))d.open=true;
   var edge=row.getBoundingClientRect().height+inset(row)+8,top=page.scrollTop+item.box.getBoundingClientRect().top-page.getBoundingClientRect().top-edge;
   page.scrollTo({top:top,behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth"});
   item.heading.setAttribute("tabindex","-1");item.heading.focus({preventScroll:true});
