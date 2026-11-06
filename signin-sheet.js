@@ -6,6 +6,7 @@
  function step(codeStep){
   $("signin-email-form").hidden=codeStep;$("signin-code-form").hidden=!codeStep;
   $("signin-google").hidden=$("signin-or").hidden=codeStep||!googleOn;
+  if(!codeStep&&!$("signin-email").value){try{$("signin-email").value=localStorage.getItem("health-last-email")||"";}catch(e){/* Nothing to fill in. */}}
   $(codeStep?"signin-code":"signin-email").focus();
  }
  var googleOn=false;
@@ -30,6 +31,7 @@
   ev.preventDefault();
   busy($("signin-send"),async function(){
    email=$("signin-email").value.trim().toLowerCase();
+   try{localStorage.setItem("health-last-email",email);}catch(e){/* It just won't be filled in next time. */}
    var r=await post("email-otp/send-verification-otp",{email:email,type:"sign-in"});
    var body=await r.json().catch(function(){return{};});
    // A code sent a moment ago is still good, so this moves on to entering it.

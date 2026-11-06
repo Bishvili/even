@@ -41,7 +41,7 @@ async function payload(request){
  if(type.includes("application/x-www-form-urlencoded"))return Object.fromEntries(new URLSearchParams(text));
  try{return JSON.parse(text);}catch(e){return Object.fromEntries(new URLSearchParams(text));}
 }
-const VERSION_NAME="2.50.0";
+const VERSION_NAME="2.50.1";
 function normalEmail(value){return String(value||"").trim().toLowerCase();}
 async function signinAuth(env,ctx,request){
  const {createAuth}=await import("./signin.mjs");
@@ -735,13 +735,13 @@ async function latestBuildVersion(name){
 }
 // One lasting link for each build. iOS names an imported Shortcut after its file, and release assets can't hold a space, so the name is set here.
 async function shortcutBuild(path){
- const[,role,version]=path.match(/^\/api\/shortcut\/build\/(sync|helper)(\/version)?$/)||[];
+ const[,role,version]=path.match(/^\/api\/shortcut\/build\/(sync|helper|check)(\/version)?$/)||[];
  if(!role)return error("Not found",404,"not_found");
  const file=await fetch(BUILDS+role+(version?"-version.txt":".shortcut"));
  if(!file.ok)return error("The latest build couldn't be checked",502,"build_unavailable");
  const headers={...SECURITY,"Cache-Control":"no-cache"};
  if(version)return new Response(file.body,{headers:{...headers,"Content-Type":"text/plain; charset=utf-8"}});
- return new Response(file.body,{headers:{...headers,"Content-Type":"application/octet-stream","Content-Disposition":'attachment; filename="'+(role==="sync"?STABLE.sync:STABLE.helper)+'.shortcut"'}});
+ return new Response(file.body,{headers:{...headers,"Content-Type":"application/octet-stream","Content-Disposition":'attachment; filename="'+(role==="sync"?STABLE.sync:role==="check"?"Health Check":STABLE.helper)+'.shortcut"'}});
 }
 // Published versions can't be edited, so a link only passes if it names the expected Shortcut.
 async function shortcutName(link){
