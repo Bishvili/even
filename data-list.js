@@ -37,7 +37,7 @@
  function row(item){
   var mark=selecting?'<input type="checkbox" class="item-check" data-check="'+esc(item.key)+'"'+(selected[item.key]?" checked":"")+' aria-label="Select '+esc(title(item))+'">':"";
   var action=!selecting&&canHide(item)?'<button type="button" class="icon-action" aria-label="'+(item.hidden?"Show ":"Hide ")+esc(title(item))+'" title="'+(item.hidden?"Show":"Hide")+'" data-seen="'+esc(item.key)+'">'+(item.hidden?data().EYE:data().EYE_OFF)+"</button>":"";
-  return '<div class="entry item-row'+(item.hidden?" item-hidden":"")+'">'+(selecting?'<label class="item-pick">'+mark+"</label>":"")+'<button type="button" class="item-open" data-open="'+esc(item.key)+'"><strong>'+esc(title(item))+"</strong><small>"+esc(detail(item))+'</small><span class="item-chips">'+chips(item)+"</span></button>"+action+"</div>";
+  return '<div class="entry item-row'+(item.hidden?" item-hidden":"")+'">'+(selecting?'<label class="item-pick">'+mark+"</label>":"")+'<button type="button" class="item-open" data-open="'+esc(item.key)+'"><strong>'+esc(title(item))+"</strong><span class=\"item-meta\"><small>"+esc(detail(item))+'</small><span class="item-chips">'+chips(item)+"</span></span></button>"+action+"</div>";
  }
  function activeChips(){
   var list=[];
