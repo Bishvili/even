@@ -179,7 +179,6 @@ if @exerciseSeen >= 1 {
 // and files each night under the morning it ends, so time in bed, awake time and naps don't count.
 // The first sync reads up to a month back, so the bedtime estimate works straight away.
 @sleepSamples = findSleepHistory(sleepFilter)
-const historyValue = getValue(handshake, "sleepHistory")
 const sleepSampleCount = count(@sleepSamples)
 @sleepCount = "{sleepSampleCount}"
 for sleepSample in @sleepSamples {
