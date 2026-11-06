@@ -124,9 +124,9 @@ for upcomingEvent in upcomingEvents {
 @sleepLimit = "300"
 
 
-const stepsReading = matchText('Steps', healthRead)
-const stepsReadingCount = count(stepsReading)
-if stepsReadingCount >= 1 {
+const stepsPlanned = matchText('Steps', healthRead)
+const stepsPlannedCount = count(stepsPlanned)
+if stepsPlannedCount >= 1 {
     @stepDays = findLatestDay(stepsFilter)
     @stepsSeen = 0
     for stepGroup in @stepDays {
@@ -151,9 +151,9 @@ if stepsReadingCount >= 1 {
 }
 
 
-const restingReading = matchText('Resting', healthRead)
-const restingReadingCount = count(restingReading)
-if restingReadingCount >= 1 {
+const restingPlanned = matchText('Resting', healthRead)
+const restingPlannedCount = count(restingPlanned)
+if restingPlannedCount >= 1 {
     @restingDays = findLatestDay(restingFilter)
     @restingSeen = 0
     for restingGroup in @restingDays {
@@ -178,9 +178,9 @@ if restingReadingCount >= 1 {
 }
 
 
-const hrvReading = matchText('Hrv', healthRead)
-const hrvReadingCount = count(hrvReading)
-if hrvReadingCount >= 1 {
+const hrvPlanned = matchText('Hrv', healthRead)
+const hrvPlannedCount = count(hrvPlanned)
+if hrvPlannedCount >= 1 {
     @hrvDays = findLatestDay(hrvFilter)
     @hrvSeen = 0
     for hrvGroup in @hrvDays {
@@ -188,8 +188,8 @@ if hrvReadingCount >= 1 {
             const hrvDate = getSampleStart(@hrvGroup)
             const hrvDay = formatDate(hrvDate, "Custom", "yyyy-MM-dd")
             // A Health value is a measurement with a unit, which an If can't compare with a number, so its number is read from the text.
-            const hrvReading = getSampleValue(@hrvGroup)
-            const hrvText = getText(hrvReading)
+            const hrvPlanned = getSampleValue(@hrvGroup)
+            const hrvText = getText(hrvPlanned)
             const hrvValue = replaceText('^\D*(\d+(?:\.\d+)?)[\s\S]*$', "$1", hrvText, true, true)
             const hrvUsable = matchText('^[1-9]', hrvValue)
             const hrvFound = count(hrvUsable)
@@ -205,9 +205,9 @@ if hrvReadingCount >= 1 {
 }
 
 
-const exerciseReading = matchText('Exercise', healthRead)
-const exerciseReadingCount = count(exerciseReading)
-if exerciseReadingCount >= 1 {
+const exercisePlanned = matchText('Exercise', healthRead)
+const exercisePlannedCount = count(exercisePlanned)
+if exercisePlannedCount >= 1 {
     @exerciseDays = findLatestDay(exerciseFilter)
     @exerciseSeen = 0
     for exerciseGroup in @exerciseDays {
@@ -232,9 +232,9 @@ if exerciseReadingCount >= 1 {
 // Each asleep sample goes up as its start and end. The server merges overlapping samples from more than one device
 // and files each night under the morning it ends, so time in bed, awake time and naps don't count.
 // Up to a month back on every run, because nothing is known about earlier runs yet.
-const sleepReading = matchText('Sleep', healthRead)
-const sleepReadingCount = count(sleepReading)
-if sleepReadingCount >= 1 {
+const sleepPlanned = matchText('Sleep', healthRead)
+const sleepPlannedCount = count(sleepPlanned)
+if sleepPlannedCount >= 1 {
     @sleepSamples = findSleepHistory(sleepFilter)
     const sleepSampleCount = count(@sleepSamples)
     @sleepCount = "{sleepSampleCount}"
