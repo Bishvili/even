@@ -41,7 +41,45 @@ action 'is.workflow.actions.properties.health.quantity' getSampleEnd(variable sa
 // Calculate Statistics takes its list through the Input parameter.
 action 'is.workflow.actions.statistics' sumValues(variable values: 'Input'): number {"WFStatisticsOperation":"Sum"}
 
-// Everything is read first, whatever the app's settings say. The Worker discards what's turned off when it arrives.
+const appAddress = "https://sync.bishvili.org"
+
+const keyFolder = createKeyFolder(onMyIPhone)
+// Running from the app passes the key as input, so nothing needs pasting.
+@credential = getText(ShortcutInput)
+const providedKeyMatches = matchText('^Bearer [0-9A-Fa-f]{64}$', @credential)
+const providedKeyCount = count(providedKeyMatches)
+if providedKeyCount == 0 {
+    const savedKeyFile = readSavedDeviceKey(keyFolder)
+    @credential = getText(savedKeyFile)
+    const savedKeyMatches = matchText('^Bearer [0-9A-Fa-f]{64}$', @credential)
+    const savedKeyMatchCount = count(savedKeyMatches)
+    if savedKeyMatchCount == 0 {
+        alert("Open the app, go to Data, and tap Run Health Sync.", "Not connected")
+        stop()
+    }
+}
+
+// Verify the connection first. The reply says which Health types to read and whether a newer version is ready.
+const handshakeRaw = jsonRequest("{appAddress}/api/shortcut/hello", "POST", {
+    "shortcutVersion": "4.6.0"
+}, {"Authorization": "{@credential}"})
+const handshake = getDictionary(handshakeRaw)
+const connectionStatusValue = getValue(handshake, "state")
+const connectionStatus = getText(connectionStatusValue)
+if connectionStatus != "connected" {
+    alert("Open the app, go to Data, and tap Run Health Sync to reconnect.", "Not connected")
+    stop()
+}
+
+// Save only a key the server accepted, so a failed attempt cannot replace a working one.
+saveDeviceKey(@credential, keyFolder)
+
+// Reading a Health type with no samples ends the run, and nothing can catch it. So the Worker names the types to read:
+// those that have worked before, plus at most one new one. If the run then goes quiet, the Worker knows which type stopped it.
+const healthReadValue = getValue(handshake, "healthRead")
+const healthRead = getText(healthReadValue)
+
+// Then everything is read, before anything is sent.
 const today = currentDate()
 const day = formatDate(today, "Custom", "yyyy-MM-dd")
 const utcOffset = formatDate(today, "Custom", "ZZZZZ")
@@ -86,128 +124,146 @@ for upcomingEvent in upcomingEvents {
 @sleepLimit = "300"
 
 
-@stepDays = findLatestDay(stepsFilter)
-@stepsSeen = 0
-for stepGroup in @stepDays {
-    if @stepsSeen < 7 {
-        const stepDate = getSampleStart(@stepGroup)
-        const stepDay = formatDate(stepDate, "Custom", "yyyy-MM-dd")
-        const values = getStepValues(@stepGroup)
-        const totalSteps = sumValues(values)
-        if totalSteps >= 1 {
-            const totalStepsText = getText(totalSteps)
-            const normalizedSteps = replaceText('(?<=\d)[,\s](?=\d{3}(?:\D|$))', "", totalStepsText, true, true)
-            // Keep only the number, because the text form of a Health value can include a unit.
-            const stepsValue = replaceText('^\D*(\d+(?:\.\d+)?)[\s\S]*$', "$1", normalizedSteps, true, true)
-            @stepsField = "{@stepsField}␞{stepDay}={stepsValue}"
-            @stepsSeen += 1
+const stepsReading = matchText('Steps', healthRead)
+const stepsReadingCount = count(stepsReading)
+if stepsReadingCount >= 1 {
+    @stepDays = findLatestDay(stepsFilter)
+    @stepsSeen = 0
+    for stepGroup in @stepDays {
+        if @stepsSeen < 7 {
+            const stepDate = getSampleStart(@stepGroup)
+            const stepDay = formatDate(stepDate, "Custom", "yyyy-MM-dd")
+            const values = getStepValues(@stepGroup)
+            const totalSteps = sumValues(values)
+            if totalSteps >= 1 {
+                const totalStepsText = getText(totalSteps)
+                const normalizedSteps = replaceText('(?<=\d)[,\s](?=\d{3}(?:\D|$))', "", totalStepsText, true, true)
+                // Keep only the number, because the text form of a Health value can include a unit.
+                const stepsValue = replaceText('^\D*(\d+(?:\.\d+)?)[\s\S]*$', "$1", normalizedSteps, true, true)
+                @stepsField = "{@stepsField}␞{stepDay}={stepsValue}"
+                @stepsSeen += 1
+            }
         }
     }
-}
-if @stepsSeen >= 1 {
-    @healthFields += 1
-}
-
-
-@restingDays = findLatestDay(restingFilter)
-@restingSeen = 0
-for restingGroup in @restingDays {
-    if @restingSeen < 7 {
-        const restingDate = getSampleStart(@restingGroup)
-        const restingDay = formatDate(restingDate, "Custom", "yyyy-MM-dd")
-        // A Health value is a measurement with a unit, which an If can't compare with a number, so its number is read from the text.
-        const restingReading = getSampleValue(@restingGroup)
-        const restingText = getText(restingReading)
-        const restingValue = replaceText('^\D*(\d+(?:\.\d+)?)[\s\S]*$', "$1", restingText, true, true)
-        const restingUsable = matchText('^[1-9]', restingValue)
-        const restingFound = count(restingUsable)
-        if restingFound >= 1 {
-            @restingField = "{@restingField}␞{restingDay}={restingValue}"
-            @restingSeen += 1
-        }
+    if @stepsSeen >= 1 {
+        @healthFields += 1
     }
 }
-if @restingSeen >= 1 {
-    @healthFields += 1
-}
 
 
-@hrvDays = findLatestDay(hrvFilter)
-@hrvSeen = 0
-for hrvGroup in @hrvDays {
-    if @hrvSeen < 7 {
-        const hrvDate = getSampleStart(@hrvGroup)
-        const hrvDay = formatDate(hrvDate, "Custom", "yyyy-MM-dd")
-        // A Health value is a measurement with a unit, which an If can't compare with a number, so its number is read from the text.
-        const hrvReading = getSampleValue(@hrvGroup)
-        const hrvText = getText(hrvReading)
-        const hrvValue = replaceText('^\D*(\d+(?:\.\d+)?)[\s\S]*$', "$1", hrvText, true, true)
-        const hrvUsable = matchText('^[1-9]', hrvValue)
-        const hrvFound = count(hrvUsable)
-        if hrvFound >= 1 {
-            @hrvField = "{@hrvField}␞{hrvDay}={hrvValue}"
-            @hrvSeen += 1
+const restingReading = matchText('Resting', healthRead)
+const restingReadingCount = count(restingReading)
+if restingReadingCount >= 1 {
+    @restingDays = findLatestDay(restingFilter)
+    @restingSeen = 0
+    for restingGroup in @restingDays {
+        if @restingSeen < 7 {
+            const restingDate = getSampleStart(@restingGroup)
+            const restingDay = formatDate(restingDate, "Custom", "yyyy-MM-dd")
+            // A Health value is a measurement with a unit, which an If can't compare with a number, so its number is read from the text.
+            const restingReading = getSampleValue(@restingGroup)
+            const restingText = getText(restingReading)
+            const restingValue = replaceText('^\D*(\d+(?:\.\d+)?)[\s\S]*$', "$1", restingText, true, true)
+            const restingUsable = matchText('^[1-9]', restingValue)
+            const restingFound = count(restingUsable)
+            if restingFound >= 1 {
+                @restingField = "{@restingField}␞{restingDay}={restingValue}"
+                @restingSeen += 1
+            }
         }
     }
-}
-if @hrvSeen >= 1 {
-    @healthFields += 1
-}
-
-
-@exerciseDays = findLatestDay(exerciseFilter)
-@exerciseSeen = 0
-for exerciseGroup in @exerciseDays {
-    if @exerciseSeen < 7 {
-        const exerciseDate = getSampleStart(@exerciseGroup)
-        const exerciseDay = formatDate(exerciseDate, "Custom", "yyyy-MM-dd")
-        // Calculate Statistics turns a day's measurements into a number an If can compare, as it does for steps.
-        const exerciseValues = getStepValues(@exerciseGroup)
-        const exerciseValue = sumValues(exerciseValues)
-        if exerciseValue >= 1 {
-            @exerciseField = "{@exerciseField}␞{exerciseDay}={exerciseValue}"
-            @exerciseSeen += 1
-        }
+    if @restingSeen >= 1 {
+        @healthFields += 1
     }
 }
-if @exerciseSeen >= 1 {
-    @healthFields += 1
+
+
+const hrvReading = matchText('Hrv', healthRead)
+const hrvReadingCount = count(hrvReading)
+if hrvReadingCount >= 1 {
+    @hrvDays = findLatestDay(hrvFilter)
+    @hrvSeen = 0
+    for hrvGroup in @hrvDays {
+        if @hrvSeen < 7 {
+            const hrvDate = getSampleStart(@hrvGroup)
+            const hrvDay = formatDate(hrvDate, "Custom", "yyyy-MM-dd")
+            // A Health value is a measurement with a unit, which an If can't compare with a number, so its number is read from the text.
+            const hrvReading = getSampleValue(@hrvGroup)
+            const hrvText = getText(hrvReading)
+            const hrvValue = replaceText('^\D*(\d+(?:\.\d+)?)[\s\S]*$', "$1", hrvText, true, true)
+            const hrvUsable = matchText('^[1-9]', hrvValue)
+            const hrvFound = count(hrvUsable)
+            if hrvFound >= 1 {
+                @hrvField = "{@hrvField}␞{hrvDay}={hrvValue}"
+                @hrvSeen += 1
+            }
+        }
+    }
+    if @hrvSeen >= 1 {
+        @healthFields += 1
+    }
+}
+
+
+const exerciseReading = matchText('Exercise', healthRead)
+const exerciseReadingCount = count(exerciseReading)
+if exerciseReadingCount >= 1 {
+    @exerciseDays = findLatestDay(exerciseFilter)
+    @exerciseSeen = 0
+    for exerciseGroup in @exerciseDays {
+        if @exerciseSeen < 7 {
+            const exerciseDate = getSampleStart(@exerciseGroup)
+            const exerciseDay = formatDate(exerciseDate, "Custom", "yyyy-MM-dd")
+            // Calculate Statistics turns a day's measurements into a number an If can compare, as it does for steps.
+            const exerciseValues = getStepValues(@exerciseGroup)
+            const exerciseValue = sumValues(exerciseValues)
+            if exerciseValue >= 1 {
+                @exerciseField = "{@exerciseField}␞{exerciseDay}={exerciseValue}"
+                @exerciseSeen += 1
+            }
+        }
+    }
+    if @exerciseSeen >= 1 {
+        @healthFields += 1
+    }
 }
 
 
 // Each asleep sample goes up as its start and end. The server merges overlapping samples from more than one device
 // and files each night under the morning it ends, so time in bed, awake time and naps don't count.
 // Up to a month back on every run, because nothing is known about earlier runs yet.
-@sleepSamples = findSleepHistory(sleepFilter)
-const sleepSampleCount = count(@sleepSamples)
-@sleepCount = "{sleepSampleCount}"
-for sleepSample in @sleepSamples {
-    const stageValue = getSampleValue(@sleepSample)
-    const stageText = getText(stageValue)
-    // iOS can report stages as plain Core, Deep and REM, as well as Asleep.
-    const stageMatches = matchText('(?i)asleep|core|deep|\brem\b', stageText)
-    const stageCount = count(stageMatches)
-    if stageCount >= 1 {
-        const sleepStart = getSampleStart(@sleepSample)
-        const sleepEnd = getSampleEnd(@sleepSample)
-        const sleepStartISO = formatTimestamp(sleepStart, "Custom", "None", "yyyy-MM-dd'T'HH:mm:ssZZZZZ")
-        const sleepEndISO = formatTimestamp(sleepEnd, "Custom", "None", "yyyy-MM-dd'T'HH:mm:ssZZZZZ")
-        @sleepIntervals = "{@sleepIntervals}␞{sleepStartISO}␟{sleepEndISO}"
+const sleepReading = matchText('Sleep', healthRead)
+const sleepReadingCount = count(sleepReading)
+if sleepReadingCount >= 1 {
+    @sleepSamples = findSleepHistory(sleepFilter)
+    const sleepSampleCount = count(@sleepSamples)
+    @sleepCount = "{sleepSampleCount}"
+    for sleepSample in @sleepSamples {
+        const stageValue = getSampleValue(@sleepSample)
+        const stageText = getText(stageValue)
+        // iOS can report stages as plain Core, Deep and REM, as well as Asleep.
+        const stageMatches = matchText('(?i)asleep|core|deep|\brem\b', stageText)
+        const stageCount = count(stageMatches)
+        if stageCount >= 1 {
+            const sleepStart = getSampleStart(@sleepSample)
+            const sleepEnd = getSampleEnd(@sleepSample)
+            const sleepStartISO = formatTimestamp(sleepStart, "Custom", "None", "yyyy-MM-dd'T'HH:mm:ssZZZZZ")
+            const sleepEndISO = formatTimestamp(sleepEnd, "Custom", "None", "yyyy-MM-dd'T'HH:mm:ssZZZZZ")
+            @sleepIntervals = "{@sleepIntervals}␞{sleepStartISO}␟{sleepEndISO}"
+        }
+        // Time in bed only counts for a night with nothing else, which the server works out.
+        const bedMatches = matchText('(?i)in\s*bed', stageText)
+        const bedCount = count(bedMatches)
+        if bedCount >= 1 {
+            const bedStart = getSampleStart(@sleepSample)
+            const bedEnd = getSampleEnd(@sleepSample)
+            const bedStartISO = formatTimestamp(bedStart, "Custom", "None", "yyyy-MM-dd'T'HH:mm:ssZZZZZ")
+            const bedEndISO = formatTimestamp(bedEnd, "Custom", "None", "yyyy-MM-dd'T'HH:mm:ssZZZZZ")
+            @sleepInBed = "{@sleepInBed}␞{bedStartISO}␟{bedEndISO}"
+        }
     }
-    // Time in bed only counts for a night with nothing else, which the server works out.
-    const bedMatches = matchText('(?i)in\s*bed', stageText)
-    const bedCount = count(bedMatches)
-    if bedCount >= 1 {
-        const bedStart = getSampleStart(@sleepSample)
-        const bedEnd = getSampleEnd(@sleepSample)
-        const bedStartISO = formatTimestamp(bedStart, "Custom", "None", "yyyy-MM-dd'T'HH:mm:ssZZZZZ")
-        const bedEndISO = formatTimestamp(bedEnd, "Custom", "None", "yyyy-MM-dd'T'HH:mm:ssZZZZZ")
-        @sleepInBed = "{@sleepInBed}␞{bedStartISO}␟{bedEndISO}"
-    }
+    @healthFields += 1
 }
-@healthFields += 1
-
-
 
 @alarmRecords = ""
 const alarms = getAlarms()
@@ -216,47 +272,13 @@ for alarm in alarms {
     @alarmRecords = "{@alarmRecords}␞{alarmClock}␟{@alarm['Repeat Days']}␟{@alarm['Is Enabled']}␟{@alarm['Label']}"
 }
 
-const appAddress = "https://sync.bishvili.org"
-
-const keyFolder = createKeyFolder(onMyIPhone)
-// Running from the app passes the key as input, so nothing needs pasting.
-@credential = getText(ShortcutInput)
-const providedKeyMatches = matchText('^Bearer [0-9A-Fa-f]{64}$', @credential)
-const providedKeyCount = count(providedKeyMatches)
-if providedKeyCount == 0 {
-    const savedKeyFile = readSavedDeviceKey(keyFolder)
-    @credential = getText(savedKeyFile)
-    const savedKeyMatches = matchText('^Bearer [0-9A-Fa-f]{64}$', @credential)
-    const savedKeyMatchCount = count(savedKeyMatches)
-    if savedKeyMatchCount == 0 {
-        alert("Open the app, go to Data, and tap Run Health Sync.", "Not connected")
-        stop()
-    }
-}
-
-// Verify the connection and record the Shortcut's version, even if no health samples are available.
-// The reply also says whether a newer version is ready.
-const handshakeRaw = jsonRequest("{appAddress}/api/shortcut/hello", "POST", {
-    "shortcutVersion": "4.5.0"
-}, {"Authorization": "{@credential}"})
-const handshake = getDictionary(handshakeRaw)
-const connectionStatusValue = getValue(handshake, "state")
-const connectionStatus = getText(connectionStatusValue)
-if connectionStatus != "connected" {
-    alert("Open the app, go to Data, and tap Run Health Sync to reconnect.", "Not connected")
-    stop()
-}
-
-// Save only a key the server accepted, so a failed attempt cannot replace a working one.
-saveDeviceKey(@credential, keyFolder)
-
 // Each upload that's accepted counts once, for the final notification.
 @acceptedCount = 0
 
 const calendarBody = formRequest("{appAddress}/api/ingest", "POST", {
     "kind": "calendar_days",
     "calendarDays": "8",
-    "shortcutVersion": "4.5.0",
+    "shortcutVersion": "4.6.0",
     "date": "{day}",
     "utcOffset": "{utcOffset}",
     "events": "{@eventRecords}"
@@ -273,30 +295,30 @@ if calendarStatus != "accepted" {
     @acceptedCount += 1
 }
 
-if @healthFields >= 1 {
-    const healthBody = formRequest("{appAddress}/api/ingest", "POST", {
-        "kind": "health",
-        "shortcutVersion": "4.5.0",
-        "date": "{day}",
-        "stepsRecent": "{@stepsField}",
-        "restingHRRecent": "{@restingField}",
-        "hrvRecent": "{@hrvField}",
-        "workoutMinRecent": "{@exerciseField}",
-        "sleepIntervals": "{@sleepIntervals}",
-        "sleepSamples": "{@sleepCount}",
-        "sleepLimit": "{@sleepLimit}",
-        "sleepInBed": "{@sleepInBed}"
-    }, {"Authorization": "{@credential}"})
-    const healthResponse = getDictionary(healthBody)
-    const healthStatusValue = getValue(healthResponse, "state")
-    const healthStatus = getText(healthStatusValue)
-    if healthStatus != "accepted" {
-        const healthErrorValue = getValue(healthResponse, "error")
-        const healthError = getText(healthErrorValue)
-        showNotification("Your Health data didn't sync. {healthError}", "Health Sync")
-    } else {
-        @acceptedCount += 1
-    }
+// Health always goes up, even empty, so the Worker hears that every type it named was read.
+const healthBody = formRequest("{appAddress}/api/ingest", "POST", {
+    "kind": "health",
+    "shortcutVersion": "4.6.0",
+    "date": "{day}",
+    "stepsRecent": "{@stepsField}",
+    "restingHRRecent": "{@restingField}",
+    "hrvRecent": "{@hrvField}",
+    "workoutMinRecent": "{@exerciseField}",
+    "sleepIntervals": "{@sleepIntervals}",
+    "sleepSamples": "{@sleepCount}",
+    "sleepLimit": "{@sleepLimit}",
+    "sleepInBed": "{@sleepInBed}",
+    "healthRead": "{healthRead}"
+}, {"Authorization": "{@credential}"})
+const healthResponse = getDictionary(healthBody)
+const healthStatusValue = getValue(healthResponse, "state")
+const healthStatus = getText(healthStatusValue)
+if healthStatus != "accepted" {
+    const healthErrorValue = getValue(healthResponse, "error")
+    const healthError = getText(healthErrorValue)
+    showNotification("Your Health data didn't sync. {healthError}", "Health Sync")
+} else {
+    @acceptedCount += 1
 }
 
 
@@ -311,7 +333,7 @@ if updateStatus == "new_release" {
 
 formRequest("{appAddress}/api/ingest", "POST", {
     "kind": "alarms",
-    "shortcutVersion": "4.5.0",
+    "shortcutVersion": "4.6.0",
     "date": "{day}",
     "alarms": "{@alarmRecords}"
 }, {"Authorization": "{@credential}"})

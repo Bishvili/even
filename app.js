@@ -1,6 +1,6 @@
 (function () {
 "use strict";
-var VERSION = "2.55.6";
+var VERSION = "2.56.0";
 var HIDEABLE={
  event:{list:"events",hidden:"hiddenEvents",key:"id"},
  health:{list:"health",hidden:"hiddenHealth",key:"date"}
@@ -484,6 +484,7 @@ function renderMoodStatus(){
 }
 var SYNC_SETTING_NAMES={calendar:"Calendar events",sleep:"Sleep",steps:"Steps",restingHR:"Resting heart rate",hrv:"Heart rate variability",workout:"Exercise minutes",alarms:"Alarms"};
 var syncChoicesShown=null;
+var healthStopped=[];
 function renderSyncSettings(settings){
  syncChoicesShown=settings;renderMeasures();
  var list=$("sync-settings");
@@ -494,6 +495,8 @@ function renderSyncSettings(settings){
   box.addEventListener("change",function(){setSyncSetting(kind,box);});
   row.appendChild(name);row.appendChild(box);list.appendChild(row);
  });
+ var stopped=healthStopped.filter(function(kind){return settings[kind]===false;}).map(function(kind){return SYNC_SETTING_NAMES[kind];});
+ if(stopped.length){var note=document.createElement("p");note.className="muted";note.textContent="Turned off because Apple Health had none: "+stopped.join(", ")+". Turn one back on once you’re recording it.";list.appendChild(note);}
 }
 async function setSyncSetting(kind,box){
  var enabled=box.checked;box.disabled=true;
@@ -918,6 +921,7 @@ async function loadSession(){
   if(globalThis.Look){if(globalThis.Look.waiting())sendLook();else if(globalThis.Look.follow(data.look||null,data.lookName||""))render();}
   syncMoods(data.moods);
   syncReflections(data.reflections);
+  healthStopped=data.healthStopped||[];renderSyncSettings(syncChoicesShown||{});
   if(globalThis.Shared)globalThis.Shared.sync(sharedApp(),data.shared);
   var uploaded=Date.parse(data.status.lastDataUploadAt);
   if(uploaded&&(!state.lastSync||uploaded>state.lastSync))pull(true);

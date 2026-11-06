@@ -1,1 +1,1 @@
-Reads your Health, calendar and alarms first, then sends them.
+Reads the Health data you have, and turns off what Apple Health has none of.

@@ -4,7 +4,8 @@ CREATE TABLE IF NOT EXISTS health_users (
   name TEXT,
   sync_off TEXT,
   look TEXT,
-  look_name TEXT
+  look_name TEXT,
+  health_types TEXT
 );
 CREATE TABLE IF NOT EXISTS health_devices (
   token_hash TEXT PRIMARY KEY,

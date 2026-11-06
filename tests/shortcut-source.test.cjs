@@ -31,7 +31,7 @@ test("the device key is read from its file, checked by the server, and saved onl
  assert.doesNotMatch(sync,/\b(getFolderContents|getFileFromFolder|deleteFiles)\s*\(/);
  const saved=position(sync,"@credential = getText(savedKeyFile)"),handshake=position(sync,'jsonRequest("{appAddress}/api/shortcut/hello"');
  const refused=position(sync,'if connectionStatus != "connected"'),save=position(sync,"saveDeviceKey(@credential, keyFolder)"),events=position(sync,"const todayEvents = findEvents(todayEventsFilter)");
- assert.ok(events<saved&&saved<handshake&&handshake<refused&&refused<save);
+ assert.ok(saved<handshake&&handshake<refused&&refused<save&&save<events);
  assert.equal((sync.match(/^saveDeviceKey\(/gm)||[]).length,1);
  assert.match(sync,/alert\("Open the app, go to Data, and tap Run Health Sync to reconnect/);
  assert.match(sync,/Authorization": "\{@credential\}"/);
@@ -40,8 +40,9 @@ test("the device key is read from its file, checked by the server, and saved onl
 
 test("every comparison is typed text or a number, never a Boolean",()=>{
  assert.deepEqual(conditions(sync),[
-  '@stepsSeen < 7','totalSteps >= 1','@stepsSeen >= 1','@restingSeen < 7','restingFound >= 1','@restingSeen >= 1','@hrvSeen < 7','hrvFound >= 1','@hrvSeen >= 1','@exerciseSeen < 7','exerciseValue >= 1','@exerciseSeen >= 1','stageCount >= 1','bedCount >= 1',
-  'providedKeyCount == 0','savedKeyMatchCount == 0','connectionStatus != "connected"','calendarStatus != "accepted"','@healthFields >= 1','healthStatus != "accepted"','updateStatus == "new_release"','syncedState != "sent"'
+  'providedKeyCount == 0','savedKeyMatchCount == 0','connectionStatus != "connected"',
+  'stepsReadingCount >= 1','@stepsSeen < 7','totalSteps >= 1','@stepsSeen >= 1','restingReadingCount >= 1','@restingSeen < 7','restingFound >= 1','@restingSeen >= 1','hrvReadingCount >= 1','@hrvSeen < 7','hrvFound >= 1','@hrvSeen >= 1','exerciseReadingCount >= 1','@exerciseSeen < 7','exerciseValue >= 1','@exerciseSeen >= 1','sleepReadingCount >= 1','stageCount >= 1','bedCount >= 1',
+  'calendarStatus != "accepted"','healthStatus != "accepted"','updateStatus == "new_release"','syncedState != "sent"'
  ]);
  for(const source of [sync,helper])assert.doesNotMatch(source,/if\s+@?\w+\s*(==|!=)\s*(true|false)/);
  for(const name of ["connectionStatus","calendarStatus","healthStatus","updateStatus"])
@@ -86,7 +87,7 @@ test("Health goes up in one request, up to 7 days of each measure with their dat
   assert.equal(rows(name)[0].Values.Enumeration.Value,type,name);
  }
  assert.doesNotMatch(sync,/\): array \{"WFContentItemFilter"/);
- assert.ok(position(sync,'@healthFields = 0')<position(sync,'if @healthFields >= 1'));
+ assert.ok(position(sync,'@healthFields = 0')<position(sync,'const healthBody'));
  assert.match(sync,/showNotification\("Your Health data didn't sync\. \{healthError\}", "Health Sync"\)/);
 });
 
@@ -115,9 +116,11 @@ test("sleep goes up as asleep intervals, with the sample count so the server kno
  assert.doesNotMatch(sync,/sleepMinutes|sleepStarts|sleepAge/);
 });
 
-test("everything is read before the handshake, and the run ends with one notification",()=>{
- const steps=position(sync,"findLatestDay(stepsFilter)"),alarms=position(sync,"const alarms = getAlarms()"),hello=position(sync,"/api/shortcut/hello"),health=position(sync,'"kind": "health"'),synced=position(sync,"/api/push/synced");
- assert.ok(steps<alarms&&alarms<hello&&hello<health&&health<synced);
+test("the handshake names what to read, everything is read before anything is sent, and the run ends with one notification",()=>{
+ const hello=position(sync,"/api/shortcut/hello"),plan=position(sync,'getValue(handshake, "healthRead")'),steps=position(sync,"findLatestDay(stepsFilter)"),alarms=position(sync,"const alarms = getAlarms()"),calendar=position(sync,'"kind": "calendar_days"'),health=position(sync,'"kind": "health"'),synced=position(sync,"/api/push/synced");
+ assert.ok(hello<plan&&plan<steps&&steps<alarms&&alarms<calendar&&calendar<health&&health<synced);
+ for(const token of ["Steps","Resting","Hrv","Exercise","Sleep"])assert.ok(sync.includes(`matchText('${token}', healthRead)`),token);
+ assert.ok(sync.includes('"healthRead": "{healthRead}"'));
  assert.match(sync,/showNotification\("Sync finished\. Open the app to see it\.", "Health Sync"\)/);
  assert.doesNotMatch(sync,/Skipped \{|\bnothing\(\)/);
  assert.doesNotMatch(sync,/@(?:gmail|icloud)\.com/i);

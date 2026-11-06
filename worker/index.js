@@ -41,7 +41,7 @@ async function payload(request){
  if(type.includes("application/x-www-form-urlencoded"))return Object.fromEntries(new URLSearchParams(text));
  try{return JSON.parse(text);}catch(e){return Object.fromEntries(new URLSearchParams(text));}
 }
-const VERSION_NAME="2.55.6";
+const VERSION_NAME="2.56.0";
 function normalEmail(value){return String(value||"").trim().toLowerCase();}
 async function signinAuth(env,ctx,request){
  const {createAuth}=await import("./signin.mjs");
@@ -81,7 +81,7 @@ async function validDevice(request,env){
 }
 // Everything synced for one person, apart from their account and devices.
 function syncedDataStatements(env,owner,keepMoods){
- return [env.DB.prepare("UPDATE health_users SET look=NULL,look_name=NULL WHERE email=?").bind(owner),...(keepMoods?[]:[env.DB.prepare("DELETE FROM health_install_codes WHERE email=?").bind(owner),env.DB.prepare("DELETE FROM health_shared WHERE owner_email=?").bind(owner),env.DB.prepare("DELETE FROM health_moods WHERE owner_email=?").bind(owner),env.DB.prepare("DELETE FROM health_reflections WHERE owner_email=?").bind(owner)]),
+ return [env.DB.prepare("UPDATE health_users SET look=NULL,look_name=NULL,health_types=NULL WHERE email=?").bind(owner),...(keepMoods?[]:[env.DB.prepare("DELETE FROM health_install_codes WHERE email=?").bind(owner),env.DB.prepare("DELETE FROM health_shared WHERE owner_email=?").bind(owner),env.DB.prepare("DELETE FROM health_moods WHERE owner_email=?").bind(owner),env.DB.prepare("DELETE FROM health_reflections WHERE owner_email=?").bind(owner)]),
   env.DB.prepare("UPDATE health_devices SET last_upload_counts=NULL WHERE owner_email=?").bind(owner),
   env.DB.prepare("DELETE FROM health_metrics WHERE owner_email=?").bind(owner),
   env.DB.prepare("DELETE FROM health_hidden_days WHERE owner_email=?").bind(owner),
@@ -790,6 +790,44 @@ async function syncedShared(env,owner,since){
  for(const row of list)if(!row.deleted_at){try{items.push({kind:row.kind,key:row.key,data:JSON.parse(row.data)});}catch(e){/* An unreadable record is left out. */}}
  return {email:owner,cursor,items,deleted:list.filter(row=>row.deleted_at).map(row=>({kind:row.kind,key:row.key}))};
 }
+// Reading a Health type with no samples ends a Health Sync run with an error it can't catch. So each run is told what to read:
+// the types that have worked, plus at most one untried type. A run that names an untried type and then goes quiet points at that type.
+const HEALTH_TYPES=[["Steps","steps"],["Resting","restingHR"],["Hrv","hrv"],["Exercise","workout"],["Sleep","sleep"]];
+const FIRST_PLANNED_VERSION="4.6.0",TRIAL_QUIET_MS=10*60000;
+function healthState(raw){let state=null;try{state=JSON.parse(raw||"null");}catch(e){/* Starts over. */}state=state&&typeof state==="object"?state:{};return {worked:{},stopped:{},...state};}
+async function loadHealthState(env,owner){const row=await env.DB.prepare("SELECT health_types FROM health_users WHERE email=?").bind(owner).first();return healthState(row?.health_types);}
+function saveHealthState(env,owner,state){return env.DB.prepare("UPDATE health_users SET health_types=? WHERE email=?").bind(JSON.stringify(state),owner).run();}
+function planHealth(state,off,now){
+ const read=[];let trial=null;
+ for(const[type,kind]of HEALTH_TYPES){
+  if(off.has(kind))continue;
+  if(state.worked[type])read.push(type);
+  else if(!trial){trial=type;read.push(type);}
+ }
+ state.trial=trial?{type:trial,at:now.toISOString()}:null;
+ return read.join(",")||"none";
+}
+// The untried type stopped the run: turn it off in the app and say so.
+async function stopTrial(env,owner,state,now){
+ const type=state.trial?.type,kind=HEALTH_TYPES.find(item=>item[0]===type)?.[1];
+ state.trial=null;
+ if(!kind)return;
+ const off=await syncOff(env,owner);off.add(kind);state.stopped[type]=now.toISOString();
+ await env.DB.prepare("UPDATE health_users SET sync_off=? WHERE email=?").bind(JSON.stringify([...off]),owner).run();
+ const key=pushKey(env);if(!key)return;
+ const subs=await env.DB.prepare("SELECT endpoint,p256dh,auth FROM health_push_subscriptions WHERE owner_email=?").bind(owner).all();
+ const body=STABLE.sync+" stopped because Apple Health has no "+HEALTH_LABELS[kind]+". It’s turned off now, so the next sync can finish.";
+ for(const sub of subs.results||[])await deliverPush(env,key,sub,now,pushPayload(env,body,"/#data")).catch(()=>{});
+}
+const HEALTH_LABELS={steps:"steps",restingHR:"resting heart rate",hrv:"heart rate variability",workout:"exercise minutes",sleep:"sleep"};
+async function stopQuietTrials(env,now){
+ const rows=await env.DB.prepare("SELECT email,health_types FROM health_users WHERE health_types LIKE '%\"trial\":{%'").bind().all();
+ for(const row of rows.results||[]){
+  const state=healthState(row.health_types);
+  if(!state.trial||now-Date.parse(state.trial.at)<TRIAL_QUIET_MS)continue;
+  await stopTrial(env,row.email,state,now);await saveHealthState(env,row.email,state);
+ }
+}
 const REFLECTION_IDS=["snapped","setOff","recovered","rested"],REFLECTION_LIMIT=520;
 function readReflection(x){
  const id=String(x?.id||""),ts=new Date(x?.ts),answers=x?.answers;
@@ -944,6 +982,8 @@ async function syncApi(request,env,path){
   if(!SYNC_KINDS.includes(input?.kind)||typeof input.enabled!=="boolean")return error("That setting couldn't be read.",400,"invalid_setting");
   const off=await syncOff(env,owner);
   if(input.enabled)off.delete(input.kind);else off.add(input.kind);
+  const type=HEALTH_TYPES.find(item=>item[1]===input.kind)?.[0];
+  if(type&&input.enabled){const state=await loadHealthState(env,owner);delete state.worked[type];delete state.stopped[type];await saveHealthState(env,owner,state);}
   await env.DB.prepare("UPDATE health_users SET sync_off=? WHERE email=?").bind(JSON.stringify([...off]),owner).run();
   return reply({ok:true});
  }
@@ -1004,9 +1044,9 @@ async function syncApi(request,env,path){
  // Everything the app shows about this device and account, so coming back to the app takes one request.
  if(path==="/api/session"&&request.method==="GET"){
   const params=new URL(request.url).searchParams;
-  const [shared,look,status,release,calendars,settings,moods,reflections]=await Promise.all([syncedShared(env,owner,params.get("sharedSince")),env.DB.prepare("SELECT look,look_name FROM health_users WHERE email=?").bind(owner).first(),deviceStatus(env,dev,owner),loadShortcutRelease(env),calendarList(env,owner),syncChoices(env,owner),syncedMoods(env,owner,params.get("since")),syncedReflections(env,owner,params.get("reflectionsSince"))]);
+  const [shared,look,status,release,calendars,settings,moods,reflections]=await Promise.all([syncedShared(env,owner,params.get("sharedSince")),env.DB.prepare("SELECT look,look_name,health_types FROM health_users WHERE email=?").bind(owner).first(),deviceStatus(env,dev,owner),loadShortcutRelease(env),calendarList(env,owner),syncChoices(env,owner),syncedMoods(env,owner,params.get("since")),syncedReflections(env,owner,params.get("reflectionsSince"))]);
   if(!status)return error("This device was revoked",401,"device_revoked");
-  return reply({ok:true,status,release,calendars,settings,moods,reflections:{email:owner,...reflections},look:look?.look||null,lookName:look?.look_name||null,shared});
+  return reply({ok:true,status,release,calendars,settings,moods,reflections:{email:owner,...reflections},look:look?.look||null,lookName:look?.look_name||null,shared,healthStopped:Object.keys(healthState(look?.health_types).stopped).map(type=>HEALTH_TYPES.find(item=>item[0]===type)?.[1]).filter(Boolean)});
  }
  if(path==="/api/sync/status"&&request.method==="GET"){
   const status=await deviceStatus(env,dev,owner);
@@ -1032,7 +1072,14 @@ async function syncApi(request,env,path){
   const release=await loadShortcutRelease(env),updateAvailable=!!release&&release.verified&&semverNewer(release.version,clientVersion);
   // the Shortcut reads its settings here, so they take effect with no extra request.
   const off=await syncOff(env,owner),settings=Object.fromEntries(SYNC_KINDS.map(kind=>["sync"+kind[0].toUpperCase()+kind.slice(1),off.has(kind)?"off":"on"]));
-  return reply({ok:true,connected:true,state:"connected",shortcutVersion:clientVersion,receivedAt:at,sleepHistory:Number(nights?.count||0)<3?"needed":"complete",updateStatus:updateAvailable?"new_release":"current",...settings,calendarsOff:await calendarsOffPattern(env,owner)});
+  let healthRead;
+  if(!semverNewer(FIRST_PLANNED_VERSION,clientVersion)){
+   const state=await loadHealthState(env,owner),now=new Date();
+   if(state.trial)await stopTrial(env,owner,state,now);
+   healthRead=planHealth(state,await syncOff(env,owner),now);
+   await saveHealthState(env,owner,state);
+  }
+  return reply({ok:true,healthRead,connected:true,state:"connected",shortcutVersion:clientVersion,receivedAt:at,sleepHistory:Number(nights?.count||0)<3?"needed":"complete",updateStatus:updateAvailable?"new_release":"current",...settings,calendarsOff:await calendarsOffPattern(env,owner)});
  }
 
  if(path==="/api/pull"&&request.method==="GET"){
@@ -1091,8 +1138,16 @@ async function syncApi(request,env,path){
   if(kind!=="health"){
    await recordSyncFailure(env,dev,"invalid_kind");return error("This upload couldn't be read.",400,"invalid_kind");
   }
+  const reported=typeof input.healthRead==="string"?input.healthRead.split(",").filter(type=>HEALTH_TYPES.some(item=>item[0]===type)):null;
+  if(reported){
+   const state=await loadHealthState(env,owner),at=new Date().toISOString();
+   for(const type of reported){state.worked[type]=at;delete state.stopped[type];}
+   if(state.trial&&reported.includes(state.trial.type))state.trial=null;
+   await saveHealthState(env,owner,state);
+  }
   const allMetrics=(Array.isArray(input.days)?input.days.slice(0,75):[input]).flatMap(readHealth),metrics=allMetrics.filter(x=>!off.has(METRIC_KINDS[x.metric]));
   if(allMetrics.length&&!metrics.length)return reply({ok:true,state:"accepted",skipped:true});
+  if(!metrics.length&&reported)return reply({ok:true,state:"accepted",skipped:true});
   if(!metrics.length){
    await recordSyncFailure(env,dev,"no_valid_records");
    return error(NO_VALID_RECORDS,400,"no_valid_records");
@@ -1180,6 +1235,7 @@ async function lookManifest(request,env,{look,query}){
 async function runCron(env){
  const at=new Date().toISOString();
  try{
+  await stopQuietTrials(env,new Date());
   const counts=await sendReminders(env);
   logEvent("cron",counts||{});
   await env.DB.prepare("DELETE FROM health_service WHERE key LIKE 'sends:%' AND updated_at<?").bind(new Date(Date.now()-86400000).toISOString()).run();
