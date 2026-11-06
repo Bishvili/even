@@ -70,6 +70,8 @@ The public files are the ones listed in `SHELL` in `sw.js`. `scripts/build-asset
 
 Weekly reflections sync to your account like check-ins, and their reminder never shows your answers or score. Breathing sessions, suggestions marked done and which check-ins you answered stay on the device.
 
+The look you pick in Settings is saved on the device and in your account.
+
 Your first name can appear in notifications, including on your Lock Screen.
 
 Health Sync sends what you leave on in the app: steps, resting heart rate, heart rate variability, exercise minutes, sleep from recent nights (up to a month on the first sync), alarms, and the titles, times and calendar names of the next week's events. Your account also stores notification times and what each is for, your time zone, your latest check-in time, your settings and your device records. Check-ins and notes are stored in your account as readable text when you’re signed in, until you delete them or erase synced data.

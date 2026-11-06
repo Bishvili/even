@@ -42,7 +42,8 @@
  function follow(id){if(stored(WAITING)||id===saved()||(id&&!parse(id)))return false;store(KEY,id||null);wear(id);return true;}
  function start(){
   var given=root.location&&new URLSearchParams(root.location.search).get("look");
-  if(parse(given)&&!saved())store(KEY,given);
+  // A new icon carries the look it was added with, and tells the account at sign-in.
+  if(parse(given)&&!saved()){store(KEY,given);store(WAITING,"1");}
   current=parse(stored(KEY));
   head();
   if(root.document)root.document.addEventListener("DOMContentLoaded",body);

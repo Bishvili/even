@@ -17,7 +17,7 @@ Don't ask for anything else, and don't edit `brand/palette.json`. It holds about
 
 ## Starting from the catalogue
 
-`brand/catalog/` holds nine names, nine icons and nine palettes that can be mixed. When someone has chosen, for example "Gloaming, the Stones icon and the Harbor palette":
+`brand/catalog/` holds nine names, nine icons and nine palettes that can be mixed. When someone has chosen, for example "Gloaming, the Stones icon and the Harbor palette", `node scripts/adopt-look.cjs n5 i4 p2` makes these three edits and runs the checks:
 
 1. Copy that name's `name`, `installName`, `tagline` and `pitch` from `names.json` into `brand/brand.json`.
 2. Copy the palette's three colors from `palettes.json` into `colors` there.
@@ -36,7 +36,7 @@ Then follow the steps below. The catalogue itself stays as it is, so the look be
 
 ## Steps
 
-1. **Try it first.** Add the candidate to `brand/looks.json` (a `name`, optionally `colors` and `logo`, where a catalogue icon's path goes), and run `node scripts/preview-looks.cjs previews "Name"`. Or run the **Preview looks** workflow, which saves the screenshots as a download. Look at every screen, light and dark, and show them to the person. Nothing here reaches the live app.
+1. **Try it first.** Testers pick from the catalogue in Settings → Look, and Developer tools shows the counts. To draw screenshots, run `node scripts/preview-looks.cjs previews n5.i4.p2`, or the **Preview looks** workflow.
 2. **Apply it.** Edit `brand/brand.json` and `brand/logo.svg`.
 3. **Check it.** `node --test tests/*.test.cjs`, `node scripts/smoke.cjs` and `node scripts/signed-in.cjs`.
 4. **Ship it.** Run `node scripts/bump-version.cjs x.y.z`, commit to `main` and push. A push goes straight to the live app, with no staging, so get the person's go-ahead first. Then confirm the Workers Builds result and **Check the live site**.

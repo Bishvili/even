@@ -122,11 +122,6 @@ test("any logo works: its mark drops the background, and a new one shows still w
   assert.match(next,/class="brand-icon" aria-hidden="true"><svg viewBox="0 0 100 100"><circle/);
  }finally{fs.rmSync(out,{recursive:true});fs.rmSync(file,{force:true});}
 });
-test("every look to try can be built and read",()=>{
- const looks=JSON.parse(fs.readFileSync("brand/looks.json","utf8")),out=fs.mkdtempSync(path.join(os.tmpdir(),"looks-"));
- try{for(const look of looks)build({out,brand:{...brand,name:look.name,colors:look.colors||brand.colors}});}
- finally{fs.rmSync(out,{recursive:true});}
-});
 
 test("every icon and palette has a Home Screen icon, none in the shell",()=>{
  const{lookIcons}=require("../scripts/build-assets.cjs"),list=lookIcons(),shell=publicFiles(fs.readFileSync("sw.js","utf8"));

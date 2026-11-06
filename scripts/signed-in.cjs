@@ -16,7 +16,7 @@ function fakeApi(overrides={}){
   const request=route.request(),url=new URL(request.url()),send=(body,status=200)=>route.fulfill({status,contentType:"application/json",body:JSON.stringify(body)});
   if(url.pathname==="/api/session"){
    if(api.session!==200)return send({ok:false,code:"signed_out"},api.session);
-   return send({ok:true,status:{deviceId:DEVICE,credentialValid:true,...api.status},release:{},calendars:api.calendars||[],settings:{},moods:api.moods,reflections:{email:api.moods?.email,cursor:"",reflections:[],deleted:[]}});
+   return send({ok:true,status:{deviceId:DEVICE,credentialValid:true,...api.status},release:{},calendars:api.calendars||[],settings:{},look:api.look||null,moods:api.moods,reflections:{email:api.moods?.email,cursor:"",reflections:[],deleted:[]}});
   }
   if(url.pathname==="/api/moods"){
    if(api.failMoods)return send({ok:false,code:"unavailable"},503);
@@ -26,6 +26,7 @@ function fakeApi(overrides={}){
    return send({ok:true});
   }
   if(url.pathname==="/api/reflections")return send({ok:true,email:api.moods?.email,cursor:"",reflections:[],deleted:[]});
+  if(url.pathname==="/api/look"){api.look=request.postDataJSON().look;return send({ok:true,look:api.look});}
   if(url.pathname==="/api/pull")return send(api.pull);
   if(url.pathname==="/api/user/me")return api.me?send({ok:true,email:api.me,devices:[{id:DEVICE,label:"iPhone"}]}):send({ok:false,code:"signed_out"},401);
   if(url.pathname==="/api/user/erase")return send({ok:true,erased:true});
@@ -78,6 +79,26 @@ const scenarios={
    await statusIs(page,"All check-ins and reflections synced");
    assert.equal(api.uploaded.length,1);
    assert.deepEqual((await stored(page)).pendingMoods,[]);
+  });
+ },
+ "a look previews without saving, saves to the account, and an account's look follows to a new device":async(browser,base)=>{
+  const api=fakeApi();
+  await open(browser,base,saved(),api,async({page})=>{
+   await page.click(".nav-item[data-go=settings]");
+   await page.check('#look-names input[value="n5"]',{force:true});
+   assert.equal(await page.title(),"Gloaming");
+   assert.equal(api.look,undefined);
+   await page.click("#look-cancel");
+   assert.notEqual(await page.title(),"Gloaming");
+   await page.check('#look-names input[value="n2"]',{force:true});
+   await page.click("#look-save");
+   await until(page,()=>!localStorage.getItem("health-look-waiting"));
+   assert.equal(api.look,"n2.i2.p2");
+  });
+  const next=fakeApi();next.look="n3.i3.p3";
+  await open(browser,base,saved(),next,async({page})=>{
+   await page.waitForFunction(()=>document.title==="Millpond");
+   assert.equal(await page.evaluate(()=>document.documentElement.dataset.palette),"p3");
   });
  },
  "a failed upload says so, keeps the check-in, and Try again sends it":async(browser,base)=>{

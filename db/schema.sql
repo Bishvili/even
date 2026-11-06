@@ -2,7 +2,8 @@ CREATE TABLE IF NOT EXISTS health_users (
   email TEXT PRIMARY KEY,
   created_at TEXT NOT NULL,
   name TEXT,
-  sync_off TEXT
+  sync_off TEXT,
+  look TEXT
 );
 CREATE TABLE IF NOT EXISTS health_devices (
   token_hash TEXT PRIMARY KEY,

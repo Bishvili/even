@@ -55,3 +55,19 @@ test("a saved look comes back, a link only fills in for none, and a waiting choi
  look.sent();assert.equal(look.waiting(),null);
  assert.equal(look.follow(null),true);assert.equal(look.current(),null);
 });
+
+test("adopting a look leaves the build working and wearing it, for each starting pair",()=>{
+ const{adopt}=require("../scripts/adopt-look.cjs"),{build}=require("../scripts/build-assets.cjs");
+ const names=JSON.parse(fs.readFileSync(path.join(dir,"names.json"),"utf8")),repo=path.join(__dirname,"..");
+ for(const item of names){
+  const copy=fs.mkdtempSync(path.join(os.tmpdir(),"adopt-")),out=fs.mkdtempSync(path.join(os.tmpdir(),"adopted-"));
+  try{
+   fs.cpSync(path.join(repo,"brand"),path.join(copy,"brand"),{recursive:true});
+   adopt(item.id,item.with.icon,item.with.palette,copy);
+   const brand=JSON.parse(fs.readFileSync(path.join(copy,"brand/brand.json"),"utf8"));
+   assert.equal(brand.name,item.name);
+   build({out,brand,logoFile:path.relative(repo,path.join(copy,"brand/logo.svg"))});
+   assert.match(fs.readFileSync(path.join(out,"index.html"),"utf8"),new RegExp("<title>"+item.name+"</title>"));
+  }finally{fs.rmSync(copy,{recursive:true});fs.rmSync(out,{recursive:true});}
+ }
+});

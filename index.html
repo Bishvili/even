@@ -43,6 +43,7 @@
   <script src="/items.js" defer></script>
   <script src="/app.js" defer></script>
   <script src="/data-list.js" defer></script>
+  <script src="/look-picker.js" defer></script>
   <script src="/coach.js" defer></script>
   <script src="/intake.js" defer></script>
   <script src="/reminders.js" defer></script>
@@ -306,7 +307,7 @@
     <button type="button" class="btn subtle full" id="erase-remote">Erase synced data</button>
     <button type="button" class="btn subtle full" id="delete-account">Delete my account</button>
     </details>
-    <div class="help-note"><strong>Privacy</strong><p>Your first name can appear in notifications, including on your Lock Screen. When you’re signed in, check-ins and their notes are saved to your private account so they appear on your other devices. They’re stored as readable text. Health data, calendar events and alarms you sync are sent over an encrypted connection and stored in your private account. None of this is end-to-end encrypted. Weekly reflections are saved to your account the same way. Breathing sessions, suggestions you mark done and which check-ins you answered stay on this device. Sign-in codes are sent through our email provider. If you use Google, it tells us your email and name. You can disconnect a device or erase synced data at any time. {{name}} is for the US and in English for now: support numbers are US only, and {{sync}} reads Health in English. Send feedback in Settings opens an email with your app and sync details, and nothing else, and sends only if you send it.</p></div>
+    <div class="help-note"><strong>Privacy</strong><p>Your first name can appear in notifications, including on your Lock Screen. When you’re signed in, check-ins and their notes are saved to your private account so they appear on your other devices. They’re stored as readable text. Health data, calendar events and alarms you sync are sent over an encrypted connection and stored in your private account. None of this is end-to-end encrypted. Weekly reflections and the look you choose are saved to your account the same way. Breathing sessions, suggestions you mark done and which check-ins you answered stay on this device. Sign-in codes are sent through our email provider. If you use Google, it tells us your email and name. You can disconnect a device or erase synced data at any time. {{name}} is for the US and in English for now: support numbers are US only, and {{sync}} reads Health in English. Send feedback in Settings opens an email with your app and sync details, and nothing else, and sends only if you send it.</p></div>
    </section>
 
    <section id="view-settings" class="view" aria-labelledby="settings-title">
@@ -315,6 +316,20 @@
      <h2 id="finish-setup-title">Finish setting up</h2>
      <p class="muted" id="finish-setup-text"></p>
      <button type="button" class="btn primary full" id="finish-setup-button">Continue</button>
+    </section>
+    <section class="card" id="look-card" aria-labelledby="look-title" hidden>
+     <h2 id="look-title">Look</h2>
+     <p class="muted">Try as many as you like. Add the app to your Home Screen again once you’ve chosen.</p>
+     <div class="look-tiles" aria-hidden="true">
+      <div class="look-tile" data-mode="light"><span class="look-tile-icon"></span><span class="look-tile-name"></span></div>
+      <div class="look-tile" data-mode="dark"><span class="look-tile-icon"></span><span class="look-tile-name"></span></div>
+     </div>
+     <fieldset class="look-row"><legend>Name</legend><div class="look-scroll" id="look-names"></div></fieldset>
+     <fieldset class="look-row"><legend>Icon</legend><div class="look-scroll" id="look-icons"></div></fieldset>
+     <fieldset class="look-row"><legend>Palette</legend><div class="look-scroll" id="look-palettes"></div></fieldset>
+     <div class="button-row" id="look-actions" hidden><button type="button" class="btn primary" id="look-save">Save</button><button type="button" class="btn subtle" id="look-cancel">Cancel</button></div>
+     <button type="button" class="btn secondary full" id="look-add" hidden>Add to Home Screen again</button>
+     <button type="button" class="btn subtle full" id="look-original" hidden>Original look</button>
     </section>
     <section class="card" aria-labelledby="your-name-title">
      <h2 id="your-name-title">Your name</h2>
@@ -373,6 +388,9 @@
      <form id="tester-form"><input id="tester-new-name" type="text" maxlength="60" autocomplete="off" autocapitalize="words" placeholder="Name (optional)" aria-label="Tester name"><input id="tester-email" type="email" autocomplete="off" autocapitalize="none" placeholder="name@example.com" aria-label="Tester email" required><button type="submit" class="btn secondary" id="add-tester">Add</button></form>
      <div id="tester-list" class="calendar-list"></div>
      <button type="button" class="btn secondary full" id="share-app">Share {{name}}</button>
+     <h3 class="dev-heading">Looks chosen</h3>
+     <p class="muted" id="look-counts">No one has chosen a look yet.</p>
+     <button type="button" class="btn secondary full" id="look-copy" hidden>Copy request for Claude</button>
      <h3 class="dev-heading">Shortcuts</h3>
      <details class="shortcut-advanced"><summary>How the Shortcuts work</summary><div>
       <p><strong>{{sync}}</strong> is what everyone installs. It sends Health and calendar data. Running it from this app connects it, so there’s no key to copy.</p>
@@ -391,7 +409,7 @@
      <p class="muted">Tell us what went wrong or what you’d change.</p>
      <button type="button" class="btn secondary full" id="feedback-open">Send feedback</button>
     </section>
-    <div class="card"><h2>About the insights</h2><p class="muted">Comparisons need at least 5 check-ins in each group. Mood data is subjective and gaps can skew results. Nothing here is a diagnosis or proves a cause.</p><button type="button" class="btn subtle full" id="setup-again">Go through setup again</button><a class="btn subtle full" id="whitepaper-link" href="/whitepaper.html" target="_blank" rel="noopener">How {{name}} works <span aria-hidden="true">↗</span></a><p class="muted">Version <span id="version">2.49.1</span> · No ads or analytics</p></div>
+    <div class="card"><h2>About the insights</h2><p class="muted">Comparisons need at least 5 check-ins in each group. Mood data is subjective and gaps can skew results. Nothing here is a diagnosis or proves a cause.</p><button type="button" class="btn subtle full" id="setup-again">Go through setup again</button><a class="btn subtle full" id="whitepaper-link" href="/whitepaper.html" target="_blank" rel="noopener">How {{name}} works <span aria-hidden="true">↗</span></a><p class="muted">Version <span id="version">2.50.0</span> · No ads or analytics</p></div>
     <div class="card"><h2>Explore a sample month</h2><p class="muted">See 28 days of fictional check-ins and events. They stay separate from your own data and are never uploaded.</p><button class="btn secondary full" id="demo-button">Load 28-day calendar demo</button><button class="btn subtle full" id="clear-demo-button">Remove demo data</button></div>
    </section>
   </main>
@@ -551,6 +569,20 @@
    <p class="breath-label" id="breath-label" role="status"></p>
    <p class="muted">Four slow rounds. If it feels uncomfortable, breathe normally and stop.</p>
    <button type="button" class="btn secondary full" id="close-reset">Done</button>
+  </dialog>
+  <dialog class="welcome signin-sheet" id="look-sheet" aria-labelledby="look-sheet-title">
+   <h2 id="look-sheet-title">Put this look on your Home Screen</h2>
+   <p class="muted">iOS only changes an icon when the app is added again. The old icon stays until you remove it.</p>
+   <ol class="look-steps">
+    <li>Save a backup. A new icon starts empty, and things kept only on this iPhone come back from the backup.</li>
+    <li>Open in Safari.</li>
+    <li>Tap Share, then Add to Home Screen.</li>
+    <li>Open the new icon and sign in.</li>
+    <li>Restore your backup in Settings.</li>
+   </ol>
+   <button type="button" class="btn secondary full" id="look-backup">Save a backup</button>
+   <a class="btn primary full" id="look-safari" href="/">Open in Safari</a>
+   <button type="button" class="btn subtle full" id="look-sheet-close">Done</button>
   </dialog>
   <dialog class="welcome signin-sheet" id="week-review" aria-labelledby="week-review-title">
    <h2 id="week-review-title">Your week</h2>

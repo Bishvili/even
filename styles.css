@@ -265,3 +265,12 @@ h1[tabindex]:focus{outline:none}
 #changes-status{margin:0}
 .reflection-week{border-bottom:1px solid var(--border)}.reflection-week summary{list-style:none;min-height:44px;cursor:pointer;border-bottom:0}.reflection-week summary::-webkit-details-marker{display:none}.reflection-answer{display:flex;justify-content:space-between;gap:12px;margin:8px 0;font-size:0.824rem}.reflection-answer strong{text-align:right;flex:none;max-width:45%}.reflection-week .text-action{min-height:44px;padding:0;border:0;background:none;color:inherit;font:inherit;font-weight:700}
 .data-add-head{margin:34px 0 12px;padding-top:24px;border-top:1px solid var(--border);font:inherit;font-size:1.118rem;font-weight:700}
+.look-tiles{display:flex;gap:10px;margin:12px 0}.look-tile{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px 10px;border:1px solid var(--border);border-radius:14px}
+.look-tile-icon{display:block;width:60px;height:60px}.look-tile-icon svg,.look-art svg{display:block;width:100%;height:100%}.look-tile-name{font-size:0.706rem;font-weight:600}
+.look-row{border:0;margin:12px 0 0;padding:0;min-width:0}.look-row legend{padding:0;font-size:0.824rem;font-weight:650}
+.look-scroll{display:flex;gap:6px;overflow-x:auto;padding:4px 2px 6px;scrollbar-width:none}.look-scroll::-webkit-scrollbar{display:none}
+.look-option{position:relative;flex:none;margin:0;cursor:pointer}.look-option input{position:absolute;opacity:0;width:1px;height:1px}
+.look-choice{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-width:44px;min-height:44px;padding:6px 12px;border:1px solid var(--border);border-radius:12px;font-size:0.765rem;white-space:nowrap}
+.look-option input:checked+.look-choice{border-color:var(--primary);box-shadow:inset 0 0 0 1px var(--primary);font-weight:650}.look-option input:focus-visible+.look-choice{outline:2px solid var(--focus-ring)}
+.look-art{display:block;width:38px;height:38px}.look-dots{display:flex;gap:3px}.look-dots span{width:14px;height:22px;border-radius:5px;border:1px solid var(--border)}
+#look-actions{margin-top:12px}#look-add,#look-original{margin-top:8px}.look-steps{margin:10px 0;padding-left:20px;font-size:0.824rem;line-height:1.45}.look-steps li{margin-bottom:6px}#look-sheet .btn{margin-top:8px;text-align:center;text-decoration:none}

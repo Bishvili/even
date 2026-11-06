@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
     inputs:
       looks:
-        description: "Names from brand/looks.json, separated by commas. Leave blank for all."
+        description: "Looks as name.icon.palette, such as n5.i4.p2, separated by commas. Leave blank for the nine starting looks."
         required: false
 jobs:
   preview:

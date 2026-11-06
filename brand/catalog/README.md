@@ -82,6 +82,6 @@ The pull to refresh animates only Horizon, from `brand/pull-mark.svg`. Any other
 
 ## Trying and choosing
 
-**Trying a combination.** Add it to `brand/looks.json` with the name, the palette's three colors as `colors`, and the icon's path as `logo` (for example `brand/catalog/icons/i5-gloaming.svg`). Then run `node scripts/preview-looks.cjs previews "Name"`, or the **Preview looks** workflow. Nothing reaches the live app.
+**Trying a combination.** Pick it in Settings → Look, or run `node scripts/preview-looks.cjs previews n5.i4.p2` to draw screenshots of each tab.
 
 **Choosing one.** Say which of each, for example "Gloaming, with the Stones icon and the Harbor palette". Then follow "Starting from the catalogue" in `BRANDING.md`: the name's fields go into `brand/brand.json`, the palette's colors into `colors`, and the icon over `brand/logo.svg`. The icon on a phone's Home Screen only changes when the app is added again.

@@ -95,7 +95,7 @@ async function everyLook(type,base){
   const context=await browser.newContext({viewport:{width:390,height:844},serviceWorkers:"block"}),page=await context.newPage(),id=name.id+"."+name.with.icon+"."+name.with.palette;
   page.on("pageerror",error=>problems.push(name.name+": "+error.message));
   page.on("console",message=>{if(message.type()==="error"&&/content security|refused to|security policy/i.test(message.text()))problems.push(name.name+": "+message.text());});
-  await page.addInitScript(([look])=>{localStorage.setItem("health-look",look);},[id]);
+  await page.addInitScript(([look])=>{localStorage.setItem("health-look",look);localStorage.setItem("health-look-waiting","1");},[id]);
   await page.addInitScript(connect);
   await page.goto(base);
   await page.waitForSelector(".nav-item[data-go=checkin]",{timeout:5000});

@@ -40,6 +40,18 @@
    .catch(function(){app.toast("Couldn’t save that name. Check your connection and try again.");})
    .finally(function(){save.disabled=false;});
  }
+ // Counts only, never who chose what.
+ function renderLooks(looks){
+  var total=looks.reduce(function(sum,row){return sum+row.count;},0),catalog=globalThis.Look.catalog;
+  if(!total){$("look-counts").textContent="No one has chosen a look yet.";$("look-copy").hidden=true;return;}
+  var name=function(list,id){return list.filter(function(item){return item.id===id;})[0].name;};
+  var tally=function(list,at){var counts={};looks.forEach(function(row){var id=row.look.split(".")[at];counts[id]=(counts[id]||0)+row.count;});return Object.keys(counts).sort(function(a,b){return counts[b]-counts[a];}).map(function(id){return name(list,id)+" "+counts[id];}).join(", ");};
+  $("look-counts").textContent="Names: "+tally(catalog.names,0)+". Icons: "+tally(catalog.icons,1)+". Palettes: "+tally(catalog.palettes,2)+".";
+  var top=looks.slice().sort(function(a,b){return b.count-a.count;})[0].look.split(".");
+  var ask="Adopt the look "+top[0]+" + "+top[1]+" + "+top[2]+" ("+name(catalog.names,top[0])+", "+name(catalog.icons,top[1])+", "+name(catalog.palettes,top[2])+")";
+  var button=$("look-copy");button.hidden=false;
+  button.onclick=function(){navigator.clipboard.writeText(ask).then(function(){app.toast("Request copied.");},function(){app.toast(ask);});};
+ }
  function renderList(testers){
   var list=$("tester-list");list.textContent="";
   testers.forEach(function(tester){
@@ -58,7 +70,7 @@
  function load(){
   return fetch(app.accountPath("testers"),{credentials:"same-origin",cache:"no-store",headers:{"Accept":"application/json"}})
    .then(function(r){if(!r.ok)throw Error();return r.json();})
-   .then(function(data){renderList(data.testers||[]);})
+   .then(function(data){renderList(data.testers||[]);renderLooks(data.looks||[]);})
    .catch(function(){app.toast("Couldn’t load testers. Reopen Settings to try again.");});
  }
  async function add(event){

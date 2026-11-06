@@ -1,6 +1,6 @@
 (function () {
 "use strict";
-var VERSION = "2.49.1";
+var VERSION = "2.50.0";
 var HIDEABLE={
  event:{list:"events",hidden:"hiddenEvents",key:"id"},
  health:{list:"health",hidden:"hiddenHealth",key:"date"}
@@ -57,6 +57,7 @@ function isInstalled(){return window.navigator.standalone===true||window.matchMe
 function isIOS(){return /iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);}
 function navigate(view){
  if(globalThis.DataList)globalThis.DataList.leave();
+ if(globalThis.LookPicker&&view!=="settings")globalThis.LookPicker.leave();
  // Sources and Sync were merged into Data, and older links still use their names.
  var target=view==="sources"?"data-context":"";
  if(view==="sources"||view==="sync")view="data";
@@ -289,6 +290,7 @@ async function renderStorageNote(){
  $("limit-note").hidden=!nearLimit;
 }
 function renderSettings(){
+ if(globalThis.LookPicker)globalThis.LookPicker.render();
  $("demo-button").textContent=hasDemoData()?"Refresh the calendar demo":"Load 28-day calendar demo";
  $("storage-summary").textContent=state.moods.length+" mood check-ins · "+state.health.length+" health days · "+state.events.length+" calendar events"+(hasDemoData()?" · Demo month loaded":"");
  var backedUp=state.lastBackup?Date.parse(state.lastBackup):0,stale=state.moods.length>0&&Date.now()-backedUp>30*86400000;
@@ -885,6 +887,12 @@ function deviceDisconnected(){
 }
 // One request brings everything the app shows about this device and account.
 function sessionSince(){var since=moodSince();return state.reflectionCursor?since+(since?"&":"?")+"reflectionsSince="+encodeURIComponent(state.reflectionCursor):since;}
+// A look saved offline waits, like other queued changes.
+async function sendLook(){
+ var waiting=globalThis.Look.waiting();
+ if(!waiting||!state.token||!navigator.onLine)return;
+ try{var r=await fetch("/api/look",{method:"POST",headers:{"Authorization":"Bearer "+state.token,"Content-Type":"application/json"},body:JSON.stringify({look:waiting.look}),cache:"no-store"});if(r.ok||r.status===400)globalThis.Look.sent();}catch(e){/* It goes with the next return to the app. */}
+}
 async function loadSession(){
  if(!state.token||!state.deviceId||!navigator.onLine||sessionLoading)return;
  sessionLoading=true;
@@ -899,6 +907,7 @@ async function loadSession(){
   renderCalendars(data.calendars||[]);
   renderSyncSettings(data.settings||{});
   renderSync();
+  if(globalThis.Look){if(globalThis.Look.waiting())sendLook();else if(globalThis.Look.follow(data.look||null))render();}
   syncMoods(data.moods);
   syncReflections(data.reflections);
   var uploaded=Date.parse(data.status.lastDataUploadAt);
@@ -1199,6 +1208,6 @@ function logPlan(date,minutes,moves){
  state.planMoves=state.planMoves.concat(moves).slice(-60);
  persist();
 }
-globalThis.App={reviewData:function(){return {moods:state.moods,health:state.health,events:state.events,reflections:state.reflections};},reflectionLaterDay:function(){return state.reflectionLater;},data:{state:function(){return state;},apply:applyChanges,sendChanges:sendChanges,toast:toast,toastUndo:toastUndo,askConfirm:askConfirm,removeLocal:removeLocal,editTyped:editTyped,esc:esc,blank:blank,formatDate:formatDate,formatTime:formatTime,EYE:EYE,EYE_OFF:EYE_OFF},logTry:logTry,logPlan:logPlan,planLog:function(){return state.planLog;},planMoves:function(){return state.planMoves;},tries:function(){return state.tries;},version:VERSION,signOut:signOut,syncStatus:function(){return shortcutStatus;},signedIn:function(){return !!authEmail;},askConfirm:askConfirm,accountPath:accountPath,refreshAuth:refreshAuth,firstName:function(){return state.firstName;},navigate:navigate,setup:setup,signIn:signIn,connect:issueDevice,isInstalled:isInstalled,isIOS:isIOS,alarms:function(){return state.alarms;},resets:function(){return state.resets;},logReset:function(){state.resets.push(new Date().toISOString());state.resets=state.resets.slice(-500);persist();},personalEvents:function(){return state.events;},personalHealth:function(){return state.health;},personalMoods:function(){return state.moods;},refresh:refresh,runShortcut:runShortcut,refreshCoach:refreshCoach,addReflection:function(r){var saved=Object.assign({id:newId()},r);state.reflections.push(saved);state.pendingReflections.push(saved.id);persist();render();syncReflections();},deleteReflection:function(id){state.reflections=state.reflections.filter(function(r){return r.id!==id;});state.pendingReflections=state.pendingReflections.filter(function(x){return x!==id;});state.deletedReflections.push(id);persist();render();syncReflections();},reflectionLater:function(day){state.reflectionLater=day;persist();},toast:toast,formatTime:formatTime,deviceToken:function(){return state.token;}};
+globalThis.App={reviewData:function(){return {moods:state.moods,health:state.health,events:state.events,reflections:state.reflections};},reflectionLaterDay:function(){return state.reflectionLater;},data:{state:function(){return state;},apply:applyChanges,sendChanges:sendChanges,sendLook:sendLook,toast:toast,toastUndo:toastUndo,askConfirm:askConfirm,removeLocal:removeLocal,editTyped:editTyped,esc:esc,blank:blank,formatDate:formatDate,formatTime:formatTime,EYE:EYE,EYE_OFF:EYE_OFF},logTry:logTry,logPlan:logPlan,planLog:function(){return state.planLog;},planMoves:function(){return state.planMoves;},tries:function(){return state.tries;},version:VERSION,signOut:signOut,syncStatus:function(){return shortcutStatus;},signedIn:function(){return !!authEmail;},askConfirm:askConfirm,accountPath:accountPath,refreshAuth:refreshAuth,firstName:function(){return state.firstName;},navigate:navigate,setup:setup,signIn:signIn,connect:issueDevice,isInstalled:isInstalled,isIOS:isIOS,alarms:function(){return state.alarms;},resets:function(){return state.resets;},logReset:function(){state.resets.push(new Date().toISOString());state.resets=state.resets.slice(-500);persist();},personalEvents:function(){return state.events;},personalHealth:function(){return state.health;},personalMoods:function(){return state.moods;},refresh:refresh,runShortcut:runShortcut,refreshCoach:refreshCoach,addReflection:function(r){var saved=Object.assign({id:newId()},r);state.reflections.push(saved);state.pendingReflections.push(saved.id);persist();render();syncReflections();},deleteReflection:function(id){state.reflections=state.reflections.filter(function(r){return r.id!==id;});state.pendingReflections=state.pendingReflections.filter(function(x){return x!==id;});state.deletedReflections.push(id);persist();render();syncReflections();},reflectionLater:function(day){state.reflectionLater=day;persist();},toast:toast,formatTime:formatTime,deviceToken:function(){return state.token;}};
 init();
 })();
