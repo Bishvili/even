@@ -1,7 +1,7 @@
 {
-  "version": "4.2.0",
-  "url": "https://www.icloud.com/shortcuts/a207f873cddb4825876257e55108e1dd",
+  "version": "4.3.0",
+  "url": "https://www.icloud.com/shortcuts/b02b6860ccfb4d5e9796b885ba0b2f8a",
   "publishedAt": "2026-11-06",
-  "notes": "Counts every sleep stage, and uses time in bed for nights with nothing else.",
+  "notes": "Finds sleep, resting heart rate and other measures even when recent steps outnumber them.",
   "verified": true
 }
