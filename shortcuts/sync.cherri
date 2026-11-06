@@ -188,8 +188,8 @@ if hrvPlannedCount >= 1 {
             const hrvDate = getSampleStart(@hrvGroup)
             const hrvDay = formatDate(hrvDate, "Custom", "yyyy-MM-dd")
             // A Health value is a measurement with a unit, which an If can't compare with a number, so its number is read from the text.
-            const hrvPlanned = getSampleValue(@hrvGroup)
-            const hrvText = getText(hrvPlanned)
+            const hrvReading = getSampleValue(@hrvGroup)
+            const hrvText = getText(hrvReading)
             const hrvValue = replaceText('^\D*(\d+(?:\.\d+)?)[\s\S]*$', "$1", hrvText, true, true)
             const hrvUsable = matchText('^[1-9]', hrvValue)
             const hrvFound = count(hrvUsable)
