@@ -1,1 +1,1 @@
-Reads sleep, resting heart rate and every other Health measure you have.
+Reads your Health, calendar and alarms first, then sends them.

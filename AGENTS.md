@@ -79,15 +79,15 @@ Only an iPhone proves iOS behavior, and each round trip costs the owner time. Be
 - The app sends a dated plan for the next 7 days when it opens (at most every 6 hours when it only comes back to the foreground), after a sync and after a check-in (`weekSchedule` in `coach.js`). If it stays closed, the last week repeats, and nudges before events stop. A day can run past midnight, up to 20 hours. A repeated week keeps its local times across a clock change.
 
 **Shortcuts**
-- Find Health Samples stops the run with an error when a type has no samples, Shortcuts can't catch it, and iOS reads only one type from a filter that names several. So nothing on the phone can check first: the handshake sends `healthPlan` and `healthTry`, worked out in `planHealth` from what earlier runs reported. Send what's gathered before reading a type in `healthTry`. A type with nothing found is skipped, and tried again after 30 days or with **Check again** in the app.
+- Health Sync reads every Health type, the calendar and alarms first, before the credential or the handshake, and sends afterward. Find Health Samples stops the run with an error when a type has no samples, Shortcuts can't catch it, and iOS reads only one type from a filter that names several, so a phone without all five types sends nothing.
 - Look up Shortcuts by exact name with Get My Shortcuts. Search results passed to Create iCloud Link can make iOS show a menu of every Shortcut.
 - A Shortcut must never wait for an answer on a normal run, because automations can't respond. Use notifications, and stop with a clear alert only when it can't continue.
 - A result limit applies before grouping, so read grouped values from the first group.
 - Health data can't be read while the iPhone is locked.
 - Health access is granted per type with Allow Access in the Shortcuts editor. Once a type has been allowed, turning it off in Health doesn't bring a prompt back: reads just return nothing, so a Shortcut can't tell denied from no data. Runs that share a lot of data can also need Allow Sharing Large Amounts of Data in Settings > Apps > Shortcuts > Advanced.
-- Clock alarm details exist only as variable properties, whose names can differ across iOS versions. Confirm in the Shortcuts editor and in the app → **Data** that names, times and on/off state arrive. Keep alarms at the end of the run, because an error there can't be caught.
+- Clock alarm details exist only as variable properties, whose names can differ across iOS versions. Confirm in the Shortcuts editor and in the app → **Data** that names, times and on/off state arrive. An error reading alarms can't be caught.
 - Clients check an error's `code`, never its message.
-- Health Sync follows the settings the handshake returns: `sync…` values for each kind of data, and `calendarsOff`, a pattern of turned-off calendars. The Worker also applies them on arrival, in case they changed during the run.
+- The app's settings for what to sync are applied by the Worker on arrival. The handshake still returns them for versions before 4.5.0.
 - A run makes five requests: the handshake, the next week's events, all Health measures, alarms, and the final notification. Every request is a round trip from the phone, often on cellular or inside an automation, so add fields to one of these instead of adding requests.
 - Sleep arrives as intervals that the Worker merges per night, so two wearables count once. Asleep, Core, Deep and REM count as sleep. In Bed counts only for a night with none of them, and that night is marked `sleepInBed`. Awake never counts. A batch that reached its sample limit leaves its oldest night alone, because that night may be cut off.
 
@@ -139,7 +139,7 @@ This is an iPhone-first, installable progressive web app for quick mood check-in
 - The plan of record is #16, with the Shortcut plan in #36 and the data-context plan in #37. Read them and the open issues before starting work, follow their order, and update the ticket when the scope changes.
 - Write tickets with **Problem**, **Evidence** (permalinks to lines), **Proposed fix**, **Acceptance criteria**, **Tests** and **Rollout notes**. Start each title with P0 (wrong now, or a data or privacy risk), P1 (trust, accuracy or first impression) or P2 (foundations). Never copy personal values into a ticket: use code references and aggregate counts.
 - The owner has decided the following. Don't reopen them without asking:
-  - Health Sync reads the calendars and data kinds left on in the app, and skips the rest. Titles of synced events are stored. The Worker discards anything turned off that still arrives.
+  - Health Sync reads every calendar and data kind on each run, and the Worker discards what's turned off in the app when it arrives. Titles of synced events are stored.
   - Check-ins and notes always sync through the account when signed in. There is no setting to turn it off. Erasing synced data removes them from the account and from the person's devices.
   - Removing a tester deletes their synced data. Planned in #22.
   - A day counts as hard when stress is 4 or 5, or mood is Rough or Low, and the support suggestion appears after 3 such days in the last 4.
@@ -211,7 +211,7 @@ Current UI is plain JavaScript and CSS. Do not rewrite it merely to adopt a fram
 2. Restrict issuance and revocation of device credentials to the verified owner. Use cryptographically random device tokens, store only hashes server-side, support revocation, and do not log or embed tokens.
 3. Every read, write, export, and delete of cloud data must be scoped to the derived account owner on the server. Test cross-user isolation and revocation.
 4. Keep the email allowlist in Cloudflare secrets or private D1 tables and all credentials in Cloudflare secrets, never checked into the public repository or served in production assets.
-5. Treat calendar titles and Health metrics as sensitive personal data. Collect only what a feature uses, avoid third-party trackers, redact logs, and use HTTPS. Health Sync skips what people turn off in the app, titles of synced events are stored, and the privacy text must say so plainly.
+5. Treat calendar titles and Health metrics as sensitive personal data. Collect only what a feature uses, avoid third-party trackers, redact logs, and use HTTPS. The Worker discards what people turn off in the app, titles of synced events are stored, and the privacy text must say so plainly.
 6. Avoid claiming end-to-end encryption, clinical-grade reliability, automatic Apple Health permissions, or sync capabilities the product does not implement.
 7. Provide explicit data deletion, safe export, and account-switching behavior. Do not silently combine local data from two accounts. Every way an account loses access must leave its synced data deleted or deletable.
 
@@ -225,7 +225,7 @@ What the app holds and where it goes. Write every privacy statement from this ta
 | Weekly reflections: four answers and a time | The app | Yes | Yes when signed in, as readable text. A deleted one leaves only its ID and time. | Insights, the week in review and the reminder. Never in notification text. |
 | Breathing sessions, suggestions marked done, and which planned check-ins were answered | The app | Yes | Yes when signed in, as readable text. A deleted record leaves only its key. | Insights. Breathing and suggestions marked done also feed what tends to help. Unanswered times move check-ins. |
 | Health days and events added by hand or imported, and numbers typed on a synced day | The Data tab | Yes | Yes when signed in, as readable text. A deleted one leaves only its key. | Insights and coaching. A typed number wins over a sync on every device. |
-| Steps, exercise minutes, sleep hours, HRV | Health Sync, from Apple Health, up to the last 7 days each run. Sleep arrives as intervals from recent nights, with time in bed used for a night with nothing else, up to a month on the first sync | Yes | Yes | Insights and coaching. HRV: Insights only. |
+| Steps, exercise minutes, sleep hours, HRV | Health Sync, from Apple Health, up to the last 7 days each run. Sleep arrives as intervals from up to the last month, with time in bed used for a night with nothing else | Yes | Yes | Insights and coaching. HRV: Insights only. |
 | Bedtimes | Worked out from the sleep intervals | Yes | Yes | Bedtime estimate and wind-down |
 | Resting heart rate | Health Sync, from Apple Health | Yes | Yes | Insights: compared with the person's own usual level |
 | Calendar events for today and the next 7 days: title, start, end, calendar name | Health Sync reads calendars left on. Saved events from a turned-off calendar can be removed in the app; the Worker adds a category | Yes, without the calendar name | Yes, except events from turned-off calendars, which are discarded on arrival | Insights, coaching and nudges before events |
@@ -237,7 +237,6 @@ What the app holds and where it goes. Write every privacy statement from this ta
 | What Health Sync sends | The app | Yes | Yes | Followed by Health Sync and the Worker |
 | Alarms: time, repeat days, on/off, name | Health Sync, from Clock | Yes | Yes, plus each synced day's first morning alarm | Brief, wind-down, next steps and the early-alarm pattern |
 | Notification settings and answers | The app | Yes, including each message's text | Dated times for the next 7 days and their kinds, time zone, sync reminder time, times of expected harder moments, latest check-in time, push subscription and delivery status | Sending notifications |
-| Which Health types this iPhone has, and when each was last read | Health Sync | No | Yes, until synced data is erased | Telling Health Sync what to read |
 | Account and devices | Sign-in and Health Sync | Account email (the last one entered stays to fill in sign-in, until Erase), first name, device ID and credential | Email; the name from sign-in, if any, shown to developer accounts; each device's label, dates (devices unused for 90 days disconnect), last error, Shortcut version and how many records its last upload held; only a hash of each credential; sign-in sessions with the browser's description, and whether the account uses Google | Sync status and access |
 | Look: the chosen name, including one typed in, icon and palette | Settings | Yes, plus light, dark or system | Yes, until changed or synced data is erased. Release accounts see counts of choices, never who chose what or a typed name | Wearing it on this device and others |
 | One-time install code | Signing in on the install page | In the address saved with the icon, unusable once used or after 30 minutes | Only a hash, until used or replaced | Carrying a sign-in from Safari to the new icon |
