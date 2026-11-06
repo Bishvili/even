@@ -40,7 +40,7 @@ test("the device key is read from its file, checked by the server, and saved onl
 
 test("every comparison is typed text or a number, never a Boolean",()=>{
  assert.deepEqual(conditions(sync),[
-  'providedKeyCount == 0','savedKeyMatchCount == 0','connectionStatus != "connected"',
+  'providedKeyCount == 0','savedKeyMatchCount == 0','connectionStatus != "connected"','providedKeyCount >= 1',
   'stepsPlannedCount >= 1','@stepsSeen < 7','totalSteps >= 1','@stepsSeen >= 1','restingPlannedCount >= 1','@restingSeen < 7','restingFound >= 1','@restingSeen >= 1','hrvPlannedCount >= 1','@hrvSeen < 7','hrvFound >= 1','@hrvSeen >= 1','exercisePlannedCount >= 1','@exerciseSeen < 7','exerciseValue >= 1','@exerciseSeen >= 1','sleepPlannedCount >= 1','stageCount >= 1','bedCount >= 1',
   'calendarStatus != "accepted"','healthStatus != "accepted"','updateStatus == "new_release"','syncedState != "sent"'
  ]);

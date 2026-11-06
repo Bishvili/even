@@ -1,1 +1,1 @@
-Reads the Health data you have, and turns off what Apple Health has none of.
+Opens the app while it syncs, so you can watch it finish.

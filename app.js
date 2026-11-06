@@ -1,6 +1,6 @@
 (function () {
 "use strict";
-var VERSION = "2.58.0";
+var VERSION = "2.59.0";
 var HIDEABLE={
  event:{list:"events",hidden:"hiddenEvents",key:"id"},
  health:{list:"health",hidden:"hiddenHealth",key:"date"}
@@ -1208,6 +1208,7 @@ function handleNotificationAction(){
  history.replaceState(null,"","/#checkin");
  if(action==="reset")globalThis.Coach.openReset();
  if(action==="reflect")globalThis.Coach.openReflection();
+ if(action==="syncing"&&globalThis.SyncStatus)globalThis.SyncStatus.watch();
  if(action==="sync"){
   if(!state.token){navigate("data");toast("Sign in to run {{sync}}.");return;}
   $("run-sync-dialog").showModal();

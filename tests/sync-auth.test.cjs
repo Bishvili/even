@@ -1399,7 +1399,8 @@ test("the sync sheet follows a run, including one that stopped and started again
  const a=await call("/api/user/device",{method:"POST",body:{label:"A"},context:ctx("owner-a@example.com")}),A={Authorization:"Bearer "+a.data.token};
  const run=async()=>(await call("/api/sync/run",{headers:A})).data.run;
  assert.equal(await run(),null);
- await call("/api/shortcut/hello",{method:"POST",headers:A,body:{shortcutVersion:"4.6.0"}});
+ const opened=(await call("/api/shortcut/hello",{method:"POST",headers:A,body:{shortcutVersion:"4.6.0"}})).data.openApp;
+ assert.match(opened,/^webapp:\/\/[^/]+\/\?do=syncing$/);
  let now=await run();assert.deepEqual([...now.read],["steps"]);assert.equal(now.attempt,1);assert.equal(now.health,null);
  await call("/api/ingest",{method:"POST",headers:A,body:{kind:"health",date:"2026-11-05",shortcutVersion:"4.6.0",healthRead:"Steps"}});
  assert.ok((await run()).health);

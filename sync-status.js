@@ -49,10 +49,15 @@
   $("sync-progress").removeAttribute("data-done");render(null);
   if(!$("sync-progress").open)$("sync-progress").showModal();
  }
+ // Health Sync opened the app itself, part way through a run it was already making.
+ function watch(){
+  if(!$("sync-progress").open||$("sync-progress").hasAttribute("data-done")){since=Date.now()-120000;$("sync-progress").removeAttribute("data-done");render(null);$("sync-progress").showModal();}
+  stopAt=Date.now()+GIVE_UP_MS;if(timer===null)poll();
+ }
  function resume(){if($("sync-progress").open&&!$("sync-progress").hasAttribute("data-done")){stopAt=Math.max(stopAt,Date.now()+60000);if(timer===null)poll();}}
  document.addEventListener("DOMContentLoaded",function(){
   $("sync-progress-close").addEventListener("click",function(){stop();$("sync-progress").close();});
  });
  document.addEventListener("visibilitychange",function(){if(document.visibilityState==="visible")resume();});
- root.SyncStatus={start:start,resume:resume,render:render};
+ root.SyncStatus={watch:watch,start:start,resume:resume,render:render};
 })(globalThis);

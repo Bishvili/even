@@ -41,7 +41,7 @@ async function payload(request){
  if(type.includes("application/x-www-form-urlencoded"))return Object.fromEntries(new URLSearchParams(text));
  try{return JSON.parse(text);}catch(e){return Object.fromEntries(new URLSearchParams(text));}
 }
-const VERSION_NAME="2.58.0";
+const VERSION_NAME="2.59.0";
 function normalEmail(value){return String(value||"").trim().toLowerCase();}
 async function signinAuth(env,ctx,request){
  const {createAuth}=await import("./signin.mjs");
@@ -1103,7 +1103,9 @@ async function syncApi(request,env,path){
    startRun(state,healthRead,stopped,now);
    await saveHealthState(env,owner,state);
   }
-  return reply({ok:true,healthRead,connected:true,state:"connected",shortcutVersion:clientVersion,receivedAt:at,sleepHistory:Number(nights?.count||0)<3?"needed":"complete",updateStatus:updateAvailable?"new_release":"current",...settings,calendarsOff:await calendarsOffPattern(env,owner)});
+  // The installed app opens from this address, so the sync sheet is on screen while the run works.
+  const openApp="webapp://"+new URL(env.PUBLIC_ORIGIN).host+"/?do=syncing";
+  return reply({ok:true,healthRead,openApp,connected:true,state:"connected",shortcutVersion:clientVersion,receivedAt:at,sleepHistory:Number(nights?.count||0)<3?"needed":"complete",updateStatus:updateAvailable?"new_release":"current",...settings,calendarsOff:await calendarsOffPattern(env,owner)});
  }
 
  if(path==="/api/pull"&&request.method==="GET"){

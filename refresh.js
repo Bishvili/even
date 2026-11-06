@@ -23,7 +23,7 @@
  }
  function reset(){tracking=false;pulling=false;distance=0;indicator.hidden=true;indicator.style.transform="";shift(0,true);}
  function eligible(event){
-  return event.touches.length===1&&document.getElementById("page").scrollTop<=0&&!document.querySelector("dialog[open]")&&!event.target.closest("input,textarea,select,.bottom-nav");
+  return !document.body.classList.contains("gated")&&event.touches.length===1&&document.getElementById("page").scrollTop<=0&&!document.querySelector("dialog[open]")&&!event.target.closest("input,textarea,select,.bottom-nav");
  }
  document.addEventListener("touchstart",function(event){
   tracking=false;

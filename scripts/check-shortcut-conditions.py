@@ -19,7 +19,7 @@ from pathlib import Path
 
 
 SYNC_TEXT = collections.Counter({"connected": 1, "accepted": 2, "new_release": 1, "sent": 1})
-SYNC_NUMBERS = [0, 0] + [1] * 15 + [7] * 4
+SYNC_NUMBERS = [0, 0] + [1] * 16 + [7] * 4
 HELPER_TEXT = collections.Counter({
     "Health Sync": 2, "Release Helper": 1, "\ufffc": 1, "share": 1, "install": 1, "building": 1,
     "ahead": 1, "current": 2, "publish": 1, "Publish": 1,
