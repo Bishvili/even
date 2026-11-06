@@ -1,6 +1,6 @@
 (function () {
 "use strict";
-var VERSION = "2.44.15";
+var VERSION = "2.44.16";
 var HIDEABLE={
  event:{list:"events",hidden:"hiddenEvents",key:"id",path:"/api/calendars/events/hidden",field:"id"},
  health:{list:"health",hidden:"hiddenHealth",key:"date",path:"/api/health/hidden",field:"date"}

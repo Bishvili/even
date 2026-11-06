@@ -225,8 +225,8 @@ if restingAvailable >= 1 {
             const restingReading = getSampleValue(@restingGroup)
             const restingText = getText(restingReading)
             const restingValue = replaceText('^\D*(\d+(?:\.\d+)?)[\s\S]*$', "$1", restingText, true, true)
-            const restingMatches = matchText('^[1-9]', restingValue)
-            const restingFound = count(restingMatches)
+            const restingUsable = matchText('^[1-9]', restingValue)
+            const restingFound = count(restingUsable)
             if restingFound >= 1 {
                 @restingField = "{@restingField}␞{restingDay}={restingValue}"
                 @restingSeen += 1
@@ -253,8 +253,8 @@ if hrvAvailable >= 1 {
             const hrvReading = getSampleValue(@hrvGroup)
             const hrvText = getText(hrvReading)
             const hrvValue = replaceText('^\D*(\d+(?:\.\d+)?)[\s\S]*$', "$1", hrvText, true, true)
-            const hrvMatches = matchText('^[1-9]', hrvValue)
-            const hrvFound = count(hrvMatches)
+            const hrvUsable = matchText('^[1-9]', hrvValue)
+            const hrvFound = count(hrvUsable)
             if hrvFound >= 1 {
                 @hrvField = "{@hrvField}␞{hrvDay}={hrvValue}"
                 @hrvSeen += 1
