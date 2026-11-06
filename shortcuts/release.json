@@ -1,7 +1,7 @@
 {
-  "version": "4.3.0",
-  "url": "https://www.icloud.com/shortcuts/b02b6860ccfb4d5e9796b885ba0b2f8a",
+  "version": "4.7.0",
+  "url": "https://www.icloud.com/shortcuts/b117fea0c64f427f90d16dc7a0323ffa",
   "publishedAt": "2026-11-06",
-  "notes": "Finds sleep, resting heart rate and other measures even when recent steps outnumber them.",
+  "notes": "Opens the app while it syncs, so you can watch it finish.",
   "verified": true
 }
