@@ -33,7 +33,7 @@ function harness({brand={},verified=false,buildVersion="2.8.0",helperBuild="2.0.
     if(sql.startsWith("SELECT (SELECT name FROM health_names")){const email=args[0];return{chosen:rows.names?.get(email)||null,given:email==="owner-a@example.com"?"Ada Lovelace":null,signin:(rows.userFields?.get(email)||{}).name||null};}
     if(sql.startsWith("SELECT COUNT(*) AS count FROM health_calendar_events WHERE owner_email=? AND calendar=?"))return{count:[...rows.events.values()].filter(d=>d.owner===args[0]&&d.calendar===args[1]).length};
     if(sql.startsWith("SELECT COUNT(*) AS count FROM health_reflections"))return{count:(rows.reflections||[]).filter(r=>r.owner===args[0]&&!r.deleted_at).length};
-    if(sql.startsWith("SELECT look FROM health_users"))return{look:rows.looks?.get(args[0])||null};
+    if(sql.startsWith("SELECT look,look_name FROM health_users"))return{look:rows.looks?.get(args[0])||null,look_name:rows.lookNames?.get(args[0])||null};
     if(sql.startsWith("SELECT sync_off FROM health_users"))return (rows.userFields?.get(args[0]))||null;
     if(sql.startsWith("INSERT INTO health_service")){rows.sends=(rows.sends||0)+1;return{value:String(rows.sends)};}
     if(sql.includes("FROM health_approved_emails WHERE email"))return rows.approved.has(args[0])?{allowed:1}:null;
@@ -85,7 +85,7 @@ function harness({brand={},verified=false,buildVersion="2.8.0",helperBuild="2.0.
     if(sql.startsWith("UPDATE health_devices SET last_used_at")){for(const d of rows.devices.values())if(d.device_id===args[6]&&d.owner_email===args[7]&&!d.revoked_at){d.last_upload_counts=d.last_used_at>args[3]?JSON.stringify({...JSON.parse(d.last_upload_counts||"{}"),...JSON.parse(args[4])}):args[5];d.last_used_at=args[0];d.last_attempt_at=args[1];d.last_error_code=null;d.shortcut_version=args[2]||d.shortcut_version;}return{meta:{changes:1}};}
     if(sql.startsWith("DELETE FROM health_alarms")){rows.alarms=(rows.alarms||[]).filter(x=>x.owner!==args[0]);return{meta:{changes:1}};}
     if(sql.startsWith("INSERT INTO health_alarms")){(rows.alarms=rows.alarms||[]).push({owner:args[0],time_min:args[2],days:args[3],enabled:args[4],label:args[5]});return{meta:{changes:1}};}
-    if(sql.startsWith("UPDATE health_users SET look=")){const hasLook=args.length===2,email=hasLook?args[1]:args[0];rows.looks=rows.looks||new Map();if(hasLook&&args[0])rows.looks.set(email,args[0]);else rows.looks.delete(email);return{meta:{changes:1}};}
+    if(sql.startsWith("UPDATE health_users SET look=")){const hasLook=args.length===3,email=args.at(-1);rows.looks=rows.looks||new Map();rows.lookNames=rows.lookNames||new Map();if(hasLook&&args[0]){rows.looks.set(email,args[0]);rows.lookNames.set(email,args[1]);}else{rows.looks.delete(email);rows.lookNames.delete(email);}return{meta:{changes:1}};}
     if(sql.startsWith("UPDATE health_users")){
      const u=(rows.userFields=rows.userFields||new Map());const email=args[args.length>2?1:1];const row=u.get(email)||{};
      if(sql.includes("SET name"))row.name=args[0];if(sql.includes("SET sync_off"))row.sync_off=args[0];
@@ -1278,6 +1278,9 @@ test("a catalogue look dresses one uncached page, and anything else gets the nor
  assert.equal(dressed.headers.get("Cache-Control"),"no-store");
  const manifest=await (await open("/look.webmanifest?look=n2.i4.p7")).json();
  assert.equal(manifest.short_name,"Fulcrum");assert.equal(manifest.icons[0].src,"/look-icon-i4-p7.png");assert.equal(manifest.start_url,"/?look=n2.i4.p7#checkin");
+ const own=await open("/?look=n0.i4.p7&name="+encodeURIComponent('A"><script>$1'));
+ const ownPage=await own.text();assert.doesNotMatch(ownPage,/<script>/);assert.match(ownPage,/app-title" content="A&#34;&#62;&#60;script&#62;\$1"/);
+ assert.equal((await (await open("/look.webmanifest?look=n0.i4.p7&name=Mine")).json()).short_name,"Mine");
  for(const bad of ["n0.i1.p1","n2.i4","n2.i4.p7<script>","x"])assert.equal(await (await open("/?look="+encodeURIComponent(bad))).text(),page);
 });
 
@@ -1294,6 +1297,11 @@ test("a look takes catalogue ids only, belongs to one account, comes with the se
  assert.deepEqual(JSON.parse(JSON.stringify(counts.data.looks)),[{look:"n5.i4.p2",count:1}]);
  assert.doesNotMatch(JSON.stringify(counts.data.looks),/@/);
  assert.equal((await call("/api/user/testers",{context:ctx("owner-b@example.com")})).status,403);
+ await call("/api/look",{method:"POST",headers:A,body:{look:"n0.i4.p2",name:"  My   <b>App  "}});
+ const own=await call("/api/session",{headers:A});
+ assert.equal(own.data.look,"n0.i4.p2");assert.equal(own.data.lookName,"My <b>App");
+ assert.doesNotMatch(JSON.stringify((await call("/api/user/testers",{context:ctx("owner-a@example.com")})).data.looks),/App/);
+ assert.equal((await call("/api/look",{method:"POST",headers:A,body:{look:"n0.i4.p2",name:"   "}})).data.code,"invalid_look");
  await call("/api/look",{method:"POST",headers:A,body:{look:null}});
  assert.equal((await call("/api/session",{headers:A})).data.look,null);
 });

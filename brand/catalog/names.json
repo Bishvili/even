@@ -1,5 +1,5 @@
 [
-  {"id":"n1","name":"Even","installName":"Health","tagline":"Know your harder days, and what helps.","pitch":"a private way to understand your harder days","with":{"icon":"i1","palette":"p1"}},
+  {"id":"n1","name":"Even","installName":"Even","tagline":"Know your harder days, and what helps.","pitch":"a private way to understand your harder days","with":{"icon":"i1","palette":"p1"}},
   {"id":"n2","name":"Fulcrum","installName":"Fulcrum","tagline":"What tips your days. What steadies them.","pitch":"a private way to see what tips your days and what steadies them","with":{"icon":"i2","palette":"p2"}},
   {"id":"n3","name":"Millpond","installName":"Millpond","tagline":"A calm look at your days.","pitch":"a calm, private look at your days","with":{"icon":"i3","palette":"p3"}},
   {"id":"n4","name":"Ballast","installName":"Ballast","tagline":"What keeps your days steady.","pitch":"a private way to find what keeps your days steady","with":{"icon":"i4","palette":"p4"}},

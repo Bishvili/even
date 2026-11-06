@@ -134,6 +134,7 @@
   $("gate-alt-link").hidden=!altGet;
   if(altGet)$("gate-alt-link").href=s.shortcutUrl;else $("gate-alt-link").removeAttribute("href");
   $("gate-records").hidden=!step.records;
+  $("gate-look").hidden=step.id==="shortcut";
   $("gate").setAttribute("aria-busy",String(!!copy.busy));
  }
  function renderCard(moveFocus){

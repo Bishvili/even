@@ -30,11 +30,13 @@ function colorValues(palette){
  return values;
 }
 function tokens(colors,mode){return Object.entries(colors).map(([role,color])=>"--"+role+":"+color[mode]).join(";");}
-const appColors=({app})=>":root{"+tokens(app,"light")+"}@media(prefers-color-scheme:dark){:root{"+tokens(app,"dark")+"}}\n";
+// Each palette in both appearances: the system's by default, and a person's own choice when data-theme is set.
+const themed=(app,selector,pick)=>selector+pick+"{"+tokens(app,"light")+"}@media(prefers-color-scheme:dark){"+selector+pick+"{"+tokens(app,"dark")+"}}\n"+selector+'[data-theme="light"]{color-scheme:light;'+tokens(app,"light")+"}\n"+selector+'[data-theme="dark"]{color-scheme:dark;'+tokens(app,"dark")+"}\n";
+const appColors=({app})=>":root{"+tokens(app,"light")+"}@media(prefers-color-scheme:dark){:root{"+tokens(app,"dark")+"}}\n"+'html[data-theme="light"]{color-scheme:light;'+tokens(app,"light")+"}\n"+'html[data-theme="dark"]{color-scheme:dark;'+tokens(app,"dark")+"}\n";
 // A block for each palette in the catalogue, so one attribute switches the app. The look built in stays the default.
 const lookBlocks=(written,palettes)=>palettes.map(({id,colors})=>{
  const{app}=resolve(written,colors);checkReadable(resolve(written,colors));
- return "html[data-palette=\""+id+"\"]{"+tokens(app,"light")+"}@media(prefers-color-scheme:dark){html[data-palette=\""+id+"\"]{"+tokens(app,"dark")+"}}\n";
+ return themed(app,"html[data-palette=\""+id+"\"]","");
 }).join("");
 const catalog=()=>({names:readJson("brand/catalog/names.json"),icons:readJson("brand/catalog/icons.json"),palettes:readJson("brand/catalog/palettes.json")});
 // What looks.js needs, with colors kept out of its way so nothing here reads as a build token.
@@ -45,7 +47,7 @@ function looksData(brand,written,palette,logo,values){
  const data={home,names,
   icons:icons.map(({id,name,file})=>({id,name,svg:Marks.neutral(fs.readFileSync(path.join(root,"brand/catalog",file),"utf8"))})),
   palettes:palettes.map(({id,name,colors})=>{const resolved=resolve(written,colors);return{id,name,...colorsOf(resolved),page:{light:resolved.app.page.light,dark:resolved.app.page.dark}};}),
-  deployed:{name:brand.name,installName:brand.installName,tagline:brand.tagline,pitch:brand.pitch,icon:logo,colors:colorsOf(palette),mark:values.logoMark,pull:values.pullMark}};
+  deployed:{name:brand.name,installName:brand.installName,tagline:brand.tagline,pitch:brand.pitch,icon:logo,colors:colorsOf(palette),page:{light:palette.app.page.light,dark:palette.app.page.dark},mark:values.logoMark,pull:values.pullMark}};
  return JSON.stringify(JSON.stringify(data)).slice(1,-1);
 }
 // In the page, a name becomes a part looks.js can change. In a script's strings, it asks looks.js each time.

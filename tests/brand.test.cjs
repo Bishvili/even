@@ -134,7 +134,7 @@ test("the build writes a block for each palette and leaves the deployed one the 
  try{
   build({out});
   const css=fs.readFileSync(path.join(out,"styles.css"),"utf8");
-  for(let n=1;n<=9;n++)assert.equal(css.split('html[data-palette="p'+n+'"]{').length,3,"p"+n);
+  for(let n=1;n<=9;n++)assert.equal(css.split('html[data-palette="p'+n+'"]').length,5,"p"+n);
   assert.ok(css.indexOf(":root{")<css.indexOf("html[data-palette"));
   const page=fs.readFileSync(path.join(out,"index.html"),"utf8");
   assert.match(page,/<title>[^<]+<\/title>/);

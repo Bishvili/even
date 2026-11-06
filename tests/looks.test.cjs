@@ -50,7 +50,7 @@ test("a saved look comes back, a link only fills in for none, and a waiting choi
  const store={},look=loaded(store);
  assert.equal(look.follow("n5.i5.p5"),true);assert.equal(look.current(),"n5.i5.p5");assert.equal(look.waiting(),null);
  look.wear("n2.i2.p2");look.restore();assert.equal(look.current(),"n5.i5.p5");
- look.save("n7.i7.p7");assert.deepEqual(JSON.parse(JSON.stringify(look.waiting())),{look:"n7.i7.p7"});
+ look.save("n7.i7.p7");assert.deepEqual(JSON.parse(JSON.stringify(look.waiting())),{look:"n7.i7.p7",name:null});
  assert.equal(look.follow("n5.i5.p5"),false);assert.equal(look.current(),"n7.i7.p7");
  look.sent();assert.equal(look.waiting(),null);
  assert.equal(look.follow(null),true);assert.equal(look.current(),null);
@@ -70,4 +70,15 @@ test("adopting a look leaves the build working and wearing it, for each starting
    assert.match(fs.readFileSync(path.join(out,"index.html"),"utf8"),new RegExp("<title>"+item.name+"</title>"));
   }finally{fs.rmSync(copy,{recursive:true});fs.rmSync(out,{recursive:true});}
  }
+});
+test("a typed name is cleaned and kept, a blank one isn't a look, and appearance is its own choice",()=>{
+ const store={},look=loaded(store);
+ assert.equal(look.parse("n0.i2.p3",""),null);
+ look.save("n0.i2.p3","  My\n  Own   App  name that runs on far too long ");
+ assert.equal(look.name().length<=24,true);assert.ok(look.name().startsWith("My Own App"));
+ assert.equal(JSON.parse(JSON.stringify(look.waiting())).look,"n0.i2.p3");
+ assert.equal(loaded(store).current(),"n0.i2.p3");
+ assert.equal(look.theme(),"system");look.setTheme("dark");assert.equal(look.theme(),"dark");assert.equal(store["health-theme"],"dark");
+ look.setTheme("system");assert.equal(store["health-theme"],undefined);look.setTheme("loud");assert.equal(look.theme(),"system");
+ assert.equal(look.url("n0.i2.p3","A B"),"/?look=n0.i2.p3&name=A%20B");assert.equal(look.url(null),"/");
 });

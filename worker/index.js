@@ -41,7 +41,7 @@ async function payload(request){
  if(type.includes("application/x-www-form-urlencoded"))return Object.fromEntries(new URLSearchParams(text));
  try{return JSON.parse(text);}catch(e){return Object.fromEntries(new URLSearchParams(text));}
 }
-const VERSION_NAME="2.50.2";
+const VERSION_NAME="2.51.0";
 function normalEmail(value){return String(value||"").trim().toLowerCase();}
 async function signinAuth(env,ctx,request){
  const {createAuth}=await import("./signin.mjs");
@@ -81,7 +81,7 @@ async function validDevice(request,env){
 }
 // Everything synced for one person, apart from their account and devices.
 function syncedDataStatements(env,owner,keepMoods){
- return [env.DB.prepare("UPDATE health_users SET look=NULL WHERE email=?").bind(owner),...(keepMoods?[]:[env.DB.prepare("DELETE FROM health_moods WHERE owner_email=?").bind(owner),env.DB.prepare("DELETE FROM health_reflections WHERE owner_email=?").bind(owner)]),
+ return [env.DB.prepare("UPDATE health_users SET look=NULL,look_name=NULL WHERE email=?").bind(owner),...(keepMoods?[]:[env.DB.prepare("DELETE FROM health_moods WHERE owner_email=?").bind(owner),env.DB.prepare("DELETE FROM health_reflections WHERE owner_email=?").bind(owner)]),
   env.DB.prepare("UPDATE health_devices SET last_upload_counts=NULL WHERE owner_email=?").bind(owner),
   env.DB.prepare("DELETE FROM health_metrics WHERE owner_email=?").bind(owner),
   env.DB.prepare("DELETE FROM health_hidden_days WHERE owner_email=?").bind(owner),
@@ -944,10 +944,10 @@ async function syncApi(request,env,path){
  }
  if(path==="/api/look"&&request.method==="POST"){
   let input;try{input=await payload(request);}catch(e){return error("That request couldn't be read.",400,"invalid_body");}
-  const look=input?.look===null?null:lookFrom(input?.look)?.id;
-  if(look===undefined)return error("That look isn't available.",400,"invalid_look");
-  await env.DB.prepare("UPDATE health_users SET look=? WHERE email=?").bind(look,owner).run();
-  return reply({ok:true,look});
+  const chosen=input?.look===null?null:lookFrom(input?.look,input?.name);
+  if(chosen===undefined||(chosen===null&&input?.look!==null))return error("That look isn't available.",400,"invalid_look");
+  await env.DB.prepare("UPDATE health_users SET look=?,look_name=? WHERE email=?").bind(chosen?.id||null,chosen?.typed||null,owner).run();
+  return reply({ok:true,look:chosen?.id||null});
  }
  if(path==="/api/reflections"&&request.method==="GET"){
   return reply({ok:true,email:owner,...await syncedReflections(env,owner,new URL(request.url).searchParams.get("since"))});
@@ -970,9 +970,9 @@ async function syncApi(request,env,path){
  // Everything the app shows about this device and account, so coming back to the app takes one request.
  if(path==="/api/session"&&request.method==="GET"){
   const params=new URL(request.url).searchParams;
-  const [look,status,release,calendars,settings,moods,reflections]=await Promise.all([env.DB.prepare("SELECT look FROM health_users WHERE email=?").bind(owner).first(),deviceStatus(env,dev,owner),loadShortcutRelease(env),calendarList(env,owner),syncChoices(env,owner),syncedMoods(env,owner,params.get("since")),syncedReflections(env,owner,params.get("reflectionsSince"))]);
+  const [look,status,release,calendars,settings,moods,reflections]=await Promise.all([env.DB.prepare("SELECT look,look_name FROM health_users WHERE email=?").bind(owner).first(),deviceStatus(env,dev,owner),loadShortcutRelease(env),calendarList(env,owner),syncChoices(env,owner),syncedMoods(env,owner,params.get("since")),syncedReflections(env,owner,params.get("reflectionsSince"))]);
   if(!status)return error("This device was revoked",401,"device_revoked");
-  return reply({ok:true,status,release,calendars,settings,moods,reflections:{email:owner,...reflections},look:look?.look||null});
+  return reply({ok:true,status,release,calendars,settings,moods,reflections:{email:owner,...reflections},look:look?.look||null,lookName:look?.look_name||null});
  }
  if(path==="/api/sync/status"&&request.method==="GET"){
   const status=await deviceStatus(env,dev,owner);
@@ -1106,21 +1106,23 @@ async function asset(request,env,path){
  return new Response(file.body,{status:file.status,headers});
 }
 // A look from the catalogue, as name.icon.palette. Anything else gets the normal page.
-function lookFrom(value){
- const match=/^(n[1-9])\.(i[1-9])\.(p[1-9])$/.exec(value||"");
+function lookName(value){return String(value||"").replace(/[\u0000-\u001f\u007f]/g," ").replace(/\s+/g," ").trim().slice(0,24).trim();}
+function lookFrom(value,typed){
+ const match=/^(n[0-9])\.(i[1-9])\.(p[1-9])$/.exec(value||"");
  if(!match)return null;
- const name=LOOK_NAMES.find(item=>item.id===match[1]);
- return name&&{id:match[0],name,icon:"/look-icon-"+match[2]+"-"+match[3]+".png"};
+ const own=lookName(typed),name=match[1]==="n0"?(own?{name:own,installName:own,tagline:BRAND.tagline}:null):LOOK_NAMES.find(item=>item.id===match[1]);
+ return name&&{id:match[0],name,typed:match[1]==="n0"?own:null,icon:"/look-icon-"+match[2]+"-"+match[3]+".png"};
 }
+function escapeHtml(text){return String(text).replace(/[&<>"']/g,mark=>"&#"+mark.charCodeAt(0)+";");}
 // iOS takes the Home Screen icon and label from the page when the app is added, so this one response carries the look. It is never cached.
 async function dressedPage(request,env,look){
  const file=await asset(request,env,"/");
  if(!file.ok)return file;
  const html=(await file.text())
-  .replace(/<title>[^<]*<\/title>/,"<title>"+look.name.name+"</title>")
-  .replace(/(<meta name="apple-mobile-web-app-title" content=")[^"]*/,"$1"+look.name.installName)
+  .replace(/<title>[^<]*<\/title>/,()=>"<title>"+escapeHtml(look.name.name)+"</title>")
+  .replace(/(<meta name="apple-mobile-web-app-title" content=")[^"]*/,(all,start)=>start+escapeHtml(look.name.installName))
   .replace(/(<link rel="apple-touch-icon" href=")[^"]*/,"$1"+look.icon)
-  .replace(/(<link rel="manifest" href=")[^"]*/,"$1/look.webmanifest?look="+look.id);
+  .replace(/(<link rel="manifest" href=")[^"]*/,(all,start)=>start+"/look.webmanifest?look="+look.id+(look.typed?"&amp;name="+encodeURIComponent(look.typed):""));
  const headers=new Headers(file.headers);headers.set("Cache-Control","no-store");
  return new Response(html,{status:200,headers});
 }
@@ -1128,7 +1130,7 @@ async function lookManifest(request,env,look){
  const file=await asset(request,env,"/manifest.webmanifest");
  if(!file.ok)return file;
  const manifest=await file.json(),headers=new Headers(file.headers);headers.set("Cache-Control","no-store");
- return new Response(JSON.stringify({...manifest,name:look.name.installName,short_name:look.name.installName,description:look.name.tagline,start_url:"/?look="+look.id+"#checkin",icons:[{src:look.icon,sizes:"180x180",type:"image/png"}]}),{status:200,headers});
+ return new Response(JSON.stringify({...manifest,name:look.name.installName,short_name:look.name.installName,description:look.name.tagline,start_url:"/?look="+look.id+(look.typed?"&name="+encodeURIComponent(look.typed):"")+"#checkin",icons:[{src:look.icon,sizes:"180x180",type:"image/png"}]}),{status:200,headers});
 }
 // Records each run, so a stalled schedule can be told from a quiet one.
 async function runCron(env){
@@ -1145,7 +1147,7 @@ export default {async fetch(request,env,ctx){
  if(onShortcutHost(request,env)&&!shortcutPath(path,env))return error("Not found",404,"not_found");
  if(path.startsWith("/api/"))return await api(request,env,ctx,path);
  if(request.method!=="GET"&&request.method!=="HEAD")return new Response("Method not allowed",{status:405,headers:SECURITY});
- const look=(path==="/"||path==="/look.webmanifest")&&request.method==="GET"?lookFrom(new URL(request.url).searchParams.get("look")):null;
+ const look=(path==="/"||path==="/look.webmanifest")&&request.method==="GET"?lookFrom(new URL(request.url).searchParams.get("look"),new URL(request.url).searchParams.get("name")):null;
  if(look)return await (path==="/"?dressedPage:lookManifest)(request,env,look);
  return await asset(request,env,path);
  }catch(e){logEvent("request_failed",{route:new URL(request.url).pathname,status:500,error:e?.name});return error("Request could not be processed",500,"server_error");}

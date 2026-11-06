@@ -1,6 +1,6 @@
 (function () {
 "use strict";
-var VERSION = "2.50.2";
+var VERSION = "2.51.0";
 var HIDEABLE={
  event:{list:"events",hidden:"hiddenEvents",key:"id"},
  health:{list:"health",hidden:"hiddenHealth",key:"date"}
@@ -68,7 +68,7 @@ function navigate(view){
  document.querySelectorAll(".view").forEach(function(v){v.classList.toggle("active",v.id==="view-"+view);});
  document.querySelectorAll(".nav-item").forEach(function(n){var on=n.dataset.go===view;n.classList.toggle("active",on);if(on)n.setAttribute("aria-current","page");else n.removeAttribute("aria-current");});
  if(location.hash!=="#"+view)history.replaceState(null,"","#"+view);
- resetPageScroll(top);render();
+ resetPageScroll(top);render();if(globalThis.Jump)globalThis.Jump.refresh();
  if(target)$(target).scrollIntoView();
 }
 function alarmRow(a){
@@ -125,6 +125,7 @@ function render(){
  renderStats();renderRecent();renderSources();renderSync();renderSettings();
  if($("view-insights").classList.contains("active"))renderInsights();
  refreshCoach();
+ if(globalThis.Jump)globalThis.Jump.refresh();
 }
 function getRecent(days,moods){var cutoff=Date.now()-days*86400000;return (moods||state.moods).filter(function(m){return m.ts&&new Date(m.ts).getTime()>=cutoff&&m.score>=1&&m.score<=5;});}
 function renderStats(){
@@ -891,7 +892,7 @@ function sessionSince(){var since=moodSince();return state.reflectionCursor?sinc
 async function sendLook(){
  var waiting=globalThis.Look.waiting();
  if(!waiting||!state.token||!navigator.onLine)return;
- try{var r=await fetch("/api/look",{method:"POST",headers:{"Authorization":"Bearer "+state.token,"Content-Type":"application/json"},body:JSON.stringify({look:waiting.look}),cache:"no-store"});if(r.ok||r.status===400)globalThis.Look.sent();}catch(e){/* It goes with the next return to the app. */}
+ try{var r=await fetch("/api/look",{method:"POST",headers:{"Authorization":"Bearer "+state.token,"Content-Type":"application/json"},body:JSON.stringify({look:waiting.look,name:waiting.name}),cache:"no-store"});if(r.ok||r.status===400)globalThis.Look.sent();}catch(e){/* It goes with the next return to the app. */}
 }
 async function loadSession(){
  if(!state.token||!state.deviceId||!navigator.onLine||sessionLoading)return;
@@ -907,7 +908,7 @@ async function loadSession(){
   renderCalendars(data.calendars||[]);
   renderSyncSettings(data.settings||{});
   renderSync();
-  if(globalThis.Look){if(globalThis.Look.waiting())sendLook();else if(globalThis.Look.follow(data.look||null))render();}
+  if(globalThis.Look){if(globalThis.Look.waiting())sendLook();else if(globalThis.Look.follow(data.look||null,data.lookName||""))render();}
   syncMoods(data.moods);
   syncReflections(data.reflections);
   var uploaded=Date.parse(data.status.lastDataUploadAt);

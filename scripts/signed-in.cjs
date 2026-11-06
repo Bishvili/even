@@ -16,7 +16,7 @@ function fakeApi(overrides={}){
   const request=route.request(),url=new URL(request.url()),send=(body,status=200)=>route.fulfill({status,contentType:"application/json",body:JSON.stringify(body)});
   if(url.pathname==="/api/session"){
    if(api.session!==200)return send({ok:false,code:"signed_out"},api.session);
-   return send({ok:true,status:{deviceId:DEVICE,credentialValid:true,...api.status},release:{},calendars:api.calendars||[],settings:{},look:api.look||null,moods:api.moods,reflections:{email:api.moods?.email,cursor:"",reflections:[],deleted:[]}});
+   return send({ok:true,status:{deviceId:DEVICE,credentialValid:true,...api.status},release:{},calendars:api.calendars||[],settings:{},look:api.look||null,lookName:api.lookName||null,moods:api.moods,reflections:{email:api.moods?.email,cursor:"",reflections:[],deleted:[]}});
   }
   if(url.pathname==="/api/moods"){
    if(api.failMoods)return send({ok:false,code:"unavailable"},503);
@@ -94,6 +94,14 @@ const scenarios={
    await page.click("#look-save");
    await until(page,()=>!localStorage.getItem("health-look-waiting"));
    assert.equal(api.look,"n2.i2.p2");
+   await page.click("#look-original");
+   assert.equal(await page.isVisible("#look-save"),true);
+   assert.equal(await page.evaluate(()=>localStorage.getItem("health-look")),"n2.i2.p2");
+   await page.click("#look-save");
+   await until(page,()=>!localStorage.getItem("health-look"));
+   await page.click('.look-tile[data-mode="dark"]');
+   assert.equal(await page.evaluate(()=>document.documentElement.dataset.theme),"dark");
+   await page.click('.jump-chip:has-text("Look")');
   });
   const next=fakeApi();next.look="n3.i3.p3";
   await open(browser,base,saved(),next,async({page})=>{
