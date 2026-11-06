@@ -257,10 +257,11 @@ h1[tabindex]:focus{outline:none}
 .item-facts{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;margin:0 0 14px;font-size:0.882rem}
 .item-facts dt{color:var(--text-muted)}
 .item-facts dd{margin:0;overflow-wrap:anywhere}
-.type-option,.type-rule{display:flex;align-items:center;gap:10px;min-height:44px;margin:0;font-size:0.941rem}
-.type-option input,.type-rule input{width:22px;height:22px;min-height:0;flex:none;accent-color:var(--primary)}
-.toast.has-action{pointer-events:auto}
-.toast-undo{min-height:44px;margin-left:6px;padding:0 10px;border:0;background:transparent;color:inherit;font:inherit;font-weight:700;text-decoration:underline;cursor:pointer}
+.signin-sheet label.type-option,.signin-sheet label.type-rule,label.type-option,label.type-rule{display:flex;font-weight:600;align-items:center;gap:10px;min-height:44px;margin:0;font-size:0.941rem}
+.signin-sheet label.type-option input,.signin-sheet label.type-rule input,label.type-option input,label.type-rule input{width:22px;padding:0;margin:0;height:22px;min-height:0;flex:none;accent-color:var(--primary)}
+.toast.has-action{pointer-events:auto;display:flex;align-items:center;justify-content:space-between;gap:14px;width:max-content;max-width:min(90vw,520px);padding:4px 8px 4px 19px;text-align:left;white-space:nowrap}
+.toast-undo{min-height:44px;flex:none;padding:0 10px;border:0;background:transparent;color:inherit;font:inherit;font-weight:700;text-decoration:underline;cursor:pointer}
 #changes-retry{min-height:44px;margin-bottom:8px}
 #changes-status{margin:0}
 .reflection-week{border-bottom:1px solid var(--border)}.reflection-week summary{list-style:none;min-height:44px;cursor:pointer;border-bottom:0}.reflection-week summary::-webkit-details-marker{display:none}.reflection-answer{display:flex;justify-content:space-between;gap:12px;margin:8px 0;font-size:0.824rem}.reflection-answer strong{text-align:right;flex:none;max-width:45%}.reflection-week .text-action{min-height:44px;padding:0;border:0;background:none;color:inherit;font:inherit;font-weight:700}
+.data-add-head{margin:34px 0 12px;padding-top:24px;border-top:1px solid var(--border);font:inherit;font-size:1.118rem;font-weight:700}

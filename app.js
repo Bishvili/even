@@ -1,6 +1,6 @@
 (function () {
 "use strict";
-var VERSION = "2.48.0";
+var VERSION = "2.48.1";
 var HIDEABLE={
  event:{list:"events",hidden:"hiddenEvents",key:"id"},
  health:{list:"health",hidden:"hiddenHealth",key:"date"}
@@ -587,7 +587,7 @@ function toastUndo(message,undo){
  var el=$("toast"),button=document.createElement("button");
  button.type="button";button.textContent="Undo";button.className="toast-undo";
  button.addEventListener("click",function(){el.classList.remove("show","has-action");undo();});
- el.appendChild(document.createTextNode(" "));el.appendChild(button);el.classList.add("has-action");
+ el.appendChild(button);el.classList.add("has-action");
  if(toastTimer)clearTimeout(toastTimer);
  toastTimer=setTimeout(function(){el.classList.remove("show","has-action");},6000);
 }

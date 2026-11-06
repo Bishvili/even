@@ -269,6 +269,7 @@
     <div class="list-pager" id="list-pager" hidden><button type="button" class="btn subtle" id="list-prev">Previous</button><span class="muted" id="list-page"></span><button type="button" class="btn subtle" id="list-next">Next</button></div>
     <div class="list-actions" id="list-actions" hidden><button type="button" class="btn secondary" id="list-hide">Hide</button><button type="button" class="btn secondary" id="list-type">Change type</button><button type="button" class="btn subtle" id="list-delete" hidden>Delete</button></div>
     <section class="card" id="rules-card" hidden><h2>Event types you’ve set</h2><div id="rules-list" class="calendar-list"></div></section>
+    <h2 class="data-add-head">Add your own data</h2>
     <details class="card disclosure"><summary>Add a health day</summary>
           <form id="health-form">
       <label for="health-date">Date</label><input type="date" id="health-date" required>
@@ -388,7 +389,7 @@
      <p class="muted">Tell us what went wrong or what you’d change.</p>
      <button type="button" class="btn secondary full" id="feedback-open">Send feedback</button>
     </section>
-    <div class="card"><h2>About the insights</h2><p class="muted">Comparisons need at least 5 check-ins in each group. Mood data is subjective and gaps can skew results. Nothing here is a diagnosis or proves a cause.</p><button type="button" class="btn subtle full" id="setup-again">Go through setup again</button><a class="btn subtle full" id="whitepaper-link" href="/whitepaper.html" target="_blank" rel="noopener">How {{name}} works <span aria-hidden="true">↗</span></a><p class="muted">Version <span id="version">2.48.0</span> · No ads or analytics</p></div>
+    <div class="card"><h2>About the insights</h2><p class="muted">Comparisons need at least 5 check-ins in each group. Mood data is subjective and gaps can skew results. Nothing here is a diagnosis or proves a cause.</p><button type="button" class="btn subtle full" id="setup-again">Go through setup again</button><a class="btn subtle full" id="whitepaper-link" href="/whitepaper.html" target="_blank" rel="noopener">How {{name}} works <span aria-hidden="true">↗</span></a><p class="muted">Version <span id="version">2.48.1</span> · No ads or analytics</p></div>
     <div class="card"><h2>Explore a sample month</h2><p class="muted">See 28 days of fictional check-ins and events. They stay separate from your own data and are never uploaded.</p><button class="btn secondary full" id="demo-button">Load 28-day calendar demo</button><button class="btn subtle full" id="clear-demo-button">Remove demo data</button></div>
    </section>
   </main>
@@ -431,7 +432,7 @@
    <p class="muted signin-lede">Use the email your invitation went to.</p>
    <form id="signin-email-form">
     <label for="signin-email">Email</label>
-    <input id="signin-email" type="email" autocomplete="email" autocapitalize="none" spellcheck="false" required>
+    <input id="signin-email" name="email" type="email" inputmode="email" autocomplete="email" autocapitalize="none" spellcheck="false" required>
     <button type="submit" class="btn primary full" id="signin-send">Send code</button>
    </form>
    <form id="signin-code-form" hidden>

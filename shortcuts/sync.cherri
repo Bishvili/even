@@ -16,6 +16,10 @@
 #ref exerciseFilter eyJWYWx1ZSI6eyJXRkFjdGlvblBhcmFtZXRlckZpbHRlclByZWZpeCI6MSwiV0ZDb250ZW50UHJlZGljYXRlQm91bmRlZERhdGUiOmZhbHNlLCJXRkFjdGlvblBhcmFtZXRlckZpbHRlclRlbXBsYXRlcyI6W3siQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjQsIlByb3BlcnR5IjoiVHlwZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IkV4ZXJjaXNlIE1pbnV0ZXMiLCJXRlNlcmlhbGl6YXRpb25UeXBlIjoiV0ZTdHJpbmdTdWJzdGl0dXRhYmxlU3RhdGUifX19LHsiQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjEwMDEsIlByb3BlcnR5IjoiU3RhcnQgRGF0ZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJOdW1iZXIiOiIzMCIsIlVuaXQiOjE2fX1dfSwiV0ZTZXJpYWxpemF0aW9uVHlwZSI6IldGQ29udGVudFByZWRpY2F0ZVRhYmxlVGVtcGxhdGUifQ==
 #ref sleepFilter eyJWYWx1ZSI6eyJXRkFjdGlvblBhcmFtZXRlckZpbHRlclByZWZpeCI6MSwiV0ZDb250ZW50UHJlZGljYXRlQm91bmRlZERhdGUiOmZhbHNlLCJXRkFjdGlvblBhcmFtZXRlckZpbHRlclRlbXBsYXRlcyI6W3siQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjQsIlByb3BlcnR5IjoiVHlwZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IlNsZWVwIiwiV0ZTZXJpYWxpemF0aW9uVHlwZSI6IldGU3RyaW5nU3Vic3RpdHV0YWJsZVN0YXRlIn19fSx7IkJvdW5kZWQiOnRydWUsIk9wZXJhdG9yIjoxMDAxLCJQcm9wZXJ0eSI6IlN0YXJ0IERhdGUiLCJSZW1vdmFibGUiOmZhbHNlLCJWYWx1ZXMiOnsiTnVtYmVyIjoiMzAiLCJVbml0IjoxNn19XX0sIldGU2VyaWFsaXphdGlvblR5cGUiOiJXRkNvbnRlbnRQcmVkaWNhdGVUYWJsZVRlbXBsYXRlIn0=
 #ref recentTypesFilter eyJWYWx1ZSI6eyJXRkFjdGlvblBhcmFtZXRlckZpbHRlclByZWZpeCI6MCwiV0ZDb250ZW50UHJlZGljYXRlQm91bmRlZERhdGUiOmZhbHNlLCJXRkFjdGlvblBhcmFtZXRlckZpbHRlclRlbXBsYXRlcyI6W3siQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjQsIlByb3BlcnR5IjoiVHlwZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IlN0ZXBzIiwiV0ZTZXJpYWxpemF0aW9uVHlwZSI6IldGU3RyaW5nU3Vic3RpdHV0YWJsZVN0YXRlIn19fSx7IkJvdW5kZWQiOnRydWUsIk9wZXJhdG9yIjo0LCJQcm9wZXJ0eSI6IlR5cGUiLCJSZW1vdmFibGUiOmZhbHNlLCJWYWx1ZXMiOnsiRW51bWVyYXRpb24iOnsiVmFsdWUiOiJSZXN0aW5nIEhlYXJ0IFJhdGUiLCJXRlNlcmlhbGl6YXRpb25UeXBlIjoiV0ZTdHJpbmdTdWJzdGl0dXRhYmxlU3RhdGUifX19LHsiQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjQsIlByb3BlcnR5IjoiVHlwZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IkhlYXJ0IFJhdGUgVmFyaWFiaWxpdHkiLCJXRlNlcmlhbGl6YXRpb25UeXBlIjoiV0ZTdHJpbmdTdWJzdGl0dXRhYmxlU3RhdGUifX19LHsiQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjQsIlByb3BlcnR5IjoiVHlwZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IkV4ZXJjaXNlIE1pbnV0ZXMiLCJXRlNlcmlhbGl6YXRpb25UeXBlIjoiV0ZTdHJpbmdTdWJzdGl0dXRhYmxlU3RhdGUifX19LHsiQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjQsIlByb3BlcnR5IjoiVHlwZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IlNsZWVwIiwiV0ZTZXJpYWxpemF0aW9uVHlwZSI6IldGU3RyaW5nU3Vic3RpdHV0YWJsZVN0YXRlIn19fV19LCJXRlNlcmlhbGl6YXRpb25UeXBlIjoiV0ZDb250ZW50UHJlZGljYXRlVGFibGVUZW1wbGF0ZSJ9
+#ref restingCheck eyJWYWx1ZSI6eyJXRkFjdGlvblBhcmFtZXRlckZpbHRlclByZWZpeCI6MCwiV0ZDb250ZW50UHJlZGljYXRlQm91bmRlZERhdGUiOmZhbHNlLCJXRkFjdGlvblBhcmFtZXRlckZpbHRlclRlbXBsYXRlcyI6W3siQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjQsIlByb3BlcnR5IjoiVHlwZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IlJlc3RpbmcgSGVhcnQgUmF0ZSIsIldGU2VyaWFsaXphdGlvblR5cGUiOiJXRlN0cmluZ1N1YnN0aXR1dGFibGVTdGF0ZSJ9fX0seyJCb3VuZGVkIjp0cnVlLCJPcGVyYXRvciI6NCwiUHJvcGVydHkiOiJUeXBlIiwiUmVtb3ZhYmxlIjpmYWxzZSwiVmFsdWVzIjp7IkVudW1lcmF0aW9uIjp7IlZhbHVlIjoiU3RlcHMiLCJXRlNlcmlhbGl6YXRpb25UeXBlIjoiV0ZTdHJpbmdTdWJzdGl0dXRhYmxlU3RhdGUifX19XX0sIldGU2VyaWFsaXphdGlvblR5cGUiOiJXRkNvbnRlbnRQcmVkaWNhdGVUYWJsZVRlbXBsYXRlIn0=
+#ref hrvCheck eyJWYWx1ZSI6eyJXRkFjdGlvblBhcmFtZXRlckZpbHRlclByZWZpeCI6MCwiV0ZDb250ZW50UHJlZGljYXRlQm91bmRlZERhdGUiOmZhbHNlLCJXRkFjdGlvblBhcmFtZXRlckZpbHRlclRlbXBsYXRlcyI6W3siQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjQsIlByb3BlcnR5IjoiVHlwZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IkhlYXJ0IFJhdGUgVmFyaWFiaWxpdHkiLCJXRlNlcmlhbGl6YXRpb25UeXBlIjoiV0ZTdHJpbmdTdWJzdGl0dXRhYmxlU3RhdGUifX19LHsiQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjQsIlByb3BlcnR5IjoiVHlwZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IlN0ZXBzIiwiV0ZTZXJpYWxpemF0aW9uVHlwZSI6IldGU3RyaW5nU3Vic3RpdHV0YWJsZVN0YXRlIn19fV19LCJXRlNlcmlhbGl6YXRpb25UeXBlIjoiV0ZDb250ZW50UHJlZGljYXRlVGFibGVUZW1wbGF0ZSJ9
+#ref exerciseCheck eyJWYWx1ZSI6eyJXRkFjdGlvblBhcmFtZXRlckZpbHRlclByZWZpeCI6MCwiV0ZDb250ZW50UHJlZGljYXRlQm91bmRlZERhdGUiOmZhbHNlLCJXRkFjdGlvblBhcmFtZXRlckZpbHRlclRlbXBsYXRlcyI6W3siQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjQsIlByb3BlcnR5IjoiVHlwZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IkV4ZXJjaXNlIE1pbnV0ZXMiLCJXRlNlcmlhbGl6YXRpb25UeXBlIjoiV0ZTdHJpbmdTdWJzdGl0dXRhYmxlU3RhdGUifX19LHsiQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjQsIlByb3BlcnR5IjoiVHlwZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IlN0ZXBzIiwiV0ZTZXJpYWxpemF0aW9uVHlwZSI6IldGU3RyaW5nU3Vic3RpdHV0YWJsZVN0YXRlIn19fV19LCJXRlNlcmlhbGl6YXRpb25UeXBlIjoiV0ZDb250ZW50UHJlZGljYXRlVGFibGVUZW1wbGF0ZSJ9
+#ref sleepCheck eyJWYWx1ZSI6eyJXRkFjdGlvblBhcmFtZXRlckZpbHRlclByZWZpeCI6MCwiV0ZDb250ZW50UHJlZGljYXRlQm91bmRlZERhdGUiOmZhbHNlLCJXRkFjdGlvblBhcmFtZXRlckZpbHRlclRlbXBsYXRlcyI6W3siQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjQsIlByb3BlcnR5IjoiVHlwZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IlNsZWVwIiwiV0ZTZXJpYWxpemF0aW9uVHlwZSI6IldGU3RyaW5nU3Vic3RpdHV0YWJsZVN0YXRlIn19fSx7IkJvdW5kZWQiOnRydWUsIk9wZXJhdG9yIjo0LCJQcm9wZXJ0eSI6IlR5cGUiLCJSZW1vdmFibGUiOmZhbHNlLCJWYWx1ZXMiOnsiRW51bWVyYXRpb24iOnsiVmFsdWUiOiJTdGVwcyIsIldGU2VyaWFsaXphdGlvblR5cGUiOiJXRlN0cmluZ1N1YnN0aXR1dGFibGVTdGF0ZSJ9fX1dfSwiV0ZTZXJpYWxpemF0aW9uVHlwZSI6IldGQ29udGVudFByZWRpY2F0ZVRhYmxlVGVtcGxhdGUifQ==
 
 // The device key lives in a file outside this Shortcut, in On My iPhone so it works without iCloud Drive.
 #ref onMyIPhone eyJkaXNwbGF5TmFtZSI6Ik9uIE15IGlQaG9uZSIsImZpbGVuYW1lIjoiRmlsZSBQcm92aWRlciBTdG9yYWdlIiwiZmlsZUxvY2F0aW9uIjp7IldGRmlsZUxvY2F0aW9uVHlwZSI6IkxvY2FsU3RvcmFnZSIsInJlbGF0aXZlU3VicGF0aCI6IiJ9fQ==
@@ -47,7 +51,7 @@ if providedKeyCount == 0 {
 // Verify the connection and record the Shortcut's version, even if no health samples are available.
 // The reply also says whether a newer version is ready.
 const handshakeRaw = jsonRequest("{appAddress}/api/shortcut/hello", "POST", {
-    "shortcutVersion": "4.2.0"
+    "shortcutVersion": "4.3.0"
 }, {"Authorization": "{@credential}"})
 const handshake = getDictionary(handshakeRaw)
 const connectionStatusValue = getValue(handshake, "state")
@@ -124,7 +128,7 @@ for upcomingEvent in upcomingEvents {
 const calendarBody = formRequest("{appAddress}/api/ingest", "POST", {
     "kind": "calendar_days",
     "calendarDays": "8",
-    "shortcutVersion": "4.2.0",
+    "shortcutVersion": "4.3.0",
     "date": "{day}",
     "utcOffset": "{utcOffset}",
     "events": "{@eventRecords}"
@@ -154,6 +158,9 @@ action 'is.workflow.actions.filter.health.quantity' findSamples(&variable filter
 action 'is.workflow.actions.filter.health.quantity' findRecentSamples(&variable filter: 'WFContentItemFilter'): array {"WFContentItemLimitEnabled":true,"WFContentItemLimitNumber":1000,"WFContentItemSortProperty":"Start Date","WFContentItemSortOrder":"Latest First"}
 
 action 'is.workflow.actions.filter.health.quantity' findSleepHistory(&variable filter: 'WFContentItemFilter'): array {"WFContentItemLimitEnabled":true,"WFContentItemLimitNumber":300,"WFContentItemSortProperty":"Start Date","WFContentItemSortOrder":"Latest First"}
+
+// Steps sort last among these types, so one result shows the other type if it has any data.
+action 'is.workflow.actions.filter.health.quantity' findFirstByType(&variable filter: 'WFContentItemFilter'): array {"WFContentItemLimitEnabled":true,"WFContentItemLimitNumber":1,"WFContentItemSortProperty":"Type","WFContentItemSortOrder":"A to Z"}
 
 action 'is.workflow.actions.properties.health.quantity' getSampleTypes(variable samples: 'WFInput'): array {"WFContentItemPropertyName":"Type"}
 
@@ -186,9 +193,36 @@ const recentTypeValues = getSampleTypes(recentSamples)
 const recentTypes = getText(recentTypeValues)
 const recentTypeCount = count(recentTypeValues)
 
+// The newest samples can all be Steps, which hides the others. Steps exist in that case, so asking for a type alongside them can't end the run.
+@knownTypes = "{recentTypes}"
+const recentSteps = matchText('(?i)steps', recentTypes)
+const recentStepCount = count(recentSteps)
+if recentStepCount >= 1 {
+    if syncRestingHR == "on" {
+        const restingFirst = findFirstByType(restingCheck)
+        const restingType = getSampleTypes(restingFirst)
+        @knownTypes = "{@knownTypes}\n{restingType}"
+    }
+    if syncHrv == "on" {
+        const hrvFirst = findFirstByType(hrvCheck)
+        const hrvType = getSampleTypes(hrvFirst)
+        @knownTypes = "{@knownTypes}\n{hrvType}"
+    }
+    if syncWorkout == "on" {
+        const exerciseFirst = findFirstByType(exerciseCheck)
+        const exerciseType = getSampleTypes(exerciseFirst)
+        @knownTypes = "{@knownTypes}\n{exerciseType}"
+    }
+    if syncSleep == "on" {
+        const sleepFirst = findFirstByType(sleepCheck)
+        const sleepType = getSampleTypes(sleepFirst)
+        @knownTypes = "{@knownTypes}\n{sleepType}"
+    }
+}
+
 // Up to 7 days of each measure, so a day when Health Sync didn't run is filled in on the next one.
 if syncSteps == "on" {
-const stepsMatches = matchText('(?i)steps', recentTypes)
+const stepsMatches = matchText('(?i)steps', @knownTypes)
 const stepsAvailable = count(stepsMatches)
 if stepsAvailable >= 1 {
     @stepDays = findLatestDay(stepsFilter)
@@ -216,7 +250,7 @@ if stepsAvailable >= 1 {
 }
 
 if syncRestingHR == "on" {
-const restingMatches = matchText('(?i)Resting', recentTypes)
+const restingMatches = matchText('(?i)Resting', @knownTypes)
 const restingAvailable = count(restingMatches)
 if restingAvailable >= 1 {
     @restingDays = findLatestDay(restingFilter)
@@ -245,7 +279,7 @@ if restingAvailable >= 1 {
 }
 
 if syncHrv == "on" {
-const hrvMatches = matchText('(?i)Variability', recentTypes)
+const hrvMatches = matchText('(?i)Variability', @knownTypes)
 const hrvAvailable = count(hrvMatches)
 if hrvAvailable >= 1 {
     @hrvDays = findLatestDay(hrvFilter)
@@ -274,7 +308,7 @@ if hrvAvailable >= 1 {
 }
 
 if syncWorkout == "on" {
-const exerciseMatches = matchText('(?i)Exercise', recentTypes)
+const exerciseMatches = matchText('(?i)Exercise', @knownTypes)
 const exerciseAvailable = count(exerciseMatches)
 if exerciseAvailable >= 1 {
     @exerciseDays = findLatestDay(exerciseFilter)
@@ -301,7 +335,7 @@ if exerciseAvailable >= 1 {
 // Each asleep sample goes up as its start and end. The server merges overlapping samples from more than one device
 // and files each night under the morning it ends, so time in bed, awake time and naps don't count.
 if syncSleep == "on" {
-const sleepMatches = matchText('(?i)Sleep', recentTypes)
+const sleepMatches = matchText('(?i)Sleep', @knownTypes)
 const sleepAvailable = count(sleepMatches)
 if sleepAvailable >= 1 {
     // The first sync reads up to a month back, so the bedtime estimate works straight away.
@@ -346,7 +380,7 @@ if sleepAvailable >= 1 {
 if @healthFields >= 1 {
     const healthBody = formRequest("{appAddress}/api/ingest", "POST", {
         "kind": "health",
-        "shortcutVersion": "4.2.0",
+        "shortcutVersion": "4.3.0",
         "date": "{day}",
         "stepsRecent": "{@stepsField}",
         "restingHRRecent": "{@restingField}",
@@ -356,7 +390,7 @@ if @healthFields >= 1 {
         "sleepSamples": "{@sleepCount}",
         "sleepLimit": "{@sleepLimit}",
         "sleepInBed": "{@sleepInBed}",
-        "probeTypes": "{recentTypes}",
+        "probeTypes": "{@knownTypes}",
         "probeResting": "{@probeResting}",
         "probeHrv": "{@probeHrv}",
         "probeStages": "{@probeStages}"
@@ -392,7 +426,7 @@ for alarm in alarms {
 }
 formRequest("{appAddress}/api/ingest", "POST", {
     "kind": "alarms",
-    "shortcutVersion": "4.2.0",
+    "shortcutVersion": "4.3.0",
     "date": "{day}",
     "alarms": "{@alarmRecords}"
 }, {"Authorization": "{@credential}"})

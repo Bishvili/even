@@ -41,6 +41,7 @@ test("the device key is read from its file, checked by the server, and saved onl
 test("every comparison is typed text or a number, never a Boolean",()=>{
  assert.deepEqual(conditions(sync),[
   'providedKeyCount == 0','savedKeyMatchCount == 0','connectionStatus != "connected"','syncCalendar == "on"','todayOffCount == 0','upcomingOffCount == 0','calendarStatus != "accepted"',
+  'recentStepCount >= 1','syncRestingHR == "on"','syncHrv == "on"','syncWorkout == "on"','syncSleep == "on"',
   'syncSteps == "on"','stepsAvailable >= 1','@stepsSeen < 7','totalSteps >= 1','@stepsSeen >= 1','syncRestingHR == "on"','restingAvailable >= 1','@restingSeen < 7','restingFound >= 1','@restingSeen >= 1','syncHrv == "on"','hrvAvailable >= 1','@hrvSeen < 7','hrvFound >= 1','@hrvSeen >= 1',
   'syncWorkout == "on"','exerciseAvailable >= 1','@exerciseSeen < 7','exerciseValue >= 1','@exerciseSeen >= 1','syncSleep == "on"','sleepAvailable >= 1','historyState == "needed"','stageCount >= 1','bedCount >= 1',
   '@healthFields >= 1','healthStatus != "accepted"','updateStatus == "new_release"','syncAlarms == "on"','syncedState != "sent"'

@@ -100,7 +100,7 @@
   if(!list.length)return;
   var count=list.length;
   data().apply(list.map(function(item){return changeFor(item,hide);}));
-  data().toastUndo(plural(count,"item","items")+(hide?" hidden. They’re left out of insights and coaching.":" shown."),function(){data().apply(list.map(function(item){return changeFor(item,!hide);}));});
+  data().toastUndo(plural(count,"item","items")+(hide?" hidden":" shown"),function(){data().apply(list.map(function(item){return changeFor(item,!hide);}));});
  }
  function openType(list){
   var sheet=$("type-sheet"),titles=[];

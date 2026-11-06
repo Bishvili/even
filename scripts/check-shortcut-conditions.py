@@ -182,7 +182,7 @@ def check_connection_and_health(document, actions) -> None:
 
     for finder, types in (
         ("is.workflow.actions.filter.calendarevents", [None, None]),
-        ("is.workflow.actions.filter.health.quantity", ["Steps", "Steps", "Resting Heart Rate", "Heart Rate Variability", "Exercise Minutes", "Sleep", "Sleep"]),
+        ("is.workflow.actions.filter.health.quantity", ["Steps", "Resting Heart Rate", "Heart Rate Variability", "Exercise Minutes", "Sleep", "Steps", "Resting Heart Rate", "Heart Rate Variability", "Exercise Minutes", "Sleep", "Sleep"]),
     ):
         found = by_id(finder)
         if len(found) != len(types):

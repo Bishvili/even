@@ -1,1 +1,1 @@
-Counts every sleep stage, and uses time in bed for nights with nothing else.
+Finds sleep, resting heart rate and other measures even when recent steps outnumber them.
