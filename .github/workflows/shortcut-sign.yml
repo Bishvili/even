@@ -84,14 +84,13 @@ jobs:
           }
           sign_one shortcuts/sync.cherri "$GITHUB_WORKSPACE/dist/Health Sync.shortcut"
           sign_one shortcuts/helper.cherri "$GITHUB_WORKSPACE/dist/Release Helper.shortcut"
-          sign_one shortcuts/health-check.cherri "$GITHUB_WORKSPACE/dist/Health Check.shortcut"
 
       - name: Verify the signed files
         run: |
           python3 - <<'PY'
           from pathlib import Path
 
-          expected = ["Health Sync.shortcut", "Release Helper.shortcut", "Health Check.shortcut"]
+          expected = ["Health Sync.shortcut", "Release Helper.shortcut"]
           for name in expected:
               signed = Path("dist") / name
               data = signed.read_bytes()
@@ -117,9 +116,8 @@ jobs:
           gh release view shortcut-latest >/dev/null 2>&1 || gh release create shortcut-latest --title "Latest Shortcut builds" --notes "Signed builds from main." --prerelease
           cp "dist/Health Sync.shortcut" dist/sync.shortcut
           cp "dist/Release Helper.shortcut" dist/helper.shortcut
-          cp "dist/Health Check.shortcut" dist/check.shortcut
           grep -oE '"shortcutVersion": "[0-9.]+"' shortcuts/sync.cherri | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' > dist/sync-version.txt
           grep -oE 'const helperVersion = "[0-9.]+"' shortcuts/helper.cherri | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' > dist/helper-version.txt
           test -s dist/sync-version.txt
           test -s dist/helper-version.txt
-          gh release upload shortcut-latest dist/sync.shortcut dist/helper.shortcut dist/check.shortcut dist/sync-version.txt dist/helper-version.txt --clobber
+          gh release upload shortcut-latest dist/sync.shortcut dist/helper.shortcut dist/sync-version.txt dist/helper-version.txt --clobber

@@ -1393,3 +1393,22 @@ test("the app reruns Health Sync once for each Health type if a run stops",()=>{
  while(address.includes("&x-error=")){address=decodeURIComponent(address.slice(address.indexOf("&x-error=")+9));depth++;}
  assert.equal(depth,5);assert.ok(address.startsWith("shortcuts://x-callback-url/run-shortcut?name=Health%20Sync&input=text&text=Bearer%20k"));
 });
+
+test("the sync sheet follows a run, including one that stopped and started again",async()=>{
+ const{call,ctx}=harness();
+ const a=await call("/api/user/device",{method:"POST",body:{label:"A"},context:ctx("owner-a@example.com")}),A={Authorization:"Bearer "+a.data.token};
+ const run=async()=>(await call("/api/sync/run",{headers:A})).data.run;
+ assert.equal(await run(),null);
+ await call("/api/shortcut/hello",{method:"POST",headers:A,body:{shortcutVersion:"4.6.0"}});
+ let now=await run();assert.deepEqual([...now.read],["steps"]);assert.equal(now.attempt,1);assert.equal(now.health,null);
+ await call("/api/ingest",{method:"POST",headers:A,body:{kind:"health",date:"2026-11-05",shortcutVersion:"4.6.0",healthRead:"Steps"}});
+ assert.ok((await run()).health);
+ await call("/api/push/synced",{method:"POST",headers:A,body:{items:1}});
+ await call("/api/shortcut/hello",{method:"POST",headers:A,body:{shortcutVersion:"4.6.0"}});
+ // That run stopped at the type it tried, and the next one follows straight on.
+ await call("/api/shortcut/hello",{method:"POST",headers:A,body:{shortcutVersion:"4.6.0"}});
+ now=await run();assert.equal(now.attempt,2);assert.deepEqual([...now.stopped],["restingHR"]);assert.ok(!now.read.includes("restingHR"));
+ await call("/api/push/synced",{method:"POST",headers:A,body:{items:1}});
+ assert.ok((await run()).done);
+ assert.ok((await call("/api/session",{headers:A})).data.syncRun.done);
+});

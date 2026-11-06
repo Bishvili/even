@@ -40,7 +40,6 @@ jobs:
         run: |
           /tmp/cherri-compiler shortcuts/sync.cherri --debug --skip-sign --output=/tmp/sync-compiled.shortcut
           /tmp/cherri-compiler shortcuts/helper.cherri --debug --skip-sign --output=/tmp/helper-compiled.shortcut
-          /tmp/cherri-compiler shortcuts/health-check.cherri --debug --skip-sign --output=/tmp/check-compiled.shortcut
       - name: Verify the generated Shortcut plists
         run: |
           find . -type f -name '*.plist' -print

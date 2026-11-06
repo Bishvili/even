@@ -1,6 +1,6 @@
 (function () {
 "use strict";
-var VERSION = "2.57.0";
+var VERSION = "2.58.0";
 var HIDEABLE={
  event:{list:"events",hidden:"hiddenEvents",key:"id"},
  health:{list:"health",hidden:"hiddenHealth",key:"date"}
@@ -1038,7 +1038,7 @@ function shortcutAddress(retries){
  var address="shortcuts://x-callback-url/run-shortcut?name={{syncUrl}}&input=text&text="+encodeURIComponent("Bearer "+state.token);
  return retries>0?address+"&x-error="+encodeURIComponent(shortcutAddress(retries-1)):address;
 }
-function runShortcut(){shortcutRunPending=true;window.location.href=shortcutAddress(SYNC_RETRIES);}
+function runShortcut(){shortcutRunPending=true;if(globalThis.SyncStatus)globalThis.SyncStatus.start();window.location.href=shortcutAddress(SYNC_RETRIES);}
 async function pull(silent){
  if(!state.token){if(!silent)toast("Sign in under Data to bring in your data.");return;}
  var button=$("pull-button");button.disabled=true;button.textContent="Bringing in…";

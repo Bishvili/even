@@ -41,7 +41,7 @@ async function payload(request){
  if(type.includes("application/x-www-form-urlencoded"))return Object.fromEntries(new URLSearchParams(text));
  try{return JSON.parse(text);}catch(e){return Object.fromEntries(new URLSearchParams(text));}
 }
-const VERSION_NAME="2.57.0";
+const VERSION_NAME="2.58.0";
 function normalEmail(value){return String(value||"").trim().toLowerCase();}
 async function signinAuth(env,ctx,request){
  const {createAuth}=await import("./signin.mjs");
@@ -746,13 +746,13 @@ async function latestBuildVersion(name){
 }
 // One lasting link for each build. iOS names an imported Shortcut after its file, and release assets can't hold a space, so the name is set here.
 async function shortcutBuild(path){
- const[,role,version]=path.match(/^\/api\/shortcut\/build\/(sync|helper|check)(\/version)?$/)||[];
+ const[,role,version]=path.match(/^\/api\/shortcut\/build\/(sync|helper)(\/version)?$/)||[];
  if(!role)return error("Not found",404,"not_found");
  const file=await fetch(BUILDS+role+(version?"-version.txt":".shortcut"));
  if(!file.ok)return error("The latest build couldn't be checked",502,"build_unavailable");
  const headers={...SECURITY,"Cache-Control":"no-cache"};
  if(version)return new Response(file.body,{headers:{...headers,"Content-Type":"text/plain; charset=utf-8"}});
- return new Response(file.body,{headers:{...headers,"Content-Type":"application/octet-stream","Content-Disposition":'attachment; filename="'+(role==="sync"?STABLE.sync:role==="check"?"Health Check":STABLE.helper)+'.shortcut"'}});
+ return new Response(file.body,{headers:{...headers,"Content-Type":"application/octet-stream","Content-Disposition":'attachment; filename="'+(role==="sync"?STABLE.sync:STABLE.helper)+'.shortcut"'}});
 }
 // Published versions can't be edited, so a link only passes if it names the expected Shortcut.
 async function shortcutName(link){
@@ -821,6 +821,23 @@ async function stopTrial(env,owner,state,now,notify=false){
  for(const sub of subs.results||[])await deliverPush(env,key,sub,now,pushPayload(env,body,"/?do=sync")).catch(()=>{});
 }
 const HEALTH_LABELS={steps:"steps",restingHR:"resting heart rate",hrv:"heart rate variability",workout:"exercise minutes",sleep:"sleep"};
+// What the latest run has done, for the app's sync status. Runs that follow straight on from a stopped one count as the same sync.
+const RUN_CHAIN_MS=5*60000,RUN_PHASES=new Set(["calendar","health","alarms","done"]);
+function startRun(state,read,stopped,now){
+ const last=state.run,chained=last&&!last.done&&now-Date.parse(last.at)<RUN_CHAIN_MS;
+ state.run={at:now.toISOString(),started:chained?last.started:now.toISOString(),read,stopped:[...(chained?last.stopped||[]:[]),...stopped],attempt:chained?(last.attempt||1)+1:1};
+}
+async function markRun(env,owner,phase){
+ const state=await loadHealthState(env,owner);
+ if(!state.run||!RUN_PHASES.has(phase))return;
+ state.run[phase]=new Date().toISOString();
+ await saveHealthState(env,owner,state);
+}
+function runStatus(state){
+ const run=state.run;if(!run)return null;
+ const kind=type=>HEALTH_TYPES.find(item=>item[0]===type)?.[1];
+ return {started:run.started,at:run.at,attempt:run.attempt||1,read:String(run.read||"").split(",").map(kind).filter(Boolean),stopped:(run.stopped||[]).map(kind).filter(Boolean),calendar:run.calendar||null,health:run.health||null,alarms:run.alarms||null,done:run.done||null};
+}
 async function stopQuietTrials(env,now){
  const rows=await env.DB.prepare("SELECT email,health_types FROM health_users WHERE health_types LIKE '%\"trial\":{%'").bind().all();
  for(const row of rows.results||[]){
@@ -918,6 +935,7 @@ async function syncApi(request,env,path){
   // How many Health types the run saw, and how many it could read, tells "no data" from "nothing matched".
   const seen=Number(input?.healthSeen),matched=Number(input?.healthMatched);
   if(Number.isInteger(seen)&&seen>=0&&Number.isInteger(matched)&&matched>=0)await env.DB.prepare("UPDATE health_devices SET last_upload_counts=json_patch(COALESCE(last_upload_counts,'{}'),?) WHERE device_id=? AND owner_email=?").bind(JSON.stringify({healthSeen:seen,healthMatched:matched}),dev.id,owner).run();
+  await markRun(env,owner,"done");
   const items=Number(input?.items),key=pushKey(env);
   const sub=key&&await env.DB.prepare("SELECT endpoint,p256dh,auth FROM health_push_subscriptions WHERE device_id=? AND owner_email=? AND p256dh IS NOT NULL").bind(dev.id,owner).first();
   if(!sub||!Number.isInteger(items)||items<0)return reply({ok:true,state:"none"});
@@ -1020,6 +1038,7 @@ async function syncApi(request,env,path){
   if(statements.length)await env.DB.batch(statements);
   return reply({ok:true,saved:items.length,deleted:gone.length});
  }
+ if(path==="/api/sync/run"&&request.method==="GET")return reply({ok:true,run:runStatus(await loadHealthState(env,owner))});
  if(path==="/api/look"&&request.method==="POST"){
   let input;try{input=await payload(request);}catch(e){return error("That request couldn't be read.",400,"invalid_body");}
   const chosen=input?.look===null?null:lookFrom(input?.look,input?.name);
@@ -1050,7 +1069,7 @@ async function syncApi(request,env,path){
   const params=new URL(request.url).searchParams;
   const [shared,look,status,release,calendars,settings,moods,reflections]=await Promise.all([syncedShared(env,owner,params.get("sharedSince")),env.DB.prepare("SELECT look,look_name,health_types FROM health_users WHERE email=?").bind(owner).first(),deviceStatus(env,dev,owner),loadShortcutRelease(env),calendarList(env,owner),syncChoices(env,owner),syncedMoods(env,owner,params.get("since")),syncedReflections(env,owner,params.get("reflectionsSince"))]);
   if(!status)return error("This device was revoked",401,"device_revoked");
-  return reply({ok:true,status,release,calendars,settings,moods,reflections:{email:owner,...reflections},look:look?.look||null,lookName:look?.look_name||null,shared,healthStopped:Object.keys(healthState(look?.health_types).stopped).map(type=>HEALTH_TYPES.find(item=>item[0]===type)?.[1]).filter(Boolean)});
+  return reply({ok:true,status,release,calendars,settings,moods,reflections:{email:owner,...reflections},look:look?.look||null,lookName:look?.look_name||null,shared,syncRun:runStatus(healthState(look?.health_types)),healthStopped:Object.keys(healthState(look?.health_types).stopped).map(type=>HEALTH_TYPES.find(item=>item[0]===type)?.[1]).filter(Boolean)});
  }
  if(path==="/api/sync/status"&&request.method==="GET"){
   const status=await deviceStatus(env,dev,owner);
@@ -1078,9 +1097,10 @@ async function syncApi(request,env,path){
   const off=await syncOff(env,owner),settings=Object.fromEntries(SYNC_KINDS.map(kind=>["sync"+kind[0].toUpperCase()+kind.slice(1),off.has(kind)?"off":"on"]));
   let healthRead;
   if(!semverNewer(FIRST_PLANNED_VERSION,clientVersion)){
-   const state=await loadHealthState(env,owner),now=new Date();
+   const state=await loadHealthState(env,owner),now=new Date(),stopped=state.trial?[state.trial.type]:[];
    if(state.trial)await stopTrial(env,owner,state,now);
    healthRead=planHealth(state,await syncOff(env,owner),now);
+   startRun(state,healthRead,stopped,now);
    await saveHealthState(env,owner,state);
   }
   return reply({ok:true,healthRead,connected:true,state:"connected",shortcutVersion:clientVersion,receivedAt:at,sleepHistory:Number(nights?.count||0)<3?"needed":"complete",updateStatus:updateAvailable?"new_release":"current",...settings,calendarsOff:await calendarsOffPattern(env,owner)});
@@ -1114,6 +1134,7 @@ async function syncApi(request,env,path){
   // A setting changed since the handshake still applies to this upload.
   const off=await syncOff(env,owner);
   if((off.has("calendar")&&kind==="calendar_days")||(off.has("alarms")&&kind==="alarms"))return reply({ok:true,state:"accepted",skipped:true});
+  if(kind==="calendar_days"||kind==="alarms")await markRun(env,owner,kind==="alarms"?"alarms":"calendar");
   if(kind==="calendar_days"){
    const day=dateOnly(input.date),offset=String(input.utcOffset||"").trim();
    if(!day||!UTC_OFFSET.test(offset))return error("Invalid calendar sync details",400,"invalid_calendar_details");
@@ -1147,6 +1168,7 @@ async function syncApi(request,env,path){
    const state=await loadHealthState(env,owner),at=new Date().toISOString();
    for(const type of reported){state.worked[type]=at;delete state.stopped[type];}
    if(state.trial&&reported.includes(state.trial.type))state.trial=null;
+   if(state.run)state.run.health=at;
    await saveHealthState(env,owner,state);
   }
   const allMetrics=(Array.isArray(input.days)?input.days.slice(0,75):[input]).flatMap(readHealth),metrics=allMetrics.filter(x=>!off.has(METRIC_KINDS[x.metric]));
