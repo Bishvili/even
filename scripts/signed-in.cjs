@@ -220,18 +220,17 @@ const scenarios={
    await statusIsReady(page);
    await page.evaluate(()=>App.navigate("data"));
    await page.click("#pull-button");
-   await page.waitForSelector("[data-hide-event]");
+   await page.waitForSelector("[data-seen]");
    await context.route("**/api/context/changes",route=>route.fulfill({json:{ok:true,results:[{ok:true}]}}));
-   await page.click("[data-hide-event]");
+   await page.click("[data-seen]");
    await until(page,()=>{const s=JSON.parse(localStorage.getItem("health:v1"));return !s.events.length&&s.hiddenEvents.length===1;});
-   assert.equal(await page.textContent("#hidden-events-count"),"1 event hidden");
    api.pull={...api.pull,events:[event(true)]};
    await page.click("#pull-button");
    await page.waitForTimeout(300);
    assert.equal((await stored(page)).events.length,0);
    assert.equal((await stored(page)).hiddenEvents.length,1);
-   await page.click("summary#hidden-events-count");
-   await page.click("[data-show-event]");
+   await page.click('input[name="list-view"][value="hidden"]',{force:true});
+   await page.click("[data-seen]");
    await until(page,()=>{const s=JSON.parse(localStorage.getItem("health:v1"));return s.events.length===1&&!s.hiddenEvents.length;});
   });
  },
@@ -243,13 +242,12 @@ const scenarios={
    await statusIsReady(page);
    await page.evaluate(()=>App.navigate("data"));
    await page.click("#pull-button");
-   await page.waitForSelector("[data-hide-health]");
+   await page.waitForSelector("[data-seen]");
    await context.route("**/api/context/changes",route=>route.fulfill({json:{ok:true,results:[{ok:true}]}}));
-   await page.click("[data-hide-health]");
+   await page.click("[data-seen]");
    await until(page,()=>{const s=JSON.parse(localStorage.getItem("health:v1"));return !s.health.length&&s.hiddenHealth.length===1;});
-   assert.equal(await page.textContent("#hidden-events-count"),"1 day hidden");
-   await page.click("summary#hidden-events-count");
-   await page.click("[data-show-health]");
+   await page.click('input[name="list-view"][value="hidden"]',{force:true});
+   await page.click("[data-seen]");
    await until(page,()=>{const s=JSON.parse(localStorage.getItem("health:v1"));return s.health.length===1&&!s.hiddenHealth.length;});
   });
  },
@@ -262,9 +260,9 @@ const scenarios={
    await statusIsReady(page);
    await page.evaluate(()=>App.navigate("data"));
    await page.click("#pull-button");
-   await page.waitForSelector("[data-hide-event]");
+   await page.waitForSelector("[data-seen]");
    await context.setOffline(true);
-   await page.click("[data-hide-event]");
+   await page.click("[data-seen]");
    await until(page,()=>{const s=JSON.parse(localStorage.getItem("health:v1"));return s.hiddenEvents.length===1&&s.pendingChanges.length===1;});
    assert.equal(sent.length,0);
    await context.setOffline(false);
@@ -272,6 +270,36 @@ const scenarios={
    assert.deepEqual(sent,[{changes:[{op:"hide",kind:"event",id:"e1"}]}]);
    await page.waitForTimeout(150);
    assert.equal((await stored(page)).hiddenEvents.length,1);
+  });
+ },
+ "the list searches, pages, selects everything, hides it with one request, and undoes it":async(browser,base)=>{
+  const events=Array.from({length:30},(x,i)=>({id:"e"+i,start:"2026-10-"+String(i%28+1).padStart(2,"0")+"T10:00:00Z",end:"2026-10-"+String(i%28+1).padStart(2,"0")+"T11:00:00Z",title:i===7?"Dentist":"Standup "+i,category:"Other",hidden:false}));
+  const api=fakeApi(),sent=[];
+  api.pull={...api.pull,events};
+  await open(browser,base,saved({moodCursor:shared.cursor}),api,async({page,context})=>{
+   await context.route("**/api/context/changes",route=>{sent.push(route.request().postDataJSON());return route.fulfill({json:{ok:true,results:route.request().postDataJSON().changes.map(()=>({ok:true}))}});});
+   await statusIsReady(page);
+   await page.evaluate(()=>App.navigate("data"));
+   await page.click("#pull-button");
+   await until(page,()=>document.getElementById("list-page").textContent.includes("of 30"));
+   await page.click("#list-next");
+   await until(page,()=>document.getElementById("list-page").textContent.startsWith("Page 2"));
+   await page.fill("#list-search","dentist");
+   await until(page,()=>document.querySelectorAll("[data-open]").length===1);
+   await page.click("[data-open]");
+   await until(page,()=>document.getElementById("item-sheet").open);
+   await page.click("#item-close");
+   await page.click("#list-search-clear");
+   await page.click("#list-select");
+   await page.click("#list-select-all");
+   assert.equal(await page.textContent("#list-selected"),"30 selected");
+   await page.click("#list-hide");
+   await until(page,()=>JSON.parse(localStorage.getItem("health:v1")).hiddenEvents.length===30);
+   await until(page,()=>JSON.parse(localStorage.getItem("health:v1")).pendingChanges.length===0);
+   assert.equal(sent.length,1);
+   assert.equal(sent[0].changes.length,30);
+   await page.click(".toast-undo");
+   await until(page,()=>JSON.parse(localStorage.getItem("health:v1")).events.length===30);
   });
  },
  "damaged storage opens at sign-in":async(browser,base)=>{

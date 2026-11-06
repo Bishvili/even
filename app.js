@@ -1,6 +1,6 @@
 (function () {
 "use strict";
-var VERSION = "2.45.0";
+var VERSION = "2.46.0";
 var HIDEABLE={
  event:{list:"events",hidden:"hiddenEvents",key:"id"},
  health:{list:"health",hidden:"hiddenHealth",key:"date"}
@@ -50,12 +50,13 @@ function number(n){var v=Number(n);return Number.isFinite(v)?v:NaN;}
 function average(xs){return xs.length?xs.reduce(function(a,b){return a+b;},0)/xs.length:NaN;}
 function score(n){return Number.isFinite(n)?n.toFixed(1):"—";}
 function newId(){return (crypto.randomUUID?crypto.randomUUID():String(Date.now())+"-"+Math.random().toString(36).slice(2));}
-function toast(msg){var el=$("toast");el.textContent=msg;el.classList.add("show");if(toastTimer)clearTimeout(toastTimer);toastTimer=setTimeout(function(){el.classList.remove("show");},3500);}
+function toast(msg){var el=$("toast");el.textContent=msg;el.classList.remove("has-action");el.classList.add("show");if(toastTimer)clearTimeout(toastTimer);toastTimer=setTimeout(function(){el.classList.remove("show");},3500);}
 function blank(msg){return '<div class="empty">'+esc(msg)+'</div>';}
 function plural(n,one,many){return n+" "+(n===1?one:many);}
 function isInstalled(){return window.navigator.standalone===true||window.matchMedia("(display-mode: standalone)").matches;}
 function isIOS(){return /iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);}
 function navigate(view){
+ if(globalThis.DataList)globalThis.DataList.leave();
  // Sources and Sync were merged into Data, and older links still use their names.
  var target=view==="sources"?"data-context":"";
  if(view==="sources"||view==="sync")view="data";
@@ -147,17 +148,7 @@ function renderRecent(){
 function renderSources(){
  $("health-count").textContent=state.health.length+" health day"+(state.health.length===1?"":"s");
  $("calendar-count").textContent=state.events.length+" calendar event"+(state.events.length===1?"":"s");
- var hs=state.health.map(function(h){return {kind:"health",ts:h.date+"T12:00:00",h:h};});
- var cs=state.events.map(function(e){return {kind:"event",ts:e.start,e:e};});
- var all=hs.concat(cs).filter(function(x){return !isNaN(new Date(x.ts).getTime());}).sort(function(a,b){return new Date(b.ts)-new Date(a.ts);});
- $("context-count").textContent=plural(all.length,"item","items");
- $("context-list").innerHTML=all.length?all.slice(0,12).map(function(x){
- if(x.kind==="health"){var h=x.h, summary=[h.sleepHours!=null?Math.round(h.sleepHours*10)/10+(h.sleepInBed?"h in bed":"h sleep"):"",h.steps!=null?h.steps.toLocaleString()+" steps":"",h.hrv!=null?Math.round(h.hrv)+" ms HRV":"",h.restingHR!=null?Math.round(h.restingHR)+" bpm resting":"",h.workoutMin!=null?Math.round(h.workoutMin)+" min exercise":""].filter(Boolean).join(" · ");
- return '<div class="entry"><span class="entry-emoji" aria-hidden="true">♥︎</span><div class="entry-main"><strong>Health · '+esc(h.date)+'</strong><small>'+esc(summary||"Health day")+'</small></div>'+(h.source==="shortcut"&&state.token?'<button type="button" class="icon-action" aria-label="Hide health day '+esc(h.date)+'" title="Hide" data-hide-health="'+esc(h.date)+'">'+EYE_OFF+'</button>':'<button class="entry-delete" aria-label="Delete health day" data-delete-health="'+esc(h.date)+'">×</button>')+'</div>';}
- var e=x.e;
- return '<div class="entry"><span class="entry-emoji" aria-hidden="true">▦︎</span><div class="entry-main"><strong>'+esc(e.title||"Calendar event")+'</strong><small>'+esc(formatDate(e.start)+" "+formatTime(e.start)+" · "+e.category)+'</small></div>'+(e.source==="shortcut"&&state.token?'<button type="button" class="icon-action" aria-label="Hide '+esc(e.title||"event")+'" title="Hide" data-hide-event="'+esc(e.id)+'">'+EYE_OFF+'</button>':'<button class="entry-delete" aria-label="Delete calendar event" data-delete-event="'+esc(e.id)+'">×</button>')+'</div>';
- }).join(""):blank(state.token?"Nothing here yet. Run {{sync}}, or add a day or event below.":"Nothing here yet. Sign in to bring in your data, or add a day or event below.");
- renderHidden();
+ if(globalThis.DataList)globalThis.DataList.render();
 }
 function compareVersions(left,right){
  if(!/^\d+\.\d+\.\d+$/.test(left||"")||!/^\d+\.\d+\.\d+$/.test(right||""))return 0;
@@ -509,14 +500,60 @@ function normalizeHealth(h,source){
 }
 function upsertHealth(h){var idx=state.health.findIndex(function(x){return x.date===h.date;});if(idx<0){state.health.push(h);return;}var old=state.health[idx],synced=Items.syncedKeys(old).filter(function(key){return h[key]===undefined;});state.health[idx]=Object.assign({},old,h,{synced:synced,source:synced.length?"shortcut":"manual"});}
 // Hiding happens here straight away, and reaches the account when it can. A hidden item stays in the account, apart from what the app reads, so it can be shown again.
-function setHidden(kind,id,hidden){
- var type=HIDEABLE[kind],from=hidden?type.list:type.hidden,to=hidden?type.hidden:type.list;
- var item=state[from].find(function(x){return x[type.key]===id;});
- if(!item)return;
- state[from]=state[from].filter(function(x){return x!==item;});state[to].push(item);
- if(item.source==="shortcut")queueChange({op:hidden?"hide":"show",kind:kind,id:id});
+// Several changes at once: one save, one redraw and one refresh of the notification plan.
+function applyChange(c){
+ if(c.op==="hide"||c.op==="show"){
+  var type=HIDEABLE[c.kind],hide=c.op==="hide",from=state[hide?type.list:type.hidden],item=from.find(function(x){return x[type.key]===c.id;});
+  if(!item)return;
+  state[hide?type.list:type.hidden]=from.filter(function(x){return x!==item;});state[hide?type.hidden:type.list].push(item);
+  if(item.source==="shortcut")queueChange({op:c.op,kind:c.kind,id:c.id});
+  return;
+ }
+ if(c.op==="type"||c.op==="untype"){
+  var event=state.events.concat(state.hiddenEvents).find(function(e){return e.id===c.id;});
+  if(!event)return;
+  event.category=c.category;
+  if(c.op==="type")event.categoryFrom="you";else if(c.from)event.categoryFrom=c.from;else delete event.categoryFrom;
+  if(event.source==="shortcut")queueChange(c.op==="type"?{op:"type",id:c.id,category:c.category}:{op:"untype",id:c.id});
+  return;
+ }
+ if(c.op==="rule"||c.op==="unrule"){
+  var key=Items.normalizeTitle(c.title);
+  state.titleRules=state.titleRules.filter(function(r){return Items.normalizeTitle(r.title)!==key;});
+  if(c.op==="rule"){
+   state.titleRules.push({title:c.title,category:c.category});
+   state.events.concat(state.hiddenEvents).forEach(function(e){if(e.source==="shortcut"&&e.categoryFrom!=="you"&&Items.normalizeTitle(e.title)===key){e.category=c.category;e.categoryFrom="rule";}});
+  }
+  queueChange({op:c.op,title:c.title,category:c.category});
+ }
+}
+function applyChanges(changes){
+ var retyped=changes.some(function(c){return c.op==="unrule"||c.op==="untype";});
+ changes.forEach(applyChange);
  persist();render();if(globalThis.Reminders)globalThis.Reminders.dataChanged();
- sendChanges();
+ sendChanges().then(function(){if(retyped&&state.token&&!state.pendingChanges.length)pull(true);});
+}
+function toastUndo(message,undo){
+ toast(message);
+ var el=$("toast"),button=document.createElement("button");
+ button.type="button";button.textContent="Undo";button.className="toast-undo";
+ button.addEventListener("click",function(){el.classList.remove("show","has-action");undo();});
+ el.appendChild(document.createTextNode(" "));el.appendChild(button);el.classList.add("has-action");
+ if(toastTimer)clearTimeout(toastTimer);
+ toastTimer=setTimeout(function(){el.classList.remove("show","has-action");},6000);
+}
+function removeLocal(list){
+ var gone={};list.forEach(function(item){gone[item.key]=true;});
+ ["events","hiddenEvents"].forEach(function(name){state[name]=state[name].filter(function(e){return !gone["event:"+e.id];});});
+ ["health","hiddenHealth"].forEach(function(name){state[name]=state[name].filter(function(h){return !gone["health:"+h.date];});});
+ persist();render();if(globalThis.Reminders)globalThis.Reminders.dataChanged();
+}
+function editTyped(date,key,value){
+ var list=state.health.concat(state.hiddenHealth),row=list.find(function(h){return h.date===date;});
+ if(!row)return;
+ if(value===null)delete row[key];else row[key]=value;
+ if(!Items.MEASURES.some(function(k){return row[k]!==undefined;})){state.health=state.health.filter(function(h){return h!==row;});state.hiddenHealth=state.hiddenHealth.filter(function(h){return h!==row;});}
+ persist();render();if(globalThis.Reminders)globalThis.Reminders.dataChanged();
 }
 function changeKey(c){return (c.op==="hide"||c.op==="show"?"seen":c.op==="rule"||c.op==="unrule"?"rule":"type")+":"+(c.kind||"")+":"+(c.id||Items.normalizeTitle(c.title));}
 function queueChange(change){var key=changeKey(change);state.pendingChanges=state.pendingChanges.filter(function(p){return changeKey(p)!==key;}).concat(change);}
@@ -534,7 +571,7 @@ function sendChanges(){
     if(refused)toast(plural(refused,"change","changes")+" couldn’t be saved.");
    }catch(e){return;}
   }
- })().finally(function(){sendingChanges=null;renderSync();});
+ })().finally(function(){sendingChanges=null;if(globalThis.DataList)globalThis.DataList.status();});
  return sendingChanges;
 }
 // What the account sends, with changes it hasn't heard about yet laid on top.
@@ -548,14 +585,6 @@ function withPendingChanges(kind,items,key){
 }
 var EYE='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>';
 var EYE_OFF='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.9 5.2A10 10 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3 3.9"/><path d="M6.2 6.7A16.6 16.6 0 0 0 2 12s3.6 7 10 7a10 10 0 0 0 5.2-1.5"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/><path d="m3 3 18 18"/></svg>';
-function renderHidden(){
- var events=state.hiddenEvents.map(function(e){return {at:e.start,icon:"▦︎",title:e.title||"Calendar event",when:formatDate(e.start)+" "+formatTime(e.start),attr:"data-show-event",id:e.id};});
- var days=state.hiddenHealth.map(function(h){return {at:h.date,icon:"♥︎",title:"Health · "+h.date,when:"Sleep, movement and recovery",attr:"data-show-health",id:h.date};});
- var list=events.concat(days).sort(function(a,b){return a.at<b.at?1:-1;});
- $("hidden-events").hidden=!list.length;
- $("hidden-events-count").textContent=[events.length?plural(events.length,"event","events"):"",days.length?plural(days.length,"day","days"):""].filter(Boolean).join(" and ")+" hidden";
- $("hidden-events-list").innerHTML=list.map(function(x){return '<div class="entry"><span class="entry-emoji" aria-hidden="true">'+x.icon+'</span><div class="entry-main"><strong>'+esc(x.title)+'</strong><small>'+esc(x.when)+'</small></div><button type="button" class="icon-action" aria-label="Show '+esc(x.title)+'" title="Show" '+x.attr+'="'+esc(x.id)+'">'+EYE+'</button></div>';}).join("");
-}
 function normalizeEvent(e,source){
  if(!e||typeof e!=="object")return null;
  var st=new Date(e.start),en=new Date(e.end);
@@ -1038,11 +1067,6 @@ function init(){
  $("edit-form").addEventListener("submit",saveEdit);
  $("edit-cancel").addEventListener("click",function(){$("edit-sheet").close();});
  $("recent-list").addEventListener("click",function(ev){var b=ev.target.closest("[data-delete-mood]");if(b)askConfirm("Delete this check-in? This can’t be undone.","Delete").then(function(yes){if(!yes)return;state.moods=state.moods.filter(function(x){return x.id!==b.dataset.deleteMood;});state.pendingMoods=state.pendingMoods.filter(function(id){return id!==b.dataset.deleteMood;});state.deletedMoods.push(b.dataset.deleteMood);persist();render();syncMoods();});});
- $("context-list").addEventListener("click",function(ev){var b=ev.target.closest("[data-delete-health]");if(b)askConfirm("Delete this health day from this device?","Delete").then(function(yes){if(!yes)return;state.health=state.health.filter(function(x){return x.date!==b.dataset.deleteHealth;});persist();render();});
- b=ev.target.closest("[data-delete-event]");if(b)askConfirm("Delete this event from this device? This can’t be undone.","Delete").then(function(yes){if(!yes)return;state.events=state.events.filter(function(x){return x.id!==b.dataset.deleteEvent;});persist();render();});
-  b=ev.target.closest("[data-hide-event]");if(b)setHidden("event",b.dataset.hideEvent,true);
-  b=ev.target.closest("[data-hide-health]");if(b)setHidden("health",b.dataset.hideHealth,true);});
- $("hidden-events-list").addEventListener("click",function(ev){var b=ev.target.closest("[data-show-event]");if(b)setHidden("event",b.dataset.showEvent,false);b=ev.target.closest("[data-show-health]");if(b)setHidden("health",b.dataset.showHealth,false);});
  document.querySelectorAll("[data-days]").forEach(function(b){b.addEventListener("click",function(){insightDays=Number(b.dataset.days);document.querySelectorAll("[data-days]").forEach(function(x){x.classList.toggle("selected",x===b);});renderInsights();});});
  document.querySelectorAll("[data-scope]").forEach(function(b){b.addEventListener("click",function(){insightScope=b.dataset.scope;renderInsights();});});
  $("login-button").addEventListener("click",function(){signIn();});
@@ -1075,7 +1099,7 @@ function init(){
  $("erase-local").addEventListener("click",eraseLocal);$("delete-account").addEventListener("click",deleteAccount);
  $("demo-button").addEventListener("click",demo);$("clear-demo-button").addEventListener("click",clearDemo);
  setEnergyText();navigate(location.hash.slice(1)||"checkin");
- window.addEventListener("online",function(){renderSync();syncMoods();sendChanges();});window.addEventListener("offline",function(){renderSync();renderMoodStatus();});
+ window.addEventListener("online",function(){renderSync();syncMoods();sendChanges();if(globalThis.DataList)globalThis.DataList.status();});window.addEventListener("offline",function(){renderSync();if(globalThis.DataList)globalThis.DataList.status();renderMoodStatus();});
  $("mood-sync-retry").addEventListener("click",function(){moodSyncFailed=false;renderMoodStatus();syncMoods();});
  if(navigator.onLine)refreshAuth();
  if(state.token&&navigator.onLine)loadSession();
@@ -1123,6 +1147,6 @@ function logPlan(date,minutes,moves){
  state.planMoves=state.planMoves.concat(moves).slice(-60);
  persist();
 }
-globalThis.App={logTry:logTry,logPlan:logPlan,planLog:function(){return state.planLog;},planMoves:function(){return state.planMoves;},tries:function(){return state.tries;},version:VERSION,signOut:signOut,syncStatus:function(){return shortcutStatus;},signedIn:function(){return !!authEmail;},askConfirm:askConfirm,accountPath:accountPath,refreshAuth:refreshAuth,firstName:function(){return state.firstName;},navigate:navigate,setup:setup,signIn:signIn,connect:issueDevice,isInstalled:isInstalled,isIOS:isIOS,alarms:function(){return state.alarms;},resets:function(){return state.resets;},logReset:function(){state.resets.push(new Date().toISOString());state.resets=state.resets.slice(-500);persist();},personalEvents:function(){return state.events;},personalHealth:function(){return state.health;},personalMoods:function(){return state.moods;},refresh:refresh,runShortcut:runShortcut,refreshCoach:refreshCoach,addReflection:function(r){state.reflections.push(r);if(persist())render();},toast:toast,formatTime:formatTime,deviceToken:function(){return state.token;}};
+globalThis.App={data:{state:function(){return state;},apply:applyChanges,sendChanges:sendChanges,toast:toast,toastUndo:toastUndo,askConfirm:askConfirm,removeLocal:removeLocal,editTyped:editTyped,esc:esc,blank:blank,formatDate:formatDate,formatTime:formatTime,EYE:EYE,EYE_OFF:EYE_OFF},logTry:logTry,logPlan:logPlan,planLog:function(){return state.planLog;},planMoves:function(){return state.planMoves;},tries:function(){return state.tries;},version:VERSION,signOut:signOut,syncStatus:function(){return shortcutStatus;},signedIn:function(){return !!authEmail;},askConfirm:askConfirm,accountPath:accountPath,refreshAuth:refreshAuth,firstName:function(){return state.firstName;},navigate:navigate,setup:setup,signIn:signIn,connect:issueDevice,isInstalled:isInstalled,isIOS:isIOS,alarms:function(){return state.alarms;},resets:function(){return state.resets;},logReset:function(){state.resets.push(new Date().toISOString());state.resets=state.resets.slice(-500);persist();},personalEvents:function(){return state.events;},personalHealth:function(){return state.health;},personalMoods:function(){return state.moods;},refresh:refresh,runShortcut:runShortcut,refreshCoach:refreshCoach,addReflection:function(r){state.reflections.push(r);if(persist())render();},toast:toast,formatTime:formatTime,deviceToken:function(){return state.token;}};
 init();
 })();
