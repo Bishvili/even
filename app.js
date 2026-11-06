@@ -1,6 +1,6 @@
 (function () {
 "use strict";
-var VERSION = "2.47.0";
+var VERSION = "2.47.1";
 var HIDEABLE={
  event:{list:"events",hidden:"hiddenEvents",key:"id"},
  health:{list:"health",hidden:"hiddenHealth",key:"date"}
@@ -547,7 +547,7 @@ function normalizeHealth(h,source){
  [["sleepHours",0,24],["steps",0,100000],["hrv",0,500],["restingHR",20,250],["bedtimeMin",0,1439],["sleepInBed",0,1],["workoutMin",0,1440],["firstAlarmMin",0,719]].forEach(function(t){if(h[t[0]]!==undefined&&h[t[0]]!==null&&h[t[0]]!==""){var n=number(h[t[0]]);if(Number.isFinite(n)&&n>=t[1]&&n<=t[2])item[t[0]]=n;}});
  return Object.keys(item).some(function(k){return ["sleepHours","steps","hrv","restingHR","workoutMin"].includes(k);})?item:null;
 }
-function upsertHealth(h){var idx=state.health.findIndex(function(x){return x.date===h.date;});if(idx<0){state.health.push(h);return;}var old=state.health[idx],synced=Items.syncedKeys(old).filter(function(key){return h[key]===undefined;});state.health[idx]=Object.assign({},old,h,{synced:synced,source:synced.length?"shortcut":"manual"});}
+function upsertHealth(h){var idx=state.health.findIndex(function(x){return x.date===h.date;});if(idx<0){state.health.push(h);return;}var old=state.health[idx],synced=globalThis.Items.syncedKeys(old).filter(function(key){return h[key]===undefined;});state.health[idx]=Object.assign({},old,h,{synced:synced,source:synced.length?"shortcut":"manual"});}
 // Hiding happens here straight away, and reaches the account when it can. A hidden item stays in the account, apart from what the app reads, so it can be shown again.
 // Several changes at once: one save, one redraw and one refresh of the notification plan.
 function applyChange(c){
@@ -567,11 +567,11 @@ function applyChange(c){
   return;
  }
  if(c.op==="rule"||c.op==="unrule"){
-  var key=Items.normalizeTitle(c.title);
-  state.titleRules=state.titleRules.filter(function(r){return Items.normalizeTitle(r.title)!==key;});
+  var key=globalThis.Items.normalizeTitle(c.title);
+  state.titleRules=state.titleRules.filter(function(r){return globalThis.Items.normalizeTitle(r.title)!==key;});
   if(c.op==="rule"){
    state.titleRules.push({title:c.title,category:c.category});
-   state.events.concat(state.hiddenEvents).forEach(function(e){if(e.source==="shortcut"&&e.categoryFrom!=="you"&&Items.normalizeTitle(e.title)===key){e.category=c.category;e.categoryFrom="rule";}});
+   state.events.concat(state.hiddenEvents).forEach(function(e){if(e.source==="shortcut"&&e.categoryFrom!=="you"&&globalThis.Items.normalizeTitle(e.title)===key){e.category=c.category;e.categoryFrom="rule";}});
   }
   queueChange({op:c.op,title:c.title,category:c.category});
  }
@@ -601,10 +601,10 @@ function editTyped(date,key,value){
  var list=state.health.concat(state.hiddenHealth),row=list.find(function(h){return h.date===date;});
  if(!row)return;
  if(value===null)delete row[key];else row[key]=value;
- if(!Items.MEASURES.some(function(k){return row[k]!==undefined;})){state.health=state.health.filter(function(h){return h!==row;});state.hiddenHealth=state.hiddenHealth.filter(function(h){return h!==row;});}
+ if(!globalThis.Items.MEASURES.some(function(k){return row[k]!==undefined;})){state.health=state.health.filter(function(h){return h!==row;});state.hiddenHealth=state.hiddenHealth.filter(function(h){return h!==row;});}
  persist();render();if(globalThis.Reminders)globalThis.Reminders.dataChanged();
 }
-function changeKey(c){return (c.op==="hide"||c.op==="show"?"seen":c.op==="rule"||c.op==="unrule"?"rule":"type")+":"+(c.kind||"")+":"+(c.id||Items.normalizeTitle(c.title));}
+function changeKey(c){return (c.op==="hide"||c.op==="show"?"seen":c.op==="rule"||c.op==="unrule"?"rule":"type")+":"+(c.kind||"")+":"+(c.id||globalThis.Items.normalizeTitle(c.title));}
 function queueChange(change){var key=changeKey(change);state.pendingChanges=state.pendingChanges.filter(function(p){return changeKey(p)!==key;}).concat(change);}
 var sendingChanges=null,CHANGE_BATCH=100;
 function sendChanges(){
@@ -1025,7 +1025,7 @@ async function pull(silent){
   var days=serverHealth.map(function(x){var v=normalizeHealth(x,"shortcut");if(v)v.hidden=!!x.hidden;return v;}).filter(Boolean);
   var dayHidden={};days.forEach(function(d){dayHidden[d.date]=d.hidden;delete d.hidden;});
   var wasHidden={};state.hiddenHealth.forEach(function(d){wasHidden[d.date]=true;});
-  var merged=Items.mergeHealth(state.health.concat(state.hiddenHealth),days,complete.health,oldestDay);
+  var merged=globalThis.Items.mergeHealth(state.health.concat(state.hiddenHealth),days,complete.health,oldestDay);
   var isHidden=function(d){return dayHidden[d.date]!==undefined?dayHidden[d.date]:!!wasHidden[d.date];};
   state.health=merged.filter(function(d){return !isHidden(d);});state.hiddenHealth=merged.filter(isHidden);
   var h=state.health.length,e=0;

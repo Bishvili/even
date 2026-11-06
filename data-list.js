@@ -11,7 +11,7 @@
  function esc(text){return data().esc(text);}
  function plural(n,one,many){return n+" "+(n===1?one:many);}
  function now(){return new Date();}
- function items(){return Items.allItems(data().state());}
+ function items(){return globalThis.Items.allItems(data().state());}
  function find(key){return items().find(function(item){return item.key===key;});}
  function isSynced(item){return item.raw.source==="shortcut";}
  function canHide(item){return isSynced(item)?!!data().state().token:true;}
@@ -51,9 +51,9 @@
  function render(){
   if(!data())return;
   var all=items(),time=now();
-  selected=Items.pruneSelection(selected,all);
-  shown=Items.select(all,filters,time);
-  var current=Items.page(shown,pageNumber);pageNumber=current.page;
+  selected=globalThis.Items.pruneSelection(selected,all);
+  shown=globalThis.Items.select(all,filters,time);
+  var current=globalThis.Items.page(shown,pageNumber);pageNumber=current.page;
   $("context-count").textContent=plural(all.length,"item","items");
   $("list-chips").innerHTML=activeChips();
   $("list-chips").hidden=!$("list-chips").innerHTML;
@@ -61,7 +61,7 @@
   $("list-select").hidden=!all.length;
   if(!all.length)$("context-list").innerHTML=data().blank(data().state().token?"Nothing here yet. Run {{sync}}, or add a day or event below.":"Nothing here yet. Sign in to bring in your data, or add a day or event below.");
   else if(!shown.length)$("context-list").innerHTML='<div class="empty">Nothing matches. <button type="button" class="text-action" id="list-reset">Clear search and filters</button></div>';
-  else $("context-list").innerHTML=Items.grouped(current.items,time).map(function(group){return '<h3 class="item-day">'+esc(group.label)+"</h3>"+group.items.map(row).join("");}).join("");
+  else $("context-list").innerHTML=globalThis.Items.grouped(current.items,time).map(function(group){return '<h3 class="item-day">'+esc(group.label)+"</h3>"+group.items.map(row).join("");}).join("");
   $("list-pager").hidden=current.pages<2;
   $("list-page").textContent="Page "+current.page+" of "+current.pages+" · "+current.from+"–"+current.to+" of "+current.total;
   $("list-prev").disabled=current.page<=1;$("list-next").disabled=current.page>=current.pages;
@@ -90,7 +90,7 @@
   card.hidden=!rules.length;
   var events=data().state().events.concat(data().state().hiddenEvents);
   $("rules-list").innerHTML=rules.map(function(rule){
-   var count=events.filter(function(e){return Items.normalizeTitle(e.title)===Items.normalizeTitle(rule.title);}).length;
+   var count=events.filter(function(e){return globalThis.Items.normalizeTitle(e.title)===globalThis.Items.normalizeTitle(rule.title);}).length;
    return '<div class="calendar-row"><span>'+esc(rule.title)+" → "+esc(rule.category)+'<small class="muted"> · '+plural(count,"event","events")+'</small></span><button type="button" class="text-action" data-unrule="'+esc(rule.title)+'" aria-label="Delete the type for '+esc(rule.title)+'">Delete</button></div>';
   }).join("");
  }
@@ -151,7 +151,7 @@
   facts.push(["In insights",item.hidden?"Left out":"Included"]);
   $("item-title").textContent=title(item);
   $("item-facts").innerHTML=facts.map(function(f){return "<dt>"+esc(f[0])+"</dt><dd>"+esc(f[1])+"</dd>";}).join("");
-  var typed=item.kind==="health"?Items.typedKeys(r):[];
+  var typed=item.kind==="health"?globalThis.Items.typedKeys(r):[];
   var names={sleepHours:"Sleep (hours)",steps:"Steps",hrv:"HRV (ms)",restingHR:"Resting heart rate",workoutMin:"Exercise (min)"};
   $("item-typed").hidden=!typed.length;
   $("item-typed").innerHTML=typed.length?'<h3 class="plan-heading">Typed by you</h3>'+typed.map(function(key){return '<div class="calendar-row"><label for="typed-'+key+'">'+names[key]+'</label><input id="typed-'+key+'" type="number" inputmode="decimal" min="0" step="any" value="'+esc(r[key])+'" data-typed="'+key+'"><button type="button" class="text-action" data-untyped="'+key+'">Remove</button></div>';}).join(""):"";
@@ -175,7 +175,7 @@
   function turn(step){pageNumber+=step;render();var h=$("data-context-title");h.scrollIntoView({block:"start"});h.focus({preventScroll:true});}
   $("list-prev").addEventListener("click",function(){turn(-1);});$("list-next").addEventListener("click",function(){turn(1);});
   $("list-select").addEventListener("click",function(){selecting=!selecting;if(!selecting)selected={};render();});
-  $("list-select-page").addEventListener("click",function(){Items.page(shown,pageNumber).items.forEach(function(item){selected[item.key]=true;});render();});
+  $("list-select-page").addEventListener("click",function(){globalThis.Items.page(shown,pageNumber).items.forEach(function(item){selected[item.key]=true;});render();});
   $("list-select-all").addEventListener("click",function(){shown.forEach(function(item){selected[item.key]=true;});render();});
   $("list-select-none").addEventListener("click",function(){selected={};render();});
   $("list-hide").addEventListener("click",function(){
