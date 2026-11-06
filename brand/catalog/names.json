@@ -1,0 +1,11 @@
+[
+  {"id":"n1","name":"Even","installName":"Health","tagline":"Know your harder days, and what helps.","pitch":"a private way to understand your harder days","with":{"icon":"i1","palette":"p1"}},
+  {"id":"n2","name":"Fulcrum","installName":"Fulcrum","tagline":"What tips your days. What steadies them.","pitch":"a private way to see what tips your days and what steadies them","with":{"icon":"i2","palette":"p2"}},
+  {"id":"n3","name":"Millpond","installName":"Millpond","tagline":"A calm look at your days.","pitch":"a calm, private look at your days","with":{"icon":"i3","palette":"p3"}},
+  {"id":"n4","name":"Ballast","installName":"Ballast","tagline":"What keeps your days steady.","pitch":"a private way to find what keeps your days steady","with":{"icon":"i4","palette":"p4"}},
+  {"id":"n5","name":"Gloaming","installName":"Gloaming","tagline":"A quiet look at the day just gone.","pitch":"a quiet, private look at the day just gone","with":{"icon":"i5","palette":"p5"}},
+  {"id":"n6","name":"Dapple","installName":"Dapple","tagline":"Notice the light and shade in your days.","pitch":"a private way to notice the light and shade in your days","with":{"icon":"i6","palette":"p6"}},
+  {"id":"n7","name":"Sundial","installName":"Sundial","tagline":"See which hours shape your days.","pitch":"a private way to see which hours shape your days","with":{"icon":"i7","palette":"p7"}},
+  {"id":"n8","name":"Almanac","installName":"Almanac","tagline":"Your days, and what shaped them.","pitch":"a private record of your days and what shaped them","with":{"icon":"i8","palette":"p8"}},
+  {"id":"n9","name":"Orchard","installName":"Orchard","tagline":"Tend to the days that shape you.","pitch":"a private way to tend to the days that shape you","with":{"icon":"i9","palette":"p9"}}
+]

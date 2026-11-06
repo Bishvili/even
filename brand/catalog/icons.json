@@ -1,0 +1,11 @@
+[
+  {"id":"i1","name":"Horizon","file":"icons/i1-even.svg","shows":"A sun resting on the horizon"},
+  {"id":"i2","name":"Seesaw","file":"icons/i2-fulcrum.svg","shows":"A beam tipping on its point, the heavier weight lower"},
+  {"id":"i3","name":"Drop","file":"icons/i3-millpond.svg","shows":"A drop above still water and its ripples"},
+  {"id":"i4","name":"Stones","file":"icons/i4-ballast.svg","shows":"Three stones stacked in balance, the top one warm"},
+  {"id":"i5","name":"Moon","file":"icons/i5-gloaming.svg","shows":"A crescent moon holding a star, over the horizon"},
+  {"id":"i6","name":"Overlap","file":"icons/i6-dapple.svg","shows":"A disc of light and a ring of shade, overlapping"},
+  {"id":"i7","name":"Dial","file":"icons/i7-sundial.svg","shows":"A sundial's pointer inside its dial"},
+  {"id":"i8","name":"Days","file":"icons/i8-almanac.svg","shows":"A grid of days, with one that stands out"},
+  {"id":"i9","name":"Tree","file":"icons/i9-orchard.svg","shows":"A tree over its ground"}
+]

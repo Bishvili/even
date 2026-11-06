@@ -25,7 +25,8 @@ function fromHsl([h,s,l]){
 const hex=rgb=>"#"+rgb.map(value=>value.toString(16).padStart(2,"0")).join("").toUpperCase();
 function shift(color,from,to){
  const[a,b]=[toHsl(parse(from)),toHsl(parse(to))],[r,g,bl,alpha]=parse(color),[h,s,l]=toHsl([r,g,bl]);
- const ratio=a[1]?b[1]/a[1]:1,rgb=fromHsl([(h+b[0]-a[0]+360)%360,Math.min(1,s*ratio),l]);
+ // A near-neutral, such as a page or a border, takes the family's new hue outright. Turning its own hue by the family's change would tint a cream page lilac.
+ const ratio=a[1]?b[1]/a[1]:1,rgb=fromHsl([s<0.3?b[0]:(h+b[0]-a[0]+360)%360,Math.min(1,s*ratio),l]);
  return alpha===1?hex(rgb):"rgba("+rgb.join(",")+","+alpha+")";
 }
 function resolve(palette,colors){

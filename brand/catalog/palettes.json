@@ -1,0 +1,11 @@
+[
+  {"id":"p1","name":"Pine","colors":{"primary":"#28685B","highlight":"#F4D798","ground":"#10262A"}},
+  {"id":"p2","name":"Harbor","colors":{"primary":"#2B4FA8","highlight":"#F2C879","ground":"#1B1F3A"}},
+  {"id":"p3","name":"Lagoon","colors":{"primary":"#1F7A8C","highlight":"#F4A98D","ground":"#0C2B33"}},
+  {"id":"p4","name":"Slate","colors":{"primary":"#4A5F7A","highlight":"#E7C9A1","ground":"#1D2530"}},
+  {"id":"p5","name":"Dusk","colors":{"primary":"#5B4B9A","highlight":"#F2CF86","ground":"#1C1741"}},
+  {"id":"p6","name":"Lichen","colors":{"primary":"#566B2E","highlight":"#EFC76B","ground":"#1C2917"}},
+  {"id":"p7","name":"Amber","colors":{"primary":"#8C5A14","highlight":"#F5DC8F","ground":"#2A1E08"}},
+  {"id":"p8","name":"Clay","colors":{"primary":"#A4502F","highlight":"#F3D8B6","ground":"#2D1A12"}},
+  {"id":"p9","name":"Berry","colors":{"primary":"#8A3B4E","highlight":"#F3D6A4","ground":"#2B1A20"}}
+]

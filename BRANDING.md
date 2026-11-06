@@ -15,6 +15,16 @@ Only if they want: `tagline`, `pitch` (it follows "Try Name, ", so start lowerca
 
 Don't ask for anything else, and don't edit `brand/palette.json`. It holds about 50 roles, and the build works them out from the three colors: each role keeps its own lightness and follows its family's change in hue and saturation. Red warnings, ambers and status colors deliberately stay as they are.
 
+## Starting from the catalogue
+
+`brand/catalog/` holds nine names, nine icons and nine palettes that can be mixed. When someone has chosen, for example "Gloaming, the Stones icon and the Harbor palette":
+
+1. Copy that name's `name`, `installName`, `tagline` and `pitch` from `names.json` into `brand/brand.json`.
+2. Copy the palette's three colors from `palettes.json` into `colors` there.
+3. Copy the icon's file from `brand/catalog/icons/` over `brand/logo.svg`.
+
+Then follow the steps below. The catalogue itself stays as it is, so the look being replaced is still one of the nine.
+
 ## The logo
 
 - Square, with a `viewBox`. Plain shapes only, with no scripts, text or linked images.
@@ -26,7 +36,7 @@ Don't ask for anything else, and don't edit `brand/palette.json`. It holds about
 
 ## Steps
 
-1. **Try it first.** Add the candidate to `brand/looks.json` (a `name`, optionally `colors` and `logo`), and run `node scripts/preview-looks.cjs previews "Name"`. Or run the **Preview looks** workflow, which saves the screenshots as a download. Look at every screen, light and dark, and show them to the person. Nothing here reaches the live app.
+1. **Try it first.** Add the candidate to `brand/looks.json` (a `name`, optionally `colors` and `logo`, where a catalogue icon's path goes), and run `node scripts/preview-looks.cjs previews "Name"`. Or run the **Preview looks** workflow, which saves the screenshots as a download. Look at every screen, light and dark, and show them to the person. Nothing here reaches the live app.
 2. **Apply it.** Edit `brand/brand.json` and `brand/logo.svg`.
 3. **Check it.** `node --test tests/*.test.cjs`, `node scripts/smoke.cjs` and `node scripts/signed-in.cjs`.
 4. **Ship it.** Run `node scripts/bump-version.cjs x.y.z`, commit to `main` and push. A push goes straight to the live app, with no staging, so get the person's go-ahead first. Then confirm the Workers Builds result and **Check the live site**.

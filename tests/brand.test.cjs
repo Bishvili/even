@@ -89,6 +89,18 @@ test("a few main colors make the whole palette, and the ones it was written for 
  assert.match(blue.app.backdrop.light,/^rgba\(.*,0\.45\)$|^rgba\(.*,\.45\)$/);
  assert.throws(()=>checkReadable(resolve(palette,{...palette.main,primary:"#F0F0F0"})),/too faint/);
 });
+test("a page takes its ground's hue, so a warm ground gives a cream page and not a lilac one",()=>{
+ const{resolve}=require("../scripts/brand-colors.cjs"),palette=JSON.parse(fs.readFileSync("brand/palette.json","utf8"));
+ const hue=color=>{
+  const[r,g,b]=[1,3,5].map(at=>parseInt(color.slice(at,at+2),16)/255),max=Math.max(r,g,b),d=max-Math.min(r,g,b);
+  return 60*(max===r?((g-b)/d+6)%6:max===g?(b-r)/d+2:(r-g)/d+4);
+ };
+ const ground="#2A1E08",warm=resolve(palette,{primary:"#8C5A14",highlight:"#F5DC8F",ground});
+ for(const mode of["light","dark"]){
+  const gap=Math.abs(hue(warm.app.page[mode])-hue(ground));
+  assert.ok(Math.min(gap,360-gap)<25,"the "+mode+" page is "+Math.round(hue(warm.app.page[mode]))+" degrees and the ground "+Math.round(hue(ground)));
+ }
+});
 test("each palette role belongs to a family or is left alone on purpose",()=>{
  const palette=JSON.parse(fs.readFileSync("brand/palette.json","utf8")),roles=new Set([...Object.keys(palette.app),...Object.keys(palette.paper)]);
  const fixed=new Set(["danger","danger-bg","warning","warning-bg","warning-line","status-ok","status-waiting","on-accent"]);
