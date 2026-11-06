@@ -70,7 +70,7 @@ The public files are the ones listed in `SHELL` in `sw.js`. `scripts/build-asset
 
 Weekly reflections sync to your account like check-ins, and their reminder never shows your answers or score. Breathing sessions, suggestions marked done and which check-ins you answered stay on the device.
 
-The look you pick in Settings is saved on the device and in your account.
+Signing in on the install page creates a one-time code, used once, that signs the new icon in. The look you pick in Settings is saved on the device and in your account.
 
 Your first name can appear in notifications, including on your Lock Screen.
 

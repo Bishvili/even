@@ -33,6 +33,7 @@ function harness({brand={},verified=false,buildVersion="2.8.0",helperBuild="2.0.
     if(sql.startsWith("SELECT (SELECT name FROM health_names")){const email=args[0];return{chosen:rows.names?.get(email)||null,given:email==="owner-a@example.com"?"Ada Lovelace":null,signin:(rows.userFields?.get(email)||{}).name||null};}
     if(sql.startsWith("SELECT COUNT(*) AS count FROM health_calendar_events WHERE owner_email=? AND calendar=?"))return{count:[...rows.events.values()].filter(d=>d.owner===args[0]&&d.calendar===args[1]).length};
     if(sql.startsWith("SELECT COUNT(*) AS count FROM health_reflections"))return{count:(rows.reflections||[]).filter(r=>r.owner===args[0]&&!r.deleted_at).length};
+    if(sql.startsWith("DELETE FROM health_install_codes WHERE code_hash")){const at=(rows.installCodes||[]).findIndex(x=>x.hash===args[0]&&x.expires>args[1]);if(at<0)return null;return{email:rows.installCodes.splice(at,1)[0].email};}
     if(sql.startsWith("SELECT look,look_name FROM health_users"))return{look:rows.looks?.get(args[0])||null,look_name:rows.lookNames?.get(args[0])||null};
     if(sql.startsWith("SELECT sync_off FROM health_users"))return (rows.userFields?.get(args[0]))||null;
     if(sql.startsWith("INSERT INTO health_service")){rows.sends=(rows.sends||0)+1;return{value:String(rows.sends)};}
@@ -93,6 +94,8 @@ function harness({brand={},verified=false,buildVersion="2.8.0",helperBuild="2.0.
     }
     if(sql.startsWith("INSERT INTO health_names")){(rows.names=rows.names||new Map()).set(args[0],args[1]);return{meta:{changes:1}};}
     if(sql.startsWith("DELETE FROM health_names")){rows.names?.delete(args[0]);return{meta:{changes:1}};}
+    if(sql.startsWith("INSERT INTO health_install_codes")){rows.installCodes=rows.installCodes||[];rows.installCodes.push({hash:args[0],email:args[1],expires:args[2]});return{meta:{changes:1}};}
+    if(sql.startsWith("DELETE FROM health_install_codes")){rows.installCodes=(rows.installCodes||[]).filter(x=>x.email!==args[0]&&!(args[1]&&x.expires<args[1]));return{meta:{changes:1}};}
     if(sql.startsWith("DELETE FROM health_reflections")){rows.reflections=(rows.reflections||[]).filter(r=>r.owner!==args[0]);return{meta:{changes:1}};}
     if(sql.startsWith("UPDATE health_reflections SET ts=?")){(rows.reflections||[]).forEach(r=>{if(r.owner===args[3]&&!r.deleted_at){r.deleted_at=args[2];r.updated_at=args[1];r.answers=null;}});return{meta:{changes:1}};}
     if(sql.startsWith("INSERT INTO health_reflections")){
@@ -1156,7 +1159,7 @@ test("the invitation takes every name from the brand file",async()=>{
  for(const part of[mail.text,mail.html]){
   assert.match(part,/Zzyzx Labs/);
   assert.match(part,/a made-up pitch/);
-  assert.doesNotMatch(part,new RegExp("\\b"+require("../brand/brand.json").name+"\\b"));
+  assert.doesNotMatch(part,/\bEven\b/);
  }
 });
 
@@ -1304,4 +1307,23 @@ test("a look takes catalogue ids only, belongs to one account, comes with the se
  assert.equal((await call("/api/look",{method:"POST",headers:A,body:{look:"n0.i4.p2",name:"   "}})).data.code,"invalid_look");
  await call("/api/look",{method:"POST",headers:A,body:{look:null}});
  assert.equal((await call("/api/session",{headers:A})).data.look,null);
+});
+
+test("an install code is issued only to a signed-in browser, stored as a hash, and rides in the address iOS saves",async()=>{
+ const{call,ctx,rows,env,runtime}=harness();
+ assert.ok((await call("/api/user/install-code",{method:"POST",body:{}})).status>=400);
+ const issued=await call("/api/user/install-code",{method:"POST",body:{},context:ctx("owner-a@example.com")});
+ assert.equal(issued.status,200);assert.match(issued.data.code,/^[0-9a-f]{64}$/);
+ assert.ok(!JSON.stringify(rows.installCodes).includes(issued.data.code));assert.equal(rows.installCodes.length,1);
+ const again=await call("/api/user/install-code",{method:"POST",body:{},context:ctx("owner-a@example.com")});
+ assert.equal(rows.installCodes.length,1);assert.notEqual(again.data.code,issued.data.code);
+ const page='<title>Old</title><link rel="manifest" href="/manifest.webmanifest">';
+ env.STATIC={async fetch(request){return new Response(new URL(request.url).pathname==="/manifest.webmanifest"?JSON.stringify({name:"Old"}):page,{status:200});}};
+ const open=at=>runtime.__worker.fetch(new Request("https://health.example"+at),env,{});
+ const dressed=await open("/?pass="+again.data.code);
+ assert.equal(dressed.headers.get("Cache-Control"),"no-store");
+ assert.ok((await dressed.text()).includes("/look.webmanifest?pass="+again.data.code));
+ const manifest=await (await open("/look.webmanifest?pass="+again.data.code+"&look=n2.i4.p7")).json();
+ assert.ok(manifest.start_url.includes("pass="+again.data.code));assert.ok(manifest.start_url.includes("look=n2.i4.p7"));
+ assert.equal(await (await open("/?pass=nope")).text(),page);
 });

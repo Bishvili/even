@@ -1,6 +1,6 @@
 (function () {
 "use strict";
-var VERSION = "2.51.1";
+var VERSION = "2.52.0";
 var HIDEABLE={
  event:{list:"events",hidden:"hiddenEvents",key:"id"},
  health:{list:"health",hidden:"hiddenHealth",key:"date"}
@@ -965,6 +965,7 @@ async function refreshAuth(){
  try{
   // A signed-out request is redirected to sign-in, which is only wanted when someone asks to sign in.
   var r=await fetch(accountPath("me"),{credentials:"same-origin",cache:"no-store",redirect:"manual",headers:{"Accept":"application/json"}});
+  if(!r.ok&&globalThis.Install&&await globalThis.Install.redeem())r=await fetch(accountPath("me"),{credentials:"same-origin",cache:"no-store",redirect:"manual",headers:{"Accept":"application/json"}});
   if(!r.ok||r.redirected||!(r.headers.get("content-type")||"").includes("application/json"))throw Error("No active login");
   var data=await r.json();if(!data.ok||!data.email)throw Error("Identity unavailable");
   authEmail=String(data.email).toLowerCase();applyName(data);authDevices=Array.isArray(data.devices)?data.devices:[];authCanRelease=data.canRelease===true;authService=authCanRelease&&data.service||null;authHelper=authCanRelease&&data.helper&&/^https:\/\/www\.icloud\.com\/shortcuts\/[a-f0-9]{32}$/i.test(data.helper.url)?data.helper.url:"";if(data.welcomeName)showWelcome(data.welcomeName);

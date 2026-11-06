@@ -343,7 +343,7 @@ const scenarios={
  },
  "a new iPhone can't pass the Home Screen step, and has no way to put it off":async(browser,base)=>{
   await open(browser,base,"{}",fakeApi({me:""}),async({page})=>{
-   await until(page,()=>/Home Screen/.test(document.getElementById("gate-title").textContent));
+   await until(page,()=>/^Install /.test(document.getElementById("gate-title").textContent));
    assert.equal(await page.isVisible("#gate-skip"),false);
    assert.equal(await page.isVisible(".bottom-nav"),false);
   },{iphone:true});

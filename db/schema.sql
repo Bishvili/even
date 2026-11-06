@@ -101,6 +101,11 @@ CREATE TABLE IF NOT EXISTS health_alarms (
   updated_at TEXT NOT NULL,
   PRIMARY KEY(owner_email,position)
 );
+CREATE TABLE IF NOT EXISTS health_install_codes (
+  code_hash TEXT PRIMARY KEY,
+  email TEXT NOT NULL,
+  expires_at TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS health_reflections (
   owner_email TEXT NOT NULL REFERENCES health_users(email),
   id TEXT NOT NULL,

@@ -25,7 +25,7 @@ async function setup(extra={},DB=d1()){
  const codes={};
  const {baseURL,...config}=extra;
  const env={...config,DB,PUBLIC_ORIGIN:"https://app.example",BETTER_AUTH_SECRET:"x".repeat(40),GOOGLE_CLIENT_ID:"id",GOOGLE_CLIENT_SECRET:"secret"};
- const auth=createAuth(env,{baseURL,isApproved:async email=>email==="in@example.com",deliverCode:(email,code)=>{codes[email]=code;}});
+ const auth=createAuth(env,{baseURL,redeemInstallCode:async code=>code==="good"?"in@example.com":null,isApproved:async email=>email==="in@example.com",deliverCode:(email,code)=>{codes[email]=code;}});
  const call=(route,body,cookie)=>auth.handler(new Request("https://app.example/api/signin/"+route,{method:"POST",headers:{"Content-Type":"application/json",Origin:"https://app.example",...(cookie?{Cookie:cookie}:{})},body:JSON.stringify(body)}));
  return {auth,call,codes,DB};
 }
@@ -134,4 +134,14 @@ test("Google saying no, or a made-up return, ends on the app with no session",{s
  const made=await stable.auth.handler(new Request(RELAY+"/api/signin/callback/google?code=abc&state=made-up"));
  assert.ok((made.headers.get("location")||"").startsWith("https://app.example/?auth=failed"),made.headers.get("location"));
  assert.equal(DB.raw.prepare("SELECT COUNT(*) AS n FROM health_signin_sessions").get().n,0);
+});
+
+test("a good install code starts a session for an existing account, and a bad one doesn't",{skip:!ready},async()=>{
+ const {call,codes}=await setup();
+ await call("email-otp/send-verification-otp",{email:"in@example.com",type:"sign-in"});
+ await call("sign-in/email-otp",{email:"in@example.com",otp:codes["in@example.com"]});
+ const bad=await call("install/redeem",{code:"bad"});
+ assert.equal(bad.status,400);assert.equal(bad.headers.get("set-cookie"),null);
+ const good=await call("install/redeem",{code:"good"});
+ assert.equal(good.status,200);assert.match(good.headers.get("set-cookie"),/health\.session_token=/);
 });

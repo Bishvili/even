@@ -28,7 +28,7 @@ async function run(type,base){
  const phonePage=await phone.newPage();
  phonePage.on("pageerror",error=>problems.push("Error: "+error.message));
  await phonePage.goto(base);
- if(!/Home Screen/.test(await phonePage.textContent("#gate-title")))problems.push("A new iPhone doesn't start with the Home Screen step.");
+ if(!/^Install /.test(await phonePage.textContent("#gate-title")))problems.push("A new iPhone doesn't start with the Home Screen step.");
  await phone.close();
  await page.evaluate(connect);
  await page.reload();
@@ -88,10 +88,10 @@ async function run(type,base){
  await browser.close();
  return problems;
 }
-// Every screen under every name: no error, no blocked style, and the deployed name nowhere on screen.
+// Every screen under every name: no error, no blocked style, and every place the name appears wears it.
 async function everyLook(type,base){
- const browser=await type.launch(),problems=[],deployed=require("../brand/brand.json").name;
- for(const name of require("../brand/catalog/names.json").filter(item=>item.name!==deployed)){
+ const browser=await type.launch(),problems=[];
+ for(const name of require("../brand/catalog/names.json")){
   const context=await browser.newContext({viewport:{width:390,height:844},serviceWorkers:"block"}),page=await context.newPage(),id=name.id+"."+name.with.icon+"."+name.with.palette;
   page.on("pageerror",error=>problems.push(name.name+": "+error.message));
   page.on("console",message=>{if(message.type()==="error"&&/content security|refused to|security policy/i.test(message.text()))problems.push(name.name+": "+message.text());});
@@ -102,8 +102,8 @@ async function everyLook(type,base){
   for(const tab of ["checkin","insights","data","settings"]){
    await page.click(`.nav-item[data-go=${tab}]`,{timeout:2000}).catch(()=>problems.push(name.name+": can't open "+tab));
    await page.waitForTimeout(80);
-   const text=await page.evaluate(()=>document.title+" "+document.body.textContent);
-   if(new RegExp("\\b"+deployed+"\\b").test(text.replace(/\s+/g," ")))problems.push(name.name+": the deployed name shows on "+tab);
+   const shown=await page.evaluate(()=>[...document.querySelectorAll('[data-brand="name"]')].map(part=>part.textContent));
+   if(shown.some(text=>text!==name.name))problems.push(name.name+": another name shows on "+tab);
   }
   if(await page.title()!==name.name)problems.push(name.name+": wrong page title");
   if(await page.evaluate(()=>document.documentElement.dataset.palette)!==name.with.palette)problems.push(name.name+": wrong palette");

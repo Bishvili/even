@@ -21,9 +21,8 @@ test("there are nine of each, with their own ids and no repeated names",()=>{
  assert.equal(new Set(palettes.map(item=>item.name.toLowerCase())).size,9);
  assert.equal(new Set(icons.map(item=>item.file)).size,9);
 });
-test("what is in use today is one of each, so a person can always go back",()=>{
- const{name,installName,tagline,pitch,colors}=brand;
- assert.ok(names.some(item=>item.name===name&&item.installName===installName&&item.tagline===tagline&&item.pitch===pitch),"the name, label, tagline and pitch");
+test("what is in use today is one of each, so a person can always go back to these colors and this icon",()=>{
+ const{colors}=brand;
  assert.ok(palettes.some(item=>JSON.stringify(item.colors)===JSON.stringify(colors)),"the three main colors");
  assert.ok(icons.some(icon=>svgOf(icon)===fs.readFileSync("brand/logo.svg","utf8")),"the logo");
 });

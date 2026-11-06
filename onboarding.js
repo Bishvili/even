@@ -61,7 +61,7 @@
  if(typeof document==="undefined"||!root.App)return;
 
  var COPY={
-  "install:share":{title:"Add {{name}} to your Home Screen",text:"In Safari, tap Share (or ••• and then Share), then Add to Home Screen."},
+  "install:share":{title:"Install {{name}}",text:"{{tagline}}",privacy:true,add:"In Safari, tap Share (or ••• and then Share), then Add to Home Screen."},
   "install:prompt":{title:"Install {{name}}",text:"Open {{name}} in its own window, with notifications for check-ins.",action:"Install"},
   "install:safari":{title:"Open {{name}} in Safari",text:"To add {{name}} to your Home Screen, open this page in Safari.",safari:true},
   "signin:other":{title:"This {device} has another account’s records",text:"Back them up and erase them to use this account, or sign out and use the account they belong to.",action:"Sign out"},
@@ -110,13 +110,25 @@
   if(gate){current=gate;renderGate(gate);if(moveFocus||changed)$("gate-title").focus();return;}
   renderCard(moveFocus||changed);
  }
+ // The page before the app is installed: choose a look, sign in, add the icon, open it.
+ function renderInstaller(copy,s){
+  $("gate-install").hidden=!copy.add;
+  if(!copy.add)return;
+  $("gate-install-add").textContent=copy.add;
+  $("gate-install-name").textContent=root.Look.installName();
+  $("gate-install-signin").hidden=s.signedIn;
+  $("gate-install-account").textContent=s.signedIn?"Signed in as "+s.email+".":"Sign in here, and you won’t need to in the app. You can also skip this.";
+  $("gate-install-open").textContent=s.signedIn?"Open it from your Home Screen. You should stay signed in.":"Open it from your Home Screen, and sign in.";
+  if(root.Install)root.Install.prepare(s.signedIn);
+ }
  function renderGate(step){
   var s=app.setup(),copy=COPY[step.id+":"+step.variant];
   function named(words){return words.replace("{device}",s.deviceName);}
   var text=!s.ios&&copy.otherText||copy.text;
   if(step.id==="signin"&&s.email&&(step.variant==="connect"||step.variant==="connecting"))text=("Signed in as "+s.email+". "+text).trim();
   $("gate-step").textContent=step.total>1?"Step "+step.number+" of "+step.total:"";
-  $("gate-step").hidden=step.total<2;
+  $("gate-step").hidden=step.total<2||!!copy.add;
+  renderInstaller(copy,s);
   $("gate-title").textContent=named(copy.title);
   $("gate-text").textContent=text;
   $("gate-privacy").hidden=!copy.privacy;
@@ -134,7 +146,7 @@
   $("gate-alt-link").hidden=!altGet;
   if(altGet)$("gate-alt-link").href=s.shortcutUrl;else $("gate-alt-link").removeAttribute("href");
   $("gate-records").hidden=!step.records;
-  $("gate-look").hidden=step.id==="shortcut";
+  $("gate-look").hidden=step.id==="shortcut"||!!copy.add;
   $("gate").setAttribute("aria-busy",String(!!copy.busy));
  }
  function renderCard(moveFocus){
@@ -210,6 +222,7 @@
  $("gate-backup").addEventListener("click",function(){$("backup-button").click();});
  $("gate-erase").addEventListener("click",function(){$("erase-local").click();});
  $("gate-feedback").addEventListener("click",function(){root.Feedback.open();});
+ $("gate-install-signin").addEventListener("click",function(){if(!app.setup().online){app.toast(OFFLINE.signin);return;}app.signIn("checkin");});
  root.addEventListener("beforeinstallprompt",function(event){event.preventDefault();installEvent=event;render();});
  root.addEventListener("appinstalled",function(){installEvent=null;render();});
  root.addEventListener("online",function(){render();});

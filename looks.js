@@ -6,9 +6,9 @@
  function clean(text){return String(text||"").replace(/[\u0000-\u001f\u007f]/g," ").replace(/\s+/g," ").trim().slice(0,NAME_LIMIT).trim();}
  // n0 is a name the person typed. It takes the rest of its words from the app as built.
  function parse(id,typed){
-  var match=/^(n[0-9])\.(i[1-9])\.(p[1-9])$/.exec(id||"");
+  var match=/^(nh|n[0-9])\.(i[1-9])\.(p[1-9])$/.exec(id||"");
   if(!match)return null;
-  var own=clean(typed),name=match[1]==="n0"?(own?{id:"n0",name:own,installName:own,tagline:DATA.deployed.tagline,pitch:DATA.deployed.pitch}:null):find(DATA.names,match[1]),icon=find(DATA.icons,match[2]),palette=find(DATA.palettes,match[3]);
+  var own=clean(typed),name=match[1]==="nh"?{id:"nh",name:DATA.deployed.name,installName:DATA.deployed.installName,tagline:DATA.deployed.tagline,pitch:DATA.deployed.pitch}:match[1]==="n0"?(own?{id:"n0",name:own,installName:own,tagline:DATA.deployed.tagline,pitch:DATA.deployed.pitch}:null):find(DATA.names,match[1]),icon=find(DATA.icons,match[2]),palette=find(DATA.palettes,match[3]);
   return name&&icon&&palette?{id:match[0],name:name,icon:icon,palette:palette}:null;
  }
  function stored(key){try{return localStorage.getItem(key);}catch(e){return null;}}
@@ -56,7 +56,13 @@
  }
  function setTheme(value){store(THEME,value==="system"||THEMES.indexOf(value)<0?null:value);head();}
  // The address iOS reads an icon and label from.
- function url(id,typed){return id?"/?look="+id+(id.indexOf("n0.")===0?"&name="+encodeURIComponent(clean(typed)):""):"/";}
+ function url(id,typed,pass){
+  var parts=[];
+  if(id)parts.push("look="+id);
+  if(id&&id.indexOf("n0.")===0)parts.push("name="+encodeURIComponent(clean(typed)));
+  if(pass)parts.push("pass="+pass);
+  return parts.length?"/?"+parts.join("&"):"/";
+ }
  function start(){
   var params=root.location?new URLSearchParams(root.location.search):null,given=params&&params.get("look"),typed=params&&params.get("name");
   // A new icon carries the look it was added with, and tells the account at sign-in.
@@ -64,7 +70,7 @@
   current=parse(stored(KEY),savedName());
   head();
   // In Safari, a chosen look needs its own address for Add to Home Screen to pick it up.
-  if(root.navigator&&root.navigator.standalone===false&&saved()&&!given){root.location.replace(url(saved(),savedName())+root.location.hash);return;}
+  if(root.navigator&&root.navigator.standalone===false&&saved()&&!given){root.location.replace(url(saved(),savedName(),params.get("pass"))+root.location.hash);return;}
   if(root.document)root.document.addEventListener("DOMContentLoaded",body);
  }
  root.Look={name:function(){return field("name");},installName:function(){return field("installName");},tagline:function(){return field("tagline");},pitch:function(){return field("pitch");},

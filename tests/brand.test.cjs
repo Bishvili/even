@@ -3,7 +3,8 @@ const test=require("node:test"),assert=require("node:assert/strict"),fs=require(
 const{build,publicFiles,tokenValues}=require("../scripts/build-assets.cjs");
 const brand=JSON.parse(fs.readFileSync("brand/brand.json","utf8")),stable=JSON.parse(fs.readFileSync("brand/stable.json","utf8"));
 // Also catches the name inside an encoded link, where it has no word boundary.
-const current=new RegExp("(^|[^A-Za-z])"+brand.name+"([^A-Za-z]|$)","m");
+// "Health" is also an ordinary word in the copy (Apple Health), so while it is the name, this watches for the last name instead.
+const watched=brand.name==="Health"?"Even":brand.name,current=new RegExp("(^|[^A-Za-z])"+watched+"([^A-Za-z]|$)","m");
 const rehearsal={name:"Zzyzx Labs",installName:"Zzyzx",tagline:"A tagline.",pitch:"a pitch",support:"help@example.com",inviteFrom:"a@example.com",codeFrom:"b@example.com",colors:{primary:"#2B4FA8",highlight:"#E7B8D0",ground:"#1B1F3A"}};
 const renamed={sync:"Zzyzx Sync",helper:"Zzyzx Helper",keyFolder:"Zzyzx",keyFile:"key.txt"};
 const text=file=>/\.(html|js|css|webmanifest|svg)$/.test(file);

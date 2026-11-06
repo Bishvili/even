@@ -1,8 +1,8 @@
 {
-  "name": "Even",
-  "installName": "Even",
-  "tagline": "Know your harder days, and what helps.",
-  "pitch": "a private way to understand your harder days",
+  "name": "Health",
+  "installName": "Health",
+  "tagline": "A mood tracker for your harder days.",
+  "pitch": "a private mood tracker for your harder days",
   "support": "support@bishvili.org",
   "inviteFrom": "hello@bishvili.org",
   "codeFrom": "sign-in@bishvili.org",

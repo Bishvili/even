@@ -43,7 +43,7 @@ const catalog=()=>({names:readJson("brand/catalog/names.json"),icons:readJson("b
 function looksData(brand,written,palette,logo,values){
  const{names,icons,palettes}=catalog(),colorsOf=resolved=>({contrast:resolved.app.contrast.light,highlight:resolved.app.highlight.light,line:resolved.app["on-contrast"].light});
  const same=(a,b)=>["primary","highlight","ground"].every(key=>a[key].toLowerCase()===b[key].toLowerCase());
- const home=[names.find(item=>item.name===brand.name)?.id||"n1",icons.find(item=>Marks.neutral(fs.readFileSync(path.join(root,"brand/catalog",item.file),"utf8"))===logo)?.id||"i1",palettes.find(item=>same(item.colors,brand.colors))?.id||"p1"].join(".");
+ const home=[names.find(item=>item.name===brand.name)?.id||"nh",icons.find(item=>Marks.neutral(fs.readFileSync(path.join(root,"brand/catalog",item.file),"utf8"))===logo)?.id||"i1",palettes.find(item=>same(item.colors,brand.colors))?.id||"p1"].join(".");
  const data={home,names,
   icons:icons.map(({id,name,file})=>({id,name,svg:Marks.neutral(fs.readFileSync(path.join(root,"brand/catalog",file),"utf8"))})),
   palettes:palettes.map(({id,name,colors})=>{const resolved=resolve(written,colors);return{id,name,...colorsOf(resolved),page:{light:resolved.app.page.light,dark:resolved.app.page.dark}};}),

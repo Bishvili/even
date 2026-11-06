@@ -41,13 +41,13 @@ async function payload(request){
  if(type.includes("application/x-www-form-urlencoded"))return Object.fromEntries(new URLSearchParams(text));
  try{return JSON.parse(text);}catch(e){return Object.fromEntries(new URLSearchParams(text));}
 }
-const VERSION_NAME="2.51.1";
+const VERSION_NAME="2.52.0";
 function normalEmail(value){return String(value||"").trim().toLowerCase();}
 async function signinAuth(env,ctx,request){
  const {createAuth}=await import("./signin.mjs");
  // Compared with configured addresses, so a request's Host can never choose the sign-in address.
  const relay=!!request&&!!env.GOOGLE_RELAY_ORIGIN&&new URL(request.url).origin===env.GOOGLE_RELAY_ORIGIN;
- return createAuth(env,{appName:BRAND.name,baseURL:relay?env.GOOGLE_RELAY_ORIGIN:env.PUBLIC_ORIGIN,isApproved:email=>approved(env,email),deliverCode:(email,code)=>{const sent=sendSigninCode(env,email,code);if(ctx?.waitUntil)ctx.waitUntil(sent);}});
+ return createAuth(env,{appName:BRAND.name,baseURL:relay?env.GOOGLE_RELAY_ORIGIN:env.PUBLIC_ORIGIN,isApproved:email=>approved(env,email),redeemInstallCode:code=>redeemInstallCode(env,code),deliverCode:(email,code)=>{const sent=sendSigninCode(env,email,code);if(ctx?.waitUntil)ctx.waitUntil(sent);}});
 }
 // Only a session from the app's sign-in proves who someone is, and approval is checked on every request.
 async function authIdentity(request,env,ctx){
@@ -81,7 +81,7 @@ async function validDevice(request,env){
 }
 // Everything synced for one person, apart from their account and devices.
 function syncedDataStatements(env,owner,keepMoods){
- return [env.DB.prepare("UPDATE health_users SET look=NULL,look_name=NULL WHERE email=?").bind(owner),...(keepMoods?[]:[env.DB.prepare("DELETE FROM health_moods WHERE owner_email=?").bind(owner),env.DB.prepare("DELETE FROM health_reflections WHERE owner_email=?").bind(owner)]),
+ return [env.DB.prepare("UPDATE health_users SET look=NULL,look_name=NULL WHERE email=?").bind(owner),...(keepMoods?[]:[env.DB.prepare("DELETE FROM health_install_codes WHERE email=?").bind(owner),env.DB.prepare("DELETE FROM health_moods WHERE owner_email=?").bind(owner),env.DB.prepare("DELETE FROM health_reflections WHERE owner_email=?").bind(owner)]),
   env.DB.prepare("UPDATE health_devices SET last_upload_counts=NULL WHERE owner_email=?").bind(owner),
   env.DB.prepare("DELETE FROM health_metrics WHERE owner_email=?").bind(owner),
   env.DB.prepare("DELETE FROM health_hidden_days WHERE owner_email=?").bind(owner),
@@ -311,7 +311,7 @@ async function sendSigninCode(env,to,code){
  }catch(e){return false;}
 }
 const FRESH_SIGN_IN_MS=600000,SENDS_AN_HOUR=5;
-const SIGNIN_ROUTES={"POST /email-otp/send-verification-otp":1,"POST /sign-in/email-otp":1,"POST /sign-in/social":1,"GET /callback/google":1,"POST /callback/google":1,"POST /sign-out":1};
+const SIGNIN_ROUTES={"POST /install/redeem":true,"POST /email-otp/send-verification-otp":1,"POST /sign-in/email-otp":1,"POST /sign-in/social":1,"GET /callback/google":1,"POST /callback/google":1,"POST /sign-out":1};
 // The relay's last step can't tell who started a sign-in, so someone else's link could otherwise sign a person in to the wrong account.
 // A random value goes in a cookie on this browser and in the return address, and the two must match.
 const GOOGLE_START="__Host-health-google",GOOGLE_PARAM="google";
@@ -344,6 +344,7 @@ async function signinApi(request,env,ctx,path){
  }
  if(route==="/options"&&request.method==="GET")return reply({ok:true,google:!!(env.GOOGLE_CLIENT_ID&&env.GOOGLE_CLIENT_SECRET)});
  if(!SIGNIN_ROUTES[request.method+" "+route]&&!finishing)return error("Not found",404,"not_found");
+ if(route==="/install/redeem"&&await overLimit(env.NETWORK_LIMIT,request.headers.get("cf-connecting-ip")||"unknown"))return error("Too many tries. Try again in a minute.",429,"rate_limited");
  if(route==="/email-otp/send-verification-otp"||route==="/sign-in/email-otp"){
   let input;try{input=await request.clone().json();}catch(e){return error("That request couldn't be read.",400,"invalid_body");}
   const email=normalEmail(input?.email);
@@ -398,6 +399,16 @@ async function authApi(request,env,ctx,path){
   const release=await canRelease(env,email);
   const service=release?await env.DB.prepare("SELECT updated_at,(SELECT COUNT(*) FROM health_push_subscriptions WHERE last_push_status IS NOT NULL AND (last_push_status<200 OR last_push_status>=300)) AS failing FROM health_service WHERE key=?").bind("last_cron").first():null;
   return reply({ok:true,email,canRelease:release,service:service?{lastCron:service.updated_at,failing:Number(service.failing||0),version:VERSION_NAME}:null,helper:release?await loadHelperLink(env):null,firstName:person,name:await displayName(env,email),welcomeName:welcome?person:null,devices:(r.results||[]).map(d=>({id:d.device_id,label:d.label,createdAt:d.created_at,lastUsedAt:d.last_used_at,lastAttemptAt:d.last_attempt_at,lastErrorCode:d.last_error_code,shortcutVersion:d.shortcut_version,revoked:!!d.revoked_at}))});
+ }
+ if(path==="/api/user/install-code"){
+  if(!browserPostAllowed(request))return error("This request isn't allowed.",403,"same_origin_required");
+  if(request.method!=="POST")return error("Not found",404,"not_found");
+  const bytes=crypto.getRandomValues(new Uint8Array(32)),code=[...bytes].map(byte=>byte.toString(16).padStart(2,"0")).join(""),now=new Date();
+  await env.DB.batch([
+   env.DB.prepare("DELETE FROM health_install_codes WHERE email=? OR expires_at<?").bind(email,now.toISOString()),
+   env.DB.prepare("INSERT INTO health_install_codes(code_hash,email,expires_at) VALUES(?,?,?)").bind(await digest(code),email,new Date(now.getTime()+INSTALL_CODE_MS).toISOString())
+  ]);
+  return reply({ok:true,code});
  }
  if(path==="/api/user/device"){
   if(!browserPostAllowed(request))return error("This request isn't allowed.",403,"same_origin_required");
@@ -1106,30 +1117,46 @@ async function asset(request,env,path){
  return new Response(file.body,{status:file.status,headers});
 }
 // A look from the catalogue, as name.icon.palette. Anything else gets the normal page.
+const INSTALL_CODE_MS=30*60*1000;
+// One use only, and still only for someone on the approved list.
+async function redeemInstallCode(env,code){
+ if(!/^[0-9a-f]{64}$/.test(code))return null;
+ const row=await env.DB.prepare("DELETE FROM health_install_codes WHERE code_hash=? AND expires_at>? RETURNING email").bind(await digest(code),new Date().toISOString()).first();
+ return row&&await approved(env,row.email)?row.email:null;
+}
 function lookName(value){return String(value||"").replace(/[\u0000-\u001f\u007f]/g," ").replace(/\s+/g," ").trim().slice(0,24).trim();}
 function lookFrom(value,typed){
- const match=/^(n[0-9])\.(i[1-9])\.(p[1-9])$/.exec(value||"");
+ const match=/^(nh|n[0-9])\.(i[1-9])\.(p[1-9])$/.exec(value||"");
  if(!match)return null;
- const own=lookName(typed),name=match[1]==="n0"?(own?{name:own,installName:own,tagline:BRAND.tagline}:null):LOOK_NAMES.find(item=>item.id===match[1]);
+ const own=lookName(typed),name=match[1]==="nh"?BRAND:match[1]==="n0"?(own?{name:own,installName:own,tagline:BRAND.tagline}:null):LOOK_NAMES.find(item=>item.id===match[1]);
  return name&&{id:match[0],name,typed:match[1]==="n0"?own:null,icon:"/look-icon-"+match[2]+"-"+match[3]+".png"};
 }
+// What the address iOS saves with an icon should hold: a look, a one-time sign-in code, or both.
+function addressFrom(params){
+ const look=lookFrom(params.get("look"),params.get("name")),code=params.get("pass");
+ const pass=/^[0-9a-f]{64}$/.test(code||"")?code:null;
+ if(!look&&!pass)return null;
+ const query=[look&&"look="+look.id,look?.typed&&"name="+encodeURIComponent(look.typed),pass&&"pass="+pass].filter(Boolean).join("&");
+ return {look,query};
+}
 // iOS takes the Home Screen icon and label from the page when the app is added, so this one response carries the look. It is never cached.
-async function dressedPage(request,env,look){
+async function dressedPage(request,env,{look,query}){
  const file=await asset(request,env,"/");
  if(!file.ok)return file;
- const html=(await file.text())
+ let html=await file.text();
+ if(look)html=html
   .replace(/<title>[^<]*<\/title>/,()=>"<title>"+escapeHtml(look.name.name)+"</title>")
   .replace(/(<meta name="apple-mobile-web-app-title" content=")[^"]*/,(all,start)=>start+escapeHtml(look.name.installName))
-  .replace(/(<link rel="apple-touch-icon" href=")[^"]*/,"$1"+look.icon)
-  .replace(/(<link rel="manifest" href=")[^"]*/,(all,start)=>start+"/look.webmanifest?look="+look.id+(look.typed?"&amp;name="+encodeURIComponent(look.typed):""));
+  .replace(/(<link rel="apple-touch-icon" href=")[^"]*/,"$1"+look.icon);
+ html=html.replace(/(<link rel="manifest" href=")[^"]*/,(all,start)=>start+"/look.webmanifest?"+query.replace(/&/g,"&amp;"));
  const headers=new Headers(file.headers);headers.set("Cache-Control","no-store");
  return new Response(html,{status:200,headers});
 }
-async function lookManifest(request,env,look){
+async function lookManifest(request,env,{look,query}){
  const file=await asset(request,env,"/manifest.webmanifest");
  if(!file.ok)return file;
  const manifest=await file.json(),headers=new Headers(file.headers);headers.set("Cache-Control","no-store");
- return new Response(JSON.stringify({...manifest,name:look.name.installName,short_name:look.name.installName,description:look.name.tagline,start_url:"/?look="+look.id+(look.typed?"&name="+encodeURIComponent(look.typed):"")+"#checkin",icons:[{src:look.icon,sizes:"180x180",type:"image/png"}]}),{status:200,headers});
+ return new Response(JSON.stringify({...manifest,...(look?{name:look.name.installName,short_name:look.name.installName,description:look.name.tagline,icons:[{src:look.icon,sizes:"180x180",type:"image/png"}]}:{}),start_url:"/?"+query+"#checkin"}),{status:200,headers});
 }
 // Records each run, so a stalled schedule can be told from a quiet one.
 async function runCron(env){
@@ -1146,8 +1173,8 @@ export default {async fetch(request,env,ctx){
  if(onShortcutHost(request,env)&&!shortcutPath(path,env))return error("Not found",404,"not_found");
  if(path.startsWith("/api/"))return await api(request,env,ctx,path);
  if(request.method!=="GET"&&request.method!=="HEAD")return new Response("Method not allowed",{status:405,headers:SECURITY});
- const look=(path==="/"||path==="/look.webmanifest")&&request.method==="GET"?lookFrom(new URL(request.url).searchParams.get("look"),new URL(request.url).searchParams.get("name")):null;
- if(look)return await (path==="/"?dressedPage:lookManifest)(request,env,look);
+ const wearing=(path==="/"||path==="/look.webmanifest")&&request.method==="GET"?addressFrom(new URL(request.url).searchParams):null;
+ if(wearing)return await (path==="/"?dressedPage:lookManifest)(request,env,wearing);
  return await asset(request,env,path);
  }catch(e){logEvent("request_failed",{route:new URL(request.url).pathname,status:500,error:e?.name});return error("Request could not be processed",500,"server_error");}
 },

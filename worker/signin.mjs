@@ -1,12 +1,21 @@
 // Email codes and Google sign-in. Only approved emails can receive a code or create an account.
 import {betterAuth} from "better-auth";
-import {APIError} from "better-auth/api";
+import {APIError,createAuthEndpoint} from "better-auth/api";
+import {setSessionCookie} from "better-auth/cookies";
 import {emailOTP,oAuthProxy} from "better-auth/plugins";
 
 const DAY=86400;
 export const SESSION_COOKIE="health.session_token";
 
-export function createAuth(env,{appName,baseURL=env.PUBLIC_ORIGIN,isApproved,deliverCode}){
+// Safari and a Home Screen app keep separate sign-ins on iOS, so a one-time code starts a session in the new app.
+const installHandoff=redeem=>({id:"install-handoff",endpoints:{redeemInstallCode:createAuthEndpoint("/install/redeem",{method:"POST"},async ctx=>{
+ const email=await redeem(String(ctx.body?.code||"")),found=email&&await ctx.context.internalAdapter.findUserByEmail(email);
+ if(!found?.user)throw new APIError("BAD_REQUEST",{message:"That code has been used or has run out.",code:"INSTALL_CODE_INVALID"});
+ const session=await ctx.context.internalAdapter.createSession(found.user.id);
+ await setSessionCookie(ctx,{session,user:found.user});
+ return ctx.json({ok:true});
+})}});
+export function createAuth(env,{appName,baseURL=env.PUBLIC_ORIGIN,isApproved,deliverCode,redeemInstallCode=async()=>null}){
  const google=env.GOOGLE_CLIENT_ID&&env.GOOGLE_CLIENT_SECRET?{google:{clientId:env.GOOGLE_CLIENT_ID,clientSecret:env.GOOGLE_CLIENT_SECRET,prompt:"select_account",overrideUserInfoOnSignIn:true}}:{};
  return betterAuth({
   appName,
@@ -26,7 +35,7 @@ export function createAuth(env,{appName,baseURL=env.PUBLIC_ORIGIN,isApproved,del
   advanced:{cookiePrefix:"health",ipAddress:{disableIpTracking:true},database:{validateSchema:false}},
   // A problem with no sign-in of its own to return to ends on the app, not on the library's error page.
   onAPIError:{errorURL:env.PUBLIC_ORIGIN+"/?auth=failed#data"},
-  plugins:[emailOTP({otpLength:6,expiresIn:600,allowedAttempts:5,storeOTP:"hashed",
+  plugins:[installHandoff(redeemInstallCode),emailOTP({otpLength:6,expiresIn:600,allowedAttempts:5,storeOTP:"hashed",
    sendVerificationOTP:async({email,otp})=>deliverCode(email,otp)}),
    // Google returns to one fixed address, which hands the result to whichever app address started the sign-in.
    ...(env.GOOGLE_RELAY_ORIGIN?[oAuthProxy({productionURL:env.GOOGLE_RELAY_ORIGIN,maxAge:60})]:[])],

@@ -44,10 +44,10 @@
  function renderLooks(looks){
   var total=looks.reduce(function(sum,row){return sum+row.count;},0),catalog=globalThis.Look.catalog;
   if(!total){$("look-counts").textContent="No one has chosen a look yet.";$("look-copy").hidden=true;return;}
-  var name=function(list,id){var item=list.filter(function(entry){return entry.id===id;})[0];return item?item.name:"Custom";};
+  var name=function(list,id){var item=list.filter(function(entry){return entry.id===id;})[0];return item?item.name:id==="nh"?catalog.deployed.name:"Custom";};
   var tally=function(list,at){var counts={};looks.forEach(function(row){var id=row.look.split(".")[at];counts[id]=(counts[id]||0)+row.count;});return Object.keys(counts).sort(function(a,b){return counts[b]-counts[a];}).map(function(id){return name(list,id)+" "+counts[id];}).join(", ");};
   $("look-counts").textContent="Names: "+tally(catalog.names,0)+". Icons: "+tally(catalog.icons,1)+". Palettes: "+tally(catalog.palettes,2)+".";
-  var named=looks.filter(function(row){return row.look.indexOf("n0.")!==0;});
+  var named=looks.filter(function(row){return row.look.indexOf("n0.")!==0&&row.look.indexOf("nh.")!==0;});
   if(!named.length){$("look-copy").hidden=true;return;}
   var top=named.sort(function(a,b){return b.count-a.count;})[0].look.split(".");
   var ask="Adopt the look "+top[0]+" + "+top[1]+" + "+top[2]+" ("+name(catalog.names,top[0])+", "+name(catalog.icons,top[1])+", "+name(catalog.palettes,top[2])+")";
