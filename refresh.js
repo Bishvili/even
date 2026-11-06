@@ -1,7 +1,9 @@
 // Pull down to refresh, or keep pulling to run the Shortcut.
 (function(){
- var app=globalThis.App,REFRESH_AT=70,RUN_AT=170,MAX_SHIFT=170,HEADER_GAP=24,LINE_DONE=REFRESH_AT/0.9,SUN_DEPTH=170;
- var indicator=document.getElementById("pull-indicator"),label=document.getElementById("pull-label"),line=document.getElementById("pull-line"),sun=document.getElementById("pull-sun");
+ var app=globalThis.App,REFRESH_AT=70,RUN_AT=170,MAX_SHIFT=170,HEADER_GAP=24,LINE_DONE=REFRESH_AT/0.9;
+ var indicator=document.getElementById("pull-indicator"),label=document.getElementById("pull-label");
+ function parts(kind){return Array.prototype.slice.call(indicator.querySelectorAll('[data-pull="'+kind+'"]'));}
+ function depth(){var svg=indicator.querySelector("svg");return svg?Number(svg.getAttribute("data-rise"))||0:0;}
  var page=[document.querySelector(".topbar"),document.getElementById("main")];
  var startX=0,startY=0,distance=0,tracking=false,pulling=false;
 
@@ -11,9 +13,10 @@
  function paint(){
   var current=stage(),rise=canRun()?Math.max(0,Math.min((distance-LINE_DONE)/(RUN_AT-LINE_DONE),1)):0;
   label.textContent=current==="run"?"Release to run {{sync}}":current==="refresh"?(canRun()?"Release to refresh. Keep pulling to run {{sync}}.":"Release to refresh"):"Pull to refresh";
-  // With the logo that has them, the horizon draws first, then the sun rises above it until the Shortcut is ready.
-  if(line)line.style.strokeDashoffset=String(1-Math.min(distance/LINE_DONE,1));
-  if(sun)sun.setAttribute("transform","translate(0 "+SUN_DEPTH*(1-rise)+")");
+  // The horizon draws first, then the icon's rising parts come up until the Shortcut is ready. Read each time, because a new look replaces them.
+  parts("line").forEach(function(line){line.style.strokeDashoffset=String(1-Math.min(distance/LINE_DONE,1));});
+  var offset="translate(0 "+depth()*(1-rise)+")";
+  parts("rise").forEach(function(part){part.setAttribute("transform",offset);});
   var moved=Math.min(distance*1.1,MAX_SHIFT);shift(moved,false);
   // The indicator emerges from above the page, so it never covers the header.
   indicator.style.transform="translateY("+Math.min(0,moved+HEADER_GAP-indicator.offsetHeight)+"px)";

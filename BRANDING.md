@@ -32,7 +32,7 @@ Then follow the steps below. The catalogue itself stays as it is, so the look be
 - Colors can be written directly, or as `{{color.highlight.light}}`, `{{color.contrast.light}}` and `{{color.on-contrast.light}}` to follow the palette. In the on-its-own version, the highlight color takes on the color of the tile, and `on-contrast` strokes stay light or dark as the tile needs.
 - Keep it simple enough to read at 43 points. Check it in the previews.
 - App icons sit on the `contrast` color, filling the square, because iOS shows transparency as black.
-- Today's pull-to-refresh animates the current logo's sun and horizon. Any other logo shows still while pulling, and that's fine. A matching animation is optional: `brand/pull-mark.svg` holds it, with `pull-sun` and `pull-line` as the moving parts.
+- Pull to refresh animates the logo from its marks: `data-horizon` and `data-rise` on the root, `data-pull="rise"` and `data-pull="line"` on its parts (`brand/catalog/README.md`). A logo without them shows still while pulling.
 
 ## Steps
 

@@ -88,11 +88,35 @@ async function run(type,base){
  await browser.close();
  return problems;
 }
+// Every screen under every name: no error, no blocked style, and the deployed name nowhere on screen.
+async function everyLook(type,base){
+ const browser=await type.launch(),problems=[],deployed=require("../brand/brand.json").name;
+ for(const name of require("../brand/catalog/names.json").filter(item=>item.name!==deployed)){
+  const context=await browser.newContext({viewport:{width:390,height:844},serviceWorkers:"block"}),page=await context.newPage(),id=name.id+"."+name.with.icon+"."+name.with.palette;
+  page.on("pageerror",error=>problems.push(name.name+": "+error.message));
+  page.on("console",message=>{if(message.type()==="error"&&/content security|refused to|security policy/i.test(message.text()))problems.push(name.name+": "+message.text());});
+  await page.addInitScript(([look])=>{localStorage.setItem("health-look",look);},[id]);
+  await page.addInitScript(connect);
+  await page.goto(base);
+  await page.waitForSelector(".nav-item[data-go=checkin]",{timeout:5000});
+  for(const tab of ["checkin","insights","data","settings"]){
+   await page.click(`.nav-item[data-go=${tab}]`,{timeout:2000}).catch(()=>problems.push(name.name+": can't open "+tab));
+   await page.waitForTimeout(80);
+   const text=await page.evaluate(()=>document.title+" "+document.body.textContent);
+   if(new RegExp("\\b"+deployed+"\\b").test(text.replace(/\s+/g," ")))problems.push(name.name+": the deployed name shows on "+tab);
+  }
+  if(await page.title()!==name.name)problems.push(name.name+": wrong page title");
+  if(await page.evaluate(()=>document.documentElement.dataset.palette)!==name.with.palette)problems.push(name.name+": wrong palette");
+  await context.close();
+ }
+ await browser.close();
+ return problems;
+}
 (async()=>{
  const names=process.argv.slice(2),server=await serve({connected:true}),base="http://localhost:"+server.address().port;
  let failed=false;
  for(const name of names.length?names:["chromium"]){
-  const problems=await run({chromium,webkit}[name],base);
+  const problems=[...await run({chromium,webkit}[name],base),...await everyLook({chromium,webkit}[name],base)];
   console.log(name+": "+(problems.length?problems.length+" problem(s)":"ok"));
   problems.forEach(problem=>{failed=true;console.log("  "+problem);});
  }

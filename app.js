@@ -1,6 +1,6 @@
 (function () {
 "use strict";
-var VERSION = "2.48.2";
+var VERSION = "2.49.0";
 var HIDEABLE={
  event:{list:"events",hidden:"hiddenEvents",key:"id"},
  health:{list:"health",hidden:"hiddenHealth",key:"date"}
@@ -1059,7 +1059,7 @@ async function deleteAccount(){
 }
 // Erasing this device also disconnects it, so no credential is left active.
 // Everything personal this device keeps. Anything new that's stored here has to join this list.
-var DEVICE_KEYS=[STORAGE_KEY,"health-reminder","health-setup"],DEVICE_CACHES=["health-brief"];
+var DEVICE_KEYS=[STORAGE_KEY,"health-reminder","health-setup","health-look","health-look-waiting"],DEVICE_CACHES=["health-brief"];
 async function eraseDeviceData(){
  try{await fetch("/api/signin/sign-out",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:"{}",cache:"no-store"});}catch(e){/* Offline; the session ends by itself. */}
  if(globalThis.Reminders)globalThis.Reminders.forget();

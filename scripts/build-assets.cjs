@@ -2,6 +2,8 @@
 const fs=require("node:fs"),path=require("node:path");
 const root=path.join(__dirname,"..");
 const{resolve,checkReadable}=require("./brand-colors.cjs");
+require("../marks.js");
+const{Marks}=globalThis;
 const TEXT=new Set([".html",".js",".css",".webmanifest",".svg"]);
 const readJson=file=>JSON.parse(fs.readFileSync(path.join(root,file),"utf8"));
 
@@ -29,21 +31,33 @@ function colorValues(palette){
 }
 function tokens(colors,mode){return Object.entries(colors).map(([role,color])=>"--"+role+":"+color[mode]).join(";");}
 const appColors=({app})=>":root{"+tokens(app,"light")+"}@media(prefers-color-scheme:dark){:root{"+tokens(app,"dark")+"}}\n";
+// A block for each palette in the catalogue, so one attribute switches the app. The look built in stays the default.
+const lookBlocks=(written,palettes)=>palettes.map(({id,colors})=>{
+ const{app}=resolve(written,colors);checkReadable(resolve(written,colors));
+ return "html[data-palette=\""+id+"\"]{"+tokens(app,"light")+"}@media(prefers-color-scheme:dark){html[data-palette=\""+id+"\"]{"+tokens(app,"dark")+"}}\n";
+}).join("");
+const catalog=()=>({names:readJson("brand/catalog/names.json"),icons:readJson("brand/catalog/icons.json"),palettes:readJson("brand/catalog/palettes.json")});
+// What looks.js needs, with colors kept out of its way so nothing here reads as a build token.
+function looksData(brand,written,palette,logo,values){
+ const{names,icons,palettes}=catalog(),colorsOf=resolved=>({contrast:resolved.app.contrast.light,highlight:resolved.app.highlight.light,line:resolved.app["on-contrast"].light});
+ const same=(a,b)=>["primary","highlight","ground"].every(key=>a[key].toLowerCase()===b[key].toLowerCase());
+ const home=[names.find(item=>item.name===brand.name)?.id||"n1",icons.find(item=>Marks.neutral(fs.readFileSync(path.join(root,"brand/catalog",item.file),"utf8"))===logo)?.id||"i1",palettes.find(item=>same(item.colors,brand.colors))?.id||"p1"].join(".");
+ const data={home,names,
+  icons:icons.map(({id,name,file})=>({id,name,svg:Marks.neutral(fs.readFileSync(path.join(root,"brand/catalog",file),"utf8"))})),
+  palettes:palettes.map(({id,name,colors})=>{const resolved=resolve(written,colors);return{id,name,...colorsOf(resolved),page:{light:resolved.app.page.light,dark:resolved.app.page.dark}};}),
+  deployed:{name:brand.name,installName:brand.installName,tagline:brand.tagline,pitch:brand.pitch,icon:logo,colors:colorsOf(palette),mark:values.logoMark,pull:values.pullMark}};
+ return JSON.stringify(JSON.stringify(data)).slice(1,-1);
+}
+// In the page, a name becomes a part looks.js can change. In a script's strings, it asks looks.js each time.
+function wearable(file,text){
+ if(file==="index.html"){
+  const at=text.indexOf("<body");
+  return text.slice(0,at)+text.slice(at).replace(/<[^>]*>|\{\{(name|installName|tagline|pitch)\}\}/g,(part,key)=>key?'<span data-brand="'+key+'">'+part+"</span>":part);
+ }
+ if(file.endsWith(".js")&&file!=="sw.js"&&file!=="looks.js")return text.replace(/\{\{(name|installName|tagline|pitch)\}\}/g,'"+globalThis.Look.$1()+"');
+ return text;
+}
 const paperColors=({paper})=>{const dark=tokens(paper,"dark")+";color-scheme:dark";return ":root{"+tokens(paper,"light")+"}@media (prefers-color-scheme:dark){:root:not([data-theme=\"light\"]){"+dark+"}}:root[data-theme=\"dark\"]{"+dark+"}\n";};
-// The logo without its background, for places that sit on their own: the header and the sign-in sheet.
-// The first full rect is the background. A logo with no rect is used whole. Its main color follows the surface it's on.
-function logoMark(logo,values){
- const box=(logo.match(/viewBox="([^"]+)"/)||[])[1]||"0 0 512 512";
- const inner=logo.replace(/^[\s\S]*?<svg[^>]*>/,"").replace(/<\/svg>\s*$/,"").replace(/<rect\b[^>]*\/>/,"")
-  .replaceAll('fill="'+values["color.highlight.light"]+'"','fill="currentColor"')
-  .replaceAll('stroke="'+values["color.on-contrast.light"]+'"','class="icon-line"');
- return '<svg viewBox="'+box+'">'+inner+"</svg>";
-}
-// The refresh mark animates this logo's own sun and horizon. Any other logo shows still while the label says what's happening.
-const SUN="M146 300a110 110 0 0 1 220 0Z";
-function pullMark(logo){
- return logo.includes(SUN)?fs.readFileSync(path.join(root,"brand/pull-mark.svg"),"utf8").trim():logo.replace("<svg ",'<svg aria-hidden="true" ').replace(/\s*xmlns="[^"]*"/,"").trim();
-}
 function fill(text,values,file){
  return text.replace(/\{\{(.*?)\}\}/g,(token,key)=>{
   if(!Object.hasOwn(values,key))throw Error("unknown token "+token+" in "+file);
@@ -54,15 +68,16 @@ function build({out=path.join(root,"dist"),brand=readJson("brand/brand.json"),st
  const palette=resolve(written,brand.colors);
  checkReadable(palette);
  const values={...tokenValues(brand,stable),...colorValues(palette)};
- const logo=fill(fs.readFileSync(path.join(root,logoFile),"utf8"),values,logoFile);
- values.logoMark=logoMark(logo,values);
- values.pullMark=pullMark(logo);
- const generated={"styles.css":appColors(palette),"whitepaper.css":paperColors(palette)};
+ const logo=Marks.neutral(fs.readFileSync(path.join(root,logoFile),"utf8"));
+ values.logoMark=Marks.mark(logo);
+ values.pullMark=Marks.pull(logo);
+ values.looksData=looksData(brand,written,palette,logo,values);
+ const generated={"styles.css":appColors(palette)+lookBlocks(written,catalog().palettes),"whitepaper.css":paperColors(palette)};
  fs.rmSync(out,{recursive:true,force:true});
  fs.mkdirSync(out,{recursive:true});
  for(const file of publicFiles(fs.readFileSync(path.join(root,"sw.js"),"utf8"))){
   if(!TEXT.has(path.extname(file)))continue;
-  fs.writeFileSync(path.join(out,file),(generated[file]||"")+fill(fs.readFileSync(path.join(root,file==="icon.svg"?logoFile:file),"utf8"),values,file));
+  fs.writeFileSync(path.join(out,file),(generated[file]||"")+fill(wearable(file,fs.readFileSync(path.join(root,file==="icon.svg"?logoFile:file),"utf8")),values,file));
  }
  return out;
 }

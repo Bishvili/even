@@ -14,9 +14,9 @@ test("renaming the app leaves the old name nowhere that ships",()=>{
   build({out,brand:rehearsal,stable:renamed});
   const css=fs.readFileSync(path.join(out,"styles.css"),"utf8");
   assert.match(css,/--primary:#2B4FA8/);
-  assert.doesNotMatch(css,/#28685B|#10262A/i);
+  assert.doesNotMatch(css.slice(0,css.indexOf("html[data-palette")),/#28685B|#10262A/i);
   for(const file of publicFiles(fs.readFileSync("sw.js","utf8")).filter(text)){
-   const shipped=fs.readFileSync(path.join(out,file),"utf8");
+   const whole=fs.readFileSync(path.join(out,file),"utf8"),shipped=file==="looks.js"||file==="styles.css"?whole.replace(/JSON\.parse\("[\s\S]*?"\);/,"").replace(/html\[data-palette[^\n]*\n/g,""):whole;
    assert.doesNotMatch(decodeURIComponent(shipped.replace(/%(?![0-9a-f]{2})/gi,"%25")),current,file);
    assert.doesNotMatch(shipped,/\{\{/,file);
   }
@@ -113,12 +113,12 @@ test("any logo works: its mark drops the background, and a new one shows still w
   const{build:make}=require("../scripts/build-assets.cjs");
   make({out});
   const today=fs.readFileSync(path.join(out,"index.html"),"utf8");
-  assert.match(today,/id="pull-sun"/);
+  assert.match(today,/data-pull="rise"/);
   assert.match(today,/class="brand-icon" aria-hidden="true"><svg viewBox="0 0 512 512"><path d="M146 300a110 110 0 0 1 220 0Z" fill="currentColor"\/>/);
   fs.writeFileSync(file,'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="#123456"/><circle cx="50" cy="50" r="30" fill="#ABCDEF"/></svg>');
   make({out,logoFile:file});
   const next=fs.readFileSync(path.join(out,"index.html"),"utf8");
-  assert.doesNotMatch(next,/id="pull-sun"/);
+  assert.doesNotMatch(next,/data-pull="rise"/);
   assert.match(next,/class="brand-icon" aria-hidden="true"><svg viewBox="0 0 100 100"><circle/);
  }finally{fs.rmSync(out,{recursive:true});fs.rmSync(file,{force:true});}
 });
@@ -132,4 +132,19 @@ test("every icon and palette has a Home Screen icon, none in the shell",()=>{
  const{lookIcons}=require("../scripts/build-assets.cjs"),list=lookIcons(),shell=publicFiles(fs.readFileSync("sw.js","utf8"));
  assert.equal(new Set(list.map(x=>x.file)).size,81);
  for(const{file,spec}of list){assert.equal(spec.width,180);assert.doesNotMatch(spec.svg,/\{\{/);assert.ok(!shell.includes(file));}
+});
+
+test("the build writes a block for each palette and leaves the deployed one the default",()=>{
+ const out=fs.mkdtempSync(path.join(os.tmpdir(),"blocks-"));
+ try{
+  build({out});
+  const css=fs.readFileSync(path.join(out,"styles.css"),"utf8");
+  for(let n=1;n<=9;n++)assert.equal(css.split('html[data-palette="p'+n+'"]{').length,3,"p"+n);
+  assert.ok(css.indexOf(":root{")<css.indexOf("html[data-palette"));
+  const page=fs.readFileSync(path.join(out,"index.html"),"utf8");
+  assert.match(page,/<title>[^<]+<\/title>/);
+  assert.match(page,/data-brand="name"/);
+  assert.doesNotMatch(fs.readFileSync(path.join(out,"reminders.js"),"utf8"),/\{\{/);
+  assert.match(fs.readFileSync(path.join(out,"reminders.js"),"utf8"),/globalThis\.Look\.name\(\)/);
+ }finally{fs.rmSync(out,{recursive:true});}
 });

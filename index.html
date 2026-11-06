@@ -37,6 +37,8 @@
   <link rel="icon" type="image/svg+xml" href="/icon.svg">
   <link rel="stylesheet" href="/styles.css">
   <title>{{name}}</title>
+  <script src="/marks.js"></script>
+  <script src="/looks.js"></script>
   <script src="/daycontext.js" defer></script>
   <script src="/items.js" defer></script>
   <script src="/app.js" defer></script>
@@ -75,7 +77,7 @@
   </section>
   <div class="page" id="page">
   <header class="topbar">
-   <a href="#checkin" class="brand" data-go="checkin" aria-label="{{name}} home">
+   <a href="#checkin" class="brand" data-go="checkin" data-brand-label="% home" aria-label="{{name}} home">
     <span class="brand-icon" aria-hidden="true">{{logoMark}}</span>
     <span class="brand-type"><strong>{{name}}</strong></span>
    </a>
@@ -389,7 +391,7 @@
      <p class="muted">Tell us what went wrong or what you’d change.</p>
      <button type="button" class="btn secondary full" id="feedback-open">Send feedback</button>
     </section>
-    <div class="card"><h2>About the insights</h2><p class="muted">Comparisons need at least 5 check-ins in each group. Mood data is subjective and gaps can skew results. Nothing here is a diagnosis or proves a cause.</p><button type="button" class="btn subtle full" id="setup-again">Go through setup again</button><a class="btn subtle full" id="whitepaper-link" href="/whitepaper.html" target="_blank" rel="noopener">How {{name}} works <span aria-hidden="true">↗</span></a><p class="muted">Version <span id="version">2.48.2</span> · No ads or analytics</p></div>
+    <div class="card"><h2>About the insights</h2><p class="muted">Comparisons need at least 5 check-ins in each group. Mood data is subjective and gaps can skew results. Nothing here is a diagnosis or proves a cause.</p><button type="button" class="btn subtle full" id="setup-again">Go through setup again</button><a class="btn subtle full" id="whitepaper-link" href="/whitepaper.html" target="_blank" rel="noopener">How {{name}} works <span aria-hidden="true">↗</span></a><p class="muted">Version <span id="version">2.49.0</span> · No ads or analytics</p></div>
     <div class="card"><h2>Explore a sample month</h2><p class="muted">See 28 days of fictional check-ins and events. They stay separate from your own data and are never uploaded.</p><button class="btn secondary full" id="demo-button">Load 28-day calendar demo</button><button class="btn subtle full" id="clear-demo-button">Remove demo data</button></div>
    </section>
   </main>

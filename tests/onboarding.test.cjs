@@ -79,7 +79,7 @@ test("the invitation, the setup card and Sync name the same steps",()=>{
  }
 });
 test("every element a script looks up exists on the page",()=>{
- const html=read("index.html")+read("brand/pull-mark.svg"),ids=new Set([...html.matchAll(/\bid="([^"]+)"/g)].map(x=>x[1]));
+ const html=read("index.html"),ids=new Set([...html.matchAll(/\bid="([^"]+)"/g)].map(x=>x[1]));
  for(const [,file] of html.matchAll(/<script src="\/([\w.-]+)"/g)){
   for(const [,id] of read(file).matchAll(/(?:\$|getElementById)\("([^"]+)"\)/g))assert.ok(ids.has(id),file+" needs #"+id);
  }
