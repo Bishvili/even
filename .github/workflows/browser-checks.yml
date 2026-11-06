@@ -1,0 +1,36 @@
+name: Browser checks
+on:
+  push:
+    branches: [main]
+    paths:
+      - '*.js'
+      - '*.html'
+      - '*.css'
+      - 'brand/**'
+      - 'scripts/build-assets.cjs'
+      - 'scripts/serve-app.cjs'
+      - 'scripts/smoke.cjs'
+      - 'scripts/signed-in.cjs'
+      - '.github/workflows/browser-checks.yml'
+  workflow_dispatch:
+concurrency:
+  group: browser-checks
+  cancel-in-progress: true
+jobs:
+  browsers:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+      - name: Install browsers
+        timeout-minutes: 6
+        run: |
+          npm install --no-save --no-package-lock playwright@1.63.0
+          npx playwright install --with-deps chromium webkit
+      - name: Load every screen with the production security rules
+        run: node scripts/smoke.cjs chromium webkit
+      - name: Check signed-in flows against a fake API
+        run: node scripts/signed-in.cjs chromium webkit

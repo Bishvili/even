@@ -2,7 +2,6 @@
 "use strict";
 // Loads the app as it ships: the public file list and the Worker's security headers, signed out.
 // Fails on any uncaught error or security-policy violation. Usage: node scripts/smoke.cjs [chromium] [webkit]
-// Set APP_BASE to check a deployed address instead.
 const {serve,SECURITY}=require("./serve-app.cjs");
 const {chromium,webkit}=require("playwright");
 const connect=()=>localStorage.setItem("health:v1",JSON.stringify({moods:[],health:[],events:[],token:"key",deviceId:"device-1",syncOwnerEmail:"owner@example.com",pairedAt:1}));
@@ -31,8 +30,6 @@ async function run(type,base){
  await phonePage.goto(base);
  if(!/Home Screen/.test(await phonePage.textContent("#gate-title")))problems.push("A new iPhone doesn't start with the Home Screen step.");
  await phone.close();
- // The deployed site stops here, because the rest needs a connected device.
- if(process.env.APP_BASE){await browser.close();return problems;}
  await page.evaluate(connect);
  await page.reload();
  await page.waitForSelector("#checkin-title");
@@ -92,13 +89,13 @@ async function run(type,base){
  return problems;
 }
 (async()=>{
- const names=process.argv.slice(2),server=process.env.APP_BASE?null:await serve({connected:true}),base=process.env.APP_BASE||"http://localhost:"+server.address().port;
+ const names=process.argv.slice(2),server=await serve({connected:true}),base="http://localhost:"+server.address().port;
  let failed=false;
  for(const name of names.length?names:["chromium"]){
   const problems=await run({chromium,webkit}[name],base);
   console.log(name+": "+(problems.length?problems.length+" problem(s)":"ok"));
   problems.forEach(problem=>{failed=true;console.log("  "+problem);});
  }
- if(server)server.close();
+ server.close();
  process.exit(failed?1:0);
 })().catch(error=>{console.error(error);process.exit(1);});

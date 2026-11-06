@@ -40,7 +40,7 @@ async function payload(request){
  if(type.includes("application/x-www-form-urlencoded"))return Object.fromEntries(new URLSearchParams(text));
  try{return JSON.parse(text);}catch(e){return Object.fromEntries(new URLSearchParams(text));}
 }
-const VERSION_NAME="2.44.12";
+const VERSION_NAME="2.44.13";
 function normalEmail(value){return String(value||"").trim().toLowerCase();}
 async function signinAuth(env,ctx,request){
  const {createAuth}=await import("./signin.mjs");
@@ -83,6 +83,7 @@ function syncedDataStatements(env,owner,keepMoods){
  return [...(keepMoods?[]:[env.DB.prepare("DELETE FROM health_moods WHERE owner_email=?").bind(owner)]),
   env.DB.prepare("UPDATE health_devices SET last_upload_counts=NULL WHERE owner_email=?").bind(owner),
   env.DB.prepare("DELETE FROM health_metrics WHERE owner_email=?").bind(owner),
+  env.DB.prepare("DELETE FROM health_hidden_days WHERE owner_email=?").bind(owner),
   env.DB.prepare("DELETE FROM health_calendar_events WHERE owner_email=?").bind(owner),
   env.DB.prepare("DELETE FROM health_calendars WHERE owner_email=?").bind(owner),
   env.DB.prepare("DELETE FROM health_alarms WHERE owner_email=?").bind(owner),
@@ -802,6 +803,14 @@ async function syncApi(request,env,path){
   const removed=await env.DB.prepare("DELETE FROM health_calendar_events WHERE owner_email=? AND calendar=?").bind(owner,name).run();
   return reply({ok:true,removed:removed.meta?.changes||0});
  }
+ if(path==="/api/health/hidden"&&request.method==="POST"){
+  let input;try{input=await payload(request);}catch(e){return error("That request couldn't be read.",400,"invalid_body");}
+  const day=dateOnly(input?.date);
+  if(!day||typeof input?.hidden!=="boolean")return error("Invalid health request",400,"invalid_health");
+  if(input.hidden)await env.DB.prepare("INSERT OR IGNORE INTO health_hidden_days(owner_email,day) VALUES(?,?)").bind(owner,day).run();
+  else await env.DB.prepare("DELETE FROM health_hidden_days WHERE owner_email=? AND day=?").bind(owner,day).run();
+  return reply({ok:true});
+ }
  if(path==="/api/calendars/events/hidden"&&request.method==="POST"){
   let input;try{input=await payload(request);}catch(e){return error("That request couldn't be read.",400,"invalid_body");}
   const id=String(input?.id||"");
@@ -876,13 +885,15 @@ async function syncApi(request,env,path){
  }
 
  if(path==="/api/pull"&&request.method==="GET"){
-  const [health,events,alarms]=await Promise.all([
+  const [health,events,alarms,hiddenDays]=await Promise.all([
    env.DB.prepare("SELECT day,metric,value FROM health_metrics WHERE owner_email=? ORDER BY day DESC LIMIT ?").bind(owner,LIMITS.healthDays*HEALTH_MEASURES).all(),
    env.DB.prepare("SELECT event_id,start_time,end_time,title,category,hidden FROM health_calendar_events WHERE owner_email=? AND (calendar IS NULL OR calendar NOT IN (SELECT name FROM health_calendars WHERE owner_email=? AND enabled=0)) ORDER BY start_time DESC LIMIT ?").bind(owner,owner,LIMITS.events).all(),
-   env.DB.prepare("SELECT time_min,days,enabled,label FROM health_alarms WHERE owner_email=? ORDER BY time_min").bind(owner).all()
+   env.DB.prepare("SELECT time_min,days,enabled,label FROM health_alarms WHERE owner_email=? ORDER BY time_min").bind(owner).all(),
+   env.DB.prepare("SELECT day FROM health_hidden_days WHERE owner_email=?").bind(owner).all()
   ]);
+  const hiddenDay=new Set((hiddenDays.results||[]).map(row=>row.day));
   const grouped={};for(const h of health.results||[]){
-   if(!grouped[h.day])grouped[h.day]={date:h.day,source:"shortcut"};
+   if(!grouped[h.day])grouped[h.day]={date:h.day,source:"shortcut",hidden:hiddenDay.has(h.day)};
    grouped[h.day][h.metric]=h.value;
   }
   // A full page may have cut off older rows, so the app keeps its own older days and events.

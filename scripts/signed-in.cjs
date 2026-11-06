@@ -235,6 +235,24 @@ const scenarios={
    await until(page,()=>{const s=JSON.parse(localStorage.getItem("health:v1"));return s.events.length===1&&!s.hiddenEvents.length;});
   });
  },
+ "a hidden health day leaves what the app reads and comes back":async(browser,base)=>{
+  const day=hidden=>({date:"2026-11-04",source:"shortcut",steps:100,hidden});
+  const api=fakeApi();
+  api.pull={...api.pull,health:[day(false)]};
+  await open(browser,base,saved({moodCursor:shared.cursor}),api,async({page,context})=>{
+   await statusIsReady(page);
+   await page.evaluate(()=>App.navigate("data"));
+   await page.click("#pull-button");
+   await page.waitForSelector("[data-hide-health]");
+   await context.route("**/api/health/hidden",route=>route.fulfill({json:{ok:true}}));
+   await page.click("[data-hide-health]");
+   await until(page,()=>{const s=JSON.parse(localStorage.getItem("health:v1"));return !s.health.length&&s.hiddenHealth.length===1;});
+   assert.equal(await page.textContent("#hidden-events-count"),"1 day hidden");
+   await page.click("summary#hidden-events-count");
+   await page.click("[data-show-health]");
+   await until(page,()=>{const s=JSON.parse(localStorage.getItem("health:v1"));return s.health.length===1&&!s.hiddenHealth.length;});
+  });
+ },
  "damaged storage opens at sign-in":async(browser,base)=>{
   const api=fakeApi({me:""});
   await open(browser,base,"{not json",api,async({page})=>{

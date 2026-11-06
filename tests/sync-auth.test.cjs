@@ -47,6 +47,7 @@ function harness({brand={},verified=false,buildVersion="2.8.0",helperBuild="2.0.
     throw new Error("Unexpected first: "+sql);
    },
    async all(){
+    if(sql.startsWith("SELECT day FROM health_hidden_days"))return{results:[...(rows.hiddenDays||new Set())].filter(k=>k.startsWith(args[0]+"|")).map(k=>({day:k.split("|")[1]}))};
     if(sql.startsWith("SELECT email FROM health_approved_emails"))return{results:[...rows.approved.keys()].map(email=>({email}))};
     if(sql.startsWith("SELECT email,display_name FROM health_release_emails"))return{results:[{email:"owner-a@example.com",display_name:"Ada"}]};
     if(sql.startsWith("SELECT email,name FROM health_names"))return{results:[...(rows.names||new Map()).entries()].map(([email,name])=>({email,name}))};
@@ -113,6 +114,9 @@ function harness({brand={},verified=false,buildVersion="2.8.0",helperBuild="2.0.
     if(sql.startsWith("INSERT OR IGNORE INTO health_calendars")){const k=args[0]+"|"+args[1];if(!rows.calendars.has(k))rows.calendars.set(k,{owner:args[0],name:args[1],enabled:1});return{meta:{changes:1}};}
     if(sql.startsWith("UPDATE health_calendars")){const c=rows.calendars.get(args[1]+"|"+args[2]);if(c)c.enabled=args[0];return{meta:{changes:c?1:0}};}
     if(sql.startsWith("DELETE FROM health_calendars")){for(const [k,c] of rows.calendars)if(c.owner===args[0])rows.calendars.delete(k);return{meta:{changes:1}};}
+    if(sql.startsWith("INSERT OR IGNORE INTO health_hidden_days")){(rows.hiddenDays=rows.hiddenDays||new Set()).add(args[0]+"|"+args[1]);return{meta:{changes:1}};}
+    if(sql.startsWith("DELETE FROM health_hidden_days WHERE owner_email=? AND day=?")){rows.hiddenDays?.delete(args[0]+"|"+args[1]);return{meta:{changes:1}};}
+    if(sql.startsWith("DELETE FROM health_hidden_days"))return{meta:{changes:0}};
     if(sql.startsWith("UPDATE health_calendar_events SET hidden")){const e=rows.events.get(args[1]+"|"+args[2]);if(e)e.hidden=args[0];return{meta:{changes:e?1:0}};}
     if(sql.startsWith("INSERT INTO health_calendar_events")){rows.events.set(args[0]+"|"+args[1],{hidden:rows.events.get(args[0]+"|"+args[1])?.hidden||0,owner:args[0],id:args[1],start_time:args[2],end_time:args[3],title:args[4],category:args[5],calendar:args[6],start:args[2],updated:args[7]});return{meta:{changes:1}};}
     if(sql.startsWith("DELETE FROM health_metrics")){for(const [k,d] of rows.health)if(d.owner===args[0])rows.health.delete(k);return{meta:{changes:1}};}
@@ -1156,4 +1160,23 @@ test("a hidden event stays hidden through a sync, can be shown again, and belong
  assert.equal((await hide({id,hidden:false},A)).data.changed,1);
  assert.equal((await pulled(A)).find(e=>e.title==="Hide me").hidden,false);
  assert.equal((await hide({id:"not-mine",hidden:true},A)).data.changed,0);
+});
+test("a hidden health day stays hidden through a sync, can be shown again, and belongs to its owner",async()=>{
+ const{call,ctx}=harness();
+ const device=async email=>({Authorization:"Bearer "+(await call("/api/user/device",{method:"POST",body:{label:"A"},context:ctx(email)})).data.token});
+ const A=await device("owner-a@example.com"),B=await device("owner-b@example.com");
+ const send=headers=>call("/api/ingest",{method:"POST",body:{kind:"health",date:"2026-11-04",steps:"100"},headers});
+ await send(A);await send(B);
+ const hide=(body,headers)=>call("/api/health/hidden",{method:"POST",body,headers});
+ const day=async headers=>(await call("/api/pull",{headers})).data.health.find(h=>h.date==="2026-11-04");
+ assert.equal((await hide({date:"2026-11-04",hidden:true})).status,401);
+ assert.equal((await hide({date:"soon",hidden:true},A)).status,400);
+ assert.equal((await hide({date:"2026-11-04",hidden:1},A)).status,400);
+ assert.equal((await hide({date:"2026-11-04",hidden:true},A)).status,200);
+ assert.equal((await day(A)).hidden,true);
+ assert.equal((await day(B)).hidden,false);
+ await send(A);
+ assert.equal((await day(A)).hidden,true);
+ await hide({date:"2026-11-04",hidden:false},A);
+ assert.equal((await day(A)).hidden,false);
 });

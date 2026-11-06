@@ -40,7 +40,7 @@
 .device-row-main small{display:block;color:var(--text-muted);font-size:0.706rem;margin-top:5px}
 #login-button{margin-top:14px}
 #login-ready label{display:block;margin:13px 0 7px;font-size:0.706rem;font-weight:770;color:var(--accent)}
-#pair-connected .button-row{margin-top:10px}
+#account-actions{margin-top:10px}
 #device-manager .empty{padding:15px 12px}
 .shortcut-card{border-color:var(--border);background:var(--surface)}
 .shortcut-head{display:flex;gap:13px;align-items:center;margin-bottom:18px}

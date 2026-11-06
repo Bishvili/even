@@ -11,9 +11,6 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
-        with:
-          node-version: '22'
       - name: Wait for this version to go live
         run: |
           version=$(sed -n 's/^var VERSION = "\(.*\)";.*/\1/p' app.js)
@@ -24,9 +21,12 @@ jobs:
           done
           echo "::error::The live site is on '$live', not $version"
           exit 1
-      - name: Install browsers
+      - name: Check what the live site serves
         run: |
-          npm install --no-save --no-package-lock playwright@1.63.0
-          npx playwright install --with-deps chromium webkit
-      - name: Load every screen on the live site
-        run: APP_BASE=https://health.bishvili.org node scripts/smoke.cjs chromium webkit
+          for path in / /styles.css /app.js /sw.js /manifest.webmanifest /icon.svg /icon-180.png /launch-390x844-3-dark.png /whitepaper.html; do
+            curl -fsS --max-time 20 -o /dev/null "https://health.bishvili.org$path" || { echo "::error::$path didn't load"; exit 1; }
+          done
+          curl -fsSI --max-time 20 https://health.bishvili.org/ | grep -qi '^content-security-policy'
+          code=$(curl -s --max-time 20 -o /dev/null -w '%{http_code}' https://sync.bishvili.org/)
+          test "$code" = "404" || { echo "::error::The Shortcuts' address served a page ($code)"; exit 1; }
+          curl -fsSI --max-time 30 https://sync.bishvili.org/api/shortcut/build/helper | grep -qi 'filename="'

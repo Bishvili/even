@@ -27,6 +27,11 @@ CREATE TABLE IF NOT EXISTS health_metrics (
   updated_at TEXT NOT NULL,
   PRIMARY KEY (owner_email, day, metric)
 );
+CREATE TABLE IF NOT EXISTS health_hidden_days (
+  owner_email TEXT NOT NULL REFERENCES health_users(email),
+  day TEXT NOT NULL,
+  PRIMARY KEY (owner_email, day)
+);
 CREATE TABLE IF NOT EXISTS health_calendar_events (
   owner_email TEXT NOT NULL REFERENCES health_users(email),
   event_id TEXT NOT NULL,

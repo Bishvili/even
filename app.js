@@ -1,6 +1,6 @@
 (function () {
 "use strict";
-var VERSION = "2.44.12";
+var VERSION = "2.44.13";
 var STORAGE_KEY = "health:v1";
 var MOOD_NAMES = ["","Rough","Low","Okay","Good","Great"];
 var MOOD_EMOJI = ["","😣","😕","😐","🙂","😄"];
@@ -16,7 +16,7 @@ var authService = null, authEmail = "", authDevices = [], authChecking = false, 
 var currentView = "", scrollTops = {};
 var shortcutRelease = null, shortcutStatus = null, shortcutStatusLoading = false, sessionLoading = false;
 function $(id){ return document.getElementById(id); }
-function emptyState(){ return {demo:{moods:[],health:[],events:[]},moods:[],health:[],events:[],hiddenEvents:[],reflections:[],alarms:[],resets:[],tries:[],planLog:[],planMoves:[],pendingMoods:[],deletedMoods:[],moodCursor:"",lastMoodSync:null,firstName:"",name:"",token:"",deviceId:"",syncOwnerEmail:"",pairedAt:null,lastSync:null}; }
+function emptyState(){ return {demo:{moods:[],health:[],events:[]},moods:[],health:[],events:[],hiddenEvents:[],hiddenHealth:[],reflections:[],alarms:[],resets:[],tries:[],planLog:[],planMoves:[],pendingMoods:[],deletedMoods:[],moodCursor:"",lastMoodSync:null,firstName:"",name:"",token:"",deviceId:"",syncOwnerEmail:"",pairedAt:null,lastSync:null}; }
 // Fictional records live apart from personal ones. Older saved state kept them together, marked demo.
 function withDemoApart(loaded,saved){
  var demo={};
@@ -30,7 +30,7 @@ function withDemoApart(loaded,saved){
 function readState(){
  try { var raw=JSON.parse(localStorage.getItem(STORAGE_KEY)||"null"); if(!raw || typeof raw!=="object")return emptyState();
  var owner=typeof raw.syncOwnerEmail==="string"?raw.syncOwnerEmail.toLowerCase():"",deviceId=typeof raw.deviceId==="string"?raw.deviceId:"";
- var loaded={moods:Array.isArray(raw.moods)?raw.moods.slice(-LIMITS.moods):[],health:Array.isArray(raw.health)?raw.health.slice(-LIMITS.healthDays):[],events:Array.isArray(raw.events)?raw.events.slice(-LIMITS.events):[],hiddenEvents:Array.isArray(raw.hiddenEvents)?raw.hiddenEvents.slice(-LIMITS.events):[],reflections:Array.isArray(raw.reflections)?raw.reflections.slice(-200):[],alarms:Array.isArray(raw.alarms)?raw.alarms.slice(0,40):[],resets:Array.isArray(raw.resets)?raw.resets.slice(-500):[],tries:Array.isArray(raw.tries)?raw.tries.slice(-500):[],planLog:Array.isArray(raw.planLog)?raw.planLog.slice(-300):[],planMoves:Array.isArray(raw.planMoves)?raw.planMoves.slice(-60):[],pendingMoods:Array.isArray(raw.pendingMoods)?raw.pendingMoods:[],moodCursor:String(raw.moodCursor||""),lastMoodSync:raw.lastMoodSync||null,lastBackup:typeof raw.lastBackup==="string"?raw.lastBackup:null,deletedMoods:Array.isArray(raw.deletedMoods)?raw.deletedMoods.slice(-500):[],firstName:typeof raw.firstName==="string"?raw.firstName.slice(0,60):"",name:typeof raw.name==="string"?raw.name.slice(0,60):"",token:owner&&deviceId&&typeof raw.token==="string"?raw.token:"",deviceId:deviceId,syncOwnerEmail:owner,pairedAt:raw.pairedAt||null,lastSync:raw.lastSync||null};
+ var loaded={moods:Array.isArray(raw.moods)?raw.moods.slice(-LIMITS.moods):[],health:Array.isArray(raw.health)?raw.health.slice(-LIMITS.healthDays):[],events:Array.isArray(raw.events)?raw.events.slice(-LIMITS.events):[],hiddenEvents:Array.isArray(raw.hiddenEvents)?raw.hiddenEvents.slice(-LIMITS.events):[],hiddenHealth:Array.isArray(raw.hiddenHealth)?raw.hiddenHealth.slice(-LIMITS.healthDays):[],reflections:Array.isArray(raw.reflections)?raw.reflections.slice(-200):[],alarms:Array.isArray(raw.alarms)?raw.alarms.slice(0,40):[],resets:Array.isArray(raw.resets)?raw.resets.slice(-500):[],tries:Array.isArray(raw.tries)?raw.tries.slice(-500):[],planLog:Array.isArray(raw.planLog)?raw.planLog.slice(-300):[],planMoves:Array.isArray(raw.planMoves)?raw.planMoves.slice(-60):[],pendingMoods:Array.isArray(raw.pendingMoods)?raw.pendingMoods:[],moodCursor:String(raw.moodCursor||""),lastMoodSync:raw.lastMoodSync||null,lastBackup:typeof raw.lastBackup==="string"?raw.lastBackup:null,deletedMoods:Array.isArray(raw.deletedMoods)?raw.deletedMoods.slice(-500):[],firstName:typeof raw.firstName==="string"?raw.firstName.slice(0,60):"",name:typeof raw.name==="string"?raw.name.slice(0,60):"",token:owner&&deviceId&&typeof raw.token==="string"?raw.token:"",deviceId:deviceId,syncOwnerEmail:owner,pairedAt:raw.pairedAt||null,lastSync:raw.lastSync||null};
  return withDemoApart(loaded,raw.demo);
  } catch(e){return emptyState();}
 }
@@ -149,11 +149,11 @@ function renderSources(){
  $("context-count").textContent=plural(all.length,"item","items");
  $("context-list").innerHTML=all.length?all.slice(0,12).map(function(x){
  if(x.kind==="health"){var h=x.h, summary=[h.sleepHours!=null?Math.round(h.sleepHours*10)/10+"h sleep":"",h.steps!=null?h.steps.toLocaleString()+" steps":"",h.hrv!=null?Math.round(h.hrv)+" ms HRV":"",h.restingHR!=null?Math.round(h.restingHR)+" bpm resting":"",h.workoutMin!=null?Math.round(h.workoutMin)+" min exercise":""].filter(Boolean).join(" · ");
- return '<div class="entry"><span class="entry-emoji" aria-hidden="true">♥︎</span><div class="entry-main"><strong>Health · '+esc(h.date)+'</strong><small>'+esc(summary||"Health day")+'</small></div><button class="entry-delete" aria-label="Delete health day" data-delete-health="'+esc(h.date)+'">×</button></div>';}
+ return '<div class="entry"><span class="entry-emoji" aria-hidden="true">♥︎</span><div class="entry-main"><strong>Health · '+esc(h.date)+'</strong><small>'+esc(summary||"Health day")+'</small></div>'+(h.source==="shortcut"&&state.token?'<button type="button" class="text-action" aria-label="Hide health day '+esc(h.date)+'" data-hide-health="'+esc(h.date)+'">Hide</button>':'<button class="entry-delete" aria-label="Delete health day" data-delete-health="'+esc(h.date)+'">×</button>')+'</div>';}
  var e=x.e;
  return '<div class="entry"><span class="entry-emoji" aria-hidden="true">▦︎</span><div class="entry-main"><strong>'+esc(e.title||"Calendar event")+'</strong><small>'+esc(formatDate(e.start)+" "+formatTime(e.start)+" · "+e.category)+'</small></div>'+(e.source==="shortcut"&&state.token?'<button type="button" class="text-action" aria-label="Hide '+esc(e.title||"event")+'" data-hide-event="'+esc(e.id)+'">Hide</button>':'<button class="entry-delete" aria-label="Delete calendar event" data-delete-event="'+esc(e.id)+'">×</button>')+'</div>';
  }).join(""):blank(state.token?"Nothing here yet. Run {{sync}}, or add a day or event below.":"Nothing here yet. Sign in to bring in your data, or add a day or event below.");
- renderHiddenEvents();
+ renderHidden();
 }
 function compareVersions(left,right){
  if(!/^\d+\.\d+\.\d+$/.test(left||"")||!/^\d+\.\d+\.\d+$/.test(right||""))return 0;
@@ -223,7 +223,7 @@ function renderSync(){
  $("auth-email").textContent=authEmail||"—";
  $("owner-mismatch").hidden=!mismatch;
  $("need-device").hidden=!authEmail||paired||mismatch;
- $("pair-connected").hidden=!paired;
+ $("pair-connected").hidden=!paired;$("pull-button").hidden=!paired;$("last-sync").hidden=!paired;$("account-actions").hidden=!paired&&!authEmail;
  $("pair-status").textContent=paired?"Connected · "+state.syncOwnerEmail:authEmail?"Signed in":"Not signed in";
  $("pair-badge").textContent=paired?"On":"Off";
  $("pair-badge").classList.toggle("on",paired);
@@ -514,11 +514,24 @@ async function setEventHidden(id,hidden){
  else{state.hiddenEvents=state.hiddenEvents.filter(function(x){return x.id!==id;});state.events.push(event);}
  persist();render();if(globalThis.Reminders)globalThis.Reminders.dataChanged();
 }
-function renderHiddenEvents(){
- var list=state.hiddenEvents.slice().sort(function(a,b){return a.start<b.start?1:-1;});
+async function setHealthHidden(date,hidden){
+ try{
+  var r=await fetch("/api/health/hidden",{method:"POST",headers:{"Authorization":"Bearer "+state.token,"Content-Type":"application/json"},body:JSON.stringify({date:date,hidden:hidden}),cache:"no-store"});
+  if(!r.ok)throw Error();
+ }catch(e){toast("Couldn’t change that day. Check your connection and try again.");return;}
+ var from=hidden?state.health:state.hiddenHealth,day=from.find(function(x){return x.date===date;});
+ if(!day)return;
+ if(hidden){state.health=state.health.filter(function(x){return x.date!==date;});state.hiddenHealth.push(day);}
+ else{state.hiddenHealth=state.hiddenHealth.filter(function(x){return x.date!==date;});state.health.push(day);}
+ persist();render();if(globalThis.Reminders)globalThis.Reminders.dataChanged();
+}
+function renderHidden(){
+ var events=state.hiddenEvents.map(function(e){return {at:e.start,icon:"▦︎",title:e.title||"Calendar event",when:formatDate(e.start)+" "+formatTime(e.start),attr:"data-show-event",id:e.id};});
+ var days=state.hiddenHealth.map(function(h){return {at:h.date,icon:"♥︎",title:"Health · "+h.date,when:"Sleep, movement and recovery",attr:"data-show-health",id:h.date};});
+ var list=events.concat(days).sort(function(a,b){return a.at<b.at?1:-1;});
  $("hidden-events").hidden=!list.length;
- $("hidden-events-count").textContent=plural(list.length,"event hidden","events hidden");
- $("hidden-events-list").innerHTML=list.map(function(e){return '<div class="entry"><span class="entry-emoji" aria-hidden="true">▦︎</span><div class="entry-main"><strong>'+esc(e.title||"Calendar event")+'</strong><small>'+esc(formatDate(e.start)+" "+formatTime(e.start))+'</small></div><button type="button" class="text-action" aria-label="Show '+esc(e.title||"event")+'" data-show-event="'+esc(e.id)+'">Show</button></div>';}).join("");
+ $("hidden-events-count").textContent=[events.length?plural(events.length,"event","events"):"",days.length?plural(days.length,"day","days"):""].filter(Boolean).join(" and ")+" hidden";
+ $("hidden-events-list").innerHTML=list.map(function(x){return '<div class="entry"><span class="entry-emoji" aria-hidden="true">'+x.icon+'</span><div class="entry-main"><strong>'+esc(x.title)+'</strong><small>'+esc(x.when)+'</small></div><button type="button" class="text-action" aria-label="Show '+esc(x.title)+'" '+x.attr+'="'+esc(x.id)+'">Show</button></div>';}).join("");
 }
 function normalizeEvent(e,source){
  if(!e||typeof e!=="object")return null;
@@ -635,7 +648,7 @@ async function applyBackup(data){
  state.reflections=kept.reflections;
  state.moods=data.moods.slice(-LIMITS.moods).filter(function(x){return !x.demo&&Number.isInteger(x.score)&&x.score>=1&&x.score<=5&&!isNaN(new Date(x.ts).getTime());}).map(function(x){return {id:String(x.id||newId()),ts:new Date(x.ts).toISOString(),score:x.score,energy:Number.isInteger(x.energy)&&x.energy>=1&&x.energy<=5?x.energy:null,tags:Array.isArray(x.tags)?x.tags.filter(function(y){return ACTIVITY_LABELS.includes(y);}).slice(0,10):[],note:String(x.note||"").slice(0,400),stress:Number.isInteger(x.stress)&&x.stress>=1&&x.stress<=5?x.stress:undefined,demo:!!x.demo};});
  state.health=[];data.health.slice(-LIMITS.healthDays).filter(function(x){return !x.demo;}).forEach(function(x){var h=normalizeHealth(x,x.source);if(h)upsertHealth(h);});
- state.events=[];state.hiddenEvents=[];data.events.slice(-LIMITS.events).filter(function(x){return !x.demo;}).forEach(function(x){var e=normalizeEvent(x,x.source);if(e)upsertEvent(e);});
+ state.events=[];state.hiddenEvents=[];state.hiddenHealth=[];data.events.slice(-LIMITS.events).filter(function(x){return !x.demo;}).forEach(function(x){var e=normalizeEvent(x,x.source);if(e)upsertEvent(e);});
  state.alarms=kept.alarms;state.resets=kept.resets;state.tries=kept.tries;state.planLog=kept.planLog;state.planMoves=kept.planMoves;
  // Everything restored uploads again, and the full list then brings back what the account holds.
  state.pendingMoods=state.moods.map(function(m){return m.id;});state.moodCursor="";
@@ -906,7 +919,8 @@ async function pull(silent){
   // Only a complete list can show that something was removed.
   var oldestDay=serverHealth.reduce(function(low,x){return !low||x.date<low?x.date:low;},"");
   state.health=state.health.filter(function(x){return x.source!=="shortcut"||(!complete.health&&oldestDay&&x.date<oldestDay);});
-  var h=0,e=0;serverHealth.forEach(function(x){var v=normalizeHealth(x,"shortcut");if(v){upsertHealth(v);h++;}});
+  var h=0,e=0;var hiddenDays=[];serverHealth.forEach(function(x){var v=normalizeHealth(x,"shortcut");if(!v)return;if(x.hidden)hiddenDays.push(v);else{upsertHealth(v);h++;}});
+  state.hiddenHealth=state.hiddenHealth.filter(function(x){return !complete.health&&oldestDay&&x.date<oldestDay;}).concat(hiddenDays);
   var hiddenNow=[];
   (body.events||[]).forEach(function(x){var v=normalizeEvent(x,"shortcut");if(!v)return;if(x.hidden)hiddenNow.push(v);else{upsertEvent(v);e++;}});
   var serverEvents=body.events||[],serverIds={},oldest=null;
@@ -957,7 +971,7 @@ async function eraseLocal(){
 async function eraseRemote(){
  if(!authEmail){toast("Sign in first to erase synced data.");globalThis.Signin.open();return;}
  if(!await askConfirm("Permanently delete everything synced for "+authEmail+": Health, calendar, alarms, your notification schedule, the name you set, and your check-ins and notes on all your devices? This can’t be undone. Health and calendar records already on this device stay.","Erase"))return;
- try{var r=await fetch(accountPath("erase"),{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:"{}",cache:"no-store"});if(!r.ok)throw Error("Delete failed");state.moods=[];state.hiddenEvents=[];state.pendingMoods=[];state.deletedMoods=[];persist();if(globalThis.Reminders)globalThis.Reminders.turnOff();render();toast("Synced data erased.");}catch(e){toast("Could not delete cloud data.");}
+ try{var r=await fetch(accountPath("erase"),{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:"{}",cache:"no-store"});if(!r.ok)throw Error("Delete failed");state.moods=[];state.hiddenEvents=[];state.hiddenHealth=[];state.pendingMoods=[];state.deletedMoods=[];persist();if(globalThis.Reminders)globalThis.Reminders.turnOff();render();toast("Synced data erased.");}catch(e){toast("Could not delete cloud data.");}
 }
 var swRegistration=null;
 function checkForUpdate(){if(swRegistration)swRegistration.update().catch(function(){});}
@@ -997,8 +1011,9 @@ function init(){
  $("recent-list").addEventListener("click",function(ev){var b=ev.target.closest("[data-delete-mood]");if(b)askConfirm("Delete this check-in? This can’t be undone.","Delete").then(function(yes){if(!yes)return;state.moods=state.moods.filter(function(x){return x.id!==b.dataset.deleteMood;});state.pendingMoods=state.pendingMoods.filter(function(id){return id!==b.dataset.deleteMood;});state.deletedMoods.push(b.dataset.deleteMood);persist();render();syncMoods();});});
  $("context-list").addEventListener("click",function(ev){var b=ev.target.closest("[data-delete-health]");if(b)askConfirm("Delete this health day from this device?","Delete").then(function(yes){if(!yes)return;state.health=state.health.filter(function(x){return x.date!==b.dataset.deleteHealth;});persist();render();});
  b=ev.target.closest("[data-delete-event]");if(b)askConfirm("Delete this event from this device? This can’t be undone.","Delete").then(function(yes){if(!yes)return;state.events=state.events.filter(function(x){return x.id!==b.dataset.deleteEvent;});persist();render();});
-  b=ev.target.closest("[data-hide-event]");if(b)setEventHidden(b.dataset.hideEvent,true);});
- $("hidden-events-list").addEventListener("click",function(ev){var b=ev.target.closest("[data-show-event]");if(b)setEventHidden(b.dataset.showEvent,false);});
+  b=ev.target.closest("[data-hide-event]");if(b)setEventHidden(b.dataset.hideEvent,true);
+  b=ev.target.closest("[data-hide-health]");if(b)setHealthHidden(b.dataset.hideHealth,true);});
+ $("hidden-events-list").addEventListener("click",function(ev){var b=ev.target.closest("[data-show-event]");if(b)setEventHidden(b.dataset.showEvent,false);b=ev.target.closest("[data-show-health]");if(b)setHealthHidden(b.dataset.showHealth,false);});
  document.querySelectorAll("[data-days]").forEach(function(b){b.addEventListener("click",function(){insightDays=Number(b.dataset.days);document.querySelectorAll("[data-days]").forEach(function(x){x.classList.toggle("selected",x===b);});renderInsights();});});
  document.querySelectorAll("[data-scope]").forEach(function(b){b.addEventListener("click",function(){insightScope=b.dataset.scope;renderInsights();});});
  $("login-button").addEventListener("click",function(){signIn();});
