@@ -23,8 +23,10 @@ function loadAppWithoutStartingUI() {
   querySelectorAll(){return [];}
  };
  require("../daycontext.js");
+ require("../items.js");
  const sandbox = {
   Day:globalThis.Day,
+  Items:globalThis.Items,
   document,
   localStorage:{getItem(){return null;},setItem(){}},
   Date,

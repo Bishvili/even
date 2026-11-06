@@ -47,6 +47,10 @@ function harness({brand={},verified=false,buildVersion="2.8.0",helperBuild="2.0.
     throw new Error("Unexpected first: "+sql);
    },
    async all(){
+    if(sql.startsWith("SELECT title,category FROM health_title_rules"))return{results:[...(rows.rules||new Map()).values()].filter(r=>r.owner===args[0])};
+    if(sql.startsWith("SELECT label,category FROM health_title_rules"))return{results:[...(rows.rules||new Map()).values()].filter(r=>r.owner===args[0])};
+    if(sql.startsWith("SELECT name,category FROM health_calendars"))return{results:[...rows.calendars.entries()].filter(([k])=>k.startsWith(args[0]+"|")).map(([k,c])=>({name:k.split("|")[1],category:c.category}))};
+    if(sql.startsWith("SELECT event_id,title,calendar,category,category_from"))return{results:[...rows.events.values()].filter(d=>d.owner===args[0]).map(d=>({event_id:d.id,title:d.title,calendar:d.calendar,category:d.category,category_from:d.from||null}))};
     if(sql.startsWith("SELECT day FROM health_hidden_days"))return{results:[...(rows.hiddenDays||new Set())].filter(k=>k.startsWith(args[0]+"|")).map(k=>({day:k.split("|")[1]}))};
     if(sql.startsWith("SELECT email FROM health_approved_emails"))return{results:[...rows.approved.keys()].map(email=>({email}))};
     if(sql.startsWith("SELECT email,display_name FROM health_release_emails"))return{results:[{email:"owner-a@example.com",display_name:"Ada"}]};
@@ -60,7 +64,7 @@ function harness({brand={},verified=false,buildVersion="2.8.0",helperBuild="2.0.
     if(sql.startsWith("SELECT name,enabled,category FROM health_calendars"))return{results:[...rows.calendars.values()].filter(c=>c.owner===args[0])};
     if(sql.includes("SELECT device_id,label,created_at"))return{results:[...rows.devices.values()].filter(d=>d.owner_email===args[0]).map(d=>({device_id:d.device_id,label:d.label,created_at:d.created_at,last_used_at:d.last_used_at,revoked_at:d.revoked_at}))};
     if(sql.includes("SELECT day,metric,value FROM health_metrics"))return{results:[...rows.health.values()].filter(d=>d.owner===args[0]).map(d=>({day:d.day,metric:d.metric,value:d.value}))};
-    if(sql.includes("SELECT event_id,start_time,end_time"))return{results:[...rows.events.values()].filter(d=>d.owner===args[0]&&!(rows.calendars.get(d.owner+"|"+d.calendar)&&!rows.calendars.get(d.owner+"|"+d.calendar).enabled)).map(d=>({hidden:d.hidden,event_id:d.id,start_time:d.start_time,end_time:d.end_time,title:d.title,category:d.category}))};
+    if(sql.includes("SELECT event_id,start_time,end_time"))return{results:[...rows.events.values()].filter(d=>d.owner===args[0]&&!(rows.calendars.get(d.owner+"|"+d.calendar)&&!rows.calendars.get(d.owner+"|"+d.calendar).enabled)).map(d=>({hidden:d.hidden,category_from:d.from||null,event_id:d.id,start_time:d.start_time,end_time:d.end_time,title:d.title,category:d.category}))};
     if(sql.includes("FROM health_alarms"))return{results:[...(rows.alarms||[])].filter(a=>a.owner===args[0])};
     throw new Error("Unexpected all: "+sql);
    },
@@ -71,7 +75,6 @@ function harness({brand={},verified=false,buildVersion="2.8.0",helperBuild="2.0.
     if(sql.startsWith("INSERT INTO health_service"))return{meta:{changes:1}};
     if(sql.startsWith("UPDATE health_moods SET ts=?")){(rows.moods||[]).forEach(m=>{if(m.owner===args[3]&&!m.deleted_at){m.deleted_at=args[2];m.note=null;}});return{meta:{changes:1}};}
     if(sql.startsWith("UPDATE health_calendars SET category")){const c=rows.calendars.get(args[1]+"|"+args[2]);if(c)c.category=args[0];return{meta:{changes:c?1:0}};}
-    if(sql.startsWith("UPDATE health_calendar_events SET category"))return{meta:{changes:1}};
     if(sql.startsWith("DELETE FROM health_signin_"))return{meta:{changes:0}};
     if(sql.startsWith("UPDATE health_devices SET revoked_at")){let changes=0;for(const d of rows.devices.values())if(d.device_id===args[1]&&d.owner_email===args[2]&&!d.revoked_at){d.revoked_at=args[0];changes++;}return{meta:{changes}};}
     if(sql.startsWith("UPDATE health_devices SET last_attempt_at")){for(const d of rows.devices.values())if(d.device_id===args[2]&&d.owner_email===args[3]&&!d.revoked_at){d.last_attempt_at=args[0];if(sql.includes("last_error_code=NULL,shortcut_version=?")){d.last_error_code=null;d.shortcut_version=args[1];}else d.last_error_code=args[1];}return{meta:{changes:1}};}
@@ -117,8 +120,14 @@ function harness({brand={},verified=false,buildVersion="2.8.0",helperBuild="2.0.
     if(sql.startsWith("INSERT OR IGNORE INTO health_hidden_days")){(rows.hiddenDays=rows.hiddenDays||new Set()).add(args[0]+"|"+args[1]);return{meta:{changes:1}};}
     if(sql.startsWith("DELETE FROM health_hidden_days WHERE owner_email=? AND day=?")){rows.hiddenDays?.delete(args[0]+"|"+args[1]);return{meta:{changes:1}};}
     if(sql.startsWith("DELETE FROM health_hidden_days"))return{meta:{changes:0}};
+    if(sql.startsWith("INSERT INTO health_title_rules")){(rows.rules=rows.rules||new Map()).set(args[0]+"|"+args[1],{owner:args[0],title:args[1],label:args[2],category:args[3]});return{meta:{changes:1}};}
+    if(sql.startsWith("DELETE FROM health_title_rules WHERE owner_email=? AND title=?")){rows.rules?.delete(args[0]+"|"+args[1]);return{meta:{changes:1}};}
+    if(sql.startsWith("DELETE FROM health_title_rules")){for(const[k,r]of rows.rules||[])if(r.owner===args[0])rows.rules.delete(k);return{meta:{changes:1}};}
+    if(sql.startsWith("UPDATE health_calendar_events SET category=?,category_from='you'")){const e=rows.events.get(args[1]+"|"+args[2]);if(e){e.category=args[0];e.from="you";}return{meta:{changes:e?1:0}};}
+    if(sql.startsWith("UPDATE health_calendar_events SET category=?,category_from=?")){const e=rows.events.get(args[2]+"|"+args[3]);if(e){e.category=args[0];e.from=args[1];}return{meta:{changes:e?1:0}};}
+    if(sql.startsWith("UPDATE health_calendar_events SET category_from=NULL")){const e=rows.events.get(args[0]+"|"+args[1]);if(e)e.from=null;return{meta:{changes:e?1:0}};}
     if(sql.startsWith("UPDATE health_calendar_events SET hidden")){const e=rows.events.get(args[1]+"|"+args[2]);if(e)e.hidden=args[0];return{meta:{changes:e?1:0}};}
-    if(sql.startsWith("INSERT INTO health_calendar_events")){rows.events.set(args[0]+"|"+args[1],{hidden:rows.events.get(args[0]+"|"+args[1])?.hidden||0,owner:args[0],id:args[1],start_time:args[2],end_time:args[3],title:args[4],category:args[5],calendar:args[6],start:args[2],updated:args[7]});return{meta:{changes:1}};}
+    if(sql.startsWith("INSERT INTO health_calendar_events")){rows.events.set(args[0]+"|"+args[1],(()=>{const old=rows.events.get(args[0]+"|"+args[1]);const you=old?.from==="you";return{hidden:old?.hidden||0,owner:args[0],id:args[1],start_time:args[2],end_time:args[3],title:args[4],category:you?old.category:args[5],from:you?"you":args[8]||null,calendar:args[6],start:args[2],updated:args[7]};})());return{meta:{changes:1}};}
     if(sql.startsWith("DELETE FROM health_metrics")){for(const [k,d] of rows.health)if(d.owner===args[0])rows.health.delete(k);return{meta:{changes:1}};}
     if(sql.includes("updated_at<?")){let changes=0;for(const [k,d] of rows.events)if(d.owner===args[0]&&d.start>=args[1]&&d.start<args[2]&&d.updated<args[3]){rows.events.delete(k);changes++;}return{meta:{changes}};}
     if(sql==="DELETE FROM health_calendar_events WHERE owner_email=? AND calendar=?"){let changes=0;for(const [k,d] of rows.events)if(d.owner===args[0]&&d.calendar===args[1]){rows.events.delete(k);changes++;}return{meta:{changes}};}
@@ -1138,47 +1147,76 @@ test("the invitation takes every name from the brand file",async()=>{
  }
 });
 
-test("a hidden event stays hidden through a sync, can be shown again, and belongs to its owner",async()=>{
- const{call,ctx,rows}=harness();
+const owners=async(call,ctx)=>{
  const device=async email=>({Authorization:"Bearer "+(await call("/api/user/device",{method:"POST",body:{label:"A"},context:ctx(email)})).data.token});
- const A=await device("owner-a@example.com"),B=await device("owner-b@example.com");
- const day=[["2026-11-04T10:00:00Z","2026-11-04T11:00:00Z","Work","Hide me"],["2026-11-04T12:00:00Z","2026-11-04T13:00:00Z","Work","Keep me"]];
- await call("/api/ingest",{method:"POST",body:days("2026-11-04",day),headers:A});
- await call("/api/ingest",{method:"POST",body:days("2026-11-04",day),headers:B});
- const id=[...rows.events.values()].find(e=>e.owner==="owner-a@example.com"&&e.title==="Hide me").id;
- const hide=(body,headers)=>call("/api/calendars/events/hidden",{method:"POST",body,headers});
- assert.equal((await hide({id,hidden:true})).status,401);
- assert.equal((await hide({id:"x".repeat(65),hidden:true},A)).status,400);
- assert.equal((await hide({id,hidden:"yes"},A)).status,400);
- assert.equal((await hide({id,hidden:true},A)).data.changed,1);
+ return {A:await device("owner-a@example.com"),B:await device("owner-b@example.com")};
+};
+const standup=[["2026-11-04T10:00:00Z","2026-11-04T11:00:00Z","Work","Run payroll"],["2026-11-04T12:00:00Z","2026-11-04T13:00:00Z","Work","Keep me"]];
+const sendChanges=(call,headers,changes)=>call("/api/context/changes",{method:"POST",body:{changes},headers});
+test("a hidden event stays hidden through a sync, can be shown again, and belongs to its owner",async()=>{
+ const{call,ctx,rows}=harness(),{A,B}=await owners(call,ctx);
+ await call("/api/ingest",{method:"POST",body:days("2026-11-04",standup),headers:A});
+ await call("/api/ingest",{method:"POST",body:days("2026-11-04",standup),headers:B});
+ const id=[...rows.events.values()].find(e=>e.owner==="owner-a@example.com"&&e.title==="Run payroll").id;
  const pulled=async headers=>(await call("/api/pull",{headers})).data.events;
- assert.equal((await pulled(A)).find(e=>e.title==="Hide me").hidden,true);
- assert.equal((await pulled(A)).find(e=>e.title==="Keep me").hidden,false);
- assert.equal((await pulled(B)).find(e=>e.title==="Hide me").hidden,false);
- await call("/api/ingest",{method:"POST",body:days("2026-11-04",day),headers:A});
- assert.equal((await pulled(A)).find(e=>e.title==="Hide me").hidden,true);
- assert.equal((await hide({id,hidden:false},A)).data.changed,1);
- assert.equal((await pulled(A)).find(e=>e.title==="Hide me").hidden,false);
- assert.equal((await hide({id:"not-mine",hidden:true},A)).data.changed,0);
+ assert.equal((await sendChanges(call,undefined,[{op:"hide",kind:"event",id}])).status,401);
+ assert.equal((await sendChanges(call,A,[{op:"hide",kind:"event",id:"x".repeat(65)}])).data.results[0].code,"invalid_change");
+ assert.equal((await sendChanges(call,A,[{op:"hide",kind:"event",id}])).data.results[0].ok,true);
+ assert.equal((await pulled(A)).find(e=>e.title==="Run payroll").hidden,true);
+ assert.equal((await pulled(B)).find(e=>e.title==="Run payroll").hidden,false);
+ await call("/api/ingest",{method:"POST",body:days("2026-11-04",standup),headers:A});
+ assert.equal((await pulled(A)).find(e=>e.title==="Run payroll").hidden,true);
+ await sendChanges(call,A,[{op:"show",kind:"event",id}]);
+ assert.equal((await pulled(A)).find(e=>e.title==="Run payroll").hidden,false);
 });
 test("a hidden health day stays hidden through a sync, can be shown again, and belongs to its owner",async()=>{
- const{call,ctx}=harness();
- const device=async email=>({Authorization:"Bearer "+(await call("/api/user/device",{method:"POST",body:{label:"A"},context:ctx(email)})).data.token});
- const A=await device("owner-a@example.com"),B=await device("owner-b@example.com");
+ const{call,ctx}=harness(),{A,B}=await owners(call,ctx);
  const send=headers=>call("/api/ingest",{method:"POST",body:{kind:"health",date:"2026-11-04",steps:"100"},headers});
  await send(A);await send(B);
- const hide=(body,headers)=>call("/api/health/hidden",{method:"POST",body,headers});
  const day=async headers=>(await call("/api/pull",{headers})).data.health.find(h=>h.date==="2026-11-04");
- assert.equal((await hide({date:"2026-11-04",hidden:true})).status,401);
- assert.equal((await hide({date:"soon",hidden:true},A)).status,400);
- assert.equal((await hide({date:"2026-11-04",hidden:1},A)).status,400);
- assert.equal((await hide({date:"2026-11-04",hidden:true},A)).status,200);
+ assert.equal((await sendChanges(call,A,[{op:"hide",kind:"health",id:"soon"}])).data.results[0].ok,false);
+ await sendChanges(call,A,[{op:"hide",kind:"health",id:"2026-11-04"}]);
  assert.equal((await day(A)).hidden,true);
  assert.equal((await day(B)).hidden,false);
  await send(A);
  assert.equal((await day(A)).hidden,true);
- await hide({date:"2026-11-04",hidden:false},A);
+ await sendChanges(call,A,[{op:"show",kind:"health",id:"2026-11-04"}]);
  assert.equal((await day(A)).hidden,false);
+});
+test("a chosen type and a title rule survive uploads and calendar purposes, in the right order, for one owner",async()=>{
+ const{call,ctx,rows}=harness(),{A,B}=await owners(call,ctx);
+ const upload=headers=>call("/api/ingest",{method:"POST",body:days("2026-11-04",standup),headers});
+ await upload(A);await upload(B);
+ const row=(owner,title)=>[...rows.events.values()].find(e=>e.owner===owner&&e.title===title);
+ const a="owner-a@example.com",b="owner-b@example.com";
+ assert.equal(row(a,"Run payroll").category,"Exercise");
+ assert.equal(row(a,"Run payroll").from,"title");
+ assert.equal((await sendChanges(call,A,[{op:"type",id:row(a,"Keep me").id,category:"Rest"}])).data.results[0].ok,true);
+ assert.equal((await sendChanges(call,A,[{op:"rule",title:"  RUN  payroll ",category:"Work"}])).data.results[0].ok,true);
+ assert.equal(row(a,"Run payroll").category,"Work");
+ assert.equal(row(a,"Run payroll").from,"rule");
+ assert.equal(row(b,"Run payroll").category,"Exercise","another owner's events don't change");
+ await upload(A);
+ assert.equal(row(a,"Run payroll").category,"Work");
+ assert.equal(row(a,"Keep me").category,"Rest");
+ assert.equal(row(a,"Keep me").from,"you");
+ const pull=await call("/api/pull",{headers:A});
+ assert.deepEqual(pull.data.rules.map(r=>r.title),["RUN payroll"]);
+ assert.equal(pull.data.events.find(e=>e.title==="Keep me").categoryFrom,"you");
+ assert.deepEqual((await call("/api/pull",{headers:B})).data.rules,[]);
+ await sendChanges(call,A,[{op:"unrule",title:"run payroll"}]);
+ assert.equal(row(a,"Run payroll").category,"Exercise");
+ await sendChanges(call,A,[{op:"untype",id:row(a,"Keep me").id}]);
+ assert.equal(row(a,"Keep me").category,"Other");
+ assert.equal((await sendChanges(call,A,[{op:"type",id:"a",category:"Nope"}])).data.results[0].code,"invalid_change");
+ assert.equal((await sendChanges(call,A,Array(101).fill({op:"show",kind:"event",id:"a"}))).status,400);
+ assert.equal((await sendChanges(call,A,[])).status,400);
+});
+test("title rules stop at the limit",async()=>{
+ const{call,ctx}=harness(),{A}=await owners(call,ctx);
+ for(let i=0;i<200;i+=100)await sendChanges(call,A,Array.from({length:100},(x,n)=>({op:"rule",title:"title "+(i+n),category:"Work"})));
+ assert.equal((await sendChanges(call,A,[{op:"rule",title:"one more",category:"Work"}])).data.results[0].code,"too_many_rules");
+ assert.equal((await sendChanges(call,A,[{op:"rule",title:"title 0",category:"Rest"}])).data.results[0].ok,true);
 });
 
 test("time in bed counts only for a night with nothing else, and is marked",()=>{

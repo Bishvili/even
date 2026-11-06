@@ -7,7 +7,7 @@ const shared={
 };
 export default [
  js.configs.recommended,
- {files:["app.js","coach.js","reminders.js","onboarding.js","intake.js","refresh.js","invites.js","signin-sheet.js","backup.js","feedback.js","daycontext.js"],languageOptions:{sourceType:"script",globals:globals.browser},rules:shared},
+ {files:["app.js","coach.js","reminders.js","onboarding.js","intake.js","refresh.js","invites.js","signin-sheet.js","backup.js","feedback.js","daycontext.js","items.js"],languageOptions:{sourceType:"script",globals:globals.browser},rules:shared},
  {files:["sw.js"],languageOptions:{sourceType:"script",globals:globals.serviceworker},rules:shared},
  {files:["worker/**"],languageOptions:{sourceType:"module",globals:globals.serviceworker},rules:shared}
 ];

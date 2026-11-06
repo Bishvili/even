@@ -221,13 +221,15 @@ What the app holds and where it goes. Write every privacy statement from this ta
 | --- | --- | --- | --- | --- |
 | Mood, optional stress and energy, tags, notes | Check-ins | Yes | Yes when signed in, as readable text. A deleted check-in leaves only its ID, so other devices can remove it. | Insights, coaching and notification times. Notes are only displayed. |
 | Weekly reflections, breathing sessions, suggestions marked done, and which planned check-ins were answered | The app | Yes | No | Insights. Breathing and suggestions marked done also feed what tends to help. Unanswered times move check-ins. |
-| Health days and events added by hand or imported | The Data tab | Yes | No | Insights and coaching |
+| Health days and events added by hand or imported, and numbers typed on a synced day | The Data tab | Yes | No | Insights and coaching. A typed number wins on that iPhone and a sync never replaces it. |
 | Steps, exercise minutes, sleep hours, HRV | Health Sync, from Apple Health, up to the last 7 days each run. Sleep arrives as intervals from recent nights, with time in bed used for a night with nothing else, up to a month on the first sync | Yes | Yes | Insights and coaching. HRV: Insights only. |
 | Bedtimes | Worked out from the sleep intervals | Yes | Yes | Bedtime estimate and wind-down |
 | Resting heart rate | Health Sync, from Apple Health | Yes | Yes | Insights: compared with the person's own usual level |
 | Calendar events for today and the next 7 days: title, start, end, calendar name | Health Sync reads calendars left on. Saved events from a turned-off calendar can be removed in the app; the Worker adds a category | Yes, without the calendar name | Yes, except events from turned-off calendars, which are discarded on arrival | Insights, coaching and nudges before events |
 | Events hidden in the app: the same details, marked hidden | Health Sync and the app | Yes, apart from other events | Yes, until the event is deleted from the calendar or synced data is erased | Listed so they can be shown again. Left out of insights, coaching and notifications. |
 | Health days hidden in the app: the date, with their measures kept | The app | Yes, apart from other days | Yes, until synced data is erased | Listed so they can be shown again. Left out of insights and coaching. |
+| A type a person chose for an event, and where each event's type came from | The app | Yes | Yes, until the event is deleted from the calendar or synced data is erased | Keeps their choice through every sync |
+| Title rules: a title and the type for every event with it | The app | Yes | Yes, until the rule is deleted or synced data is erased | Types events with that title |
 | Calendar names, on/off state and what each is for | Health Sync and the app | No | Yes | Calendar settings and event categories |
 | What Health Sync sends | The app | Yes | Yes | Followed by Health Sync and the Worker |
 | Alarms: time, repeat days, on/off, name | Health Sync, from Clock | Yes | Yes, plus each synced day's first morning alarm | Brief, wind-down, next steps and the early-alarm pattern |

@@ -27,6 +27,14 @@ CREATE TABLE IF NOT EXISTS health_metrics (
   updated_at TEXT NOT NULL,
   PRIMARY KEY (owner_email, day, metric)
 );
+CREATE TABLE IF NOT EXISTS health_title_rules (
+  owner_email TEXT NOT NULL REFERENCES health_users(email),
+  title TEXT NOT NULL,
+  label TEXT NOT NULL,
+  category TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  PRIMARY KEY (owner_email, title)
+);
 CREATE TABLE IF NOT EXISTS health_hidden_days (
   owner_email TEXT NOT NULL REFERENCES health_users(email),
   day TEXT NOT NULL,
@@ -42,6 +50,7 @@ CREATE TABLE IF NOT EXISTS health_calendar_events (
   calendar TEXT,
   updated_at TEXT NOT NULL,
   hidden INTEGER NOT NULL DEFAULT 0,
+  category_from TEXT,
   PRIMARY KEY (owner_email, event_id)
 );
 CREATE INDEX IF NOT EXISTS health_calendar_owner_start ON health_calendar_events(owner_email, start_time);

@@ -221,7 +221,7 @@ const scenarios={
    await page.evaluate(()=>App.navigate("data"));
    await page.click("#pull-button");
    await page.waitForSelector("[data-hide-event]");
-   await context.route("**/api/calendars/events/hidden",route=>route.fulfill({json:{ok:true,changed:1}}));
+   await context.route("**/api/context/changes",route=>route.fulfill({json:{ok:true,results:[{ok:true}]}}));
    await page.click("[data-hide-event]");
    await until(page,()=>{const s=JSON.parse(localStorage.getItem("health:v1"));return !s.events.length&&s.hiddenEvents.length===1;});
    assert.equal(await page.textContent("#hidden-events-count"),"1 event hidden");
@@ -244,7 +244,7 @@ const scenarios={
    await page.evaluate(()=>App.navigate("data"));
    await page.click("#pull-button");
    await page.waitForSelector("[data-hide-health]");
-   await context.route("**/api/health/hidden",route=>route.fulfill({json:{ok:true}}));
+   await context.route("**/api/context/changes",route=>route.fulfill({json:{ok:true,results:[{ok:true}]}}));
    await page.click("[data-hide-health]");
    await until(page,()=>{const s=JSON.parse(localStorage.getItem("health:v1"));return !s.health.length&&s.hiddenHealth.length===1;});
    assert.equal(await page.textContent("#hidden-events-count"),"1 day hidden");
@@ -258,18 +258,18 @@ const scenarios={
   const api=fakeApi(),sent=[];
   api.pull={...api.pull,events:[event]};
   await open(browser,base,saved({moodCursor:shared.cursor}),api,async({page,context})=>{
-   await context.route("**/api/calendars/events/hidden",route=>{sent.push(route.request().postDataJSON());return route.fulfill({json:{ok:true,changed:1}});});
+   await context.route("**/api/context/changes",route=>{sent.push(route.request().postDataJSON());return route.fulfill({json:{ok:true,results:[{ok:true}]}});});
    await statusIsReady(page);
    await page.evaluate(()=>App.navigate("data"));
    await page.click("#pull-button");
    await page.waitForSelector("[data-hide-event]");
    await context.setOffline(true);
    await page.click("[data-hide-event]");
-   await until(page,()=>{const s=JSON.parse(localStorage.getItem("health:v1"));return s.hiddenEvents.length===1&&s.pendingHides.length===1;});
+   await until(page,()=>{const s=JSON.parse(localStorage.getItem("health:v1"));return s.hiddenEvents.length===1&&s.pendingChanges.length===1;});
    assert.equal(sent.length,0);
    await context.setOffline(false);
-   await until(page,()=>JSON.parse(localStorage.getItem("health:v1")).pendingHides.length===0);
-   assert.deepEqual(sent,[{id:"e1",hidden:true}]);
+   await until(page,()=>JSON.parse(localStorage.getItem("health:v1")).pendingChanges.length===0);
+   assert.deepEqual(sent,[{changes:[{op:"hide",kind:"event",id:"e1"}]}]);
    await page.waitForTimeout(150);
    assert.equal((await stored(page)).hiddenEvents.length,1);
   });

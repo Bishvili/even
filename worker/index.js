@@ -40,7 +40,7 @@ async function payload(request){
  if(type.includes("application/x-www-form-urlencoded"))return Object.fromEntries(new URLSearchParams(text));
  try{return JSON.parse(text);}catch(e){return Object.fromEntries(new URLSearchParams(text));}
 }
-const VERSION_NAME="2.44.19";
+const VERSION_NAME="2.45.0";
 function normalEmail(value){return String(value||"").trim().toLowerCase();}
 async function signinAuth(env,ctx,request){
  const {createAuth}=await import("./signin.mjs");
@@ -84,6 +84,7 @@ function syncedDataStatements(env,owner,keepMoods){
   env.DB.prepare("UPDATE health_devices SET last_upload_counts=NULL WHERE owner_email=?").bind(owner),
   env.DB.prepare("DELETE FROM health_metrics WHERE owner_email=?").bind(owner),
   env.DB.prepare("DELETE FROM health_hidden_days WHERE owner_email=?").bind(owner),
+  env.DB.prepare("DELETE FROM health_title_rules WHERE owner_email=?").bind(owner),
   env.DB.prepare("DELETE FROM health_calendar_events WHERE owner_email=?").bind(owner),
   env.DB.prepare("DELETE FROM health_calendars WHERE owner_email=?").bind(owner),
   env.DB.prepare("DELETE FROM health_alarms WHERE owner_email=?").bind(owner),
@@ -227,6 +228,15 @@ function classifyCalendarTitle(title){
  if(/\b(commute|travel to work)\b/i.test(title))return "Commute";
  return "Other";
 }
+const normalTitle=title=>String(title||"").normalize("NFC").trim().replace(/\s+/g," ").toLowerCase();
+// The one place an event's type is decided: a rule for its title, then the title's words, then its calendar's purpose. A type a person chose for one event stays out of this.
+function categoryFor(title,rules,purpose){
+ const rule=rules.get(normalTitle(title));
+ if(rule)return {category:rule,from:"rule"};
+ const found=classifyCalendarTitle(title);
+ if(found!=="Other"||!purpose)return {category:found,from:"title"};
+ return {category:purpose,from:"calendar"};
+}
 function readEvent(x){
  if(!x||typeof x!=="object")return null;
  const start=new Date(x.start||x.start_time),end=new Date(x.end||x.end_time);
@@ -251,7 +261,7 @@ function readEventRecords(text){
 }
 async function eventStatement(env,owner,e,at){
  const eventId=(await digest(e.start+"|"+e.end+"|"+e.title)).slice(0,40);
- return env.DB.prepare("INSERT INTO health_calendar_events(owner_email,event_id,start_time,end_time,title,category,calendar,updated_at) VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(owner_email,event_id) DO UPDATE SET title=excluded.title,category=excluded.category,calendar=excluded.calendar,updated_at=excluded.updated_at").bind(owner,eventId,e.start,e.end,e.title,e.category,e.calendar,at);
+ return env.DB.prepare("INSERT INTO health_calendar_events(owner_email,event_id,start_time,end_time,title,category,calendar,updated_at,category_from) VALUES(?,?,?,?,?,?,?,?,?) ON CONFLICT(owner_email,event_id) DO UPDATE SET title=excluded.title,category=CASE WHEN health_calendar_events.category_from='you' THEN health_calendar_events.category ELSE excluded.category END,category_from=CASE WHEN health_calendar_events.category_from='you' THEN 'you' ELSE excluded.category_from END,calendar=excluded.calendar,updated_at=excluded.updated_at").bind(owner,eventId,e.start,e.end,e.title,e.category,e.calendar,at,e.categoryFrom||null);
 }
 // Requests within ten minutes belong to one run of the Shortcut, so their counts are kept together.
 async function markUpload(env,dev,version,at,counts){
@@ -506,13 +516,79 @@ function semverNewer(latest,installed){
 }
 const NO_VALID_RECORDS="Some data in this upload wasn't valid.";
 // Remembers each calendar it sees, then drops events from calendars the owner turned off.
+async function titleRules(env,owner){
+ const rows=await env.DB.prepare("SELECT title,category FROM health_title_rules WHERE owner_email=?").bind(owner).all();
+ return new Map((rows.results||[]).map(r=>[r.title,r.category]));
+}
+async function calendarPurposes(env,owner){
+ const rows=await env.DB.prepare("SELECT name,category FROM health_calendars WHERE owner_email=?").bind(owner).all();
+ return new Map((rows.results||[]).map(c=>[c.name,c.category]));
+}
+// Retypes stored events from their title and calendar. Types a person chose for one event are left alone.
+async function retypeEvents(env,owner,keep){
+ const [rules,purposes,rows]=await Promise.all([titleRules(env,owner),calendarPurposes(env,owner),env.DB.prepare("SELECT event_id,title,calendar,category,category_from FROM health_calendar_events WHERE owner_email=?").bind(owner).all()]);
+ const updates=[];
+ for(const e of rows.results||[]){
+  if(e.category_from==="you"||!keep(e))continue;
+  const chosen=categoryFor(e.title,rules,purposes.get(e.calendar));
+  if(chosen.category!==e.category||chosen.from!==e.category_from)updates.push(env.DB.prepare("UPDATE health_calendar_events SET category=?,category_from=? WHERE owner_email=? AND event_id=?").bind(chosen.category,chosen.from,owner,e.event_id));
+ }
+ for(let i=0;i<updates.length;i+=50)await env.DB.batch(updates.slice(i,i+50));
+}
+const RULE_LIMIT=200,CHANGE_LIMIT=100;
+// Changes a person made to what a sync wrote. Each answers on its own, and repeating one changes nothing.
+async function applyChange(env,owner,change){
+ const op=String(change?.op||""),id=String(change?.id||"");
+ if(op==="hide"||op==="show"){
+  if(change.kind==="event"){
+   if(!id||id.length>64)return {ok:false,code:"invalid_change"};
+   await env.DB.prepare("UPDATE health_calendar_events SET hidden=? WHERE owner_email=? AND event_id=?").bind(op==="hide"?1:0,owner,id).run();
+   return {ok:true};
+  }
+  if(change.kind==="health"){
+   const day=dateOnly(id);
+   if(!day)return {ok:false,code:"invalid_change"};
+   if(op==="hide")await env.DB.prepare("INSERT OR IGNORE INTO health_hidden_days(owner_email,day) VALUES(?,?)").bind(owner,day).run();
+   else await env.DB.prepare("DELETE FROM health_hidden_days WHERE owner_email=? AND day=?").bind(owner,day).run();
+   return {ok:true};
+  }
+  return {ok:false,code:"invalid_change"};
+ }
+ if(op==="type"){
+  if(!id||id.length>64||!CATS.includes(change.category))return {ok:false,code:"invalid_change"};
+  await env.DB.prepare("UPDATE health_calendar_events SET category=?,category_from='you' WHERE owner_email=? AND event_id=?").bind(change.category,owner,id).run();
+  return {ok:true};
+ }
+ if(op==="untype"){
+  if(!id||id.length>64)return {ok:false,code:"invalid_change"};
+  await env.DB.prepare("UPDATE health_calendar_events SET category_from=NULL WHERE owner_email=? AND event_id=?").bind(owner,id).run();
+  await retypeEvents(env,owner,e=>e.event_id===id);
+  return {ok:true};
+ }
+ if(op==="rule"||op==="unrule"){
+  const label=String(change.title||"").trim().replace(/\s+/g," "),title=normalTitle(label);
+  if(!title||label.length>100)return {ok:false,code:"invalid_change"};
+  if(op==="unrule"){
+   await env.DB.prepare("DELETE FROM health_title_rules WHERE owner_email=? AND title=?").bind(owner,title).run();
+  }else{
+   if(!CATS.includes(change.category))return {ok:false,code:"invalid_change"};
+   const rules=await titleRules(env,owner);
+   if(!rules.has(title)&&rules.size>=RULE_LIMIT)return {ok:false,code:"too_many_rules"};
+   await env.DB.prepare("INSERT INTO health_title_rules(owner_email,title,label,category,created_at) VALUES(?,?,?,?,?) ON CONFLICT(owner_email,title) DO UPDATE SET category=excluded.category").bind(owner,title,label,change.category,new Date().toISOString()).run();
+  }
+  await retypeEvents(env,owner,e=>normalTitle(e.title)===title);
+  return {ok:true};
+ }
+ return {ok:false,code:"invalid_change"};
+}
 async function enabledEvents(env,owner,events){
  const names=[...new Set(events.map(e=>e.calendar).filter(Boolean))];
  if(!names.length)return events;
  await env.DB.batch(names.map(name=>env.DB.prepare("INSERT OR IGNORE INTO health_calendars(owner_email,name) VALUES(?,?)").bind(owner,name)));
  const saved=await env.DB.prepare("SELECT name,enabled,category FROM health_calendars WHERE owner_email=?").bind(owner).all();
  const calendars=new Map((saved.results||[]).map(c=>[c.name,c]));
- return events.filter(e=>calendars.get(e.calendar)?.enabled!==0).map(e=>e.category==="Other"&&calendars.get(e.calendar)?.category?{...e,category:calendars.get(e.calendar).category}:e);
+ const rules=await titleRules(env,owner);
+ return events.filter(e=>calendars.get(e.calendar)?.enabled!==0).map(e=>{const chosen=categoryFor(e.title,rules,calendars.get(e.calendar)?.category);return {...e,category:chosen.category,categoryFrom:chosen.from};});
 }
 const PUSH_HOST=/^(?:[\w-]+\.)*push\.apple\.com$|^fcm\.googleapis\.com$|^updates\.push\.services\.mozilla\.com$|^[\w.-]+\.notify\.windows\.com$/;
 const REMIND_AT=/^([01]\d|2[0-3]):[0-5]\d$/;
@@ -791,9 +867,7 @@ async function syncApi(request,env,path){
    const label=input.category==="Other"?null:input.category;
    const set=await env.DB.prepare("UPDATE health_calendars SET category=? WHERE owner_email=? AND name=?").bind(label,owner,name).run();
    if(!set.meta?.changes)return error("Calendar not found",404,"calendar_not_found");
-   const rows=await env.DB.prepare("SELECT event_id,title FROM health_calendar_events WHERE owner_email=? AND calendar=?").bind(owner,name).all();
-   const updates=(rows.results||[]).map(e=>{const found=classifyCalendarTitle(e.title);return env.DB.prepare("UPDATE health_calendar_events SET category=? WHERE owner_email=? AND event_id=?").bind(found==="Other"?input.category:found,owner,e.event_id);});
-   for(let i=0;i<updates.length;i+=50)await env.DB.batch(updates.slice(i,i+50));
+   await retypeEvents(env,owner,e=>e.calendar===name);
    return reply({ok:true,category:input.category});
   }
   if(!name||name.length>100||typeof input.enabled!=="boolean")return error("Invalid calendar request",400,"invalid_calendar");
@@ -809,20 +883,13 @@ async function syncApi(request,env,path){
   const removed=await env.DB.prepare("DELETE FROM health_calendar_events WHERE owner_email=? AND calendar=?").bind(owner,name).run();
   return reply({ok:true,removed:removed.meta?.changes||0});
  }
- if(path==="/api/health/hidden"&&request.method==="POST"){
+ if(path==="/api/context/changes"&&request.method==="POST"){
   let input;try{input=await payload(request);}catch(e){return error("That request couldn't be read.",400,"invalid_body");}
-  const day=dateOnly(input?.date);
-  if(!day||typeof input?.hidden!=="boolean")return error("Invalid health request",400,"invalid_health");
-  if(input.hidden)await env.DB.prepare("INSERT OR IGNORE INTO health_hidden_days(owner_email,day) VALUES(?,?)").bind(owner,day).run();
-  else await env.DB.prepare("DELETE FROM health_hidden_days WHERE owner_email=? AND day=?").bind(owner,day).run();
-  return reply({ok:true});
- }
- if(path==="/api/calendars/events/hidden"&&request.method==="POST"){
-  let input;try{input=await payload(request);}catch(e){return error("That request couldn't be read.",400,"invalid_body");}
-  const id=String(input?.id||"");
-  if(!id||id.length>64||typeof input?.hidden!=="boolean")return error("Invalid calendar request",400,"invalid_calendar");
-  const changed=await env.DB.prepare("UPDATE health_calendar_events SET hidden=? WHERE owner_email=? AND event_id=?").bind(input.hidden?1:0,owner,id).run();
-  return reply({ok:true,changed:changed.meta?.changes||0});
+  const changes=input?.changes;
+  if(!Array.isArray(changes)||!changes.length||changes.length>CHANGE_LIMIT)return error("Invalid changes",400,"invalid_changes");
+  const results=[];
+  for(const change of changes)results.push(await applyChange(env,owner,change));
+  return reply({ok:true,results});
  }
  if(path==="/api/profile/name"&&request.method==="POST"){
   let input;try{input=await payload(request);}catch(e){return error("That request couldn't be read.",400,"invalid_body");}
@@ -891,11 +958,12 @@ async function syncApi(request,env,path){
  }
 
  if(path==="/api/pull"&&request.method==="GET"){
-  const [health,events,alarms,hiddenDays]=await Promise.all([
+  const [health,events,alarms,hiddenDays,rules]=await Promise.all([
    env.DB.prepare("SELECT day,metric,value FROM health_metrics WHERE owner_email=? ORDER BY day DESC LIMIT ?").bind(owner,LIMITS.healthDays*HEALTH_MEASURES).all(),
-   env.DB.prepare("SELECT event_id,start_time,end_time,title,category,hidden FROM health_calendar_events WHERE owner_email=? AND (calendar IS NULL OR calendar NOT IN (SELECT name FROM health_calendars WHERE owner_email=? AND enabled=0)) ORDER BY start_time DESC LIMIT ?").bind(owner,owner,LIMITS.events).all(),
+   env.DB.prepare("SELECT event_id,start_time,end_time,title,category,hidden,category_from FROM health_calendar_events WHERE owner_email=? AND (calendar IS NULL OR calendar NOT IN (SELECT name FROM health_calendars WHERE owner_email=? AND enabled=0)) ORDER BY start_time DESC LIMIT ?").bind(owner,owner,LIMITS.events).all(),
    env.DB.prepare("SELECT time_min,days,enabled,label FROM health_alarms WHERE owner_email=? ORDER BY time_min").bind(owner).all(),
-   env.DB.prepare("SELECT day FROM health_hidden_days WHERE owner_email=?").bind(owner).all()
+   env.DB.prepare("SELECT day FROM health_hidden_days WHERE owner_email=?").bind(owner).all(),
+   env.DB.prepare("SELECT label,category FROM health_title_rules WHERE owner_email=? ORDER BY label").bind(owner).all()
   ]);
   const hiddenDay=new Set((hiddenDays.results||[]).map(row=>row.day));
   const grouped={};for(const h of health.results||[]){
@@ -904,7 +972,7 @@ async function syncApi(request,env,path){
   }
   // A full page may have cut off older rows, so the app keeps its own older days and events.
   const complete={health:(health.results||[]).length<LIMITS.healthDays*HEALTH_MEASURES,events:(events.results||[]).length<LIMITS.events};
-  return reply({ok:true,email:owner,complete,firstName:firstName(await displayName(env,owner)),name:await displayName(env,owner),health:Object.values(grouped),events:(events.results||[]).map(e=>({id:e.event_id,start:e.start_time,end:e.end_time,title:e.title,category:e.category,hidden:!!e.hidden,source:"shortcut"})),alarms:(alarms.results||[]).map(a=>({timeMin:a.time_min,days:a.days?a.days.split(",").map(Number):[],enabled:a.enabled!==0,label:a.label||null})),syncAt:new Date().toISOString()});
+  return reply({ok:true,email:owner,complete,rules:(rules.results||[]).map(r=>({title:r.label,category:r.category})),firstName:firstName(await displayName(env,owner)),name:await displayName(env,owner),health:Object.values(grouped),events:(events.results||[]).map(e=>({id:e.event_id,start:e.start_time,end:e.end_time,title:e.title,category:e.category,hidden:!!e.hidden,categoryFrom:e.category_from||null,source:"shortcut"})),alarms:(alarms.results||[]).map(a=>({timeMin:a.time_min,days:a.days?a.days.split(",").map(Number):[],enabled:a.enabled!==0,label:a.label||null})),syncAt:new Date().toISOString()});
  }
  if(path==="/api/ingest"&&request.method==="POST"){
   let input;
