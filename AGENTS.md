@@ -83,6 +83,7 @@ Only an iPhone proves iOS behavior, and each round trip costs the owner time. Be
 - A Shortcut must never wait for an answer on a normal run, because automations can't respond. Use notifications, and stop with a clear alert only when it can't continue.
 - A result limit applies before grouping, so read grouped values from the first group.
 - Health data can't be read while the iPhone is locked.
+- Health access is granted per type with Allow Access in the Shortcuts editor. Once a type has been allowed, turning it off in Health doesn't bring a prompt back: reads just return nothing, so a Shortcut can't tell denied from no data. Runs that share a lot of data can also need Allow Sharing Large Amounts of Data in Settings > Apps > Shortcuts > Advanced.
 - Clock alarm details exist only as variable properties, whose names can differ across iOS versions. Confirm in the Shortcuts editor and in the app → **Data** that names, times and on/off state arrive. Keep alarms at the end of the run, because an error there can't be caught.
 - Clients check an error's `code`, never its message.
 - Health Sync follows the settings the handshake returns: `sync…` values for each kind of data, and `calendarsOff`, a pattern of turned-off calendars. The Worker also applies them on arrival, in case they changed during the run.

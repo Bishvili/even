@@ -15,6 +15,8 @@ A key that isn't accepted is never saved, so a failed attempt or a server outage
 
 ### Credential storage and privacy
 
+If a run stops because of how much data it is sharing, turn on **Allow Sharing Large Amounts of Data** in Settings > Apps > Shortcuts > Advanced. Health access is granted per type with **Allow Access** in the Shortcuts editor.
+
 The device key is stored as plain text. **It is not encrypted by the app or held in the iOS Keychain.**
 
 - The file stays on the iPhone and does not sync through iCloud Drive. A new device needs its own key.
