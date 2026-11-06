@@ -12,16 +12,20 @@
 #ref sleepFilter eyJWYWx1ZSI6eyJXRkFjdGlvblBhcmFtZXRlckZpbHRlclByZWZpeCI6MSwiV0ZDb250ZW50UHJlZGljYXRlQm91bmRlZERhdGUiOmZhbHNlLCJXRkFjdGlvblBhcmFtZXRlckZpbHRlclRlbXBsYXRlcyI6W3siQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjQsIlByb3BlcnR5IjoiVHlwZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IlNsZWVwIiwiV0ZTZXJpYWxpemF0aW9uVHlwZSI6IldGU3RyaW5nU3Vic3RpdHV0YWJsZVN0YXRlIn19fSx7IkJvdW5kZWQiOnRydWUsIk9wZXJhdG9yIjoxMDAxLCJQcm9wZXJ0eSI6IlN0YXJ0IERhdGUiLCJSZW1vdmFibGUiOmZhbHNlLCJWYWx1ZXMiOnsiTnVtYmVyIjoiMzAiLCJVbml0IjoxNn19XX0sIldGU2VyaWFsaXphdGlvblR5cGUiOiJXRkNvbnRlbnRQcmVkaWNhdGVUYWJsZVRlbXBsYXRlIn0=
 #ref recentTypesFilter eyJWYWx1ZSI6eyJXRkFjdGlvblBhcmFtZXRlckZpbHRlclByZWZpeCI6MCwiV0ZDb250ZW50UHJlZGljYXRlQm91bmRlZERhdGUiOmZhbHNlLCJXRkFjdGlvblBhcmFtZXRlckZpbHRlclRlbXBsYXRlcyI6W3siQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjQsIlByb3BlcnR5IjoiVHlwZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IlN0ZXBzIiwiV0ZTZXJpYWxpemF0aW9uVHlwZSI6IldGU3RyaW5nU3Vic3RpdHV0YWJsZVN0YXRlIn19fSx7IkJvdW5kZWQiOnRydWUsIk9wZXJhdG9yIjo0LCJQcm9wZXJ0eSI6IlR5cGUiLCJSZW1vdmFibGUiOmZhbHNlLCJWYWx1ZXMiOnsiRW51bWVyYXRpb24iOnsiVmFsdWUiOiJSZXN0aW5nIEhlYXJ0IFJhdGUiLCJXRlNlcmlhbGl6YXRpb25UeXBlIjoiV0ZTdHJpbmdTdWJzdGl0dXRhYmxlU3RhdGUifX19LHsiQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjQsIlByb3BlcnR5IjoiVHlwZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IkhlYXJ0IFJhdGUgVmFyaWFiaWxpdHkiLCJXRlNlcmlhbGl6YXRpb25UeXBlIjoiV0ZTdHJpbmdTdWJzdGl0dXRhYmxlU3RhdGUifX19LHsiQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjQsIlByb3BlcnR5IjoiVHlwZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IkV4ZXJjaXNlIE1pbnV0ZXMiLCJXRlNlcmlhbGl6YXRpb25UeXBlIjoiV0ZTdHJpbmdTdWJzdGl0dXRhYmxlU3RhdGUifX19LHsiQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjQsIlByb3BlcnR5IjoiVHlwZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IlNsZWVwIiwiV0ZTZXJpYWxpemF0aW9uVHlwZSI6IldGU3RyaW5nU3Vic3RpdHV0YWJsZVN0YXRlIn19fV19LCJXRlNlcmlhbGl6YXRpb25UeXBlIjoiV0ZDb250ZW50UHJlZGljYXRlVGFibGVUZW1wbGF0ZSJ9
 
+#ref notStepsFilter eyJWYWx1ZSI6eyJXRkFjdGlvblBhcmFtZXRlckZpbHRlclByZWZpeCI6MSwiV0ZDb250ZW50UHJlZGljYXRlQm91bmRlZERhdGUiOmZhbHNlLCJXRkFjdGlvblBhcmFtZXRlckZpbHRlclRlbXBsYXRlcyI6W3siQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjUsIlByb3BlcnR5IjoiVHlwZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IlN0ZXBzIiwiV0ZTZXJpYWxpemF0aW9uVHlwZSI6IldGU3RyaW5nU3Vic3RpdHV0YWJsZVN0YXRlIn19fV19LCJXRlNlcmlhbGl6YXRpb25UeXBlIjoiV0ZDb250ZW50UHJlZGljYXRlVGFibGVUZW1wbGF0ZSJ9
+
 action 'is.workflow.actions.filter.health.quantity' findNewest(&variable filter: 'WFContentItemFilter'): array {"WFContentItemLimitEnabled":true,"WFContentItemLimitNumber":5,"WFContentItemSortProperty":"Start Date","WFContentItemSortOrder":"Latest First"}
 
 action 'is.workflow.actions.filter.health.quantity' findManyNewest(&variable filter: 'WFContentItemFilter'): array {"WFContentItemLimitEnabled":true,"WFContentItemLimitNumber":1000,"WFContentItemSortProperty":"Start Date","WFContentItemSortOrder":"Latest First"}
+
+action 'is.workflow.actions.filter.health.quantity' findByDay(&variable filter: 'WFContentItemFilter'): array {"WFHKSampleFilteringGroupBy":"Day","WFHKSampleFilteringFillMissing":true,"WFContentItemSortProperty":"Start Date","WFContentItemSortOrder":"Latest First","WFContentItemLimitEnabled":true,"WFContentItemLimitNumber":1}
 
 action 'is.workflow.actions.properties.health.quantity' sampleTypes(variable samples: 'WFInput'): array {"WFContentItemPropertyName":"Type"}
 action 'is.workflow.actions.properties.health.quantity' sampleValues(variable samples: 'WFInput'): array {"WFContentItemPropertyName":"Value"}
 action 'is.workflow.actions.properties.health.quantity' sampleStarts(variable samples: 'WFInput'): array {"WFContentItemPropertyName":"Start Date"}
 
 // Nothing leaves the iPhone: every result is shown here and only here.
-const options = list("Resting Heart Rate", "Sleep", "Heart Rate Variability", "Exercise Minutes", "Steps", "All five together")
+const options = list("Resting Heart Rate", "Sleep", "Heart Rate Variability", "Exercise Minutes", "Steps", "All five together", "Test 1: empty type, plain", "Test 2: empty type, by day", "Test 3: everything but Steps")
 const chosen = chooseFromList(options, "Check which Health data? Run this once for each.")
 const choice = getText(chosen)
 const notice = "If no result appears after this, iOS returned nothing for this type: either no samples, or no access."
@@ -89,4 +93,38 @@ if choice == "All five together" {
     const stepsSeen = matchText('(?i)steps', allTypeText)
     const stepsSeenCount = count(stepsSeen)
     alert("Newest {allCount} samples.\n\nSteps: {stepsSeenCount}\nResting: {restingSeenCount}\nSleep: {sleepSeenCount}", "All five")
+}
+
+if choice == "Test 1: empty type, plain" {
+    alert("If no second message appears, an empty type ends the run.", "Test 1")
+    const plainSamples = findNewest(hrvFilter)
+    const plainCount = count(plainSamples)
+    alert("Still running. Found {plainCount}.", "Test 1 result")
+}
+
+if choice == "Test 2: empty type, by day" {
+    alert("If no second message appears, this way ends the run too.", "Test 2")
+    const dayEmpty = findByDay(hrvFilter)
+    const dayEmptyCount = count(dayEmpty)
+    const dayEmptyValues = sampleValues(dayEmpty)
+    alert("Still running with no data. Found {dayEmptyCount}, value: {dayEmptyValues}.", "Test 2, no data")
+    const dayFull = findByDay(restingFilter)
+    const dayFullCount = count(dayFull)
+    const dayFullValues = sampleValues(dayFull)
+    alert("With data. Found {dayFullCount}, value: {dayFullValues}.", "Test 2, data")
+}
+
+if choice == "Test 3: everything but Steps" {
+    alert("If no second message appears, this way ends the run.", "Test 3")
+    const otherSamples = findManyNewest(notStepsFilter)
+    const otherCount = count(otherSamples)
+    const otherTypes = sampleTypes(otherSamples)
+    const otherText = getText(otherTypes)
+    const otherResting = matchText('(?i)resting', otherText)
+    const otherRestingCount = count(otherResting)
+    const otherSleep = matchText('(?i)sleep', otherText)
+    const otherSleepCount = count(otherSleep)
+    const otherSteps = matchText('(?i)steps', otherText)
+    const otherStepsCount = count(otherSteps)
+    alert("Found {otherCount}.\n\nSteps: {otherStepsCount}\nResting: {otherRestingCount}\nSleep: {otherSleepCount}", "Test 3 result")
 }
