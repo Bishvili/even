@@ -1,7 +1,7 @@
 {
-  "version": "4.1.0",
-  "url": "https://www.icloud.com/shortcuts/6f97da85fa514c26a4d0011006b013eb",
+  "version": "4.2.0",
+  "url": "https://www.icloud.com/shortcuts/a207f873cddb4825876257e55108e1dd",
   "publishedAt": "2026-11-06",
-  "notes": "Now brings in your alarms' repeat days and names, resting heart rate, heart rate variability and exercise.",
+  "notes": "Counts every sleep stage, and uses time in bed for nights with nothing else.",
   "verified": true
 }
