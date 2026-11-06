@@ -41,7 +41,7 @@ test("the device key is read from its file, checked by the server, and saved onl
 test("every comparison is typed text or a number, never a Boolean",()=>{
  assert.deepEqual(conditions(sync),[
   'providedKeyCount == 0','savedKeyMatchCount == 0','connectionStatus != "connected"','syncCalendar == "on"','todayOffCount == 0','upcomingOffCount == 0','calendarStatus != "accepted"',
-  'syncSteps == "on"','stepsAvailable >= 1','@stepsSeen < 7','totalSteps >= 1','@stepsSeen >= 1','syncRestingHR == "on"','restingAvailable >= 1','@restingSeen < 7','restingValue >= 1','@restingSeen >= 1','syncHrv == "on"','hrvAvailable >= 1','@hrvSeen < 7','hrvValue >= 1','@hrvSeen >= 1',
+  'syncSteps == "on"','stepsAvailable >= 1','@stepsSeen < 7','totalSteps >= 1','@stepsSeen >= 1','syncRestingHR == "on"','restingAvailable >= 1','@restingSeen < 7','restingFound >= 1','@restingSeen >= 1','syncHrv == "on"','hrvAvailable >= 1','@hrvSeen < 7','hrvFound >= 1','@hrvSeen >= 1',
   'syncWorkout == "on"','exerciseAvailable >= 1','@exerciseSeen < 7','exerciseValue >= 1','@exerciseSeen >= 1','syncSleep == "on"','sleepAvailable >= 1','historyState == "needed"','stageCount >= 1',
   '@healthFields >= 1','healthStatus != "accepted"','updateStatus == "new_release"','syncAlarms == "on"','syncedState != "sent"'
  ]);
@@ -186,4 +186,11 @@ test("both Shortcuts use one address, one the Worker serves",()=>{
   assert.equal(source.match(/const appAddress = "([^"]+)"/)[1],origin);
   assert.equal(source.split(origin).length,2,file);
  }
+});
+
+test("no comparison treats a Health measurement as a number, which iOS can't evaluate",()=>{
+ assert.doesNotMatch(sync,/getSampleValue[\s\S]{0,40}\n\s*if /);
+ assert.doesNotMatch(sync,/: number \{"WFContentItemPropertyName":"Value"\}/);
+ assert.match(sync,/@alarm\['Repeat Days'\]/);
+ assert.match(sync,/@alarm\['Label'\]/);
 });

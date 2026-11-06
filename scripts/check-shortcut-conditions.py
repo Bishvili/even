@@ -165,7 +165,7 @@ def check_alarms(actions) -> None:
     if "com.apple.mobiletimer-framework.MobileTimerIntents.MTGetAlarmsIntent" not in identifiers:
         raise AssertionError("Health Sync does not read alarms")
     compiled = plistlib.dumps({"actions": actions}).decode()
-    for name in ("Time", "Repeat", "Is Enabled", "Name"):
+    for name in ("Time", "Repeat Days", "Is Enabled", "Label"):
         if f"<string>{name}</string>" not in compiled:
             raise AssertionError(f"Alarm property {name} is missing from the compiled Shortcut")
     print("Health Sync reads alarms with their time, repeat, state and name.")

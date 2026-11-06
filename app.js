@@ -1,6 +1,6 @@
 (function () {
 "use strict";
-var VERSION = "2.44.14";
+var VERSION = "2.44.15";
 var HIDEABLE={
  event:{list:"events",hidden:"hiddenEvents",key:"id",path:"/api/calendars/events/hidden",field:"id"},
  health:{list:"health",hidden:"hiddenHealth",key:"date",path:"/api/health/hidden",field:"date"}
@@ -200,6 +200,7 @@ var MEASURES=[["sleepHours","Sleep","sleep"],["steps","Steps","steps"],["workout
 function renderMeasures(){
  var box=$("shortcut-measures"),note=$("shortcut-measures-note");
  box.textContent="";box.hidden=!shortcutStatus;note.textContent="";
+ $("open-sync-editor").hidden=true;
  if(!shortcutStatus)return;
  var received=shortcutStatus.measures||{},missing=false,choices=syncChoicesShown||{};
  MEASURES.forEach(function(item){
@@ -212,7 +213,8 @@ function renderMeasures(){
  });
  var sent=shortcutStatus.lastUpload||{};
  if(missing&&sent.healthSeen>0&&sent.healthMatched===0)note.textContent="{{sync}} found Health data but couldn’t read it. It reads Health in English only for now.";
- else if(missing&&shortcutStatus.lastDataUploadAt)note.textContent="If something isn’t arriving, check Health > Sharing > Apps > Shortcuts, and that a device is recording it.";
+ else if(missing&&shortcutStatus.lastDataUploadAt)note.textContent="If something isn’t arriving, open {{sync}} and tap Allow Access on any Health step. A device also has to be recording it.";
+ $("open-sync-editor").hidden=!(missing&&shortcutStatus.lastDataUploadAt);
 }
 function renderSync(){
  $("release-card").hidden=!authCanRelease;

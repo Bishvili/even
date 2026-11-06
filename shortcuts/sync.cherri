@@ -47,7 +47,7 @@ if providedKeyCount == 0 {
 // Verify the connection and record the Shortcut's version, even if no health samples are available.
 // The reply also says whether a newer version is ready.
 const handshakeRaw = jsonRequest("{appAddress}/api/shortcut/hello", "POST", {
-    "shortcutVersion": "4.0.0"
+    "shortcutVersion": "4.1.0"
 }, {"Authorization": "{@credential}"})
 const handshake = getDictionary(handshakeRaw)
 const connectionStatusValue = getValue(handshake, "state")
@@ -124,7 +124,7 @@ for upcomingEvent in upcomingEvents {
 const calendarBody = formRequest("{appAddress}/api/ingest", "POST", {
     "kind": "calendar_days",
     "calendarDays": "8",
-    "shortcutVersion": "4.0.0",
+    "shortcutVersion": "4.1.0",
     "date": "{day}",
     "utcOffset": "{utcOffset}",
     "events": "{@eventRecords}"
@@ -160,7 +160,6 @@ action 'is.workflow.actions.properties.health.quantity' getSampleTypes(variable 
 action 'is.workflow.actions.properties.health.quantity' getStepValues(variable samples: 'WFInput'): array {"WFContentItemPropertyName":"Value"}
 
 action 'is.workflow.actions.properties.health.quantity' getSampleValue(variable sample: 'WFInput') {"WFContentItemPropertyName":"Value"}
-action 'is.workflow.actions.properties.health.quantity' getDailyNumber(variable sample: 'WFInput'): number {"WFContentItemPropertyName":"Value"}
 action 'is.workflow.actions.properties.health.quantity' getSampleStart(variable sample: 'WFInput') {"WFContentItemPropertyName":"Start Date"}
 action 'is.workflow.actions.properties.health.quantity' getSampleEnd(variable sample: 'WFInput') {"WFContentItemPropertyName":"End Date"}
 
@@ -222,8 +221,13 @@ if restingAvailable >= 1 {
         if @restingSeen < 7 {
             const restingDate = getSampleStart(@restingGroup)
             const restingDay = formatDate(restingDate, "Custom", "yyyy-MM-dd")
-            const restingValue = getDailyNumber(@restingGroup)
-            if restingValue >= 1 {
+            // A Health value is a measurement with a unit, which an If can't compare with a number, so its number is read from the text.
+            const restingReading = getSampleValue(@restingGroup)
+            const restingText = getText(restingReading)
+            const restingValue = replaceText('^\D*(\d+(?:\.\d+)?)[\s\S]*$', "$1", restingText, true, true)
+            const restingMatches = matchText('^[1-9]', restingValue)
+            const restingFound = count(restingMatches)
+            if restingFound >= 1 {
                 @restingField = "{@restingField}␞{restingDay}={restingValue}"
                 @restingSeen += 1
             }
@@ -245,8 +249,13 @@ if hrvAvailable >= 1 {
         if @hrvSeen < 7 {
             const hrvDate = getSampleStart(@hrvGroup)
             const hrvDay = formatDate(hrvDate, "Custom", "yyyy-MM-dd")
-            const hrvValue = getDailyNumber(@hrvGroup)
-            if hrvValue >= 1 {
+            // A Health value is a measurement with a unit, which an If can't compare with a number, so its number is read from the text.
+            const hrvReading = getSampleValue(@hrvGroup)
+            const hrvText = getText(hrvReading)
+            const hrvValue = replaceText('^\D*(\d+(?:\.\d+)?)[\s\S]*$', "$1", hrvText, true, true)
+            const hrvMatches = matchText('^[1-9]', hrvValue)
+            const hrvFound = count(hrvMatches)
+            if hrvFound >= 1 {
                 @hrvField = "{@hrvField}␞{hrvDay}={hrvValue}"
                 @hrvSeen += 1
             }
@@ -268,7 +277,9 @@ if exerciseAvailable >= 1 {
         if @exerciseSeen < 7 {
             const exerciseDate = getSampleStart(@exerciseGroup)
             const exerciseDay = formatDate(exerciseDate, "Custom", "yyyy-MM-dd")
-            const exerciseValue = getDailyNumber(@exerciseGroup)
+            // Calculate Statistics turns a day's measurements into a number an If can compare, as it does for steps.
+            const exerciseValues = getStepValues(@exerciseGroup)
+            const exerciseValue = sumValues(exerciseValues)
             if exerciseValue >= 1 {
                 @exerciseField = "{@exerciseField}␞{exerciseDay}={exerciseValue}"
                 @exerciseSeen += 1
@@ -317,7 +328,7 @@ if sleepAvailable >= 1 {
 if @healthFields >= 1 {
     const healthBody = formRequest("{appAddress}/api/ingest", "POST", {
         "kind": "health",
-        "shortcutVersion": "4.0.0",
+        "shortcutVersion": "4.1.0",
         "date": "{day}",
         "stepsRecent": "{@stepsField}",
         "restingHRRecent": "{@restingField}",
@@ -354,11 +365,11 @@ if syncAlarms == "on" {
 const alarms = getAlarms()
 for alarm in alarms {
     const alarmClock = formatDate(@alarm['Time'], "Custom", "HH:mm")
-    @alarmRecords = "{@alarmRecords}␞{alarmClock}␟{@alarm['Repeat']}␟{@alarm['Is Enabled']}␟{@alarm['Name']}"
+    @alarmRecords = "{@alarmRecords}␞{alarmClock}␟{@alarm['Repeat Days']}␟{@alarm['Is Enabled']}␟{@alarm['Label']}"
 }
 formRequest("{appAddress}/api/ingest", "POST", {
     "kind": "alarms",
-    "shortcutVersion": "4.0.0",
+    "shortcutVersion": "4.1.0",
     "date": "{day}",
     "alarms": "{@alarmRecords}"
 }, {"Authorization": "{@credential}"})
