@@ -29,4 +29,4 @@ jobs:
           curl -fsSI --max-time 20 https://health.bishvili.org/ | grep -qi '^content-security-policy'
           code=$(curl -s --max-time 20 -o /dev/null -w '%{http_code}' https://sync.bishvili.org/)
           test "$code" = "404" || { echo "::error::The Shortcuts' address served a page ($code)"; exit 1; }
-          curl -fsS --max-time 30 -D - -o /dev/null https://sync.bishvili.org/api/shortcut/build/helper | grep -qi 'filename="'
+          curl -fsS --max-time 30 --retry 6 --retry-delay 30 --retry-all-errors -D - -o /dev/null https://sync.bishvili.org/api/shortcut/build/helper | grep -qi 'filename="'
