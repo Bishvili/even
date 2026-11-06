@@ -225,7 +225,7 @@ What the app holds and where it goes. Write every privacy statement from this ta
 | Bedtimes | Worked out from the sleep intervals | Yes | Yes | Bedtime estimate and wind-down |
 | Resting heart rate | Health Sync, from Apple Health | Yes | Yes | Insights: compared with the person's own usual level |
 | Calendar events for today and the next 7 days: title, start, end, calendar name | Health Sync reads calendars left on. Saved events from a turned-off calendar can be removed in the app; the Worker adds a category | Yes, without the calendar name | Yes, except events from turned-off calendars, which are discarded on arrival | Insights, coaching and nudges before events |
-| Events removed from the app: event ID (a hash) and start time | The app | No | Yes, until 2 days after the event | Keeps them out of later syncs |
+| Events hidden in the app: the same details, marked hidden | Health Sync and the app | Yes, apart from other events | Yes, until the event is deleted from the calendar or synced data is erased | Listed so they can be shown again. Left out of insights, coaching and notifications. |
 | Calendar names, on/off state and what each is for | Health Sync and the app | No | Yes | Calendar settings and event categories |
 | What Health Sync sends | The app | Yes | Yes | Followed by Health Sync and the Worker |
 | Alarms: time, repeat days, on/off, name | Health Sync, from Clock | Yes | Yes, plus each synced day's first morning alarm | Brief, wind-down, next steps and the early-alarm pattern |

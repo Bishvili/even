@@ -259,6 +259,7 @@
     <div class="source-counts"><div><strong id="health-count">No health records</strong><small>Sleep, movement and recovery</small></div><div><strong id="calendar-count">No calendar events</strong><small>Meetings, plans and activities</small></div></div>
     <div class="section-heading" id="data-context"><h2>Recent context</h2><span class="muted" id="context-count">0 items</span></div>
     <div id="context-list" class="entry-list"></div>
+    <details class="alarm-off" id="hidden-events" hidden><summary id="hidden-events-count"></summary><div id="hidden-events-list" class="entry-list"></div></details>
     <details class="card disclosure"><summary>Add a health day</summary>
           <form id="health-form">
       <label for="health-date">Date</label><input type="date" id="health-date" required>
@@ -377,7 +378,7 @@
      <p class="muted">Tell us what went wrong or what you’d change.</p>
      <button type="button" class="btn secondary full" id="feedback-open">Send feedback</button>
     </section>
-    <div class="card"><h2>About the insights</h2><p class="muted">Comparisons need at least 5 check-ins in each group. Mood data is subjective and gaps can skew results. Nothing here is a diagnosis or proves a cause.</p><button type="button" class="btn subtle full" id="setup-again">Go through setup again</button><a class="btn subtle full" id="whitepaper-link" href="/whitepaper.html" target="_blank" rel="noopener">How {{name}} works <span aria-hidden="true">↗</span></a><p class="muted">Version <span id="version">2.44.11</span> · No ads or analytics</p></div>
+    <div class="card"><h2>About the insights</h2><p class="muted">Comparisons need at least 5 check-ins in each group. Mood data is subjective and gaps can skew results. Nothing here is a diagnosis or proves a cause.</p><button type="button" class="btn subtle full" id="setup-again">Go through setup again</button><a class="btn subtle full" id="whitepaper-link" href="/whitepaper.html" target="_blank" rel="noopener">How {{name}} works <span aria-hidden="true">↗</span></a><p class="muted">Version <span id="version">2.44.12</span> · No ads or analytics</p></div>
     <div class="card"><h2>Explore a sample month</h2><p class="muted">See 28 days of fictional check-ins and events. They stay separate from your own data and are never uploaded.</p><button class="btn secondary full" id="demo-button">Load 28-day calendar demo</button><button class="btn subtle full" id="clear-demo-button">Remove demo data</button></div>
    </section>
   </main>

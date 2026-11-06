@@ -212,6 +212,29 @@ const scenarios={
    await until(page,()=>document.body.textContent.includes("You’re offline"));
   });
  },
+ "a hidden event leaves the list and what the app reads, stays hidden after a sync, and comes back":async(browser,base)=>{
+  const event=hidden=>({id:"e1",start:"2026-11-04T10:00:00Z",end:"2026-11-04T11:00:00Z",title:"Standup",category:"Other",hidden});
+  const api=fakeApi();
+  api.pull={...api.pull,events:[event(false)]};
+  await open(browser,base,saved({moodCursor:shared.cursor}),api,async({page,context})=>{
+   await statusIsReady(page);
+   await page.evaluate(()=>App.navigate("data"));
+   await page.click("#pull-button");
+   await page.waitForSelector("[data-hide-event]");
+   await context.route("**/api/calendars/events/hidden",route=>route.fulfill({json:{ok:true,changed:1}}));
+   await page.click("[data-hide-event]");
+   await until(page,()=>{const s=JSON.parse(localStorage.getItem("health:v1"));return !s.events.length&&s.hiddenEvents.length===1;});
+   assert.equal(await page.textContent("#hidden-events-count"),"1 event hidden");
+   api.pull={...api.pull,events:[event(true)]};
+   await page.click("#pull-button");
+   await page.waitForTimeout(300);
+   assert.equal((await stored(page)).events.length,0);
+   assert.equal((await stored(page)).hiddenEvents.length,1);
+   await page.click("summary#hidden-events-count");
+   await page.click("[data-show-event]");
+   await until(page,()=>{const s=JSON.parse(localStorage.getItem("health:v1"));return s.events.length===1&&!s.hiddenEvents.length;});
+  });
+ },
  "damaged storage opens at sign-in":async(browser,base)=>{
   const api=fakeApi({me:""});
   await open(browser,base,"{not json",api,async({page})=>{
