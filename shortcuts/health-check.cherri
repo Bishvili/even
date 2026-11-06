@@ -5,187 +5,58 @@
 
 #include 'actions/text'
 
-#ref stepsFilter eyJWYWx1ZSI6eyJXRkFjdGlvblBhcmFtZXRlckZpbHRlclByZWZpeCI6MSwiV0ZDb250ZW50UHJlZGljYXRlQm91bmRlZERhdGUiOmZhbHNlLCJXRkFjdGlvblBhcmFtZXRlckZpbHRlclRlbXBsYXRlcyI6W3siQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjQsIlByb3BlcnR5IjoiVHlwZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IlN0ZXBzIiwiV0ZTZXJpYWxpemF0aW9uVHlwZSI6IldGU3RyaW5nU3Vic3RpdHV0YWJsZVN0YXRlIn19fSx7IkJvdW5kZWQiOnRydWUsIk9wZXJhdG9yIjoxMDAxLCJQcm9wZXJ0eSI6IlN0YXJ0IERhdGUiLCJSZW1vdmFibGUiOmZhbHNlLCJWYWx1ZXMiOnsiTnVtYmVyIjoiMzAiLCJVbml0IjoxNn19XX0sIldGU2VyaWFsaXphdGlvblR5cGUiOiJXRkNvbnRlbnRQcmVkaWNhdGVUYWJsZVRlbXBsYXRlIn0=
-#ref restingFilter eyJWYWx1ZSI6eyJXRkFjdGlvblBhcmFtZXRlckZpbHRlclByZWZpeCI6MSwiV0ZDb250ZW50UHJlZGljYXRlQm91bmRlZERhdGUiOmZhbHNlLCJXRkFjdGlvblBhcmFtZXRlckZpbHRlclRlbXBsYXRlcyI6W3siQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjQsIlByb3BlcnR5IjoiVHlwZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IlJlc3RpbmcgSGVhcnQgUmF0ZSIsIldGU2VyaWFsaXphdGlvblR5cGUiOiJXRlN0cmluZ1N1YnN0aXR1dGFibGVTdGF0ZSJ9fX0seyJCb3VuZGVkIjp0cnVlLCJPcGVyYXRvciI6MTAwMSwiUHJvcGVydHkiOiJTdGFydCBEYXRlIiwiUmVtb3ZhYmxlIjpmYWxzZSwiVmFsdWVzIjp7Ik51bWJlciI6IjMwIiwiVW5pdCI6MTZ9fV19LCJXRlNlcmlhbGl6YXRpb25UeXBlIjoiV0ZDb250ZW50UHJlZGljYXRlVGFibGVUZW1wbGF0ZSJ9
-#ref hrvFilter eyJWYWx1ZSI6eyJXRkFjdGlvblBhcmFtZXRlckZpbHRlclByZWZpeCI6MSwiV0ZDb250ZW50UHJlZGljYXRlQm91bmRlZERhdGUiOmZhbHNlLCJXRkFjdGlvblBhcmFtZXRlckZpbHRlclRlbXBsYXRlcyI6W3siQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjQsIlByb3BlcnR5IjoiVHlwZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IkhlYXJ0IFJhdGUgVmFyaWFiaWxpdHkiLCJXRlNlcmlhbGl6YXRpb25UeXBlIjoiV0ZTdHJpbmdTdWJzdGl0dXRhYmxlU3RhdGUifX19LHsiQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjEwMDEsIlByb3BlcnR5IjoiU3RhcnQgRGF0ZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJOdW1iZXIiOiIzMCIsIlVuaXQiOjE2fX1dfSwiV0ZTZXJpYWxpemF0aW9uVHlwZSI6IldGQ29udGVudFByZWRpY2F0ZVRhYmxlVGVtcGxhdGUifQ==
-#ref exerciseFilter eyJWYWx1ZSI6eyJXRkFjdGlvblBhcmFtZXRlckZpbHRlclByZWZpeCI6MSwiV0ZDb250ZW50UHJlZGljYXRlQm91bmRlZERhdGUiOmZhbHNlLCJXRkFjdGlvblBhcmFtZXRlckZpbHRlclRlbXBsYXRlcyI6W3siQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjQsIlByb3BlcnR5IjoiVHlwZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IkV4ZXJjaXNlIE1pbnV0ZXMiLCJXRlNlcmlhbGl6YXRpb25UeXBlIjoiV0ZTdHJpbmdTdWJzdGl0dXRhYmxlU3RhdGUifX19LHsiQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjEwMDEsIlByb3BlcnR5IjoiU3RhcnQgRGF0ZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJOdW1iZXIiOiIzMCIsIlVuaXQiOjE2fX1dfSwiV0ZTZXJpYWxpemF0aW9uVHlwZSI6IldGQ29udGVudFByZWRpY2F0ZVRhYmxlVGVtcGxhdGUifQ==
-#ref sleepFilter eyJWYWx1ZSI6eyJXRkFjdGlvblBhcmFtZXRlckZpbHRlclByZWZpeCI6MSwiV0ZDb250ZW50UHJlZGljYXRlQm91bmRlZERhdGUiOmZhbHNlLCJXRkFjdGlvblBhcmFtZXRlckZpbHRlclRlbXBsYXRlcyI6W3siQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjQsIlByb3BlcnR5IjoiVHlwZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IlNsZWVwIiwiV0ZTZXJpYWxpemF0aW9uVHlwZSI6IldGU3RyaW5nU3Vic3RpdHV0YWJsZVN0YXRlIn19fSx7IkJvdW5kZWQiOnRydWUsIk9wZXJhdG9yIjoxMDAxLCJQcm9wZXJ0eSI6IlN0YXJ0IERhdGUiLCJSZW1vdmFibGUiOmZhbHNlLCJWYWx1ZXMiOnsiTnVtYmVyIjoiMzAiLCJVbml0IjoxNn19XX0sIldGU2VyaWFsaXphdGlvblR5cGUiOiJXRkNvbnRlbnRQcmVkaWNhdGVUYWJsZVRlbXBsYXRlIn0=
-#ref recentTypesFilter eyJWYWx1ZSI6eyJXRkFjdGlvblBhcmFtZXRlckZpbHRlclByZWZpeCI6MCwiV0ZDb250ZW50UHJlZGljYXRlQm91bmRlZERhdGUiOmZhbHNlLCJXRkFjdGlvblBhcmFtZXRlckZpbHRlclRlbXBsYXRlcyI6W3siQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjQsIlByb3BlcnR5IjoiVHlwZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IlN0ZXBzIiwiV0ZTZXJpYWxpemF0aW9uVHlwZSI6IldGU3RyaW5nU3Vic3RpdHV0YWJsZVN0YXRlIn19fSx7IkJvdW5kZWQiOnRydWUsIk9wZXJhdG9yIjo0LCJQcm9wZXJ0eSI6IlR5cGUiLCJSZW1vdmFibGUiOmZhbHNlLCJWYWx1ZXMiOnsiRW51bWVyYXRpb24iOnsiVmFsdWUiOiJSZXN0aW5nIEhlYXJ0IFJhdGUiLCJXRlNlcmlhbGl6YXRpb25UeXBlIjoiV0ZTdHJpbmdTdWJzdGl0dXRhYmxlU3RhdGUifX19LHsiQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjQsIlByb3BlcnR5IjoiVHlwZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IkhlYXJ0IFJhdGUgVmFyaWFiaWxpdHkiLCJXRlNlcmlhbGl6YXRpb25UeXBlIjoiV0ZTdHJpbmdTdWJzdGl0dXRhYmxlU3RhdGUifX19LHsiQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjQsIlByb3BlcnR5IjoiVHlwZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IkV4ZXJjaXNlIE1pbnV0ZXMiLCJXRlNlcmlhbGl6YXRpb25UeXBlIjoiV0ZTdHJpbmdTdWJzdGl0dXRhYmxlU3RhdGUifX19LHsiQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjQsIlByb3BlcnR5IjoiVHlwZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IlNsZWVwIiwiV0ZTZXJpYWxpemF0aW9uVHlwZSI6IldGU3RyaW5nU3Vic3RpdHV0YWJsZVN0YXRlIn19fV19LCJXRlNlcmlhbGl6YXRpb25UeXBlIjoiV0ZDb250ZW50UHJlZGljYXRlVGFibGVUZW1wbGF0ZSJ9
-
-#ref notStepsFilter eyJWYWx1ZSI6eyJXRkFjdGlvblBhcmFtZXRlckZpbHRlclByZWZpeCI6MSwiV0ZDb250ZW50UHJlZGljYXRlQm91bmRlZERhdGUiOmZhbHNlLCJXRkFjdGlvblBhcmFtZXRlckZpbHRlclRlbXBsYXRlcyI6W3siQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjUsIlByb3BlcnR5IjoiVHlwZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IlN0ZXBzIiwiV0ZTZXJpYWxpemF0aW9uVHlwZSI6IldGU3RyaW5nU3Vic3RpdHV0YWJsZVN0YXRlIn19fV19LCJXRlNlcmlhbGl6YXRpb25UeXBlIjoiV0ZDb250ZW50UHJlZGljYXRlVGFibGVUZW1wbGF0ZSJ9
-
 #ref anyRemovable eyJWYWx1ZSI6eyJXRkFjdGlvblBhcmFtZXRlckZpbHRlclByZWZpeCI6MCwiV0ZDb250ZW50UHJlZGljYXRlQm91bmRlZERhdGUiOmZhbHNlLCJXRkFjdGlvblBhcmFtZXRlckZpbHRlclRlbXBsYXRlcyI6W3siQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjQsIlByb3BlcnR5IjoiVHlwZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IlN0ZXBzIiwiV0ZTZXJpYWxpemF0aW9uVHlwZSI6IldGU3RyaW5nU3Vic3RpdHV0YWJsZVN0YXRlIn19fSx7IkJvdW5kZWQiOnRydWUsIk9wZXJhdG9yIjo0LCJQcm9wZXJ0eSI6IlR5cGUiLCJSZW1vdmFibGUiOnRydWUsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IlJlc3RpbmcgSGVhcnQgUmF0ZSIsIldGU2VyaWFsaXphdGlvblR5cGUiOiJXRlN0cmluZ1N1YnN0aXR1dGFibGVTdGF0ZSJ9fX0seyJCb3VuZGVkIjp0cnVlLCJPcGVyYXRvciI6NCwiUHJvcGVydHkiOiJUeXBlIiwiUmVtb3ZhYmxlIjp0cnVlLCJWYWx1ZXMiOnsiRW51bWVyYXRpb24iOnsiVmFsdWUiOiJTbGVlcCIsIldGU2VyaWFsaXphdGlvblR5cGUiOiJXRlN0cmluZ1N1YnN0aXR1dGFibGVTdGF0ZSJ9fX0seyJCb3VuZGVkIjp0cnVlLCJPcGVyYXRvciI6NCwiUHJvcGVydHkiOiJUeXBlIiwiUmVtb3ZhYmxlIjp0cnVlLCJWYWx1ZXMiOnsiRW51bWVyYXRpb24iOnsiVmFsdWUiOiJIZWFydCBSYXRlIFZhcmlhYmlsaXR5IiwiV0ZTZXJpYWxpemF0aW9uVHlwZSI6IldGU3RyaW5nU3Vic3RpdHV0YWJsZVN0YXRlIn19fSx7IkJvdW5kZWQiOnRydWUsIk9wZXJhdG9yIjo0LCJQcm9wZXJ0eSI6IlR5cGUiLCJSZW1vdmFibGUiOnRydWUsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IkV4ZXJjaXNlIE1pbnV0ZXMiLCJXRlNlcmlhbGl6YXRpb25UeXBlIjoiV0ZTdHJpbmdTdWJzdGl0dXRhYmxlU3RhdGUifX19XX0sIldGU2VyaWFsaXphdGlvblR5cGUiOiJXRkNvbnRlbnRQcmVkaWNhdGVUYWJsZVRlbXBsYXRlIn0=
 #ref anyUnbounded eyJWYWx1ZSI6eyJXRkFjdGlvblBhcmFtZXRlckZpbHRlclByZWZpeCI6MCwiV0ZDb250ZW50UHJlZGljYXRlQm91bmRlZERhdGUiOmZhbHNlLCJXRkFjdGlvblBhcmFtZXRlckZpbHRlclRlbXBsYXRlcyI6W3siQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjQsIlByb3BlcnR5IjoiVHlwZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IlN0ZXBzIiwiV0ZTZXJpYWxpemF0aW9uVHlwZSI6IldGU3RyaW5nU3Vic3RpdHV0YWJsZVN0YXRlIn19fSx7IkJvdW5kZWQiOmZhbHNlLCJPcGVyYXRvciI6NCwiUHJvcGVydHkiOiJUeXBlIiwiUmVtb3ZhYmxlIjp0cnVlLCJWYWx1ZXMiOnsiRW51bWVyYXRpb24iOnsiVmFsdWUiOiJSZXN0aW5nIEhlYXJ0IFJhdGUiLCJXRlNlcmlhbGl6YXRpb25UeXBlIjoiV0ZTdHJpbmdTdWJzdGl0dXRhYmxlU3RhdGUifX19LHsiQm91bmRlZCI6ZmFsc2UsIk9wZXJhdG9yIjo0LCJQcm9wZXJ0eSI6IlR5cGUiLCJSZW1vdmFibGUiOnRydWUsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IlNsZWVwIiwiV0ZTZXJpYWxpemF0aW9uVHlwZSI6IldGU3RyaW5nU3Vic3RpdHV0YWJsZVN0YXRlIn19fSx7IkJvdW5kZWQiOmZhbHNlLCJPcGVyYXRvciI6NCwiUHJvcGVydHkiOiJUeXBlIiwiUmVtb3ZhYmxlIjp0cnVlLCJWYWx1ZXMiOnsiRW51bWVyYXRpb24iOnsiVmFsdWUiOiJIZWFydCBSYXRlIFZhcmlhYmlsaXR5IiwiV0ZTZXJpYWxpemF0aW9uVHlwZSI6IldGU3RyaW5nU3Vic3RpdHV0YWJsZVN0YXRlIn19fSx7IkJvdW5kZWQiOmZhbHNlLCJPcGVyYXRvciI6NCwiUHJvcGVydHkiOiJUeXBlIiwiUmVtb3ZhYmxlIjp0cnVlLCJWYWx1ZXMiOnsiRW51bWVyYXRpb24iOnsiVmFsdWUiOiJFeGVyY2lzZSBNaW51dGVzIiwiV0ZTZXJpYWxpemF0aW9uVHlwZSI6IldGU3RyaW5nU3Vic3RpdHV0YWJsZVN0YXRlIn19fV19LCJXRlNlcmlhbGl6YXRpb25UeXBlIjoiV0ZDb250ZW50UHJlZGljYXRlVGFibGVUZW1wbGF0ZSJ9
 #ref anyWithDate eyJWYWx1ZSI6eyJXRkFjdGlvblBhcmFtZXRlckZpbHRlclByZWZpeCI6MCwiV0ZDb250ZW50UHJlZGljYXRlQm91bmRlZERhdGUiOmZhbHNlLCJXRkFjdGlvblBhcmFtZXRlckZpbHRlclRlbXBsYXRlcyI6W3siQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjQsIlByb3BlcnR5IjoiVHlwZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IlN0ZXBzIiwiV0ZTZXJpYWxpemF0aW9uVHlwZSI6IldGU3RyaW5nU3Vic3RpdHV0YWJsZVN0YXRlIn19fSx7IkJvdW5kZWQiOnRydWUsIk9wZXJhdG9yIjo0LCJQcm9wZXJ0eSI6IlR5cGUiLCJSZW1vdmFibGUiOnRydWUsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IlJlc3RpbmcgSGVhcnQgUmF0ZSIsIldGU2VyaWFsaXphdGlvblR5cGUiOiJXRlN0cmluZ1N1YnN0aXR1dGFibGVTdGF0ZSJ9fX0seyJCb3VuZGVkIjp0cnVlLCJPcGVyYXRvciI6NCwiUHJvcGVydHkiOiJUeXBlIiwiUmVtb3ZhYmxlIjp0cnVlLCJWYWx1ZXMiOnsiRW51bWVyYXRpb24iOnsiVmFsdWUiOiJTbGVlcCIsIldGU2VyaWFsaXphdGlvblR5cGUiOiJXRlN0cmluZ1N1YnN0aXR1dGFibGVTdGF0ZSJ9fX0seyJCb3VuZGVkIjp0cnVlLCJPcGVyYXRvciI6NCwiUHJvcGVydHkiOiJUeXBlIiwiUmVtb3ZhYmxlIjp0cnVlLCJWYWx1ZXMiOnsiRW51bWVyYXRpb24iOnsiVmFsdWUiOiJIZWFydCBSYXRlIFZhcmlhYmlsaXR5IiwiV0ZTZXJpYWxpemF0aW9uVHlwZSI6IldGU3RyaW5nU3Vic3RpdHV0YWJsZVN0YXRlIn19fSx7IkJvdW5kZWQiOnRydWUsIk9wZXJhdG9yIjo0LCJQcm9wZXJ0eSI6IlR5cGUiLCJSZW1vdmFibGUiOnRydWUsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IkV4ZXJjaXNlIE1pbnV0ZXMiLCJXRlNlcmlhbGl6YXRpb25UeXBlIjoiV0ZTdHJpbmdTdWJzdGl0dXRhYmxlU3RhdGUifX19LHsiQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjEwMDEsIlByb3BlcnR5IjoiU3RhcnQgRGF0ZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJOdW1iZXIiOiIzMCIsIlVuaXQiOjE2fX1dfSwiV0ZTZXJpYWxpemF0aW9uVHlwZSI6IldGQ29udGVudFByZWRpY2F0ZVRhYmxlVGVtcGxhdGUifQ==
 #ref anyDateOnly eyJWYWx1ZSI6eyJXRkFjdGlvblBhcmFtZXRlckZpbHRlclByZWZpeCI6MCwiV0ZDb250ZW50UHJlZGljYXRlQm91bmRlZERhdGUiOmZhbHNlLCJXRkFjdGlvblBhcmFtZXRlckZpbHRlclRlbXBsYXRlcyI6W3siQm91bmRlZCI6dHJ1ZSwiT3BlcmF0b3IiOjQsIlByb3BlcnR5IjoiVHlwZSIsIlJlbW92YWJsZSI6ZmFsc2UsIlZhbHVlcyI6eyJFbnVtZXJhdGlvbiI6eyJWYWx1ZSI6IlN0ZXBzIiwiV0ZTZXJpYWxpemF0aW9uVHlwZSI6IldGU3RyaW5nU3Vic3RpdHV0YWJsZVN0YXRlIn19fSx7IkJvdW5kZWQiOnRydWUsIk9wZXJhdG9yIjoxMDAxLCJQcm9wZXJ0eSI6IlN0YXJ0IERhdGUiLCJSZW1vdmFibGUiOmZhbHNlLCJWYWx1ZXMiOnsiTnVtYmVyIjoiMzAiLCJVbml0IjoxNn19XX0sIldGU2VyaWFsaXphdGlvblR5cGUiOiJXRkNvbnRlbnRQcmVkaWNhdGVUYWJsZVRlbXBsYXRlIn0=
 
-action 'is.workflow.actions.filter.health.quantity' findNewest(&variable filter: 'WFContentItemFilter'): array {"WFContentItemLimitEnabled":true,"WFContentItemLimitNumber":5,"WFContentItemSortProperty":"Start Date","WFContentItemSortOrder":"Latest First"}
-
 action 'is.workflow.actions.filter.health.quantity' findManyNewest(&variable filter: 'WFContentItemFilter'): array {"WFContentItemLimitEnabled":true,"WFContentItemLimitNumber":1000,"WFContentItemSortProperty":"Start Date","WFContentItemSortOrder":"Latest First"}
 
-action 'is.workflow.actions.filter.health.quantity' findByDay(&variable filter: 'WFContentItemFilter'): array {"WFHKSampleFilteringGroupBy":"Day","WFHKSampleFilteringFillMissing":true,"WFContentItemSortProperty":"Start Date","WFContentItemSortOrder":"Latest First","WFContentItemLimitEnabled":true,"WFContentItemLimitNumber":1}
-
 action 'is.workflow.actions.properties.health.quantity' sampleTypes(variable samples: 'WFInput'): array {"WFContentItemPropertyName":"Type"}
-action 'is.workflow.actions.properties.health.quantity' sampleValues(variable samples: 'WFInput'): array {"WFContentItemPropertyName":"Value"}
-action 'is.workflow.actions.properties.health.quantity' sampleStarts(variable samples: 'WFInput'): array {"WFContentItemPropertyName":"Start Date"}
 
-// Nothing leaves the iPhone: every result is shown here and only here.
-const options = list("Resting Heart Rate", "Sleep", "Heart Rate Variability", "Exercise Minutes", "Steps", "All five together", "Test 1: empty type, plain", "Test 2: empty type, by day", "Test 3: everything but Steps", "Test 4: any, extra rows removable", "Test 5: any, extra rows free", "Test 6: any, five types and a date", "Test 7: any, Steps or a date")
-const chosen = chooseFromList(options, "Check which Health data? Run this once for each.")
-const choice = getText(chosen)
-const notice = "If no result appears after this, iOS returned nothing for this type: either no samples, or no access."
+// Four forms of a search across Health types, one after another. Nothing leaves the iPhone: the report is shown here and only here.
+const t1Samples = findManyNewest(anyRemovable)
+const t1Count = count(t1Samples)
+const t1Types = sampleTypes(t1Samples)
+const t1Text = getText(t1Types)
+const t1Resting = matchText('(?i)resting', t1Text)
+const t1RestingCount = count(t1Resting)
+const t1Sleep = matchText('(?i)sleep', t1Text)
+const t1SleepCount = count(t1Sleep)
+const t1Steps = matchText('(?i)steps', t1Text)
+const t1StepsCount = count(t1Steps)
 
-if choice == "Resting Heart Rate" {
-    alert("{notice}", "Checking Resting Heart Rate")
-    const restingSamples = findNewest(restingFilter)
-    const restingCount = count(restingSamples)
-    const restingTypes = sampleTypes(restingSamples)
-    const restingValues = sampleValues(restingSamples)
-    const restingStarts = sampleStarts(restingSamples)
-    alert("Found {restingCount} (up to 5).\n\nTypes:\n{restingTypes}\n\nValues:\n{restingValues}\n\nStarts:\n{restingStarts}", "Resting Heart Rate")
-}
+const t2Samples = findManyNewest(anyUnbounded)
+const t2Count = count(t2Samples)
+const t2Types = sampleTypes(t2Samples)
+const t2Text = getText(t2Types)
+const t2Resting = matchText('(?i)resting', t2Text)
+const t2RestingCount = count(t2Resting)
+const t2Sleep = matchText('(?i)sleep', t2Text)
+const t2SleepCount = count(t2Sleep)
+const t2Steps = matchText('(?i)steps', t2Text)
+const t2StepsCount = count(t2Steps)
 
-if choice == "Sleep" {
-    alert("{notice}", "Checking Sleep")
-    const sleepSamples = findNewest(sleepFilter)
-    const sleepCount = count(sleepSamples)
-    const sleepTypes = sampleTypes(sleepSamples)
-    const sleepValues = sampleValues(sleepSamples)
-    const sleepStarts = sampleStarts(sleepSamples)
-    alert("Found {sleepCount} (up to 5).\n\nTypes:\n{sleepTypes}\n\nValues:\n{sleepValues}\n\nStarts:\n{sleepStarts}", "Sleep")
-}
+const t3Samples = findManyNewest(anyWithDate)
+const t3Count = count(t3Samples)
+const t3Types = sampleTypes(t3Samples)
+const t3Text = getText(t3Types)
+const t3Resting = matchText('(?i)resting', t3Text)
+const t3RestingCount = count(t3Resting)
+const t3Sleep = matchText('(?i)sleep', t3Text)
+const t3SleepCount = count(t3Sleep)
+const t3Steps = matchText('(?i)steps', t3Text)
+const t3StepsCount = count(t3Steps)
 
-if choice == "Heart Rate Variability" {
-    alert("{notice}", "Checking Heart Rate Variability")
-    const hrvSamples = findNewest(hrvFilter)
-    const hrvCount = count(hrvSamples)
-    const hrvTypes = sampleTypes(hrvSamples)
-    const hrvValues = sampleValues(hrvSamples)
-    const hrvStarts = sampleStarts(hrvSamples)
-    alert("Found {hrvCount} (up to 5).\n\nTypes:\n{hrvTypes}\n\nValues:\n{hrvValues}\n\nStarts:\n{hrvStarts}", "Heart Rate Variability")
-}
+const t4Samples = findManyNewest(anyDateOnly)
+const t4Count = count(t4Samples)
+const t4Types = sampleTypes(t4Samples)
+const t4Text = getText(t4Types)
+const t4Resting = matchText('(?i)resting', t4Text)
+const t4RestingCount = count(t4Resting)
+const t4Sleep = matchText('(?i)sleep', t4Text)
+const t4SleepCount = count(t4Sleep)
+const t4Steps = matchText('(?i)steps', t4Text)
+const t4StepsCount = count(t4Steps)
 
-if choice == "Exercise Minutes" {
-    alert("{notice}", "Checking Exercise Minutes")
-    const exerciseSamples = findNewest(exerciseFilter)
-    const exerciseCount = count(exerciseSamples)
-    const exerciseTypes = sampleTypes(exerciseSamples)
-    const exerciseValues = sampleValues(exerciseSamples)
-    const exerciseStarts = sampleStarts(exerciseSamples)
-    alert("Found {exerciseCount} (up to 5).\n\nTypes:\n{exerciseTypes}\n\nValues:\n{exerciseValues}\n\nStarts:\n{exerciseStarts}", "Exercise Minutes")
-}
-
-if choice == "Steps" {
-    alert("{notice}", "Checking Steps")
-    const stepsSamples = findNewest(stepsFilter)
-    const stepsCount = count(stepsSamples)
-    const stepsTypes = sampleTypes(stepsSamples)
-    const stepsValues = sampleValues(stepsSamples)
-    const stepsStarts = sampleStarts(stepsSamples)
-    alert("Found {stepsCount} (up to 5).\n\nTypes:\n{stepsTypes}\n\nValues:\n{stepsValues}\n\nStarts:\n{stepsStarts}", "Steps")
-}
-
-if choice == "All five together" {
-    alert("{notice}", "Checking all five")
-    const allSamples = findManyNewest(recentTypesFilter)
-    const allCount = count(allSamples)
-    const allTypes = sampleTypes(allSamples)
-    const allTypeText = getText(allTypes)
-    const restingSeen = matchText('(?i)resting', allTypeText)
-    const restingSeenCount = count(restingSeen)
-    const sleepSeen = matchText('(?i)sleep', allTypeText)
-    const sleepSeenCount = count(sleepSeen)
-    const stepsSeen = matchText('(?i)steps', allTypeText)
-    const stepsSeenCount = count(stepsSeen)
-    alert("Newest {allCount} samples.\n\nSteps: {stepsSeenCount}\nResting: {restingSeenCount}\nSleep: {sleepSeenCount}", "All five")
-}
-
-if choice == "Test 1: empty type, plain" {
-    alert("If no second message appears, an empty type ends the run.", "Test 1")
-    const plainSamples = findNewest(hrvFilter)
-    const plainCount = count(plainSamples)
-    alert("Still running. Found {plainCount}.", "Test 1 result")
-}
-
-if choice == "Test 2: empty type, by day" {
-    alert("If no second message appears, this way ends the run too.", "Test 2")
-    const dayEmpty = findByDay(hrvFilter)
-    const dayEmptyCount = count(dayEmpty)
-    const dayEmptyValues = sampleValues(dayEmpty)
-    alert("Still running with no data. Found {dayEmptyCount}, value: {dayEmptyValues}.", "Test 2, no data")
-    const dayFull = findByDay(restingFilter)
-    const dayFullCount = count(dayFull)
-    const dayFullValues = sampleValues(dayFull)
-    alert("With data. Found {dayFullCount}, value: {dayFullValues}.", "Test 2, data")
-}
-
-if choice == "Test 3: everything but Steps" {
-    alert("If no second message appears, this way ends the run.", "Test 3")
-    const otherSamples = findManyNewest(notStepsFilter)
-    const otherCount = count(otherSamples)
-    const otherTypes = sampleTypes(otherSamples)
-    const otherText = getText(otherTypes)
-    const otherResting = matchText('(?i)resting', otherText)
-    const otherRestingCount = count(otherResting)
-    const otherSleep = matchText('(?i)sleep', otherText)
-    const otherSleepCount = count(otherSleep)
-    const otherSteps = matchText('(?i)steps', otherText)
-    const otherStepsCount = count(otherSteps)
-    alert("Found {otherCount}.\n\nSteps: {otherStepsCount}\nResting: {otherRestingCount}\nSleep: {otherSleepCount}", "Test 3 result")
-}
-
-if choice == "Test 4: any, extra rows removable" {
-    const t4Samples = findManyNewest(anyRemovable)
-    const t4Count = count(t4Samples)
-    const t4Types = sampleTypes(t4Samples)
-    const t4Text = getText(t4Types)
-    const t4Resting = matchText('(?i)resting', t4Text)
-    const t4RestingCount = count(t4Resting)
-    const t4Sleep = matchText('(?i)sleep', t4Text)
-    const t4SleepCount = count(t4Sleep)
-    const t4Steps = matchText('(?i)steps', t4Text)
-    const t4StepsCount = count(t4Steps)
-    alert("Found {t4Count}.\n\nSteps: {t4StepsCount}\nResting: {t4RestingCount}\nSleep: {t4SleepCount}", "Test 4 result")
-}
-
-if choice == "Test 5: any, extra rows free" {
-    const t5Samples = findManyNewest(anyUnbounded)
-    const t5Count = count(t5Samples)
-    const t5Types = sampleTypes(t5Samples)
-    const t5Text = getText(t5Types)
-    const t5Resting = matchText('(?i)resting', t5Text)
-    const t5RestingCount = count(t5Resting)
-    const t5Sleep = matchText('(?i)sleep', t5Text)
-    const t5SleepCount = count(t5Sleep)
-    const t5Steps = matchText('(?i)steps', t5Text)
-    const t5StepsCount = count(t5Steps)
-    alert("Found {t5Count}.\n\nSteps: {t5StepsCount}\nResting: {t5RestingCount}\nSleep: {t5SleepCount}", "Test 5 result")
-}
-
-if choice == "Test 6: any, five types and a date" {
-    const t6Samples = findManyNewest(anyWithDate)
-    const t6Count = count(t6Samples)
-    const t6Types = sampleTypes(t6Samples)
-    const t6Text = getText(t6Types)
-    const t6Resting = matchText('(?i)resting', t6Text)
-    const t6RestingCount = count(t6Resting)
-    const t6Sleep = matchText('(?i)sleep', t6Text)
-    const t6SleepCount = count(t6Sleep)
-    const t6Steps = matchText('(?i)steps', t6Text)
-    const t6StepsCount = count(t6Steps)
-    alert("Found {t6Count}.\n\nSteps: {t6StepsCount}\nResting: {t6RestingCount}\nSleep: {t6SleepCount}", "Test 6 result")
-}
-
-if choice == "Test 7: any, Steps or a date" {
-    const t7Samples = findManyNewest(anyDateOnly)
-    const t7Count = count(t7Samples)
-    const t7Types = sampleTypes(t7Samples)
-    const t7Text = getText(t7Types)
-    const t7Resting = matchText('(?i)resting', t7Text)
-    const t7RestingCount = count(t7Resting)
-    const t7Sleep = matchText('(?i)sleep', t7Text)
-    const t7SleepCount = count(t7Sleep)
-    const t7Steps = matchText('(?i)steps', t7Text)
-    const t7StepsCount = count(t7Steps)
-    alert("Found {t7Count}.\n\nSteps: {t7StepsCount}\nResting: {t7RestingCount}\nSleep: {t7SleepCount}", "Test 7 result")
-}
+alert("Search 1: {t1Count} found. Steps {t1StepsCount}, Resting {t1RestingCount}, Sleep {t1SleepCount}.\n\nSearch 2: {t2Count} found. Steps {t2StepsCount}, Resting {t2RestingCount}, Sleep {t2SleepCount}.\n\nSearch 3: {t3Count} found. Steps {t3StepsCount}, Resting {t3RestingCount}, Sleep {t3SleepCount}.\n\nSearch 4: {t4Count} found. Steps {t4StepsCount}, Resting {t4RestingCount}, Sleep {t4SleepCount}.", "Health Check")
