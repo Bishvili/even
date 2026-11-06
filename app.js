@@ -1,6 +1,10 @@
 (function () {
 "use strict";
-var VERSION = "2.44.13";
+var VERSION = "2.44.14";
+var HIDEABLE={
+ event:{list:"events",hidden:"hiddenEvents",key:"id",path:"/api/calendars/events/hidden",field:"id"},
+ health:{list:"health",hidden:"hiddenHealth",key:"date",path:"/api/health/hidden",field:"date"}
+};
 var STORAGE_KEY = "health:v1";
 var MOOD_NAMES = ["","Rough","Low","Okay","Good","Great"];
 var MOOD_EMOJI = ["","😣","😕","😐","🙂","😄"];
@@ -16,7 +20,7 @@ var authService = null, authEmail = "", authDevices = [], authChecking = false, 
 var currentView = "", scrollTops = {};
 var shortcutRelease = null, shortcutStatus = null, shortcutStatusLoading = false, sessionLoading = false;
 function $(id){ return document.getElementById(id); }
-function emptyState(){ return {demo:{moods:[],health:[],events:[]},moods:[],health:[],events:[],hiddenEvents:[],hiddenHealth:[],reflections:[],alarms:[],resets:[],tries:[],planLog:[],planMoves:[],pendingMoods:[],deletedMoods:[],moodCursor:"",lastMoodSync:null,firstName:"",name:"",token:"",deviceId:"",syncOwnerEmail:"",pairedAt:null,lastSync:null}; }
+function emptyState(){ return {demo:{moods:[],health:[],events:[]},moods:[],health:[],events:[],hiddenEvents:[],hiddenHealth:[],pendingHides:[],reflections:[],alarms:[],resets:[],tries:[],planLog:[],planMoves:[],pendingMoods:[],deletedMoods:[],moodCursor:"",lastMoodSync:null,firstName:"",name:"",token:"",deviceId:"",syncOwnerEmail:"",pairedAt:null,lastSync:null}; }
 // Fictional records live apart from personal ones. Older saved state kept them together, marked demo.
 function withDemoApart(loaded,saved){
  var demo={};
@@ -30,7 +34,7 @@ function withDemoApart(loaded,saved){
 function readState(){
  try { var raw=JSON.parse(localStorage.getItem(STORAGE_KEY)||"null"); if(!raw || typeof raw!=="object")return emptyState();
  var owner=typeof raw.syncOwnerEmail==="string"?raw.syncOwnerEmail.toLowerCase():"",deviceId=typeof raw.deviceId==="string"?raw.deviceId:"";
- var loaded={moods:Array.isArray(raw.moods)?raw.moods.slice(-LIMITS.moods):[],health:Array.isArray(raw.health)?raw.health.slice(-LIMITS.healthDays):[],events:Array.isArray(raw.events)?raw.events.slice(-LIMITS.events):[],hiddenEvents:Array.isArray(raw.hiddenEvents)?raw.hiddenEvents.slice(-LIMITS.events):[],hiddenHealth:Array.isArray(raw.hiddenHealth)?raw.hiddenHealth.slice(-LIMITS.healthDays):[],reflections:Array.isArray(raw.reflections)?raw.reflections.slice(-200):[],alarms:Array.isArray(raw.alarms)?raw.alarms.slice(0,40):[],resets:Array.isArray(raw.resets)?raw.resets.slice(-500):[],tries:Array.isArray(raw.tries)?raw.tries.slice(-500):[],planLog:Array.isArray(raw.planLog)?raw.planLog.slice(-300):[],planMoves:Array.isArray(raw.planMoves)?raw.planMoves.slice(-60):[],pendingMoods:Array.isArray(raw.pendingMoods)?raw.pendingMoods:[],moodCursor:String(raw.moodCursor||""),lastMoodSync:raw.lastMoodSync||null,lastBackup:typeof raw.lastBackup==="string"?raw.lastBackup:null,deletedMoods:Array.isArray(raw.deletedMoods)?raw.deletedMoods.slice(-500):[],firstName:typeof raw.firstName==="string"?raw.firstName.slice(0,60):"",name:typeof raw.name==="string"?raw.name.slice(0,60):"",token:owner&&deviceId&&typeof raw.token==="string"?raw.token:"",deviceId:deviceId,syncOwnerEmail:owner,pairedAt:raw.pairedAt||null,lastSync:raw.lastSync||null};
+ var loaded={moods:Array.isArray(raw.moods)?raw.moods.slice(-LIMITS.moods):[],health:Array.isArray(raw.health)?raw.health.slice(-LIMITS.healthDays):[],events:Array.isArray(raw.events)?raw.events.slice(-LIMITS.events):[],hiddenEvents:Array.isArray(raw.hiddenEvents)?raw.hiddenEvents.slice(-LIMITS.events):[],hiddenHealth:Array.isArray(raw.hiddenHealth)?raw.hiddenHealth.slice(-LIMITS.healthDays):[],pendingHides:Array.isArray(raw.pendingHides)?raw.pendingHides.filter(function(p){return p&&HIDEABLE[p.kind];}):[],reflections:Array.isArray(raw.reflections)?raw.reflections.slice(-200):[],alarms:Array.isArray(raw.alarms)?raw.alarms.slice(0,40):[],resets:Array.isArray(raw.resets)?raw.resets.slice(-500):[],tries:Array.isArray(raw.tries)?raw.tries.slice(-500):[],planLog:Array.isArray(raw.planLog)?raw.planLog.slice(-300):[],planMoves:Array.isArray(raw.planMoves)?raw.planMoves.slice(-60):[],pendingMoods:Array.isArray(raw.pendingMoods)?raw.pendingMoods:[],moodCursor:String(raw.moodCursor||""),lastMoodSync:raw.lastMoodSync||null,lastBackup:typeof raw.lastBackup==="string"?raw.lastBackup:null,deletedMoods:Array.isArray(raw.deletedMoods)?raw.deletedMoods.slice(-500):[],firstName:typeof raw.firstName==="string"?raw.firstName.slice(0,60):"",name:typeof raw.name==="string"?raw.name.slice(0,60):"",token:owner&&deviceId&&typeof raw.token==="string"?raw.token:"",deviceId:deviceId,syncOwnerEmail:owner,pairedAt:raw.pairedAt||null,lastSync:raw.lastSync||null};
  return withDemoApart(loaded,raw.demo);
  } catch(e){return emptyState();}
 }
@@ -149,9 +153,9 @@ function renderSources(){
  $("context-count").textContent=plural(all.length,"item","items");
  $("context-list").innerHTML=all.length?all.slice(0,12).map(function(x){
  if(x.kind==="health"){var h=x.h, summary=[h.sleepHours!=null?Math.round(h.sleepHours*10)/10+"h sleep":"",h.steps!=null?h.steps.toLocaleString()+" steps":"",h.hrv!=null?Math.round(h.hrv)+" ms HRV":"",h.restingHR!=null?Math.round(h.restingHR)+" bpm resting":"",h.workoutMin!=null?Math.round(h.workoutMin)+" min exercise":""].filter(Boolean).join(" · ");
- return '<div class="entry"><span class="entry-emoji" aria-hidden="true">♥︎</span><div class="entry-main"><strong>Health · '+esc(h.date)+'</strong><small>'+esc(summary||"Health day")+'</small></div>'+(h.source==="shortcut"&&state.token?'<button type="button" class="text-action" aria-label="Hide health day '+esc(h.date)+'" data-hide-health="'+esc(h.date)+'">Hide</button>':'<button class="entry-delete" aria-label="Delete health day" data-delete-health="'+esc(h.date)+'">×</button>')+'</div>';}
+ return '<div class="entry"><span class="entry-emoji" aria-hidden="true">♥︎</span><div class="entry-main"><strong>Health · '+esc(h.date)+'</strong><small>'+esc(summary||"Health day")+'</small></div>'+(h.source==="shortcut"&&state.token?'<button type="button" class="icon-action" aria-label="Hide health day '+esc(h.date)+'" title="Hide" data-hide-health="'+esc(h.date)+'">'+EYE_OFF+'</button>':'<button class="entry-delete" aria-label="Delete health day" data-delete-health="'+esc(h.date)+'">×</button>')+'</div>';}
  var e=x.e;
- return '<div class="entry"><span class="entry-emoji" aria-hidden="true">▦︎</span><div class="entry-main"><strong>'+esc(e.title||"Calendar event")+'</strong><small>'+esc(formatDate(e.start)+" "+formatTime(e.start)+" · "+e.category)+'</small></div>'+(e.source==="shortcut"&&state.token?'<button type="button" class="text-action" aria-label="Hide '+esc(e.title||"event")+'" data-hide-event="'+esc(e.id)+'">Hide</button>':'<button class="entry-delete" aria-label="Delete calendar event" data-delete-event="'+esc(e.id)+'">×</button>')+'</div>';
+ return '<div class="entry"><span class="entry-emoji" aria-hidden="true">▦︎</span><div class="entry-main"><strong>'+esc(e.title||"Calendar event")+'</strong><small>'+esc(formatDate(e.start)+" "+formatTime(e.start)+" · "+e.category)+'</small></div>'+(e.source==="shortcut"&&state.token?'<button type="button" class="icon-action" aria-label="Hide '+esc(e.title||"event")+'" title="Hide" data-hide-event="'+esc(e.id)+'">'+EYE_OFF+'</button>':'<button class="entry-delete" aria-label="Delete calendar event" data-delete-event="'+esc(e.id)+'">×</button>')+'</div>';
  }).join(""):blank(state.token?"Nothing here yet. Run {{sync}}, or add a day or event below.":"Nothing here yet. Sign in to bring in your data, or add a day or event below.");
  renderHidden();
 }
@@ -502,36 +506,45 @@ function normalizeHealth(h,source){
  return Object.keys(item).some(function(k){return ["sleepHours","steps","hrv","restingHR","workoutMin"].includes(k);})?item:null;
 }
 function upsertHealth(h){var idx=state.health.findIndex(function(x){return x.date===h.date;});if(idx<0)state.health.push(h);else state.health[idx]=Object.assign({},state.health[idx],h);}
-// A hidden event stays in the account, apart from what the app reads, so it can be shown again.
-async function setEventHidden(id,hidden){
- try{
-  var r=await fetch("/api/calendars/events/hidden",{method:"POST",headers:{"Authorization":"Bearer "+state.token,"Content-Type":"application/json"},body:JSON.stringify({id:id,hidden:hidden}),cache:"no-store"});
-  if(!r.ok)throw Error();
- }catch(e){toast("Couldn’t change that event. Check your connection and try again.");return;}
- var from=hidden?state.events:state.hiddenEvents,event=from.find(function(x){return x.id===id;});
- if(!event)return;
- if(hidden){state.events=state.events.filter(function(x){return x.id!==id;});state.hiddenEvents.push(event);}
- else{state.hiddenEvents=state.hiddenEvents.filter(function(x){return x.id!==id;});state.events.push(event);}
+// Hiding happens here straight away, and reaches the account when it can. A hidden item stays in the account, apart from what the app reads, so it can be shown again.
+function setHidden(kind,id,hidden){
+ var type=HIDEABLE[kind],from=hidden?type.list:type.hidden,to=hidden?type.hidden:type.list;
+ var item=state[from].find(function(x){return x[type.key]===id;});
+ if(!item)return;
+ state[from]=state[from].filter(function(x){return x!==item;});state[to].push(item);
+ state.pendingHides=state.pendingHides.filter(function(p){return p.kind!==kind||p.id!==id;}).concat({kind:kind,id:id,hidden:hidden});
  persist();render();if(globalThis.Reminders)globalThis.Reminders.dataChanged();
+ sendHides();
 }
-async function setHealthHidden(date,hidden){
- try{
-  var r=await fetch("/api/health/hidden",{method:"POST",headers:{"Authorization":"Bearer "+state.token,"Content-Type":"application/json"},body:JSON.stringify({date:date,hidden:hidden}),cache:"no-store"});
-  if(!r.ok)throw Error();
- }catch(e){toast("Couldn’t change that day. Check your connection and try again.");return;}
- var from=hidden?state.health:state.hiddenHealth,day=from.find(function(x){return x.date===date;});
- if(!day)return;
- if(hidden){state.health=state.health.filter(function(x){return x.date!==date;});state.hiddenHealth.push(day);}
- else{state.hiddenHealth=state.hiddenHealth.filter(function(x){return x.date!==date;});state.health.push(day);}
- persist();render();if(globalThis.Reminders)globalThis.Reminders.dataChanged();
+var sendingHides=null;
+function sendHides(){
+ if(sendingHides)return sendingHides;
+ sendingHides=(async function(){
+  while(state.token&&navigator.onLine&&state.pendingHides.length){
+   var next=state.pendingHides[0],type=HIDEABLE[next.kind],body={hidden:next.hidden};body[type.field]=next.id;
+   try{
+    var r=await fetch(type.path,{method:"POST",headers:{"Authorization":"Bearer "+state.token,"Content-Type":"application/json"},body:JSON.stringify(body),cache:"no-store"});
+    // Only a refused request is dropped. Anything else is tried again later.
+    if(!r.ok&&r.status!==400)return;
+   }catch(e){return;}
+   state.pendingHides=state.pendingHides.filter(function(p){return p!==next;});persist();
+  }
+ })().finally(function(){sendingHides=null;});
+ return sendingHides;
 }
+function withPendingHides(kind,items,key){
+ items.forEach(function(x){var p=state.pendingHides.find(function(q){return q.kind===kind&&q.id===x[key];});if(p)x.hidden=p.hidden;});
+ return items;
+}
+var EYE='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>';
+var EYE_OFF='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.9 5.2A10 10 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3 3.9"/><path d="M6.2 6.7A16.6 16.6 0 0 0 2 12s3.6 7 10 7a10 10 0 0 0 5.2-1.5"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/><path d="m3 3 18 18"/></svg>';
 function renderHidden(){
  var events=state.hiddenEvents.map(function(e){return {at:e.start,icon:"▦︎",title:e.title||"Calendar event",when:formatDate(e.start)+" "+formatTime(e.start),attr:"data-show-event",id:e.id};});
  var days=state.hiddenHealth.map(function(h){return {at:h.date,icon:"♥︎",title:"Health · "+h.date,when:"Sleep, movement and recovery",attr:"data-show-health",id:h.date};});
  var list=events.concat(days).sort(function(a,b){return a.at<b.at?1:-1;});
  $("hidden-events").hidden=!list.length;
  $("hidden-events-count").textContent=[events.length?plural(events.length,"event","events"):"",days.length?plural(days.length,"day","days"):""].filter(Boolean).join(" and ")+" hidden";
- $("hidden-events-list").innerHTML=list.map(function(x){return '<div class="entry"><span class="entry-emoji" aria-hidden="true">'+x.icon+'</span><div class="entry-main"><strong>'+esc(x.title)+'</strong><small>'+esc(x.when)+'</small></div><button type="button" class="text-action" aria-label="Show '+esc(x.title)+'" '+x.attr+'="'+esc(x.id)+'">Show</button></div>';}).join("");
+ $("hidden-events-list").innerHTML=list.map(function(x){return '<div class="entry"><span class="entry-emoji" aria-hidden="true">'+x.icon+'</span><div class="entry-main"><strong>'+esc(x.title)+'</strong><small>'+esc(x.when)+'</small></div><button type="button" class="icon-action" aria-label="Show '+esc(x.title)+'" title="Show" '+x.attr+'="'+esc(x.id)+'">'+EYE+'</button></div>';}).join("");
 }
 function normalizeEvent(e,source){
  if(!e||typeof e!=="object")return null;
@@ -910,12 +923,13 @@ async function pull(silent){
  if(!state.token){if(!silent)toast("Sign in under Data to bring in your data.");return;}
  var button=$("pull-button");button.disabled=true;button.textContent="Bringing in…";
  try{
+  await sendHides();
   var r=await fetch("/api/pull",{headers:{"Authorization":"Bearer "+state.token},cache:"no-store"});
   var body=await r.json();
   if(r.status===401){state.token="";state.deviceId="";shortcutStatus=null;shortcutRelease=null;persist();render();throw Error("This iPhone was disconnected. Sign in to connect it again.");}
   if(!r.ok)throw Error(body.error||"Sync failed");
   if(!body.email||body.email!==state.syncOwnerEmail)throw Error("Account mismatch. Nothing was imported.");
-  var serverHealth=body.health||[],complete=body.complete||{};
+  var serverHealth=withPendingHides("health",body.health||[],"date"),complete=body.complete||{};withPendingHides("event",body.events||[],"id");
   // Only a complete list can show that something was removed.
   var oldestDay=serverHealth.reduce(function(low,x){return !low||x.date<low?x.date:low;},"");
   state.health=state.health.filter(function(x){return x.source!=="shortcut"||(!complete.health&&oldestDay&&x.date<oldestDay);});
@@ -944,7 +958,7 @@ async function deleteAccount(){
   if(r.status===401||r.status===403){await refreshAuth();toast("Sign in again to delete your account.");globalThis.Signin.open();return;}
   if(!r.ok)throw Error();
   if(globalThis.Reminders)globalThis.Reminders.turnOff();
-  state.token="";state.deviceId="";state.pairedAt=null;state.pendingMoods=[];state.deletedMoods=[];state.moodCursor="";state.lastMoodSync=null;shortcutStatus=null;shortcutRelease=null;
+  state.token="";state.deviceId="";state.pairedAt=null;state.pendingHides=[];state.pendingMoods=[];state.deletedMoods=[];state.moodCursor="";state.lastMoodSync=null;shortcutStatus=null;shortcutRelease=null;
   persist();await refreshAuth();render();toast("Account deleted.");
  }catch(e){toast("Couldn’t delete your account. Check your connection and try again.");}
 }
@@ -971,7 +985,7 @@ async function eraseLocal(){
 async function eraseRemote(){
  if(!authEmail){toast("Sign in first to erase synced data.");globalThis.Signin.open();return;}
  if(!await askConfirm("Permanently delete everything synced for "+authEmail+": Health, calendar, alarms, your notification schedule, the name you set, and your check-ins and notes on all your devices? This can’t be undone. Health and calendar records already on this device stay.","Erase"))return;
- try{var r=await fetch(accountPath("erase"),{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:"{}",cache:"no-store"});if(!r.ok)throw Error("Delete failed");state.moods=[];state.hiddenEvents=[];state.hiddenHealth=[];state.pendingMoods=[];state.deletedMoods=[];persist();if(globalThis.Reminders)globalThis.Reminders.turnOff();render();toast("Synced data erased.");}catch(e){toast("Could not delete cloud data.");}
+ try{var r=await fetch(accountPath("erase"),{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:"{}",cache:"no-store"});if(!r.ok)throw Error("Delete failed");state.moods=[];state.hiddenEvents=[];state.hiddenHealth=[];state.pendingHides=[];state.pendingMoods=[];state.deletedMoods=[];persist();if(globalThis.Reminders)globalThis.Reminders.turnOff();render();toast("Synced data erased.");}catch(e){toast("Could not delete cloud data.");}
 }
 var swRegistration=null;
 function checkForUpdate(){if(swRegistration)swRegistration.update().catch(function(){});}
@@ -1011,9 +1025,9 @@ function init(){
  $("recent-list").addEventListener("click",function(ev){var b=ev.target.closest("[data-delete-mood]");if(b)askConfirm("Delete this check-in? This can’t be undone.","Delete").then(function(yes){if(!yes)return;state.moods=state.moods.filter(function(x){return x.id!==b.dataset.deleteMood;});state.pendingMoods=state.pendingMoods.filter(function(id){return id!==b.dataset.deleteMood;});state.deletedMoods.push(b.dataset.deleteMood);persist();render();syncMoods();});});
  $("context-list").addEventListener("click",function(ev){var b=ev.target.closest("[data-delete-health]");if(b)askConfirm("Delete this health day from this device?","Delete").then(function(yes){if(!yes)return;state.health=state.health.filter(function(x){return x.date!==b.dataset.deleteHealth;});persist();render();});
  b=ev.target.closest("[data-delete-event]");if(b)askConfirm("Delete this event from this device? This can’t be undone.","Delete").then(function(yes){if(!yes)return;state.events=state.events.filter(function(x){return x.id!==b.dataset.deleteEvent;});persist();render();});
-  b=ev.target.closest("[data-hide-event]");if(b)setEventHidden(b.dataset.hideEvent,true);
-  b=ev.target.closest("[data-hide-health]");if(b)setHealthHidden(b.dataset.hideHealth,true);});
- $("hidden-events-list").addEventListener("click",function(ev){var b=ev.target.closest("[data-show-event]");if(b)setEventHidden(b.dataset.showEvent,false);b=ev.target.closest("[data-show-health]");if(b)setHealthHidden(b.dataset.showHealth,false);});
+  b=ev.target.closest("[data-hide-event]");if(b)setHidden("event",b.dataset.hideEvent,true);
+  b=ev.target.closest("[data-hide-health]");if(b)setHidden("health",b.dataset.hideHealth,true);});
+ $("hidden-events-list").addEventListener("click",function(ev){var b=ev.target.closest("[data-show-event]");if(b)setHidden("event",b.dataset.showEvent,false);b=ev.target.closest("[data-show-health]");if(b)setHidden("health",b.dataset.showHealth,false);});
  document.querySelectorAll("[data-days]").forEach(function(b){b.addEventListener("click",function(){insightDays=Number(b.dataset.days);document.querySelectorAll("[data-days]").forEach(function(x){x.classList.toggle("selected",x===b);});renderInsights();});});
  document.querySelectorAll("[data-scope]").forEach(function(b){b.addEventListener("click",function(){insightScope=b.dataset.scope;renderInsights();});});
  $("login-button").addEventListener("click",function(){signIn();});
@@ -1046,7 +1060,7 @@ function init(){
  $("erase-local").addEventListener("click",eraseLocal);$("delete-account").addEventListener("click",deleteAccount);
  $("demo-button").addEventListener("click",demo);$("clear-demo-button").addEventListener("click",clearDemo);
  setEnergyText();navigate(location.hash.slice(1)||"checkin");
- window.addEventListener("online",function(){renderSync();syncMoods();});window.addEventListener("offline",function(){renderSync();renderMoodStatus();});
+ window.addEventListener("online",function(){renderSync();syncMoods();sendHides();});window.addEventListener("offline",function(){renderSync();renderMoodStatus();});
  $("mood-sync-retry").addEventListener("click",function(){moodSyncFailed=false;renderMoodStatus();syncMoods();});
  if(navigator.onLine)refreshAuth();
  if(state.token&&navigator.onLine)loadSession();
@@ -1064,6 +1078,7 @@ function init(){
 // Coming back makes one request, plus one more only when there's new data to bring in.
 function foreground(){
  if(!state.token){refreshAuth();return;}
+ sendHides();
  loadSession();
  if(shortcutRunPending){shortcutRunPending=false;if($("run-sync-dialog").open)$("run-sync-dialog").close();pull(false);}
 }

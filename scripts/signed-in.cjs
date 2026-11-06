@@ -253,6 +253,27 @@ const scenarios={
    await until(page,()=>{const s=JSON.parse(localStorage.getItem("health:v1"));return s.health.length===1&&!s.hiddenHealth.length;});
   });
  },
+ "hiding works offline, reaches the account later, and a sync can't undo it first":async(browser,base)=>{
+  const event={id:"e1",start:"2026-11-04T10:00:00Z",end:"2026-11-04T11:00:00Z",title:"Standup",category:"Other",hidden:false};
+  const api=fakeApi(),sent=[];
+  api.pull={...api.pull,events:[event]};
+  await open(browser,base,saved({moodCursor:shared.cursor}),api,async({page,context})=>{
+   await context.route("**/api/calendars/events/hidden",route=>{sent.push(route.request().postDataJSON());return route.fulfill({json:{ok:true,changed:1}});});
+   await statusIsReady(page);
+   await page.evaluate(()=>App.navigate("data"));
+   await page.click("#pull-button");
+   await page.waitForSelector("[data-hide-event]");
+   await context.setOffline(true);
+   await page.click("[data-hide-event]");
+   await until(page,()=>{const s=JSON.parse(localStorage.getItem("health:v1"));return s.hiddenEvents.length===1&&s.pendingHides.length===1;});
+   assert.equal(sent.length,0);
+   await context.setOffline(false);
+   await until(page,()=>JSON.parse(localStorage.getItem("health:v1")).pendingHides.length===0);
+   assert.deepEqual(sent,[{id:"e1",hidden:true}]);
+   await page.waitForTimeout(150);
+   assert.equal((await stored(page)).hiddenEvents.length,1);
+  });
+ },
  "damaged storage opens at sign-in":async(browser,base)=>{
   const api=fakeApi({me:""});
   await open(browser,base,"{not json",api,async({page})=>{
