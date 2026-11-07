@@ -302,3 +302,17 @@ html[data-theme="light"] .nav-item.active{color:var(--accent);background:var(--s
 .sync-hint{margin:0 0 12px;padding:10px 12px;border-radius:12px;background:var(--tint);font-size:.882rem;line-height:1.35}
 .sync-history{display:flex;flex-direction:column}.sync-run{border-bottom:1px solid var(--border)}.sync-run:last-child{border-bottom:0}.sync-run>summary{display:flex;flex-direction:column;gap:2px;min-height:44px;padding:10px 0;justify-content:center;cursor:pointer}.sync-run>summary small{color:var(--text-muted);font-size:.824rem}.sync-run .sync-steps{margin:0 0 10px}
 .install-help h2{margin:0 0 14px}.install-help-steps{list-style:none;margin:0 0 18px;padding:0;display:flex;flex-direction:column;gap:14px;counter-reset:step}.install-help-steps li{display:flex;gap:12px;align-items:flex-start;line-height:1.4}.install-help-icon{flex:none;display:grid;place-items:center;width:40px;height:40px;border-radius:12px;background:var(--tint);color:var(--accent)}.install-help-icon svg{width:22px;height:22px}
+/* Planning something you enjoy. */
+.today-actions{display:flex;flex-wrap:wrap;gap:8px}
+.activity-sheet h2{margin:0 0 8px}.activity-sheet>form>p,.activity-sheet>div>p{margin:0 0 14px}
+.activity-sheet fieldset{border:0;padding:0;margin:0 0 16px}.activity-sheet legend{padding:0;margin-bottom:8px;font-size:.882rem;font-weight:600;line-height:1.35}.activity-sheet legend small{color:var(--text-muted);font-weight:500}
+.activity-idea-list{display:flex;flex-direction:column;gap:8px;margin:6px 0 10px}
+.activity-idea{display:flex;justify-content:space-between;align-items:center;gap:12px;min-height:52px;width:100%;padding:12px 14px;border:1px solid var(--border);border-radius:14px;background:var(--surface-2);color:var(--text);text-align:left;font:inherit}
+.activity-idea strong{font-size:.941rem;font-weight:600}.activity-idea small{flex:none;color:var(--text-muted);font-size:.824rem}
+.activity-own{display:flex;gap:8px;margin:12px 0}.activity-own input{flex:1;min-width:0}.activity-own .btn{flex:none}
+.activity-plan-title{margin:0 0 12px}.activity-when{display:flex;gap:10px;margin-bottom:16px}.activity-when label{flex:1;display:flex;flex-direction:column;gap:4px;font-size:.824rem;font-weight:600;color:var(--text-2)}.activity-when input{width:100%}
+.activity-sheet .btn+.btn{margin-top:8px}
+.next-picks{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.reset-modes{display:flex;gap:4px;margin:0 auto 12px;padding:3px;border-radius:999px;background:var(--surface-2);width:max-content;max-width:100%}.reset-mode{min-height:36px;padding:6px 14px;border:0;border-radius:999px;background:none;color:var(--text-2);font:inherit;font-size:.824rem;font-weight:650}.reset-mode[aria-checked="true"]{background:var(--surface);color:var(--text);box-shadow:0 1px 3px var(--shadow-faint)}
+.activity-when label{min-width:0}.activity-when input{min-width:0;max-width:100%;box-sizing:border-box}
+.next-picks{align-items:center}.next-picks .text-action{font-size:.824rem;min-height:40px;padding:0 8px}

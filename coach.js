@@ -372,9 +372,11 @@
     done:!!context.days[today]&&!!context.days[today].workoutMin&&context.days[today].workoutMin.value>0}
   ];
   var resetTimes=(resets||[]).map(function(at){return Date.parse(at);}).filter(Number.isFinite);
-  factors.push({id:"reset",label:"In the 2 hours after a breathing exercise",tip:"Take a minute.",action:"reset",
+  factors.push({id:"reset",label:"In the 2 hours after a calming exercise",tip:"Take a minute.",action:"reset",
    test:function(m){var t=Date.parse(m.ts);return resetTimes.some(function(at){return t>=at&&t-at<=RESET_WINDOW_MS;});},
    done:resetTimes.some(function(at){return localDay(at)===today;})});
+  // Something the person planned and marked done. Only its "tried" comparison, the 2 hours after, can say anything.
+  factors.push({id:"activity",label:"After something you planned",tip:"Do something you planned.",test:function(){return null;},done:false});
   HELP_ACTIVITIES.forEach(function(item){
    var tag=item[0],spans=events.filter(function(e){return e.category===tag;}).map(function(e){return[new Date(e.start).getTime(),new Date(e.end).getTime()+NEAR_EVENT_MS];});
    factors.push({id:"tag:"+tag,label:"When you’ve tagged "+item[1],tip:item[2],test:function(m){return(m.tags||[]).indexOf(tag)>=0;},done:false,tag:tag});
@@ -573,20 +575,58 @@
   return kept.slice(0,14);
  }
  // The next few useful things to do, most time-sensitive first.
+ // Straight after a very hard check-in, calming the body comes first. Lowering arousal reduces anger in trials; venting doesn't.
+ var CALM_FIRST_MS=30*60000;
+ function calmFirst(moods,now){
+  var latest=moods.filter(function(m){var t=Date.parse(m.ts);return t<=now.getTime()&&now.getTime()-t<=CALM_FIRST_MS;}).sort(function(a,b){return Date.parse(b.ts)-Date.parse(a.ts);})[0];
+  if(!latest||!(latest.stress===5||latest.score===1))return null;
+  return{text:(latest.stress===5?"You noted very high stress.":"You noted a rough moment.")+" Slowing your body down first usually helps. Take a minute to breathe or relax your muscles.",
+   why:"In studies of anger, slow breathing and muscle relaxation lowered it. Venting didn’t, and often made it worse.",action:"reset",label:"Take a minute"};
+ }
+ // A day counts as hard by the same rule as the hard-stretch note.
+ function hardDay(moods,now){var day=localDay(now);return moods.some(function(m){return localDay(m.ts)===day&&Date.parse(m.ts)<=now.getTime()&&(m.stress>=4||m.score===1||m.score===2);});}
+ // Behavioral activation: on a hard day or before a harder one, plan something enjoyable. Once a day, and not when something is already planned.
+ function activityActions(data,now){
+  var A=root.Activities,saved=data.activities||[],out=[];if(!A)return out;
+  var due=A.due(saved,now);
+  if(due)out.push({kind:"activity-due",text:"Did you get to “"+due.activity.title+"”?",activityId:due.activity.id,plannedAt:due.at});
+  var hard=hardDay(data.moods,now),harder=outlook(data.moods,now)[0].level==="harder";
+  if(!due&&!A.upcoming(saved,now)&&data.activityLater!==localDay(now)&&now.getHours()<21&&(hard||harder)){
+   var picks=A.favorites(saved);
+   out.push({kind:"activities",text:(harder&&!hard?"Today tends to be harder for you. ":"")+"Planning something you enjoy can lift a hard day."+(picks.length?" Pick one, or find something new.":" Find an idea that fits your time and energy."),
+    why:"Scheduling enjoyable or meaningful activities is one of the best-tested parts of therapy for low mood. How it goes for you shows in Insights once there are enough check-ins.",picks:picks});
+  }
+  return out;
+ }
+ // On Sunday evening, if morning alarms have moved around a lot, suggest one wake time for the week. Never less time in bed.
+ var WAKE_DAYS=14,WAKE_MIN_DAYS=6,WAKE_SPREAD=90;
+ function wakeTime(health,now){
+  if(now.getDay()!==0||now.getHours()<17)return null;
+  var from=now.getTime()-WAKE_DAYS*DAY_MS,times=health.filter(function(h){return Number.isFinite(h.firstAlarmMin)&&Date.parse(h.date+"T12:00:00")>=from;}).map(function(h){return h.firstAlarmMin;}).sort(function(a,b){return a-b;});
+  if(times.length<WAKE_MIN_DAYS||times[times.length-1]-times[0]<WAKE_SPREAD)return null;
+  var middle=Math.round(median(times)/15)*15;
+  return{text:"Your morning alarms over the last two weeks ranged from "+minuteLabel(times[0])+" to "+minuteLabel(times[times.length-1])+". Try getting up at "+minuteLabel(middle)+" every day this week, weekends too.",
+   why:"From "+plural(times.length,"day","days")+" of alarms. A steady wake time is a core part of therapy for insomnia. It doesn’t mean less time in bed: keep your usual bedtime."};
+ }
  function nextActions(data,today,prefs){
   var now=new Date(today),actions=[],ahead=anticipate(data.moods,data.events,data.health,now,Object.assign({},prefs,{resets:data.resets,tries:data.tries})).filter(function(a){return localDay(a.at)===localDay(now);})[0];
-  if(ahead)actions.push({text:ahead.message,why:ahead.why,action:"reset",label:"Take a minute"});
+  var calm=calmFirst(data.moods,now);
+  if(calm)actions.push(calm);
+  actions=actions.concat(activityActions(data,now));
+  if(ahead&&!calm)actions.push({text:ahead.message,why:ahead.why,action:"reset",label:"Take a minute"});
   var alarmBed=bedtimeForAlarm(data.alarms,data.health,now);
   if(alarmBed&&now.getHours()>=17){
    var name=alarmBed.alarm.label?" (“"+alarmBed.alarm.label+"”)":"";
    actions.push({text:"Your alarm"+name+" is at "+minuteLabel(alarmBed.alarm.timeMin)+" tomorrow. For your usual sleep, be in bed by "+minuteLabel(minutesOf(alarmBed.bed))+"."});
   }
   var help=helpAction(data,now);
-  if(help)actions.push(help);
+  if(help&&!(calm&&help.action==="reset"))actions.push(help);
+  var wake=wakeTime(data.health,now);
+  if(wake)actions.push(wake);
   if(data.connected&&(!data.lastUpload||now.getTime()-new Date(data.lastUpload).getTime()>RULES.staleHours*3600000))actions.push({text:"Run {{sync}} to bring in last night’s sleep and your calendar.",action:"sync",label:"Run {{sync}}"});
   return actions.slice(0,3);
  }
- var api={weekFigures:weekFigures,weekReview:weekReview,reflectionSlot:reflectionSlot,learnedMoves:learnedMoves,validDay:validDay,weekSchedule:weekSchedule,whatHelps:whatHelps,anticipate:anticipate,nextActions:nextActions,bedtimeForAlarm:bedtimeForAlarm,morningAlarm:morningAlarm,alarmsOn:alarmsOn,smartPlan:smartPlan,bedtimeReminder:bedtimeReminder,smartTimes:smartTimes,repeatTimes:repeatTimes,outlook:outlook,findings:findings,brief:brief,briefFor:briefFor,hardStretch:hardStretch,steadiness:steadiness,reflectionDue:reflectionDue,REFLECTION:REFLECTION};
+ var api={weekFigures:weekFigures,weekReview:weekReview,reflectionSlot:reflectionSlot,learnedMoves:learnedMoves,validDay:validDay,weekSchedule:weekSchedule,whatHelps:whatHelps,anticipate:anticipate,nextActions:nextActions,calmFirst:calmFirst,wakeTime:wakeTime,activityActions:activityActions,bedtimeForAlarm:bedtimeForAlarm,morningAlarm:morningAlarm,alarmsOn:alarmsOn,smartPlan:smartPlan,bedtimeReminder:bedtimeReminder,smartTimes:smartTimes,repeatTimes:repeatTimes,outlook:outlook,findings:findings,brief:brief,briefFor:briefFor,hardStretch:hardStretch,steadiness:steadiness,reflectionDue:reflectionDue,REFLECTION:REFLECTION};
  root.Coach=api;
  if(typeof document==="undefined"||!root.App)return;
 
@@ -595,7 +635,13 @@
  function $(id){return document.getElementById(id);}
  function element(tag,className,text){var e=document.createElement(tag);if(className)e.className=className;if(text!==undefined)e.textContent=text;return e;}
 
- function openReset(){if(!$("reset-dialog").open){$("reset-dialog").showModal();startBreathing();}}
+ function openReset(){if(!$("reset-dialog").open){$("reset-dialog").showModal();chooseReset("breathe");}}
+ var RESET_NOTES={breathe:"Four slow rounds. If it feels uncomfortable, breathe normally and stop.",relax:"Tense gently, never to the point of pain, and skip any part that hurts."};
+ function chooseReset(mode){
+  $("reset-breathe").setAttribute("aria-checked",String(mode==="breathe"));$("reset-relax").setAttribute("aria-checked",String(mode==="relax"));
+  $("reset-note").textContent=RESET_NOTES[mode];
+  if(mode==="relax")startRelaxing();else startBreathing();
+ }
  function saveBriefs(days,helper,name,hard,todayText){
   if(!("caches" in root))return;
   var body={};days.forEach(function(d){if(d.level!=="unknown")body[d.date]=d.level==="harder"?brief(d,helper,name):(name?"Good morning, "+name+". ":"")+brief(d,helper);});
@@ -615,13 +661,26 @@
   renderActions(data,personal,now);
  }
  function renderActions(data,personal,now){
-  var box=$("next-actions"),actions=nextActions({moods:personal,events:data.events,health:data.health,alarms:data.alarms,resets:data.resets,tries:data.tries,connected:data.connected,lastUpload:data.lastUpload},now,data.notifyPrefs);
+  var box=$("next-actions"),actions=nextActions({moods:personal,events:data.events,health:data.health,alarms:data.alarms,resets:data.resets,tries:data.tries,activities:data.activities,activityLater:data.activityLater,connected:data.connected,lastUpload:data.lastUpload},now,data.notifyPrefs);
   box.textContent="";box.hidden=!actions.length;
   actions.forEach(function(item){
    var row=element("div","next-action"),text=element("div");
    text.appendChild(element("p","",item.text));
    if(item.why){var more=element("details"),summary=element("summary","","Why this");more.appendChild(summary);more.appendChild(element("p","muted",item.why));text.appendChild(more);}
    row.appendChild(text);
+   if(item.kind==="activity-due"){
+    var yes=element("button","btn secondary","Done"),no=element("button","text-action","Not this time");yes.type=no.type="button";
+    yes.addEventListener("click",function(){root.App.answerActivity(item.activityId,item.plannedAt,true);});
+    no.addEventListener("click",function(){root.App.answerActivity(item.activityId,item.plannedAt,false);});
+    var answer=element("div","next-picks");answer.appendChild(yes);answer.appendChild(no);text.appendChild(answer);
+   }
+   if(item.kind==="activities"){
+    var picks=element("div","next-picks");
+    item.picks.forEach(function(a){var b=element("button","btn secondary",a.title);b.type="button";b.addEventListener("click",function(){root.Activities.plan(a);});picks.appendChild(b);});
+    var find=element("button","btn "+(item.picks.length?"subtle":"secondary"),item.picks.length?"Find something new":"Find an idea");find.type="button";find.addEventListener("click",function(){root.Activities.open();});picks.appendChild(find);
+    var later=element("button","text-action","Not today");later.type="button";later.addEventListener("click",function(){root.App.activityLater(localDay(new Date()));});picks.appendChild(later);
+    text.appendChild(picks);
+   }
    if(item.tryId){var done=element("button","text-action next-done","Done");done.type="button";done.setAttribute("aria-label","Mark done: "+item.text);done.addEventListener("click",function(){root.App.logTry(item.tryId);});row.appendChild(done);}
    if(item.action){var button=element("button","btn secondary",item.label);button.type="button";button.addEventListener("click",function(){if(item.action==="reset")openReset();else root.App.runShortcut();});row.appendChild(button);}
    box.appendChild(row);
@@ -705,6 +764,20 @@
   });
  }
  function stopBreathing(){clearTimeout(breathDelay);if(breathTimer)clearInterval(breathTimer);breathTimer=null;}
+ // Progressive muscle relaxation, shortened: tighten one group for 5 seconds, then let it go for 10, four times.
+ var MUSCLES=["Make tight fists","Lift your shoulders toward your ears","Squeeze your eyes shut and scrunch your face","Press your feet into the floor and tighten your legs"],TENSE_MS=5000,RELEASE_MS=10000;
+ function startRelaxing(){
+  var label=$("breath-label"),circle=$("breath-circle"),group=0;
+  stopBreathing();label.textContent="Get comfortable…";circle.dataset.step="3";
+  function tense(){label.textContent=MUSCLES[group]+"…";circle.dataset.step="0";breathDelay=setTimeout(release,TENSE_MS);}
+  function release(){
+   label.textContent="And let go. Notice how it feels.";circle.dataset.step="2";
+   // Like a breathing round, finishing the first group counts toward what tends to help.
+   if(group===0)root.App.logReset();
+   breathDelay=setTimeout(function(){group++;if(group>=MUSCLES.length){label.textContent="Nicely done.";circle.dataset.step="3";return;}tense();},RELEASE_MS);
+  }
+  breathDelay=setTimeout(tense,3000);
+ }
  function startBreathing(){
   var step=0,cycles=0,label=$("breath-label"),circle=$("breath-circle");
   stopBreathing();label.textContent="Get comfortable…";circle.dataset.step="3";
@@ -737,6 +810,8 @@
  $("week-review-close").addEventListener("click",function(){$("week-review").close();});
  $("open-reset").addEventListener("click",openReset);
  $("close-reset").addEventListener("click",function(){$("reset-dialog").close();});
+ $("reset-breathe").addEventListener("click",function(){chooseReset("breathe");});
+ $("reset-relax").addEventListener("click",function(){chooseReset("relax");});
  $("reset-dialog").addEventListener("close",stopBreathing);
  root.App.refreshCoach();
 })(globalThis);

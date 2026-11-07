@@ -32,15 +32,18 @@
  function validAlarm(a){
   return !!a&&Number.isInteger(a.timeMin)&&a.timeMin>=0&&a.timeMin<1440&&Array.isArray(a.days)&&a.days.every(function(d){return Number.isInteger(d)&&d>=0&&d<=6;});
  }
+ function times(list){return(Array.isArray(list)?list:[]).filter(isTime).slice(-60);}
+ function cleanActivity(a){return{id:a.id.slice(0,60),title:a.title.trim().slice(0,80),kinds:(Array.isArray(a.kinds)?a.kinds:[]).map(String).slice(0,7),minutes:Number.isInteger(a.minutes)?a.minutes:30,at:a.at,planned:times(a.planned),done:times(a.done)};}
  // What can be trusted from a restored file, and how much had to be left out.
  function clean(data){
-  var given={reflections:Array.isArray(data.reflections)?data.reflections:[],alarms:Array.isArray(data.alarms)?data.alarms:[],resets:Array.isArray(data.resets)?data.resets:[],tries:Array.isArray(data.tries)?data.tries:[],planLog:Array.isArray(data.planLog)?data.planLog:[],planMoves:Array.isArray(data.planMoves)?data.planMoves:[]};
+  var given={reflections:Array.isArray(data.reflections)?data.reflections:[],alarms:Array.isArray(data.alarms)?data.alarms:[],resets:Array.isArray(data.resets)?data.resets:[],tries:Array.isArray(data.tries)?data.tries:[],planLog:Array.isArray(data.planLog)?data.planLog:[],planMoves:Array.isArray(data.planMoves)?data.planMoves:[],activities:Array.isArray(data.activities)?data.activities:[]};
   var tries=given.tries.filter(function(t){return !!t&&typeof t.id==="string"&&isTime(t.at);}).map(function(t){return{id:t.id.slice(0,80),at:t.at};});
   var planLog=given.planLog.filter(function(p){return !!p&&/^\d{4}-\d{2}-\d{2}$/.test(String(p.date))&&Number.isInteger(p.minute)&&p.minute>=0&&p.minute<2880;});
   var planMoves=given.planMoves.filter(function(m){return !!m&&Number.isInteger(m.from)&&Number.isInteger(m.to)&&isTime(m.at);});
+  var activities=given.activities.filter(function(a){return !!a&&typeof a.id==="string"&&typeof a.title==="string"&&a.title.trim()&&isTime(a.at);}).map(cleanActivity);
   var reflections=given.reflections.filter(validReflection),resets=given.resets.filter(isTime);
   var alarms=given.alarms.filter(validAlarm).map(function(a){return{timeMin:a.timeMin,days:a.days,enabled:a.enabled!==false,label:String(a.label||"").slice(0,80)};});
-  return{reflections:reflections.slice(-520),alarms:alarms.slice(0,40),resets:resets.slice(-500),tries:tries.slice(-500),planLog:planLog.slice(-300),planMoves:planMoves.slice(-60),skipped:given.tries.length-tries.length+given.planLog.length-planLog.length+given.planMoves.length-planMoves.length+given.reflections.length-reflections.length+given.alarms.length-alarms.length+given.resets.length-resets.length};
+  return{reflections:reflections.slice(-520),alarms:alarms.slice(0,40),resets:resets.slice(-500),tries:tries.slice(-500),planLog:planLog.slice(-300),planMoves:planMoves.slice(-60),activities:activities.slice(-60),skipped:given.activities.length-activities.length+given.tries.length-tries.length+given.planLog.length-planLog.length+given.planMoves.length-planMoves.length+given.reflections.length-reflections.length+given.alarms.length-alarms.length+given.resets.length-resets.length};
  }
  root.Backup={protect:protect,unprotect:unprotect,isProtected:isProtected,clean:clean};
 })(globalThis);

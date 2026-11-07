@@ -1,6 +1,6 @@
 // Everything else a person makes in the app, kept in the account as simple records. Comparing with what the account last saw finds what to send, so no screen needs to know about syncing.
 (function(root){
- var LOGS=["resets","tries","planLog","planMoves"],BATCH=100,WAIT_MS=1500,timer=null,sending=false;
+ var LOGS=["resets","tries","planLog","planMoves","activities"],BATCH=100,WAIT_MS=1500,timer=null,sending=false;
  function logKey(item){return String((item.id?item.id+"|":"")+(item.at||item.ts||(item.date?item.date+"|"+item.minute:JSON.stringify(item)))).slice(0,160);}
  function typedPart(row,Items,hidden){
   var synced=Items.syncedKeys(row),out=null;

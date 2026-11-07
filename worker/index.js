@@ -41,7 +41,7 @@ async function payload(request){
  if(type.includes("application/x-www-form-urlencoded"))return Object.fromEntries(new URLSearchParams(text));
  try{return JSON.parse(text);}catch(e){return Object.fromEntries(new URLSearchParams(text));}
 }
-const VERSION_NAME="2.60.1";
+const VERSION_NAME="2.61.0";
 function normalEmail(value){return String(value||"").trim().toLowerCase();}
 async function signinAuth(env,ctx,request){
  const {createAuth}=await import("./signin.mjs");
@@ -782,7 +782,7 @@ async function syncedMoods(env,owner,since){
   moods:live.map(m=>{let tags=[];try{tags=JSON.parse(m.tags||"[]");}catch(e){/* Unreadable tags read as none. */}return{id:m.id,ts:m.ts,score:m.score,energy:m.energy,stress:m.stress,tags,note:m.note||""};}),
   deleted:(rows.results||[]).filter(m=>m.deleted_at).map(m=>m.id)};
 }
-const SHARED_KINDS=new Set(["resets","tries","planLog","planMoves","health","events"]),SHARED_LIMIT=12000;
+const SHARED_KINDS=new Set(["resets","tries","planLog","planMoves","activities","health","events"]),SHARED_LIMIT=12000;
 async function syncedShared(env,owner,since){
  const cursor=new Date().toISOString(),from=Number.isFinite(Date.parse(since))?new Date(since).toISOString():"";
  const rows=await env.DB.prepare("SELECT kind,key,data,deleted_at FROM health_shared WHERE owner_email=? AND updated_at>=? LIMIT ?").bind(owner,from,SHARED_LIMIT).all();
@@ -1225,11 +1225,28 @@ const shortcutPath=(path,env)=>SHORTCUT_PATHS.has(path)||path.startsWith("/api/s
 async function api(request,env,ctx,path){
  if(path==="/api/status"&&request.method==="GET")return reply({ok:true,app:BRAND.name,version:VERSION_NAME,sync:"email-access"});
  if(path.startsWith("/api/shortcut/build/")&&request.method==="GET")return shortcutBuild(path);
+ if(path==="/api/plan.ics"&&request.method==="GET")return planFile(new URL(request.url).searchParams,env);
  if(path.startsWith("/api/signin/"))return signinApi(request,env,ctx,path);
  if(path.startsWith("/api/user/"))return authApi(request,env,ctx,path);
  return syncApi(request,env,path);
 }
 
+// A calendar file for something a person planned, made from the address and kept nowhere. Safari offers to add it.
+function icsText(text){return text.replace(/[\\;,]/g,m=>"\\"+m);}
+function icsFold(line){const parts=[];for(let i=0;i<line.length;i+=60)parts.push((i?" ":"")+line.slice(i,i+60));return parts.join("\r\n");}
+function planFile(params,env){
+ const title=String(params.get("title")||"").replace(/[\u0000-\u001f\u007f]/g," ").replace(/\s+/g," ").trim().slice(0,80);
+ const start=String(params.get("start")||""),minutes=Number(params.get("minutes"));
+ const fields=/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})$/.exec(start);
+ const at=fields&&new Date(Date.UTC(+fields[1],+fields[2]-1,+fields[3],+fields[4],+fields[5]));
+ if(!title||!at||at.toISOString().slice(0,16).replace(/[-:]/g,"")!==start||!Number.isInteger(minutes)||minutes<5||minutes>240)return error("That plan couldn't be read.",400,"invalid_plan");
+ // Floating times, so the event lands at the time the person picked wherever their calendar is.
+ const local=date=>date.toISOString().slice(0,16).replace(/[-:]/g,"")+"00",end=new Date(at.getTime()+minutes*60000);
+ const lines=["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//"+icsText(BRAND.name)+"//Plan//EN","CALSCALE:GREGORIAN","METHOD:PUBLISH","BEGIN:VEVENT",
+  "UID:"+crypto.randomUUID()+"@"+new URL(env.PUBLIC_ORIGIN).host,"DTSTAMP:"+new Date().toISOString().replace(/[-:]/g,"").slice(0,15)+"Z","DTSTART:"+local(at),"DTEND:"+local(end),"SUMMARY:"+icsText(title),
+  "BEGIN:VALARM","ACTION:DISPLAY","DESCRIPTION:"+icsText(title),"TRIGGER:-PT10M","END:VALARM","END:VEVENT","END:VCALENDAR"];
+ return new Response(lines.map(icsFold).join("\r\n")+"\r\n",{headers:{...SECURITY,"Content-Type":"text/calendar; charset=utf-8","Content-Disposition":"inline; filename=\"plan.ics\"","Cache-Control":"no-store"}});
+}
 // Files come from the deployed version, so code and pages always match. The Worker runs first to add its headers.
 async function asset(request,env,path){
  const file=await env.STATIC.fetch(new Request(new URL(path==="/"?"/index.html":path,request.url),request));

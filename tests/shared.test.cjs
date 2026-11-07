@@ -2,7 +2,7 @@
 const test=require("node:test"),assert=require("node:assert/strict");
 require("../items.js");require("../shared.js");
 const{Items,Shared}=globalThis;
-const empty=()=>({resets:[],tries:[],planLog:[],planMoves:[],health:[],hiddenHealth:[],events:[],hiddenEvents:[],sharedSeen:{},sharedCursor:""});
+const empty=()=>({resets:[],tries:[],planLog:[],planMoves:[],activities:[],health:[],hiddenHealth:[],events:[],hiddenEvents:[],sharedSeen:{},sharedCursor:""});
 const copy=value=>JSON.parse(JSON.stringify(value));
 const settle=(state)=>{const found=Shared.changes(state,Items);found.send.forEach(r=>{state.sharedSeen[r.kind+":"+r.key]=found.now[r.kind+":"+r.key];});return found;};
 test("what a person made is found to send, and synced numbers and events aren't",()=>{

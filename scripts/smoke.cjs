@@ -48,6 +48,15 @@ async function run(type,base){
  const saveInView=await page.evaluate(()=>{const bar=document.querySelector(".bottom-nav").getBoundingClientRect().top,r=document.getElementById("save-mood").getBoundingClientRect();return r.top>=0&&r.bottom<=bar;});
  if(!saveInView)problems.push("Save isn't in view after choosing a mood.");
  for(const name of ["insights","sync","data","settings","checkin"])await tab(name);
+ await page.evaluate(()=>Activities.open());
+ await page.click("#activity-questions button[type=submit]");
+ if(!await page.evaluate(()=>document.querySelectorAll("#activity-idea-list .activity-idea").length))problems.push("The activity questions showed no ideas.");
+ await page.click("#activity-idea-list .activity-idea");
+ await page.click("#activity-later");
+ if(!await page.evaluate(()=>App.activities().length===1&&!document.getElementById("activity-sheet").open))problems.push("Saving an activity didn't keep it.");
+ await page.evaluate(()=>Coach.openReset());await page.click("#reset-relax");
+ if(await page.getAttribute("#reset-relax","aria-checked")!=="true")problems.push("Muscle relaxation didn't start.");
+ await page.click("#close-reset");
  await tab("settings");
  await page.click("#erase-local");
  if(!await page.evaluate(()=>document.getElementById("confirm-sheet").open))problems.push("The confirmation sheet didn't open.");

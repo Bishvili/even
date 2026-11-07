@@ -68,7 +68,7 @@ The public files are the ones listed in `SHELL` in `sw.js`. `scripts/build-asset
 
 ## Privacy
 
-Weekly reflections sync to your account like check-ins, and their reminder never shows your answers or score. Breathing sessions, suggestions marked done, which check-ins you answered, and anything added by hand sync to your account too.
+Weekly reflections sync to your account like check-ins, and their reminder never shows your answers or score. Breathing and muscle relaxation sessions, suggestions marked done, activities you plan, which check-ins you answered, and anything added by hand sync to your account too. Adding a planned activity to your calendar sends its title and time to make the calendar file, which isn't kept.
 
 Signing in on the install page creates a one-time code, used once, that signs the new icon in. The look you pick in Settings is saved on the device and in your account.
 

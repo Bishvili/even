@@ -1446,3 +1446,17 @@ test("stopping a sync refuses the rest of that run and its reruns, and a fresh r
  assert.equal((await sync(B)).run,null);
  assert.equal((await call("/api/session",{headers:A})).data.syncRuns.length,9);
 });
+
+test("a planned activity becomes a calendar file made from the address, with nothing stored",async()=>{
+ const{env,runtime,rows}=harness();
+ const before=JSON.stringify([...Object.entries(rows)].map(([k,v])=>[k,v instanceof Map?[...v.entries()]:v]));
+ const get=q=>runtime.__worker.fetch(new Request("https://health.bishvili.org/api/plan.ics?"+q),env,{});
+ const ok=await get("title="+encodeURIComponent("Walk, then call Sam; slowly\nok")+"&start=20261107T0930&minutes=30");
+ assert.equal(ok.status,200);assert.match(ok.headers.get("Content-Type"),/^text\/calendar/);
+ const text=await ok.text();
+ assert.match(text,/DTSTART:20261107T093000\r\n/);assert.match(text,/DTEND:20261107T100000\r\n/);
+ assert.ok(text.includes("SUMMARY:Walk\\, then call Sam\\; slowly ok\r\n"));assert.match(text,/TRIGGER:-PT10M/);
+ for(const q of ["title=&start=20261107T0930&minutes=30","title=Walk&start=20261332T0930&minutes=30","title=Walk&start=20261107T0930&minutes=2","title=Walk&start=2026-11-07&minutes=30"])
+  assert.equal((await get(q)).status,400,q);
+ assert.equal(JSON.stringify([...Object.entries(rows)].map(([k,v])=>[k,v instanceof Map?[...v.entries()]:v])),before);
+});
