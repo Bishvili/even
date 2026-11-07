@@ -14,4 +14,5 @@ What a rollback does not undo:
 - **Installed apps.** They pick up the older files the next time they check for an update.
 
 The steps were tried on 5 November 2026 by redeploying the current version at 100%, which changed nothing and confirmed the call works. Going back to an older version hasn't been tried on production.
+- **Version numbers restarted at 0.9.0.** Versions numbered 2.x came before it, ending with 2.61.0, the same code as 0.9.0.
 - **Don't go back past 2.44.7.** Earlier versions expect a retired address, and versions before 2.42.0 read a database that no longer exists.

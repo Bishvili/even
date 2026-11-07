@@ -19,7 +19,7 @@ No other skill is required. Compiling and signing the Shortcut happens in GitHub
 
 ### Owner steps
 
-The repository owner grants these, using the new developer's own accounts:
+Setting up the Cloudflare account itself, and starting the data over, are in `CLOUDFLARE.md`. The repository owner grants these, using the new developer's own accounts:
 
 1. **GitHub:** add them as a collaborator on `Bishvili/health` with write access.
 2. **Cloudflare:** invite them to the Bishvili account with access to Workers, KV, and D1. Pushes deploy through Workers Builds, so this is not needed just to deploy.

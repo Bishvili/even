@@ -47,6 +47,9 @@ The file `device-key.txt` in a `Health Sync` folder in On My iPhone holds the pr
 
 ## Deployment configuration
 
+Setting up Cloudflare from nothing, adding the first testers and starting the data over are in [CLOUDFLARE.md](CLOUDFLARE.md).
+
+
 - Worker secrets: `APPROVED_SYNC_EMAILS`, `BETTER_AUTH_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `RESEND_API_KEY`, `VAPID_PRIVATE_KEY` and `GITHUB_API_KEY`. Manage them in Cloudflare, not in GitHub. Testers are added in the app.
 - Worker bindings: STATIC (the app's files), ASSETS (Workers KV, release records), DB (D1).
 - Database: `db/migrations`, with `db/schema.sql` as the current model.
